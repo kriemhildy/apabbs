@@ -94,11 +94,39 @@ fn unauthorized() -> Response {
     http_code(StatusCode::UNAUTHORIZED, "unauthorized")
 }
 
+const USER_COOKIE: &'static str = "user";
+const SCHEME_HEADER: &'static str = "X-Forwarded-Proto";
+
+mod user;
+use user::User;
+
 use axum::{extract::State, http::HeaderMap, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
+    let user = match jar.get(USER_COOKIE) {
+        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+            Some(user) => user,
+            None => return bad_request("user not found"),
+        },
+        None => {
+            let user = User::insert(&mut tx).await;
+            let scheme = headers
+                .get(SCHEME_HEADER)
+                .expect("get scheme header")
+                .as_bytes();
+            let cookie = Cookie::build((USER_COOKIE, user.token.clone()))
+                .secure(scheme == b"https")
+                .http_only(true)
+                .same_site(SameSite::Strict)
+                .permanent()
+                .build();
+            jar = jar.add(cookie);
+            user
+        }
+    };
     tx.commit().await.expect("commit transaction");
-    Html(render(state.jinja, "index.jinja", minijinja::context!())).into_response()
+    let html = Html(render(state.jinja, "index.jinja", minijinja::context!()));
+    (jar, html).into_response()
 }
