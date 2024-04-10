@@ -98,5 +98,7 @@ use axum::{extract::State, http::HeaderMap, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: CookieJar) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
+    tx.commit().await.expect("commit transaction");
     Html(render(state.jinja, "index.jinja", minijinja::context!())).into_response()
 }
