@@ -1,0 +1,60 @@
+@media (prefers-color-scheme: dark) {
+    body,
+    textarea,
+    input {
+        background: black;
+        color: #e3e3e3;
+    }
+
+    a {
+        color: #9cdcda;
+    }
+
+    input,
+    textarea {
+        border-color: #666;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    body,
+    textarea,
+    input {
+        background: white;
+        color: black;
+    }
+
+    a {
+        color: blue;
+    }
+
+    input,
+    textarea {
+        border-color: #ccc;
+    }
+}
+
+body {
+    margin: 10px 10px 50px 10px;
+}
+
+@media (min-width: 600px) {
+    body {
+        margin-left: 50px;
+        margin-right: 50px;
+    }
+}
+
+input,
+textarea {
+    padding: 5px;
+    border-radius: 5px;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
