@@ -1,0 +1,14 @@
+/* Only applied on non-Mac operating systems to WebKit browsers */
+
+body::-webkit-scrollbar {
+    width: 6px;
+}
+
+body::-webkit-scrollbar-track {
+    background-color: var(--back);
+}
+
+body::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 6px;
+}

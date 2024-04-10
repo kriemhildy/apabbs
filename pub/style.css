@@ -1,36 +1,18 @@
 @media (prefers-color-scheme: dark) {
-    body,
-    textarea,
-    input {
-        background: black;
-        color: #e3e3e3;
-    }
-
-    a {
-        color: #9cdcda;
-    }
-
-    input,
-    textarea {
-        border-color: #666;
+    body {
+        --back: black;
+        --fore: #e3e3e3;
+        --link: #9cdcda;
+        --border: #666;
     }
 }
 
 @media (prefers-color-scheme: light) {
-    body,
-    textarea,
-    input {
-        background: white;
-        color: black;
-    }
-
-    a {
-        color: blue;
-    }
-
-    input,
-    textarea {
-        border-color: #ccc;
+    body {
+        --back: white;
+        --fore: black;
+        --link: blue;
+        --border: #ccc;
     }
 }
 
@@ -45,13 +27,25 @@ body {
     }
 }
 
+body,
+textarea,
+input {
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    color: var(--fore);
+    background: var(--back);
+    max-width: 700px;
+}
+
 input,
 textarea {
     padding: 5px;
     border-radius: 5px;
+    border-color: var(--border);
 }
 
 a {
+    color: var(--link);
     text-decoration: none;
 }
 
