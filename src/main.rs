@@ -102,5 +102,5 @@ async fn index(
     headers: HeaderMap,
     mut jar: CookieJar,
 ) -> Response {
-    String::from("hello schizo").into_response()
+    Html(render(state.jinja, "index.jinja", minijinja::context!())).into_response()
 }
