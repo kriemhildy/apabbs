@@ -10,7 +10,19 @@
 </head>
 
 <body>
-    <p>schizo.land</p>
+    <h3>schizo.land</h3>
+    <p>write a post. if it is approved, it will show up later.</p>
+    <form action="/post" method="post">
+        <textarea name="post"></textarea><br>
+        <input type="submit" value="Post">
+    </form>
+    <p>you can avoid requiring approval by logging in and making enough approved posts.</p>
+    <form action="/login" method="post">
+        login: <input type="text" name="login">
+        password: <input type="password" name="password">
+        <input type="submit" value="Log in">
+    </form>
+    <p>here are the posts that have been displayed thus far:</p>
 </body>
 
 </html>
