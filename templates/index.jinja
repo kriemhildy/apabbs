@@ -19,18 +19,19 @@
         </fieldset>
     </form>
     <p>
-        you can avoid requiring approval by registering an account and becoming a trusted user.
+        you can avoid requiring approval by registering an account.
+        if you make enough approved posts, you can be made trusted.
         this privilege can be revoked, however.
         an account will also allow you to (optionally) have a username.
     </p>
     <form action="/register" method="post" id="register-form">
         <fieldset>
             <legend>user registration</legend>
-            <label for="register-username">username:</label><br>
+            <label for="register-username">username:</label>
             <input type="text" name="username" id="register-username" size="16"><br>
-            <label for="register-password">password:</label><br>
+            <label for="register-password">password:</label>
             <input type="password" name="password" id="register-password"><br>
-            <label for="register-password-confirmation">password (again):</label><br>
+            <label for="register-password-confirmation">password (again):</label>
             <input type="password" name="password_confirmation" id="register-password-confirmation"><br>
             <input type="submit" value="Register account">
         </fieldset>
@@ -39,14 +40,14 @@
     <form action="/login" method="post" id="login-form">
         <fieldset>
             <legend>user login</legend>
-            <label for="login-username">username:</label><br>
+            <label for="login-username">username:</label>
             <input type="text" name="username" id="login-username" size="16"><br>
-            <label for="login-password">password:</label><br>
+            <label for="login-password">password:</label>
             <input type="password" name="password" id="login-password"><br>
             <input type="submit" value="Log in">
         </fieldset>
     </form>
-    <p>here are the posts that have been displayed thus far:</p>
+    <p>here are the last 100 approved posts:</p>
 </body>
 
 </html>

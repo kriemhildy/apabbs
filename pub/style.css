@@ -40,7 +40,10 @@ input {
 textarea {
     width: 97%;
     height: 7em;
-    margin-bottom: 5px;
+}
+
+input[type="submit"] {
+    margin-top: 10px;
 }
 
 input,
