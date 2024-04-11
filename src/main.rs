@@ -99,6 +99,8 @@ const SCHEME_HEADER: &'static str = "X-Forwarded-Proto";
 
 mod user;
 use user::User;
+mod post;
+use post::Post;
 
 use axum::{extract::State, http::HeaderMap, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -132,8 +134,9 @@ async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: Cooki
     //         user
     //     }
     // };
+    let posts = Post::select_latest_approved_100(&mut tx).await;
     tx.commit().await.expect("commit transaction");
-    let html = Html(render(state.jinja, "index.jinja", minijinja::context!()));
+    let html = Html(render(state.jinja, "index.jinja", minijinja::context!(posts)));
     (jar, html).into_response()
 }
 

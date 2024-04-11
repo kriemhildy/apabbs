@@ -14,7 +14,9 @@
     <form action="/submit-post" method="post" id="post-form">
         <fieldset>
             <legend>write a post. if it is approved, it will show up later.</legend>
-            <textarea name="body"></textarea><br>
+            <input type="hidden" name="id" value="0">
+            <input type="hidden" name="anon" value="true">
+            <textarea name="body" id="post-body"></textarea><br>
             <input type="submit" value="Submit post for review">
         </fieldset>
     </form>
@@ -47,7 +49,10 @@
             <input type="submit" value="Log in">
         </fieldset>
     </form>
-    <p>here are the last 100 approved posts:</p>
+    <p>here are the latest 100 approved posts:</p>
+    {%- for post in posts %}
+    <p>{{ post.body }}</p>
+    {%- endfor %}
 </body>
 
 </html>
