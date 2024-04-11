@@ -21,12 +21,49 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: posts; Type: TABLE; Schema: public; Owner: schiz
+--
+
+CREATE TABLE public.posts (
+    id integer NOT NULL,
+    body character varying(10000) NOT NULL,
+    user_id integer,
+    anon boolean DEFAULT true NOT NULL,
+    created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL
+);
+
+
+ALTER TABLE public.posts OWNER TO schiz;
+
+--
+-- Name: posts_id_seq; Type: SEQUENCE; Schema: public; Owner: schiz
+--
+
+CREATE SEQUENCE public.posts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.posts_id_seq OWNER TO schiz;
+
+--
+-- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: schiz
+--
+
+ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: schiz
 --
 
 CREATE TABLE public.users (
     id integer NOT NULL,
-    created timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL,
+    created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL,
     token character(36) DEFAULT gen_random_uuid() NOT NULL
 );
 
@@ -56,10 +93,48 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
+-- Name: posts id; Type: DEFAULT; Schema: public; Owner: schiz
+--
+
+ALTER TABLE ONLY public.posts ALTER COLUMN id SET DEFAULT nextval('public.posts_id_seq'::regclass);
+
+
+--
 -- Name: users id; Type: DEFAULT; Schema: public; Owner: schiz
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: posts posts_pkey; Type: CONSTRAINT; Schema: public; Owner: schiz
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: schiz
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users_token_idx; Type: INDEX; Schema: public; Owner: schiz
+--
+
+CREATE INDEX users_token_idx ON public.users USING btree (token);
+
+
+--
+-- Name: posts posts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: schiz
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
