@@ -11,10 +11,10 @@
 
 <body>
     <h3>schizo.land</h3>
-    <form action="/post" method="post" id="post-form">
+    <form action="/submit-post" method="post" id="post-form">
         <fieldset>
             <legend>write a post. if it is approved, it will show up later.</legend>
-            <textarea name="post"></textarea><br>
+            <textarea name="body"></textarea><br>
             <input type="submit" value="Submit post for review">
         </fieldset>
     </form>
@@ -24,7 +24,7 @@
         this privilege can be revoked, however.
         an account will also allow you to (optionally) have a username.
     </p>
-    <form action="/register" method="post" id="register-form">
+    <form action="/register-user" method="post" id="register-form">
         <fieldset>
             <legend>user registration</legend>
             <label for="register-username">username:</label>
@@ -37,7 +37,7 @@
         </fieldset>
     </form>
     <p>if you already have an account, log in:</p>
-    <form action="/login" method="post" id="login-form">
+    <form action="/authenticate-user" method="post" id="login-form">
         <fieldset>
             <legend>user login</legend>
             <label for="login-username">username:</label>
