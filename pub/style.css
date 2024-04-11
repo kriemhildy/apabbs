@@ -63,5 +63,5 @@ a:hover {
 }
 
 fieldset {
-    border-color: var(--border);
+    border-color: var(--back);
 }
