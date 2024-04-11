@@ -14,12 +14,30 @@
     <p>write a post. if it is approved, it will show up later.</p>
     <form action="/post" method="post">
         <textarea name="post"></textarea><br>
-        <input type="submit" value="Post">
+        <input type="submit" value="Submit post for review">
     </form>
-    <p>you can avoid requiring approval by logging in and making enough approved posts.</p>
-    <form action="/login" method="post">
-        login: <input type="text" name="login" size="16">
-        password: <input type="password" name="password">
+    <p>
+        you can avoid requiring approval by registering an account and becoming a trusted user.
+        this privilege can be revoked, however.
+        an account will also allow you to (optionally) have a username.
+    </p>
+    <form action="/register" method="post" id="register-form">
+        <legend>user registration</legend>
+        <label for="register-username">username:</label><br>
+        <input type="text" name="username" id="register-username" size="16"><br>
+        <label for="register-password">password:</label><br>
+        <input type="password" name="password" id="register-password"><br>
+        <label for="register-password-confirmation">password (again):</label><br>
+        <input type="password" name="password_confirmation" id="register-password-confirmation"><br>
+        <input type="submit" value="Register account">
+    </form>
+    <p>if you already have an account, log in:</p>
+    <form action="/login" method="post" id="login-form">
+        <legend>user login</legend>
+        <label for="login-username">username:</label><br>
+        <input type="text" name="username" id="login-username" size="16"><br>
+        <label for="login-password">password:</label><br>
+        <input type="password" name="password" id="login-password"><br>
         <input type="submit" value="Log in">
     </form>
     <p>here are the posts that have been displayed thus far:</p>

@@ -105,28 +105,46 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    let user = match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-            Some(user) => user,
-            None => return bad_request("user not found"),
-        },
-        None => {
-            let user = User::insert(&mut tx).await;
-            let scheme = headers
-                .get(SCHEME_HEADER)
-                .expect("get scheme header")
-                .as_bytes();
-            let cookie = Cookie::build((USER_COOKIE, user.token.clone()))
-                .secure(scheme == b"https")
-                .http_only(true)
-                .same_site(SameSite::Strict)
-                .permanent()
-                .build();
-            jar = jar.add(cookie);
-            user
-        }
-    };
+    // let user = match jar.get(USER_COOKIE) {
+    //     Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+    //         Some(user) => user,
+    //         None => return bad_request("user not found"),
+    //     },
+    //     None => {
+    //         // should probably only create user and cookie on post attempt.
+    //         // if it's merely a "session", they should be separate records.
+    //         // otherwise we will have to replace the current user with another one upon login.
+    //         // we don't need session storage until they log in or post, basically.
+    //         // a logged-out user's post should not be connected to a logged-in user.
+    //         // we will have to limit it to one pending post per session though.
+    //         let user = User::insert(&mut tx).await;
+    //         let scheme = headers
+    //             .get(SCHEME_HEADER)
+    //             .expect("get scheme header")
+    //             .as_bytes();
+    //         let cookie = Cookie::build((USER_COOKIE, user.token.clone()))
+    //             .secure(scheme == b"https")
+    //             .http_only(true)
+    //             .same_site(SameSite::Strict)
+    //             .permanent()
+    //             .build();
+    //         jar = jar.add(cookie);
+    //         user
+    //     }
+    // };
     tx.commit().await.expect("commit transaction");
     let html = Html(render(state.jinja, "index.jinja", minijinja::context!()));
     (jar, html).into_response()
+}
+
+macro_rules! user {
+    ($tx:expr, $jar:expr) => {
+        match $jar.get(USER_COOKIE) {
+            Some(cookie) => match User::select(&mut $tx, cookie.value()).await {
+                Some(user) => user,
+                None => return bad_request("user not found"),
+            },
+            None => return bad_request("no user cookie"),
+        }
+    };
 }
