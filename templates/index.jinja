@@ -20,6 +20,7 @@
             <input type="submit" value="Submit post for review">
         </fieldset>
     </form>
+    {%- if user is none %}
     <p>
         you can avoid requiring approval by registering an account.
         if you make enough approved posts, you can be made trusted.
@@ -49,6 +50,7 @@
             <input type="submit" value="Log in">
         </fieldset>
     </form>
+    {%- endif %}
     <p>here are the latest 100 approved posts:</p>
     {%- for post in posts %}
     <p>{{ post.body }}</p>

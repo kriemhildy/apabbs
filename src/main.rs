@@ -134,9 +134,10 @@ async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: Cooki
     //         user
     //     }
     // };
+    let user: Option<User> = None;
     let posts = Post::select_latest_approved_100(&mut tx).await;
     tx.commit().await.expect("commit transaction");
-    let html = Html(render(state.jinja, "index.jinja", minijinja::context!(posts)));
+    let html = Html(render(state.jinja, "index.jinja", minijinja::context!(user, posts)));
     (jar, html).into_response()
 }
 
