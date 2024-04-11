@@ -11,10 +11,12 @@
 
 <body>
     <h3>schizo.land</h3>
-    <p>write a post. if it is approved, it will show up later.</p>
-    <form action="/post" method="post">
-        <textarea name="post"></textarea><br>
-        <input type="submit" value="Submit post for review">
+    <form action="/post" method="post" id="post-form">
+        <legend>write a post. if it is approved, it will show up later.</legend>
+        <fieldset>
+            <textarea name="post"></textarea><br>
+            <input type="submit" value="Submit post for review">
+        </fieldset>
     </form>
     <p>
         you can avoid requiring approval by registering an account and becoming a trusted user.
