@@ -1,4 +1,4 @@
-#[derive(sqlx::FromRow, serde::Serialize)]
+#[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize)]
 pub struct Post {
     pub id: i32,
     pub body: String,
@@ -32,5 +32,13 @@ impl Post {
             .fetch_all(&mut *tx)
             .await
             .expect("select latest 100 posts")
+    }
+
+    pub async fn insert(self, tx: &mut PgConnection) -> i32 {
+        sqlx::query_scalar("INSERT INTO posts (body) VALUES ($1) RETURNING id")
+            .bind(self.body.as_str())
+            .fetch_one(&mut *tx)
+            .await
+            .expect("insert new post")
     }
 }

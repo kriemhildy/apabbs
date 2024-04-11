@@ -33,6 +33,7 @@ fn router(state: AppState) -> axum::Router {
     use axum::routing::{get, post};
     axum::Router::new()
         .route("/", get(index))
+        .route("/submit-post", post(submit_post))
         .layer(trace())
         .with_state(state)
 }
@@ -137,7 +138,11 @@ async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: Cooki
     let user: Option<User> = None;
     let posts = Post::select_latest_approved_100(&mut tx).await;
     tx.commit().await.expect("commit transaction");
-    let html = Html(render(state.jinja, "index.jinja", minijinja::context!(user, posts)));
+    let html = Html(render(
+        state.jinja,
+        "index.jinja",
+        minijinja::context!(user, posts),
+    ));
     (jar, html).into_response()
 }
 
@@ -151,4 +156,18 @@ macro_rules! user {
             None => return bad_request("no user cookie"),
         }
     };
+}
+
+use axum::response::Redirect;
+use axum::Form;
+
+async fn submit_post(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(post): Form<Post>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
+    post.insert(&mut tx).await;
+    tx.commit().await.expect("commit transaction");
+    Redirect::to("/").into_response()
 }
