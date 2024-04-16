@@ -3,14 +3,10 @@
 pub struct Post {
     pub id: i32,
     pub body: String,
-    pub user_id: Option<i32>,
-    #[serde(default = "default_anon")]
+    pub user_id: i32,
     pub anon: bool,
 }
 
-fn default_anon() -> bool {
-    true
-}
 
 use sqlx::PgConnection;
 
@@ -41,8 +37,9 @@ impl Post {
     }
 
     pub async fn insert(self, tx: &mut PgConnection, user_id: i32) -> i32 {
-        sqlx::query_scalar("INSERT INTO posts (body) VALUES ($1) RETURNING id")
+        sqlx::query_scalar("INSERT INTO posts (body, user_id) VALUES ($1, $2) RETURNING id")
             .bind(self.body.as_str())
+            .bind(user_id)
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post")

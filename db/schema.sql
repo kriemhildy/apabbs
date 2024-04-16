@@ -64,7 +64,8 @@ ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 CREATE TABLE public.users (
     id integer NOT NULL,
     created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL,
-    token character(36) DEFAULT gen_random_uuid() NOT NULL
+    token character(36) DEFAULT gen_random_uuid() NOT NULL,
+    name character(16)
 );
 
 
@@ -112,6 +113,14 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_name_key; Type: CONSTRAINT; Schema: public; Owner: schiz
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_name_key UNIQUE (name);
 
 
 --
