@@ -40,7 +40,7 @@ impl Post {
             .expect("select latest 100 posts")
     }
 
-    pub async fn insert(self, tx: &mut PgConnection) -> i32 {
+    pub async fn insert(self, tx: &mut PgConnection, user_id: i32) -> i32 {
         sqlx::query_scalar("INSERT INTO posts (body) VALUES ($1) RETURNING id")
             .bind(self.body.as_str())
             .fetch_one(&mut *tx)

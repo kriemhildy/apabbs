@@ -99,6 +99,19 @@ fn unauthorized() -> Response {
 const USER_COOKIE: &'static str = "user";
 const SCHEME_HEADER: &'static str = "X-Forwarded-Proto";
 
+fn build_cookie(headers: HeaderMap, token: String) -> Cookie<'static> {
+    let scheme = headers
+        .get(SCHEME_HEADER)
+        .expect("get scheme header")
+        .as_bytes();
+    Cookie::build((USER_COOKIE, token))
+        .secure(scheme == b"https")
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .permanent()
+        .build()
+}
+
 mod user;
 use user::User;
 mod post;
@@ -107,35 +120,8 @@ use post::Post;
 use axum::{extract::State, http::HeaderMap, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
-async fn index(State(state): State<AppState>, headers: HeaderMap, mut jar: CookieJar) -> Response {
+async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    // let user = match jar.get(USER_COOKIE) {
-    //     Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-    //         Some(user) => user,
-    //         None => return bad_request("user not found"),
-    //     },
-    //     None => {
-    //         // should probably only create user and cookie on post attempt.
-    //         // if it's merely a "session", they should be separate records.
-    //         // otherwise we will have to replace the current user with another one upon login.
-    //         // we don't need session storage until they log in or post, basically.
-    //         // a logged-out user's post should not be connected to a logged-in user.
-    //         // we will have to limit it to one pending post per session though.
-    //         let user = User::insert(&mut tx).await;
-    //         let scheme = headers
-    //             .get(SCHEME_HEADER)
-    //             .expect("get scheme header")
-    //             .as_bytes();
-    //         let cookie = Cookie::build((USER_COOKIE, user.token.clone()))
-    //             .secure(scheme == b"https")
-    //             .http_only(true)
-    //             .same_site(SameSite::Strict)
-    //             .permanent()
-    //             .build();
-    //         jar = jar.add(cookie);
-    //         user
-    //     }
-    // };
     let user: Option<User> = None;
     let posts = Post::select_latest_approved_100(&mut tx).await;
     tx.commit().await.expect("commit transaction");
@@ -164,15 +150,35 @@ use axum::Form;
 
 async fn submit_post(
     State(state): State<AppState>,
-    jar: CookieJar,
+    headers: HeaderMap,
+    mut jar: CookieJar,
     Form(post): Form<Post>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     // create an anon user and a cookie here, if one is not already set.
     // posting is a first act of 'registration'.
-    post.insert(&mut tx).await;
+    let user = match jar.get(USER_COOKIE) {
+        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+            Some(user) => user,
+            None => return bad_request("user not found"),
+        },
+        None => {
+            // should probably only create user and cookie on post attempt.
+            // if it's merely a "session", they should be separate records.
+            // otherwise we will have to replace the current user with another one upon login.
+            // we don't need session storage until they log in or post, basically.
+            // a logged-out user's post should not be connected to a logged-in user.
+            // we will have to limit it to one pending post per session though.
+            let user = User::insert_anon(&mut tx).await;
+            let cookie = build_cookie(headers, user.token.clone());
+            jar = jar.add(cookie);
+            user
+        }
+    };
+    post.insert(&mut tx, user.id).await;
     tx.commit().await.expect("commit transaction");
-    Redirect::to("/").into_response()
+    let redirect = Redirect::to("/");
+    (jar, redirect).into_response()
 }
 
 // do we want one users table, or separate ones for anon and authed?

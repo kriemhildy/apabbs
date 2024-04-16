@@ -22,7 +22,7 @@ impl User {
             .expect("select user by token")
     }
 
-    pub async fn insert(tx: &mut PgConnection) -> User {
+    pub async fn insert_anon(tx: &mut PgConnection) -> User {
         sqlx::query_as("INSERT INTO users DEFAULT VALUES RETURNING *")
             .fetch_one(&mut *tx)
             .await
