@@ -11,45 +11,47 @@
 
 <body>
     <h1>schizo.land</h1>
-    <p>
-        write a post. if it is approved, it will show up later.
-    </p>
-    <form action="/submit-post" method="post" id="post-form">
-        <fieldset>
-            <legend>new post</legend>
-            <input type="hidden" name="id" value="0">
-            <input type="hidden" name="anon" value="true">
-            <textarea name="body" id="post-body"></textarea><br>
-            <input type="submit" value="Submit post for review">
-        </fieldset>
-    </form>
-    {%- if user is none %}
-    <p>
-        you can avoid requiring approval by registering an account.
-    </p>
-    <form action="/register-user" method="post" id="register-form">
-        <fieldset>
-            <legend>user registration</legend>
-            <label for="register-username">username:</label>
-            <input type="text" name="username" id="register-username" size="16"><br>
-            <label for="register-password">password:</label>
-            <input type="password" name="password" id="register-password"><br>
-            <label for="register-password-confirmation">password (again):</label>
-            <input type="password" name="password_confirmation" id="register-password-confirmation"><br>
-            <input type="submit" value="Register account">
-        </fieldset>
-    </form>
-    <p>if you have an account, log in.</p>
-    <form action="/authenticate-user" method="post" id="login-form">
-        <fieldset>
-            <legend>user login</legend>
-            <label for="login-username">username:</label>
-            <input type="text" name="username" id="login-username" size="16"><br>
-            <label for="login-password">password:</label>
-            <input type="password" name="password" id="login-password"><br>
-            <input type="submit" value="Log in">
-        </fieldset>
-    </form>
+    <section id="forms">
+        <p>
+            write a post. if it is approved, it will show up later.
+        </p>
+        <form action="/submit-post" method="post" id="post-form">
+            <fieldset>
+                <legend>new post</legend>
+                <input type="hidden" name="id" value="0">
+                <input type="hidden" name="anon" value="true">
+                <textarea name="body" id="post-body"></textarea><br>
+                <input type="submit" value="Submit post for review">
+            </fieldset>
+        </form>
+        {%- if user is none %}
+        <p>
+            you can avoid requiring approval by registering an account.
+        </p>
+        <form action="/register-user" method="post" id="register-form">
+            <fieldset>
+                <legend>user registration</legend>
+                <label for="register-username">username:</label>
+                <input type="text" name="username" id="register-username" size="16"><br>
+                <label for="register-password">password:</label>
+                <input type="password" name="password" id="register-password"><br>
+                <label for="register-password-confirmation">password (again):</label>
+                <input type="password" name="password_confirmation" id="register-password-confirmation"><br>
+                <input type="submit" value="Register account">
+            </fieldset>
+        </form>
+        <p>if you have an account, log in.</p>
+        <form action="/authenticate-user" method="post" id="login-form">
+            <fieldset>
+                <legend>user login</legend>
+                <label for="login-username">username:</label>
+                <input type="text" name="username" id="login-username" size="16"><br>
+                <label for="login-password">password:</label>
+                <input type="password" name="password" id="login-password"><br>
+                <input type="submit" value="Log in">
+            </fieldset>
+        </form>
+    </section>
     {%- endif %}
     <p>here are the latest 100 approved posts:</p>
     {%- for post in posts %}

@@ -34,7 +34,14 @@ input {
     font-size: 12px;
     color: var(--fore);
     background: var(--back);
-    max-width: 700px;
+}
+
+@media (min-width: 800px) {
+    section#forms {
+        width: 50%;
+        float: right;
+        margin-top: -1em;
+    }
 }
 
 textarea {
