@@ -21,17 +21,6 @@
             </fieldset>
         </form>
         {%- if user is none %}
-        <p class="system">you can avoid requiring approval by registering an account.</p>
-        <form action="/register-user" method="post" id="register-form">
-            <fieldset>
-                <legend>user registration</legend>
-                <label for="register-username">username:</label>
-                <input type="text" name="username" id="register-username" size="16"><br>
-                <label for="register-password">password:</label>
-                <input type="password" name="password" id="register-password"><br>
-                <input type="submit" value="Register account">
-            </fieldset>
-        </form>
         <p class="system">if you have an account, log in.</p>
         <form action="/authenticate-user" method="post" id="login-form">
             <fieldset>
@@ -41,6 +30,17 @@
                 <label for="login-password">password:</label>
                 <input type="password" name="password" id="login-password"><br>
                 <input type="submit" value="Log in">
+            </fieldset>
+        </form>
+        <p class="system">you can avoid requiring approval by registering an account.</p>
+        <form action="/register-user" method="post" id="register-form">
+            <fieldset>
+                <legend>user registration</legend>
+                <label for="register-username">username:</label>
+                <input type="text" name="username" id="register-username" size="16"><br>
+                <label for="register-password">password:</label>
+                <input type="password" name="password" id="register-password"><br>
+                <input type="submit" value="Register account">
             </fieldset>
         </form>
         {%- else %}
