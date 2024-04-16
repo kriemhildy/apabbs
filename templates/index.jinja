@@ -10,10 +10,13 @@
 </head>
 
 <body>
-    <h3>schizo.land</h3>
+    <h1>schizo.land</h1>
+    <p>
+        write a post. if it is approved, it will show up later.
+    </p>
     <form action="/submit-post" method="post" id="post-form">
         <fieldset>
-            <legend>write a post. if it is approved, it will show up later.</legend>
+            <legend>new post</legend>
             <input type="hidden" name="id" value="0">
             <input type="hidden" name="anon" value="true">
             <textarea name="body" id="post-body"></textarea><br>
@@ -36,7 +39,7 @@
             <input type="submit" value="Register account">
         </fieldset>
     </form>
-    <p>if you have an account, log in:</p>
+    <p>if you have an account, log in.</p>
     <form action="/authenticate-user" method="post" id="login-form">
         <fieldset>
             <legend>user login</legend>
