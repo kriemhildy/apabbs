@@ -1,9 +1,15 @@
-#[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize)]
+#[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize, Default)]
+#[serde(default)]
 pub struct Post {
     pub id: i32,
     pub body: String,
     pub user_id: Option<i32>,
+    #[serde(default = "default_anon")]
     pub anon: bool,
+}
+
+fn default_anon() -> bool {
+    true
 }
 
 use sqlx::PgConnection;
