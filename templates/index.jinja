@@ -51,8 +51,8 @@
                 <input type="submit" value="Log in">
             </fieldset>
         </form>
+        {%- endif %}
     </section>
-    {%- endif %}
     <p>here are the latest 100 approved posts:</p>
     {%- for post in posts %}
     <p>{{ post.body }}</p>
