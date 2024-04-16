@@ -7,8 +7,6 @@ pub struct User {
     pub token: String,
     #[sqlx(skip)]
     pub password: String,
-    #[sqlx(skip)]
-    pub password_confirmation: String,
 }
 
 use sqlx::PgConnection;

@@ -197,7 +197,7 @@ async fn register_user(
     Form(user): Form<User>,
 ) -> Response {
     // check that username is not already taken
-    // check that password equals password_confirmation
+    // check that password is acceptable
     // insert user
     // set cookie for user; or check if cookie is already set.
     // return appropriate error messages; user-friendly where expected.
