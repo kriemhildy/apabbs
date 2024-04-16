@@ -12,9 +12,7 @@
 <body>
     <h1>schizo.land</h1>
     <section id="forms">
-        <p>
-            write a post. if it is approved, it will show up later.
-        </p>
+        <p>write a post. if it is approved, it will show up later.</p>
         <form action="/submit-post" method="post" id="post-form">
             <fieldset>
                 <legend>new post</legend>
@@ -25,9 +23,7 @@
             </fieldset>
         </form>
         {%- if user is none %}
-        <p>
-            you can avoid requiring approval by registering an account.
-        </p>
+        <p>you can avoid requiring approval by registering an account.</p>
         <form action="/register-user" method="post" id="register-form">
             <fieldset>
                 <legend>user registration</legend>
@@ -52,10 +48,11 @@
             </fieldset>
         </form>
         {%- else %}
-        <p>logged in user: <strong><%= user.name %></strong></p>
+        <p>
+            logged in user: <strong><%= user.name %></strong>
+        </p>
         {%- endif %}
     </section>
-    <p>here are the latest 100 approved posts:</p>
     {%- for post in posts %}
     <p>{{ post.body }}</p>
     {%- endfor %}
