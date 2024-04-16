@@ -4,6 +4,7 @@
         --fore: #e3e3e3;
         --link: #9cdcda;
         --border: #777;
+        --system: #9cdcda;
     }
 }
 
@@ -13,18 +14,16 @@
         --fore: black;
         --link: blue;
         --border: #ccc;
+        --system: red;
     }
 }
 
 body {
-    margin: 10px 10px 50px 10px;
-}
-
-@media (min-width: 600px) {
-    body {
-        margin-left: 50px;
-        margin-right: 50px;
-    }
+    margin-top: 10px;
+    margin-bottom: 50px;
+    --side-margin: max(calc(9% - 40px), 8px);
+    margin-left: var(--side-margin);
+    margin-right: var(--side-margin);
 }
 
 body,
@@ -36,7 +35,7 @@ input {
     background: var(--back);
 }
 
-@media (min-width: 800px) {
+@media (min-width: 900px) {
     section#forms {
         width: 50%;
         float: right;
@@ -74,4 +73,8 @@ a:hover {
 
 fieldset {
     border-color: var(--back);
+}
+
+.system {
+    color: var(--system);
 }
