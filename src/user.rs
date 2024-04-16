@@ -1,7 +1,14 @@
-#[derive(sqlx::FromRow, serde::Serialize)]
+#[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize, Default)]
+#[serde(default)]
 pub struct User {
     pub id: i32,
+    pub name: String,
+    #[serde(skip)]
     pub token: String,
+    #[sqlx(skip)]
+    pub password: String,
+    #[sqlx(skip)]
+    pub password_confirmation: String,
 }
 
 use sqlx::PgConnection;

@@ -34,6 +34,7 @@ fn router(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
+        .route("/register-user", post(register_user))
         .layer(trace())
         .with_state(state)
 }
@@ -167,7 +168,32 @@ async fn submit_post(
     Form(post): Form<Post>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
+    // create an anon user and a cookie here, if one is not already set.
+    // posting is a first act of 'registration'.
     post.insert(&mut tx).await;
     tx.commit().await.expect("commit transaction");
+    Redirect::to("/").into_response()
+}
+
+// do we want one users table, or separate ones for anon and authed?
+// one is simpler, but more wasted storage space.
+// probably way more anon accounts than authed accounts. 100x.
+// ipaddr on each post. not on users.
+// unless you want to track all actions, like logins and logouts; which you should.
+// but not on first implementation.
+// should we use "flash" messaging?
+// having one table means 'name' is 'not null', and many other fields expected of authed users.
+// perhaps: anon_users and authed_users.
+// just simpler as one table, though. simple is best.
+async fn register_user(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(user): Form<User>,
+) -> Response {
+    // check that username is not already taken
+    // check that password equals password_confirmation
+    // insert user
+    // set cookie for user; or check if cookie is already set.
+    // return appropriate error messages; user-friendly where expected.
     Redirect::to("/").into_response()
 }
