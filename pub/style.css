@@ -35,7 +35,7 @@ input {
     background: var(--back);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 800px) {
     section#forms {
         width: 50%;
         float: right;
