@@ -55,9 +55,12 @@ input[type="submit"] {
 
 input,
 textarea {
-    padding: 3px;
     border-radius: 5px;
     border-color: var(--border);
+}
+
+textarea {
+    padding: 5px;
 }
 
 a {
