@@ -28,7 +28,7 @@ impl User {
     }
 
     pub async fn name_taken(tx: &mut PgConnection, name: &str) -> bool {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE name = $1")
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE name = $1)")
             .bind(name)
             .fetch_one(&mut *tx)
             .await

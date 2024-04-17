@@ -199,7 +199,7 @@ async fn register_user(
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     // check that username is not already taken
-    let form_username = form_user.name.expect("get username");
+    let form_username = form_user.name.expect("read username");
     if User::name_taken(&mut tx, form_username.as_str()).await {
         return conflict("username already taken");
     }
