@@ -21,9 +21,9 @@
 body {
     margin-top: 10px;
     margin-bottom: 50px;
-    --side-margin: max(calc(9% - 40px), 8px);
-    margin-left: var(--side-margin);
-    margin-right: var(--side-margin);
+    --dynamic-margin: max(calc(25% - 120px), 8px);
+    margin-left: var(--dynamic-margin);
+    margin-right: var(--dynamic-margin);
 }
 
 body,
@@ -35,11 +35,13 @@ input {
     background: var(--back);
 }
 
-@media (min-width: 750px) {
+@media (min-width: 700px) {
     section#forms {
         width: 50%;
         float: right;
         margin-top: -1em;
+        margin-left: var(--dynamic-margin);
+        margin-bottom: var(--dynamic-margin);
     }
 }
 
