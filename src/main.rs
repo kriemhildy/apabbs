@@ -193,13 +193,38 @@ async fn submit_post(
 // just simpler as one table, though. simple is best.
 async fn register_user(
     State(state): State<AppState>,
-    jar: CookieJar,
-    Form(user): Form<User>,
+    headers: HeaderMap,
+    mut jar: CookieJar,
+    Form(form_user): Form<User>,
 ) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
     // check that username is not already taken
+    let form_username = form_user.name.expect("get username");
+    if User::name_taken(&mut tx, form_username.as_str()).await {
+        return conflict("username already taken");
+    }
     // check that password is acceptable
-    // insert user
-    // set cookie for user; or check if cookie is already set.
-    // return appropriate error messages; user-friendly where expected.
-    Redirect::to("/").into_response()
+    let form_password = form_user.password;
+    if !User::acceptable_password(form_username.as_str(), form_password.as_str()) {
+        return conflict("unacceptable password");
+    }
+    // check if cookie is set from anon user
+    // or insert anon user and set cookie if necessary
+    let anon_user = match jar.get(USER_COOKIE) {
+        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+            Some(user) => user,
+            None => return bad_request("user not found"),
+        },
+        None => {
+            let user = User::insert_anon(&mut tx).await;
+            let cookie = build_cookie(headers, user.token.clone());
+            jar = jar.add(cookie);
+            user
+        }
+    };
+    // update anon user to registered user
+    anon_user.register(&mut tx, form_username.as_str(), form_password.as_str()).await;
+    tx.commit().await.expect("commit transaction");
+    let redirect = Redirect::to("/");
+    (jar, redirect).into_response()
 }
