@@ -18,3 +18,4 @@ minijinja = { version = "*", features = ["loader"] }
 futures = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
+argon2 = "0.5.3"
