@@ -45,6 +45,9 @@
         </form>
         {%- else %}
         <p class="system">logged in user: <strong>{{ user.name }}</strong></p>
+        <form action="/deauthenticate-user" method="post" id="logout-form">
+            <input type="submit" value="Log out">
+        </form>
         {%- endif %}
     </section>
     <p class="system">approved posts:</p>

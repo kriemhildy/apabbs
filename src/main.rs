@@ -35,6 +35,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
         .route("/register-user", post(register_user))
+        .route("/deauthenticate-user", post(deauthenticate_user))
         .layer(trace())
         .with_state(state)
 }
@@ -125,10 +126,13 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     // check for user cookie
     let user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-            Some(user) => Some(user),
-            None => return bad_request("user not found"),
+            Some(user) => match &user.name {
+                Some(_name) => Some(user),
+                None => None,
+            },
+            None => return bad_request("cookie user not found"),
         },
-        None => None
+        None => None,
     };
     let posts = Post::select_latest_approved_100(&mut tx).await;
     tx.commit().await.expect("commit transaction");
@@ -145,7 +149,7 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
 //         match $jar.get(USER_COOKIE) {
 //             Some(cookie) => match User::select(&mut $tx, cookie.value()).await {
 //                 Some(user) => user,
-//                 None => return bad_request("user not found"),
+//                 None => return bad_request("cookie user not found"),
 //             },
 //             None => return bad_request("no user cookie"),
 //         }
@@ -167,7 +171,7 @@ async fn submit_post(
     let user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
             Some(user) => user,
-            None => return bad_request("user not found"),
+            None => return bad_request("cookie user not found"),
         },
         None => {
             // should probably only create user and cookie on post attempt.
@@ -221,7 +225,7 @@ async fn register_user(
     let anon_user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
             Some(user) => user,
-            None => return bad_request("user not found"),
+            None => return bad_request("cookie user not found"),
         },
         None => {
             let user = User::insert_anon(&mut tx).await;
@@ -234,6 +238,21 @@ async fn register_user(
     anon_user
         .register(&mut tx, form_username.as_str(), form_password.as_str())
         .await;
+    tx.commit().await.expect("commit transaction");
+    let redirect = Redirect::to("/");
+    (jar, redirect).into_response()
+}
+
+async fn deauthenticate_user(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
+    match jar.get(USER_COOKIE) {
+        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+            Some(_user) => jar = jar.remove(USER_COOKIE),
+            None => return bad_request("cookie user not found"),
+        },
+        None => return bad_request("no user cookie found"),
+    };
+    jar = jar.remove(USER_COOKIE);
     tx.commit().await.expect("commit transaction");
     let redirect = Redirect::to("/");
     (jar, redirect).into_response()
