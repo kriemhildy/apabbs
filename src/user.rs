@@ -44,6 +44,9 @@ impl User {
 
     pub async fn register(&self, tx: &mut PgConnection, name: &str, password: &str) -> User {
         // time zone? utc? password encryption?
+        // maybe don't bother with registered_at because we should have a separate
+        // 'actions' table (or equivalent) that tracks ip and registrations/logins/logouts.
+        // we need a reversable encryption system too (just in case) for stuff like IP maybe.
         sqlx::query_as(concat!(
             "UPDATE users SET name = $1, encrypted_password = $2, ",
             "registered_at = now() WHERE id = $3 RETURNING *"
