@@ -93,9 +93,9 @@ fn conflict(msg: &str) -> Response {
     http_code(StatusCode::CONFLICT, msg)
 }
 
-fn unauthorized() -> Response {
-    http_code(StatusCode::UNAUTHORIZED, "unauthorized")
-}
+// fn unauthorized() -> Response {
+//     http_code(StatusCode::UNAUTHORIZED, "unauthorized")
+// }
 
 const USER_COOKIE: &'static str = "user";
 const SCHEME_HEADER: &'static str = "X-Forwarded-Proto";
