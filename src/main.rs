@@ -122,7 +122,14 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    let user: Option<User> = None;
+    // check for user cookie
+    let user = match jar.get(USER_COOKIE) {
+        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+            Some(user) => Some(user),
+            None => return bad_request("user not found"),
+        },
+        None => None
+    };
     let posts = Post::select_latest_approved_100(&mut tx).await;
     tx.commit().await.expect("commit transaction");
     let html = Html(render(
