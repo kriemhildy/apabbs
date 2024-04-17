@@ -38,8 +38,7 @@ impl User {
     pub fn acceptable_password(name: &str, password: &str) -> bool {
         let lowercase_name = name.to_lowercase();
         let lowercase_password = password.to_lowercase();
-        password.len() >= 8
-        && !lowercase_password.contains(lowercase_name.as_str())
+        password.len() >= 8 && !lowercase_password.contains(lowercase_name.as_str())
     }
 
     pub async fn register(&self, tx: &mut PgConnection, name: &str, password: &str) -> User {

@@ -7,7 +7,6 @@ pub struct Post {
     pub anon: bool,
 }
 
-
 use sqlx::PgConnection;
 
 impl Post {

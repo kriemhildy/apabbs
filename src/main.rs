@@ -223,7 +223,9 @@ async fn register_user(
         }
     };
     // update anon user to registered user
-    anon_user.register(&mut tx, form_username.as_str(), form_password.as_str()).await;
+    anon_user
+        .register(&mut tx, form_username.as_str(), form_password.as_str())
+        .await;
     tx.commit().await.expect("commit transaction");
     let redirect = Redirect::to("/");
     (jar, redirect).into_response()
