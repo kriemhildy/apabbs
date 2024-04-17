@@ -21,7 +21,7 @@
 body {
     margin-top: 10px;
     margin-bottom: 50px;
-    --dynamic-margin: max(calc(25% - 120px), 8px);
+    --dynamic-margin: max(calc(16% - 80px), 8px);
     margin-left: var(--dynamic-margin);
     margin-right: var(--dynamic-margin);
 }
