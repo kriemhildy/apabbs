@@ -210,6 +210,7 @@ async fn register_user(
     if User::name_taken(&mut tx, form_username.as_str()).await {
         return conflict("username already taken");
     }
+    // we also need to validate the username in other ways (TBD)
     // check that password is acceptable
     let form_password = form_user.password;
     if !User::acceptable_password(form_username.as_str(), form_password.as_str()) {
