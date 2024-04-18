@@ -127,10 +127,7 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     // check for user cookie
     let user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-            Some(user) => match &user.name {
-                Some(_name) => Some(user),
-                None => None,
-            },
+            Some(user) => Some(user),
             None => return bad_request("cookie user not found"),
         },
         None => None,
@@ -186,14 +183,12 @@ async fn register(
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     // check that username is not already taken
-    let form_username = form_user.name.expect("read username");
-    if User::name_taken(&mut tx, form_username.as_str()).await {
+    if form_user.name_taken(&mut tx).await {
         return conflict("username already taken");
     }
     // we also need to validate the username in other ways (TBD)
     // check that password is acceptable
-    let form_password = form_user.password;
-    if !User::acceptable_password(form_username.as_str(), form_password.as_str()) {
+    if !form_user.acceptable_password() {
         return conflict("unacceptable password");
     }
     // check if cookie is set from anon user
@@ -201,7 +196,7 @@ async fn register(
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
-            let user = User::register(&mut tx, form_username.as_str(), form_password.as_str()).await;
+            let user = form_user.register(&mut tx).await;
             let cookie = build_cookie(headers, user.token.clone());
             jar = jar.add(cookie);
         }
