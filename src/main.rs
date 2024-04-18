@@ -251,22 +251,15 @@ async fn authenticate_user(
     Form(form_user): Form<User>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-            Some(_user) => return bad_request("user already authenticated"),
-            None => return bad_request("cookie user not found"),
-        },
-        None => match form_user.authenticate(&mut tx).await {
-            Some(user) => {
-                let cookie = build_cookie(headers, user.token.clone());
-                jar = jar.add(cookie);
-                user
-            }
-            None => {
-                return bad_request("incorrect credentials");
-            }
-        },
-    };
+    match form_user.authenticate(&mut tx).await {
+        Some(user) => {
+            let cookie = build_cookie(headers, user.token.clone());
+            jar = jar.add(cookie);
+        }
+        None => {
+            return bad_request("incorrect credentials");
+        }
+    }
     tx.commit().await.expect("commit transaction");
     let redirect = Redirect::to("/");
     (jar, redirect).into_response()
