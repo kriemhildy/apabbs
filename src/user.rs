@@ -48,10 +48,10 @@ impl Credentials {
         self.password.len() >= 8 && !lowercase_password.contains(&lowercase_name)
     }
 
-    fn argon2_salt_string(b64_salt: Option<&str>) -> SaltString {
+    fn phc_salt_string(b64_salt: Option<&str>) -> SaltString {
         use argon2::password_hash::rand_core::OsRng;
         match b64_salt {
-            Some(salt) => SaltString::from_b64(salt).expect("convert str to Argon2 SaltString"),
+            Some(salt) => SaltString::from_b64(salt).expect("convert str to PHC SaltString"),
             None => SaltString::generate(&mut OsRng),
         }
     }
@@ -78,15 +78,15 @@ impl Credentials {
     }
 
     pub async fn register(&self, tx: &mut PgConnection) -> User {
-        let argon2_salt_string = Credentials::argon2_salt_string(None);
-        let password_hash = Credentials::hash_password(&self.password, &argon2_salt_string);
+        let phc_salt_string = Credentials::phc_salt_string(None);
+        let password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         sqlx::query_as(concat!(
             "INSERT INTO users (name, password_hash, password_salt) ",
             "VALUES ($1, $2, $3) RETURNING *"
         ))
         .bind(&self.username)
         .bind(password_hash)
-        .bind(argon2_salt_string.as_str())
+        .bind(phc_salt_string.as_str())
         .fetch_one(&mut *tx)
         .await
         .expect("inserts a new registered user")
@@ -102,8 +102,8 @@ impl Credentials {
             return None;
         }
         let user = user.expect("extract user");
-        let argon2_salt_string = Credentials::argon2_salt_string(Some(&user.password_salt));
-        let input_password_hash = Credentials::hash_password(&self.password, &argon2_salt_string);
+        let phc_salt_string = Credentials::phc_salt_string(Some(&user.password_salt));
+        let input_password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         if user.password_hash == input_password_hash {
             Some(user)
         } else {
