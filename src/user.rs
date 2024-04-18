@@ -46,7 +46,7 @@ impl User {
         password.len() >= 8 && !lowercase_password.contains(lowercase_name.as_str())
     }
 
-    fn encrypt_password(password: &str, input_salt: Option<&str>) -> (String, String) {
+    fn hash_password(password: &str, input_salt: Option<&str>) -> (String, String) {
         // resources used:
         // modern rust hashing guide: https://www.lpalmieri.com/posts/password-authentication-in-rust/
         // argon2 docs: https://docs.rs/argon2/latest/argon2/
@@ -79,7 +79,7 @@ impl User {
         // maybe don't bother with registered_at because we should have a separate
         // 'actions' table (or equivalent) that tracks ip and registrations/logins/logouts.
         // we need a reversable encryption system too (just in case) for stuff like IP maybe.
-        let (password_hash, salt) = User::encrypt_password(password, None);
+        let (password_hash, salt) = User::hash_password(password, None);
         sqlx::query_as(concat!(
             "UPDATE users SET name = $1, password_hash = $2, salt = $3, ",
             "registered_at = now() WHERE id = $4 RETURNING *"
@@ -106,7 +106,7 @@ impl User {
         let user = user_option.expect("extract user");
         let password = self.password.as_str();
         let input_salt = user.salt.clone().expect("extract salt");
-        let (password_hash, _output_salt) = User::encrypt_password(password, Some(input_salt.as_str()));
+        let (password_hash, _output_salt) = User::hash_password(password, Some(input_salt.as_str()));
         if user.password_hash.clone().expect("extract password_hash") == password_hash {
             Some(user)
         } else {
