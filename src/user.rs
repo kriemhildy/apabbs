@@ -1,7 +1,7 @@
 #[derive(sqlx::FromRow, serde::Serialize)]
 pub struct User {
     pub id: i32,
-    pub name: String,
+    pub username: String,
     pub token: String,
     pub password_hash: String,
     pub password_salt: String,
@@ -30,7 +30,7 @@ use argon2::password_hash::SaltString;
 
 impl Credentials {
     pub async fn username_taken(&self, tx: &mut PgConnection) -> bool {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE name = $1)")
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
@@ -83,7 +83,7 @@ impl Credentials {
         let phc_salt_string = Credentials::generate_phc_salt_string();
         let password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         sqlx::query_as(concat!(
-            "INSERT INTO users (name, password_hash, password_salt) ",
+            "INSERT INTO users (username, password_hash, password_salt) ",
             "VALUES ($1, $2, $3) RETURNING *"
         ))
         .bind(&self.username)
@@ -95,11 +95,11 @@ impl Credentials {
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
-        let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE name = $1")
+        let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = $1")
             .bind(&self.username)
             .fetch_optional(&mut *tx)
             .await
-            .expect("selects user based on name");
+            .expect("selects user based on username");
         if user.is_none() {
             return None;
         }

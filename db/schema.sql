@@ -64,7 +64,7 @@ CREATE TABLE public.users (
     id integer NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     token character(36) DEFAULT gen_random_uuid() NOT NULL,
-    name character(16) NOT NULL,
+    username character(16) NOT NULL,
     password_hash character varying NOT NULL,
     password_salt character varying NOT NULL
 );
@@ -117,19 +117,19 @@ ALTER TABLE ONLY public.posts
 
 
 --
--- Name: users users_name_key; Type: CONSTRAINT; Schema: public; Owner: schiz
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_name_key UNIQUE (name);
-
-
---
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: schiz
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: schiz
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key UNIQUE (username);
 
 
 --

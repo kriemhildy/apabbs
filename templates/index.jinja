@@ -44,7 +44,7 @@
             </fieldset>
         </form>
         {%- else %}
-        <p class="system">logged in user: <strong>{{ user.name }}</strong></p>
+        <p class="system">logged in user: <strong>{{ user.username }}</strong></p>
         <form action="/deauthenticate" method="post" id="logout-form">
             <input type="submit" value="Log out">
         </form>
