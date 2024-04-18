@@ -21,7 +21,7 @@ impl Post {
 
     pub async fn insert(self, tx: &mut PgConnection, user_id_option: Option<i32>) -> i32 {
         sqlx::query_scalar("INSERT INTO posts (body, user_id) VALUES ($1, $2) RETURNING id")
-            .bind(self.body.as_str())
+            .bind(&self.body)
             .bind(user_id_option)
             .fetch_one(&mut *tx)
             .await

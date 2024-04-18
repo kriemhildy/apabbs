@@ -30,7 +30,7 @@ use argon2::password_hash::SaltString;
 impl Credentials {
     pub async fn username_taken(&self, tx: &mut PgConnection) -> bool {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE name = $1)")
-            .bind(self.username.as_str())
+            .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
             .expect("selects whether username exists")
@@ -39,13 +39,13 @@ impl Credentials {
     pub fn acceptable_username(&self) -> bool {
         use regex::Regex;
         let pattern = Regex::new(r"^\w{4,16}$").expect("build regex pattern");
-        pattern.is_match(self.username.as_str())
+        pattern.is_match(&self.username)
     }
 
     pub fn acceptable_password(&self) -> bool {
         let lowercase_name = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
-        self.password.len() >= 8 && !lowercase_password.contains(lowercase_name.as_str())
+        self.password.len() >= 8 && !lowercase_password.contains(&lowercase_name)
     }
 
     fn argon2_salt_string(b64_salt: Option<&str>) -> SaltString {
@@ -79,12 +79,12 @@ impl Credentials {
 
     pub async fn register(&self, tx: &mut PgConnection) -> User {
         let argon2_salt_string = Credentials::argon2_salt_string(None);
-        let password_hash = Credentials::hash_password(self.password.as_str(), &argon2_salt_string);
+        let password_hash = Credentials::hash_password(&self.password, &argon2_salt_string);
         sqlx::query_as(concat!(
             "INSERT INTO users (name, password_hash, password_salt) ",
             "VALUES ($1, $2, $3) RETURNING *"
         ))
-        .bind(self.username.as_str())
+        .bind(&self.username)
         .bind(password_hash)
         .bind(argon2_salt_string.as_str())
         .fetch_one(&mut *tx)
@@ -94,7 +94,7 @@ impl Credentials {
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
         let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE name = $1")
-            .bind(self.username.as_str())
+            .bind(&self.username)
             .fetch_optional(&mut *tx)
             .await
             .expect("selects user based on name");
@@ -102,10 +102,8 @@ impl Credentials {
             return None;
         }
         let user = user.expect("extract user");
-        let input_password = self.password.as_str();
-        let b64_salt = user.password_salt.as_str();
-        let argon2_salt_string = Credentials::argon2_salt_string(Some(b64_salt));
-        let input_password_hash = Credentials::hash_password(input_password, &argon2_salt_string);
+        let argon2_salt_string = Credentials::argon2_salt_string(Some(&user.password_salt));
+        let input_password_hash = Credentials::hash_password(&self.password, &argon2_salt_string);
         if user.password_hash == input_password_hash {
             Some(user)
         } else {
