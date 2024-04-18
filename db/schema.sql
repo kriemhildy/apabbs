@@ -63,9 +63,12 @@ ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 
 CREATE TABLE public.users (
     id integer NOT NULL,
-    created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     token character(36) DEFAULT gen_random_uuid() NOT NULL,
-    name character(16)
+    name character(16),
+    password_hash character varying,
+    salt character varying,
+    registered_at timestamp with time zone
 );
 
 
