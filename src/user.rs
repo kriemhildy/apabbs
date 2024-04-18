@@ -28,12 +28,18 @@ impl User {
 use argon2::password_hash::SaltString;
 
 impl Credentials {
-    pub async fn name_taken(&self, tx: &mut PgConnection) -> bool {
+    pub async fn username_taken(&self, tx: &mut PgConnection) -> bool {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE name = $1)")
             .bind(self.username.as_str())
             .fetch_one(&mut *tx)
             .await
             .expect("selects whether username exists")
+    }
+
+    pub fn acceptable_username(&self) -> bool {
+        use regex::Regex;
+        let pattern = Regex::new(r"^\w{4,16}$").expect("build regex pattern");
+        pattern.is_match(self.username.as_str())
     }
 
     pub fn acceptable_password(&self) -> bool {

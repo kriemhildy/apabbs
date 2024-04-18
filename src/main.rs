@@ -171,10 +171,13 @@ async fn register(
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     // check that username is not already taken
-    if credentials.name_taken(&mut tx).await {
+    if credentials.username_taken(&mut tx).await {
         return conflict("username already taken");
     }
     // we also need to validate the username in other ways (TBD)
+    if !credentials.acceptable_username() {
+        return conflict("unacceptable username");
+    }
     // check that password is acceptable
     if !credentials.acceptable_password() {
         return conflict("unacceptable password");
