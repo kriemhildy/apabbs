@@ -142,18 +142,6 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     (jar, html).into_response()
 }
 
-// macro_rules! user {
-//     ($tx:expr, $jar:expr) => {
-//         match $jar.get(USER_COOKIE) {
-//             Some(cookie) => match User::select(&mut $tx, cookie.value()).await {
-//                 Some(user) => user,
-//                 None => return bad_request("cookie user not found"),
-//             },
-//             None => return bad_request("no user cookie"),
-//         }
-//     };
-// }
-
 use axum::response::Redirect;
 use axum::Form;
 
