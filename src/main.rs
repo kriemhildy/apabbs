@@ -35,6 +35,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
         .route("/register-user", post(register_user))
+        .route("/authenticate-user", post(authenticate_user))
         .route("/deauthenticate-user", post(deauthenticate_user))
         .layer(trace())
         .with_state(state)
@@ -238,6 +239,34 @@ async fn register_user(
     anon_user
         .register(&mut tx, form_username.as_str(), form_password.as_str())
         .await;
+    tx.commit().await.expect("commit transaction");
+    let redirect = Redirect::to("/");
+    (jar, redirect).into_response()
+}
+
+async fn authenticate_user(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    mut jar: CookieJar,
+    Form(form_user): Form<User>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
+    match jar.get(USER_COOKIE) {
+        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+            Some(_user) => return bad_request("user already authenticated"),
+            None => return bad_request("cookie user not found"),
+        },
+        None => match form_user.authenticate(&mut tx).await {
+            Some(user) => {
+                let cookie = build_cookie(headers, user.token.clone());
+                jar = jar.add(cookie);
+                user
+            }
+            None => {
+                return bad_request("incorrect credentials");
+            }
+        },
+    };
     tx.commit().await.expect("commit transaction");
     let redirect = Redirect::to("/");
     (jar, redirect).into_response()
