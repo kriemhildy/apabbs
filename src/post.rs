@@ -10,21 +10,6 @@ pub struct Post {
 use sqlx::PgConnection;
 
 impl Post {
-    // pub async fn select(tx: &mut PgConnection, token: &str) -> Option<User> {
-    //     sqlx::query_as("SELECT * FROM users WHERE token = $1")
-    //         .bind(token)
-    //         .fetch_optional(&mut *tx)
-    //         .await
-    //         .expect("select user by token")
-    // }
-
-    // pub async fn insert(tx: &mut PgConnection) -> User {
-    //     sqlx::query_as("INSERT INTO users DEFAULT VALUES RETURNING *")
-    //         .fetch_one(&mut *tx)
-    //         .await
-    //         .expect("insert default user")
-    // }
-
     // posts that are unapproved should probably wait in a separate queue before
     // being added to the official posts table. alternatively, we can use published_at
     // instead of id.
