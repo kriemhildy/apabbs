@@ -25,6 +25,7 @@ impl User {
     }
 }
 
+// PHC salt string used in password hashing
 use argon2::password_hash::SaltString;
 
 impl Credentials {
@@ -43,17 +44,18 @@ impl Credentials {
     }
 
     pub fn acceptable_password(&self) -> bool {
-        let lowercase_name = self.username.to_lowercase();
+        let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
-        self.password.len() >= 8 && !lowercase_password.contains(&lowercase_name)
+        self.password.len() >= 8 && !lowercase_password.contains(&lowercase_username)
     }
 
-    fn phc_salt_string(b64_salt: Option<&str>) -> SaltString {
+    fn generate_phc_salt_string() -> SaltString {
         use argon2::password_hash::rand_core::OsRng;
-        match b64_salt {
-            Some(salt) => SaltString::from_b64(salt).expect("convert str to PHC SaltString"),
-            None => SaltString::generate(&mut OsRng),
-        }
+        SaltString::generate(&mut OsRng)
+    }
+
+    fn convert_b64_salt(b64_salt: &str) -> SaltString {
+        SaltString::from_b64(b64_salt).expect("convert B64 str to PHC SaltString")
     }
 
     fn hash_password(password: &str, salt_string: &SaltString) -> String {
@@ -78,7 +80,7 @@ impl Credentials {
     }
 
     pub async fn register(&self, tx: &mut PgConnection) -> User {
-        let phc_salt_string = Credentials::phc_salt_string(None);
+        let phc_salt_string = Credentials::generate_phc_salt_string();
         let password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         sqlx::query_as(concat!(
             "INSERT INTO users (name, password_hash, password_salt) ",
@@ -86,7 +88,7 @@ impl Credentials {
         ))
         .bind(&self.username)
         .bind(password_hash)
-        .bind(phc_salt_string.as_str())
+        .bind(phc_salt_string.as_str()) // converts PHC SaltString to B64 str
         .fetch_one(&mut *tx)
         .await
         .expect("inserts a new registered user")
@@ -102,7 +104,7 @@ impl Credentials {
             return None;
         }
         let user = user.expect("extract user");
-        let phc_salt_string = Credentials::phc_salt_string(Some(&user.password_salt));
+        let phc_salt_string = Credentials::convert_b64_salt(&user.password_salt);
         let input_password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         if user.password_hash == input_password_hash {
             Some(user)
