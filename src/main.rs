@@ -115,7 +115,7 @@ fn build_cookie(headers: HeaderMap, token: String) -> Cookie<'static> {
 }
 
 mod user;
-use user::User;
+use user::{Credentials, User};
 mod post;
 use post::Post;
 
@@ -179,16 +179,16 @@ async fn register(
     State(state): State<AppState>,
     headers: HeaderMap,
     mut jar: CookieJar,
-    Form(form_user): Form<User>,
+    Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     // check that username is not already taken
-    if form_user.name_taken(&mut tx).await {
+    if credentials.name_taken(&mut tx).await {
         return conflict("username already taken");
     }
     // we also need to validate the username in other ways (TBD)
     // check that password is acceptable
-    if !form_user.acceptable_password() {
+    if !credentials.acceptable_password() {
         return conflict("unacceptable password");
     }
     // check if cookie is set from anon user
@@ -196,7 +196,7 @@ async fn register(
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
-            let user = form_user.register(&mut tx).await;
+            let user = credentials.register(&mut tx).await;
             let cookie = build_cookie(headers, user.token.clone());
             jar = jar.add(cookie);
         }
@@ -210,10 +210,10 @@ async fn authenticate(
     State(state): State<AppState>,
     headers: HeaderMap,
     mut jar: CookieJar,
-    Form(form_user): Form<User>,
+    Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    match form_user.authenticate(&mut tx).await {
+    match credentials.authenticate(&mut tx).await {
         Some(user) => {
             let cookie = build_cookie(headers, user.token.clone());
             jar = jar.add(cookie);

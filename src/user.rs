@@ -1,20 +1,18 @@
-#[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize, Default)]
-#[serde(default)]
-#[sqlx(default)]
+#[derive(sqlx::FromRow, serde::Serialize)]
 pub struct User {
     pub id: i32,
     pub name: String,
-    #[sqlx(skip)]
-    pub password: String,
-    #[serde(skip)]
     pub token: String,
-    #[serde(skip)]
     pub password_hash: String,
-    #[serde(skip)]
     pub password_salt: String,
 }
 
-use argon2::password_hash::SaltString;
+#[derive(serde::Deserialize)]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
+}
+
 use sqlx::PgConnection;
 
 impl User {
@@ -25,17 +23,21 @@ impl User {
             .await
             .expect("select user by token")
     }
+}
 
+use argon2::password_hash::SaltString;
+
+impl Credentials {
     pub async fn name_taken(&self, tx: &mut PgConnection) -> bool {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE name = $1)")
-            .bind(self.name.as_str())
+            .bind(self.username.as_str())
             .fetch_one(&mut *tx)
             .await
             .expect("selects whether username exists")
     }
 
     pub fn acceptable_password(&self) -> bool {
-        let lowercase_name = self.name.to_lowercase();
+        let lowercase_name = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
         self.password.len() >= 8 && !lowercase_password.contains(lowercase_name.as_str())
     }
@@ -70,17 +72,13 @@ impl User {
     }
 
     pub async fn register(&self, tx: &mut PgConnection) -> User {
-        // time zone? utc? password encryption?
-        // maybe don't bother with registered_at because we should have a separate
-        // 'actions' table (or equivalent) that tracks ip and registrations/logins/logouts.
-        // we need a reversable encryption system too (just in case) for stuff like IP maybe.
-        let argon2_salt_string = User::argon2_salt_string(None);
-        let password_hash = User::hash_password(self.password.as_str(), &argon2_salt_string);
+        let argon2_salt_string = Credentials::argon2_salt_string(None);
+        let password_hash = Credentials::hash_password(self.password.as_str(), &argon2_salt_string);
         sqlx::query_as(concat!(
             "INSERT INTO users (name, password_hash, password_salt) ",
             "VALUES ($1, $2, $3) RETURNING *"
         ))
-        .bind(self.name.as_str())
+        .bind(self.username.as_str())
         .bind(password_hash)
         .bind(argon2_salt_string.as_str())
         .fetch_one(&mut *tx)
@@ -90,7 +88,7 @@ impl User {
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
         let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE name = $1")
-            .bind(self.name.as_str())
+            .bind(self.username.as_str())
             .fetch_optional(&mut *tx)
             .await
             .expect("selects user based on name");
@@ -100,8 +98,8 @@ impl User {
         let user = user.expect("extract user");
         let input_password = self.password.as_str();
         let b64_salt = user.password_salt.as_str();
-        let argon2_salt_string = User::argon2_salt_string(Some(b64_salt));
-        let input_password_hash = User::hash_password(input_password, &argon2_salt_string);
+        let argon2_salt_string = Credentials::argon2_salt_string(Some(b64_salt));
+        let input_password_hash = Credentials::hash_password(input_password, &argon2_salt_string);
         if user.password_hash == input_password_hash {
             Some(user)
         } else {
