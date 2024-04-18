@@ -34,9 +34,9 @@ fn router(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
-        .route("/register-user", post(register_user))
-        .route("/authenticate-user", post(authenticate_user))
-        .route("/deauthenticate-user", post(deauthenticate_user))
+        .route("/register", post(register))
+        .route("/authenticate", post(authenticate))
+        .route("/deauthenticate", post(deauthenticate))
         .layer(trace())
         .with_state(state)
 }
@@ -162,48 +162,23 @@ use axum::Form;
 
 async fn submit_post(
     State(state): State<AppState>,
-    headers: HeaderMap,
-    mut jar: CookieJar,
+    jar: CookieJar,
     Form(post): Form<Post>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    // create an anon user and a cookie here, if one is not already set.
-    // posting is a first act of 'registration'.
-    let user = match jar.get(USER_COOKIE) {
+    let user_id_option: Option<i32> = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-            Some(user) => user,
+            Some(user) => Some(user.id),
             None => return bad_request("cookie user not found"),
         },
-        None => {
-            // should probably only create user and cookie on post attempt.
-            // if it's merely a "session", they should be separate records.
-            // otherwise we will have to replace the current user with another one upon login.
-            // we don't need session storage until they log in or post, basically.
-            // a logged-out user's post should not be connected to a logged-in user.
-            // we will have to limit it to one pending post per session though.
-            let user = User::insert_anon(&mut tx).await;
-            let cookie = build_cookie(headers, user.token.clone());
-            jar = jar.add(cookie);
-            user
-        }
+        None => None,
     };
-    post.insert(&mut tx, user.id).await;
+    post.insert(&mut tx, user_id_option).await;
     tx.commit().await.expect("commit transaction");
-    let redirect = Redirect::to("/");
-    (jar, redirect).into_response()
+    Redirect::to("/").into_response()
 }
 
-// do we want one users table, or separate ones for anon and authed?
-// one is simpler, but more wasted storage space.
-// probably way more anon accounts than authed accounts. 100x.
-// ipaddr on each post. not on users.
-// unless you want to track all actions, like logins and logouts; which you should.
-// but not on first implementation.
-// should we use "flash" messaging?
-// having one table means 'name' is 'not null', and many other fields expected of authed users.
-// perhaps: anon_users and authed_users.
-// just simpler as one table, though. simple is best.
-async fn register_user(
+async fn register(
     State(state): State<AppState>,
     headers: HeaderMap,
     mut jar: CookieJar,
@@ -223,28 +198,20 @@ async fn register_user(
     }
     // check if cookie is set from anon user
     // or insert anon user and set cookie if necessary
-    let anon_user = match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
-            Some(user) => user,
-            None => return bad_request("cookie user not found"),
-        },
+    match jar.get(USER_COOKIE) {
+        Some(_cookie) => return bad_request("log out before registering"),
         None => {
-            let user = User::insert_anon(&mut tx).await;
+            let user = User::register(&mut tx, form_username.as_str(), form_password.as_str()).await;
             let cookie = build_cookie(headers, user.token.clone());
             jar = jar.add(cookie);
-            user
         }
     };
-    // update anon user to registered user
-    anon_user
-        .register(&mut tx, form_username.as_str(), form_password.as_str())
-        .await;
     tx.commit().await.expect("commit transaction");
     let redirect = Redirect::to("/");
     (jar, redirect).into_response()
 }
 
-async fn authenticate_user(
+async fn authenticate(
     State(state): State<AppState>,
     headers: HeaderMap,
     mut jar: CookieJar,
@@ -265,7 +232,7 @@ async fn authenticate_user(
     (jar, redirect).into_response()
 }
 
-async fn deauthenticate_user(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+async fn deauthenticate(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {

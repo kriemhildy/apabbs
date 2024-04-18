@@ -3,8 +3,7 @@
 pub struct Post {
     pub id: i32,
     pub body: String,
-    pub user_id: i32,
-    pub anon: bool,
+    pub user_id: Option<i32>,
 }
 
 use sqlx::PgConnection;
@@ -20,10 +19,10 @@ impl Post {
             .expect("select latest 100 posts")
     }
 
-    pub async fn insert(self, tx: &mut PgConnection, user_id: i32) -> i32 {
+    pub async fn insert(self, tx: &mut PgConnection, user_id_option: Option<i32>) -> i32 {
         sqlx::query_scalar("INSERT INTO posts (body, user_id) VALUES ($1, $2) RETURNING id")
             .bind(self.body.as_str())
-            .bind(user_id)
+            .bind(user_id_option)
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post")

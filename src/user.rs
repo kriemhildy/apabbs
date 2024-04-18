@@ -9,9 +9,9 @@ pub struct User {
     #[serde(skip)]
     pub token: String,
     #[serde(skip)]
-    pub password_hash: Option<String>,
+    pub password_hash: String,
     #[serde(skip)]
-    pub salt: Option<String>,
+    pub salt: String,
 }
 
 use sqlx::PgConnection;
@@ -23,13 +23,6 @@ impl User {
             .fetch_optional(&mut *tx)
             .await
             .expect("select user by token")
-    }
-
-    pub async fn insert_anon(tx: &mut PgConnection) -> User {
-        sqlx::query_as("INSERT INTO users DEFAULT VALUES RETURNING *")
-            .fetch_one(&mut *tx)
-            .await
-            .expect("insert default user")
     }
 
     pub async fn name_taken(tx: &mut PgConnection, name: &str) -> bool {
@@ -74,23 +67,22 @@ impl User {
         (password_hash.to_string(), output_salt.to_string())
     }
 
-    pub async fn register(&self, tx: &mut PgConnection, name: &str, password: &str) -> User {
+    pub async fn register(tx: &mut PgConnection, name: &str, password: &str) -> User {
         // time zone? utc? password encryption?
         // maybe don't bother with registered_at because we should have a separate
         // 'actions' table (or equivalent) that tracks ip and registrations/logins/logouts.
         // we need a reversable encryption system too (just in case) for stuff like IP maybe.
         let (password_hash, salt) = User::hash_password(password, None);
         sqlx::query_as(concat!(
-            "UPDATE users SET name = $1, password_hash = $2, salt = $3, ",
-            "registered_at = now() WHERE id = $4 RETURNING *"
+            "INSERT INTO users (name, password_hash, salt, registered_at) ",
+            "VALUES ($1, $2, $3, now()) RETURNING *"
         ))
         .bind(name)
         .bind(password_hash)
         .bind(salt)
-        .bind(self.id)
         .fetch_one(&mut *tx)
         .await
-        .expect("updates user name, encrypted_password, and registered_at")
+        .expect("inserts a new registered user")
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
@@ -105,9 +97,9 @@ impl User {
         }
         let user = user_option.expect("extract user");
         let password = self.password.as_str();
-        let input_salt = user.salt.clone().expect("extract salt");
-        let (password_hash, _output_salt) = User::hash_password(password, Some(input_salt.as_str()));
-        if user.password_hash.clone().expect("extract password_hash") == password_hash {
+        let input_salt = user.salt.as_str();
+        let (password_hash, _output_salt) = User::hash_password(password, Some(input_salt));
+        if user.password_hash == password_hash {
             Some(user)
         } else {
             None
