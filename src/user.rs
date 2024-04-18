@@ -11,7 +11,7 @@ pub struct User {
     #[serde(skip)]
     pub password_hash: String,
     #[serde(skip)]
-    pub salt: String,
+    pub password_salt: String,
 }
 
 use sqlx::PgConnection;
@@ -74,8 +74,8 @@ impl User {
         // we need a reversable encryption system too (just in case) for stuff like IP maybe.
         let (password_hash, salt) = User::hash_password(password, None);
         sqlx::query_as(concat!(
-            "INSERT INTO users (name, password_hash, salt, registered_at) ",
-            "VALUES ($1, $2, $3, now()) RETURNING *"
+            "INSERT INTO users (name, password_hash, password_salt) ",
+            "VALUES ($1, $2, $3) RETURNING *"
         ))
         .bind(name)
         .bind(password_hash)
@@ -97,7 +97,7 @@ impl User {
         }
         let user = user_option.expect("extract user");
         let password = self.password.as_str();
-        let input_salt = user.salt.as_str();
+        let input_salt = user.password_salt.as_str();
         let (password_hash, _output_salt) = User::hash_password(password, Some(input_salt));
         if user.password_hash == password_hash {
             Some(user)

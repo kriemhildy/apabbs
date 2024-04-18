@@ -28,7 +28,6 @@ CREATE TABLE public.posts (
     id integer NOT NULL,
     body character varying(10000) NOT NULL,
     user_id integer,
-    anon boolean DEFAULT true NOT NULL,
     created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL
 );
 
@@ -65,10 +64,9 @@ CREATE TABLE public.users (
     id integer NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     token character(36) DEFAULT gen_random_uuid() NOT NULL,
-    name character(16),
-    password_hash character varying,
-    salt character varying,
-    registered_at timestamp with time zone
+    name character(16) NOT NULL,
+    password_hash character varying NOT NULL,
+    password_salt character varying NOT NULL
 );
 
 
