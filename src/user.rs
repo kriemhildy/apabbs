@@ -44,9 +44,11 @@ impl Credentials {
     }
 
     pub fn acceptable_password(&self) -> bool {
-        let lowercase_username = self.username.to_lowercase();
-        let lowercase_password = self.password.to_lowercase();
-        self.password.len() >= 8 && !lowercase_password.contains(&lowercase_username)
+        (8..=64).contains(&self.password.len()) && {
+            let lowercase_username = self.username.to_lowercase();
+            let lowercase_password = self.password.to_lowercase();
+            !lowercase_password.contains(&lowercase_username)
+        }
     }
 
     fn generate_phc_salt_string() -> SaltString {
