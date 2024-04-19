@@ -163,19 +163,15 @@ async fn register(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    // check that username is not already taken
     if credentials.username_taken(&mut tx).await {
         return conflict("username already taken");
     }
-    // check if username is acceptable
     if !credentials.acceptable_username() {
         return conflict("unacceptable username");
     }
-    // check that password is acceptable
     if !credentials.acceptable_password() {
         return conflict("unacceptable password");
     }
-    // set cookie
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
