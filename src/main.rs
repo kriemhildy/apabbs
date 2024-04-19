@@ -11,7 +11,7 @@ async fn main() {
     dotenv::dotenv().ok();
     let state = {
         let db = {
-            let url = std::env::var("PG_URL").expect("read PG_URL env");
+            let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
             sqlx::PgPool::connect(&url).await.expect("connect postgres")
         };
         let jinja = {
