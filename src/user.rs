@@ -34,7 +34,7 @@ impl Credentials {
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
-            .expect("selects whether username exists")
+            .expect("select whether username exists")
     }
 
     pub fn acceptable_username(&self) -> bool {
@@ -77,7 +77,7 @@ impl Credentials {
         // Hash password to PHC string ($argon2id$v=19$...)
         let password_hash = hasher
             .hash_password(password, salt_string)
-            .expect("hashes password");
+            .expect("hash password");
         password_hash.to_string()
     }
 
@@ -93,7 +93,7 @@ impl Credentials {
         .bind(phc_salt_string.as_str()) // converts PHC SaltString to B64 str
         .fetch_one(&mut *tx)
         .await
-        .expect("inserts a new registered user")
+        .expect("insert a new registered user")
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
@@ -101,11 +101,11 @@ impl Credentials {
             .bind(&self.username)
             .fetch_optional(&mut *tx)
             .await
-            .expect("selects user based on username");
+            .expect("select user based on username");
         if user.is_none() {
             return None;
         }
-        let user = user.expect("extract user");
+        let user = user.expect("extract user from option");
         let phc_salt_string = Credentials::convert_b64_salt(&user.password_salt);
         let input_password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         if user.password_hash == input_password_hash {
