@@ -53,10 +53,27 @@
         </form>
         {%- endif %}
     </section>
+    {%- if user.admin %}
+    <p class="system">posts:</p>
+    {%- for post in posts %}
+    <div>
+        {{ post.body }}
+        {%- if post.status == "new" %}
+        <form action="/approve" method="post" id="approve-form">
+            <input type="submit" value="Approve">
+        </form>
+        <form action="/reject" method="post" id="reject-form">
+            <input type="submit" value="Reject">
+        </form>
+        {%- endif %}
+    </div>
+    {%- endfor %}
+    {%- else %}
     <p class="system">approved posts:</p>
     {%- for post in posts %}
-    <p>{{ post.body }}</p>
+    <div>{{ post.body }}</div>
     {%- endfor %}
+    {%- endif %}
 </body>
 
 </html>

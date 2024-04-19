@@ -80,3 +80,8 @@ fieldset {
 .system {
     color: var(--system);
 }
+
+form#approve-form,
+form#reject-form {
+    display: inline;
+}

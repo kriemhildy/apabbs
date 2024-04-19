@@ -127,7 +127,10 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
         },
         None => None,
     };
-    let posts = Post::select_latest_approved_100(&mut tx).await;
+    let posts = match user.as_ref().is_some_and(|u| u.admin) {
+        true => Post::select_latest_admin(&mut tx).await,
+        false => Post::select_latest_approved(&mut tx).await,
+    };
     tx.commit().await.expect("commit transaction");
     let html = Html(render(
         state.jinja,
