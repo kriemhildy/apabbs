@@ -99,15 +99,10 @@ fn conflict(msg: &str) -> Response {
 // }
 
 const USER_COOKIE: &'static str = "user";
-const SCHEME_HEADER: &'static str = "X-Forwarded-Proto";
 
-fn build_cookie(headers: HeaderMap, token: String) -> Cookie<'static> {
-    let scheme = headers
-        .get(SCHEME_HEADER)
-        .expect("get scheme header")
-        .as_bytes();
-    Cookie::build((USER_COOKIE, token))
-        .secure(scheme == b"https")
+fn build_cookie(token: &str) -> Cookie<'static> {
+    Cookie::build((USER_COOKIE, token.to_owned()))
+        .secure(!dev())
         .http_only(true)
         .same_site(SameSite::Strict)
         .permanent()
@@ -119,7 +114,7 @@ use user::{Credentials, User};
 mod post;
 use post::Post;
 
-use axum::{extract::State, http::HeaderMap, response::Html};
+use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
@@ -165,7 +160,6 @@ async fn submit_post(
 
 async fn register(
     State(state): State<AppState>,
-    headers: HeaderMap,
     mut jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
@@ -188,7 +182,7 @@ async fn register(
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
             let user = credentials.register(&mut tx).await;
-            let cookie = build_cookie(headers, user.token.clone());
+            let cookie = build_cookie(&user.token);
             jar = jar.add(cookie);
         }
     };
@@ -199,14 +193,13 @@ async fn register(
 
 async fn login(
     State(state): State<AppState>,
-    headers: HeaderMap,
     mut jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     match credentials.authenticate(&mut tx).await {
         Some(user) => {
-            let cookie = build_cookie(headers, user.token.clone());
+            let cookie = build_cookie(&user.token);
             jar = jar.add(cookie);
         }
         None => {
