@@ -105,10 +105,9 @@ impl Credentials {
         };
         let phc_salt_string = Credentials::convert_b64_salt(&user.password_salt);
         let input_password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
-        if user.password_hash == input_password_hash {
-            Some(user)
-        } else {
-            None
+        match user.password_hash == input_password_hash {
+            true => Some(user),
+            false => None,
         }
     }
 }
