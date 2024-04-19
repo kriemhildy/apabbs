@@ -137,8 +137,7 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     (jar, html).into_response()
 }
 
-use axum::response::Redirect;
-use axum::Form;
+use axum::{response::Redirect, Form};
 
 async fn submit_post(
     State(state): State<AppState>,
