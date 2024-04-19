@@ -5,6 +5,7 @@ pub struct User {
     pub token: String,
     pub password_hash: String,
     pub password_salt: String,
+    pub admin: bool,
 }
 
 #[derive(serde::Deserialize)]
