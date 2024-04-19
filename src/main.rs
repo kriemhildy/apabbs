@@ -121,7 +121,7 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     // check for user cookie
     let user = match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user),
             None => return bad_request("cookie user not found"),
         },
@@ -146,7 +146,7 @@ async fn submit_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     let user_id: Option<i32> = match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user.id),
             None => return bad_request("cookie user not found"),
         },
@@ -212,7 +212,7 @@ async fn login(
 async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select(&mut tx, cookie.value()).await {
+        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(_user) => jar = jar.remove(USER_COOKIE),
             None => return bad_request("cookie user not found"),
         },

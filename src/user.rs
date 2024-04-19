@@ -16,12 +16,20 @@ pub struct Credentials {
 use sqlx::PgConnection;
 
 impl User {
-    pub async fn select(tx: &mut PgConnection, token: &str) -> Option<User> {
+    pub async fn select_by_token(tx: &mut PgConnection, token: &str) -> Option<User> {
         sqlx::query_as("SELECT * FROM users WHERE token = $1")
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
             .expect("select user by token")
+    }
+
+    pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<User> {
+        sqlx::query_as("SELECT * FROM users WHERE username = $1")
+            .bind(username)
+            .fetch_optional(&mut *tx)
+            .await
+            .expect("select user by username")
     }
 }
 
@@ -30,11 +38,7 @@ use argon2::password_hash::SaltString;
 
 impl Credentials {
     pub async fn username_taken(&self, tx: &mut PgConnection) -> bool {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
-            .bind(&self.username)
-            .fetch_one(&mut *tx)
-            .await
-            .expect("select whether username exists")
+        User::select_by_username(tx, &self.username).await.is_some()
     }
 
     pub fn acceptable_username(&self) -> bool {
@@ -94,15 +98,10 @@ impl Credentials {
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
-        let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = $1")
-            .bind(&self.username)
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("select user based on username");
-        if user.is_none() {
-            return None;
-        }
-        let user = user.expect("extract user from option");
+        let user = match User::select_by_username(tx, &self.username).await {
+            Some(user) => user,
+            None => return None,
+        };
         let phc_salt_string = Credentials::convert_b64_salt(&user.password_salt);
         let input_password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         if user.password_hash == input_password_hash {
