@@ -114,7 +114,7 @@ fn build_cookie(token: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{Post, PostInput, PostModeration};
+use post::{Post, PostModeration, PostSubmission};
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -147,7 +147,7 @@ use axum::{response::Redirect, Form};
 async fn submit_post(
     State(state): State<AppState>,
     jar: CookieJar,
-    Form(post_input): Form<PostInput>,
+    Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     let user_id: Option<i32> = match jar.get(USER_COOKIE) {
@@ -157,7 +157,7 @@ async fn submit_post(
         },
         None => None,
     };
-    post_input.insert(&mut tx, user_id).await;
+    post_submission.insert(&mut tx, user_id).await;
     tx.commit().await.expect("commit transaction");
     Redirect::to("/").into_response()
 }
@@ -248,8 +248,7 @@ async fn approve(
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     require_admin!(jar, tx);
-    let post = Post::select(&mut tx, post_moderation.id).await;
-    post.update_status(&mut tx, "approved").await;
+    post_moderation.update_status(&mut tx, "approved").await;
     tx.commit().await.expect("commit transaction");
     Redirect::to("/").into_response()
 }
@@ -261,8 +260,7 @@ async fn reject(
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     require_admin!(jar, tx);
-    let post = Post::select(&mut tx, post_moderation.id).await;
-    post.update_status(&mut tx, "rejected").await;
+    post_moderation.update_status(&mut tx, "rejected").await;
     tx.commit().await.expect("commit transaction");
     Redirect::to("/").into_response()
 }
