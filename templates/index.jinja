@@ -22,7 +22,7 @@
         </form>
         {%- if user is none %}
         <p class="system">if you have an account, log in.</p>
-        <form action="/authenticate" method="post" id="login-form">
+        <form action="/login" method="post" id="login-form">
             <fieldset>
                 <legend>user login</legend>
                 <label for="login-username">username:</label>
@@ -45,7 +45,7 @@
         </form>
         {%- else %}
         <p class="system">logged in user: <strong>{{ user.username }}</strong></p>
-        <form action="/deauthenticate" method="post" id="logout-form">
+        <form action="/logout" method="post" id="logout-form">
             <input type="submit" value="Log out">
         </form>
         {%- endif %}

@@ -35,8 +35,8 @@ fn router(state: AppState) -> axum::Router {
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
         .route("/register", post(register))
-        .route("/authenticate", post(authenticate))
-        .route("/deauthenticate", post(deauthenticate))
+        .route("/login", post(login))
+        .route("/logout", post(logout))
         .layer(trace())
         .with_state(state)
 }
@@ -197,7 +197,7 @@ async fn register(
     (jar, redirect).into_response()
 }
 
-async fn authenticate(
+async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
     mut jar: CookieJar,
@@ -218,7 +218,7 @@ async fn authenticate(
     (jar, redirect).into_response()
 }
 
-async fn deauthenticate(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
     match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
