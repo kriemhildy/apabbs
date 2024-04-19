@@ -167,7 +167,7 @@ async fn register(
     if credentials.username_taken(&mut tx).await {
         return conflict("username already taken");
     }
-    // we also need to validate the username in other ways (TBD)
+    // check if username is acceptable
     if !credentials.acceptable_username() {
         return conflict("unacceptable username");
     }
@@ -175,8 +175,7 @@ async fn register(
     if !credentials.acceptable_password() {
         return conflict("unacceptable password");
     }
-    // check if cookie is set from anon user
-    // or insert anon user and set cookie if necessary
+    // set cookie
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),
         None => {

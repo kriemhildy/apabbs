@@ -24,9 +24,6 @@ impl PostInput {
 }
 
 impl Post {
-    // posts that are unapproved should probably wait in a separate queue before
-    // being added to the official posts table. alternatively, we can use published_at
-    // instead of id.
     pub async fn select_latest_approved_100(tx: &mut PgConnection) -> Vec<Post> {
         sqlx::query_as("SELECT * FROM posts ORDER BY id DESC LIMIT 100")
             .fetch_all(&mut *tx)
