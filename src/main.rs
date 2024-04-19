@@ -112,7 +112,7 @@ fn build_cookie(token: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::Post;
+use post::{Post, PostInput};
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -143,17 +143,17 @@ use axum::Form;
 async fn submit_post(
     State(state): State<AppState>,
     jar: CookieJar,
-    Form(post): Form<Post>,
+    Form(post_input): Form<PostInput>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    let user_id_option: Option<i32> = match jar.get(USER_COOKIE) {
+    let user_id: Option<i32> = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select(&mut tx, cookie.value()).await {
             Some(user) => Some(user.id),
             None => return bad_request("cookie user not found"),
         },
         None => None,
     };
-    post.insert(&mut tx, user_id_option).await;
+    post_input.insert(&mut tx, user_id).await;
     tx.commit().await.expect("commit transaction");
     Redirect::to("/").into_response()
 }

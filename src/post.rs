@@ -1,12 +1,27 @@
-#[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize, Default)]
-#[serde(default)]
+#[derive(sqlx::FromRow, serde::Serialize)]
 pub struct Post {
     pub id: i32,
     pub body: String,
     pub user_id: Option<i32>,
 }
 
+#[derive(serde::Deserialize)]
+pub struct PostInput {
+    pub body: String,
+}
+
 use sqlx::PgConnection;
+
+impl PostInput {
+    pub async fn insert(&self, tx: &mut PgConnection, user_id: Option<i32>) -> i32 {
+        sqlx::query_scalar("INSERT INTO posts (body, user_id) VALUES ($1, $2) RETURNING id")
+            .bind(&self.body)
+            .bind(user_id)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("insert new post")
+    }
+}
 
 impl Post {
     // posts that are unapproved should probably wait in a separate queue before
@@ -17,14 +32,5 @@ impl Post {
             .fetch_all(&mut *tx)
             .await
             .expect("select latest 100 posts")
-    }
-
-    pub async fn insert(self, tx: &mut PgConnection, user_id_option: Option<i32>) -> i32 {
-        sqlx::query_scalar("INSERT INTO posts (body, user_id) VALUES ($1, $2) RETURNING id")
-            .bind(&self.body)
-            .bind(user_id_option)
-            .fetch_one(&mut *tx)
-            .await
-            .expect("insert new post")
     }
 }
