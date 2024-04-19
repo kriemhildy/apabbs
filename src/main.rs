@@ -37,6 +37,8 @@ fn router(state: AppState) -> axum::Router {
         .route("/register", post(register))
         .route("/login", post(login))
         .route("/logout", post(logout))
+        .route("/approve", post(approve))
+        .route("/reject", post(reject))
         .layer(trace())
         .with_state(state)
 }
@@ -94,9 +96,9 @@ fn conflict(msg: &str) -> Response {
     http_code(StatusCode::CONFLICT, msg)
 }
 
-// fn unauthorized() -> Response {
-//     http_code(StatusCode::UNAUTHORIZED, "unauthorized")
-// }
+fn unauthorized() -> Response {
+    http_code(StatusCode::UNAUTHORIZED, "unauthorized")
+}
 
 const USER_COOKIE: &'static str = "user";
 
@@ -112,7 +114,7 @@ fn build_cookie(token: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{Post, PostInput};
+use post::{Post, PostInput, PostModeration};
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -221,4 +223,46 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     tx.commit().await.expect("commit transaction");
     let redirect = Redirect::to("/");
     (jar, redirect).into_response()
+}
+
+macro_rules! require_admin {
+    ($jar:expr, $tx:expr) => {
+        match $jar.get(USER_COOKIE) {
+            Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
+                Some(user) => {
+                    if !user.admin {
+                        return unauthorized();
+                    }
+                }
+                None => return bad_request("cookie user not found"),
+            },
+            None => return bad_request("no user cookie found"),
+        };
+    };
+}
+
+async fn approve(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(post_moderation): Form<PostModeration>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
+    require_admin!(jar, tx);
+    let post = Post::select(&mut tx, post_moderation.id).await;
+    post.update_status(&mut tx, "approved").await;
+    tx.commit().await.expect("commit transaction");
+    Redirect::to("/").into_response()
+}
+
+async fn reject(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(post_moderation): Form<PostModeration>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect("begin transaction");
+    require_admin!(jar, tx);
+    let post = Post::select(&mut tx, post_moderation.id).await;
+    post.update_status(&mut tx, "rejected").await;
+    tx.commit().await.expect("commit transaction");
+    Redirect::to("/").into_response()
 }

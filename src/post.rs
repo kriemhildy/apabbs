@@ -11,6 +11,11 @@ pub struct PostInput {
     pub body: String,
 }
 
+#[derive(serde::Deserialize)]
+pub struct PostModeration {
+    pub id: i32,
+}
+
 use sqlx::PgConnection;
 
 impl PostInput {
@@ -41,5 +46,22 @@ impl Post {
         .fetch_all(&mut *tx)
         .await
         .expect("select latest 100 posts")
+    }
+
+    pub async fn select(tx: &mut PgConnection, id: i32) -> Post {
+        sqlx::query_as("SELECT * FROM posts WHERE id = $1")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("select post by id")
+    }
+
+    pub async fn update_status(&self, tx: &mut PgConnection, status: &str) {
+        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
+            .bind(status)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post status");
     }
 }
