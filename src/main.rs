@@ -230,7 +230,6 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         },
         None => return bad_request(COOKIE_NOT_FOUND),
     };
-    jar = jar.remove(COOKIE);
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
