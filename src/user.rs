@@ -26,11 +26,11 @@ impl User {
     }
 
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<User> {
-        sqlx::query_as("SELECT * FROM users WHERE lower(username) = $1")
+        sqlx::query_as("SELECT * FROM users WHERE username = $1")
             .bind(username.to_lowercase())
             .fetch_optional(&mut *tx)
             .await
-            .expect("select user by username (case insensitive)")
+            .expect("select user by username")
     }
 
     pub async fn insert(
@@ -52,11 +52,11 @@ impl User {
     }
 
     pub async fn username_exists(tx: &mut PgConnection, username: &str) -> bool {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE lower(username) = $1)")
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
             .bind(username.to_lowercase())
             .fetch_one(&mut *tx)
             .await
-            .expect("select whether username exists (case insensitive)")
+            .expect("select whether username exists")
     }
 }
 
