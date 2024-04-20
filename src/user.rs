@@ -42,6 +42,7 @@ use crate::{valerr, ValidationError};
 impl Credentials {
     pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<ValidationError>> {
         let mut errors: Vec<ValidationError> = Vec::new();
+        // maybe rework this to check for case sensitivity
         if User::select_by_username(tx, &self.username).await.is_some() {
             valerr!(errors, "username is already taken");
         }
