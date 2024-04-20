@@ -192,7 +192,7 @@ async fn login(
             let cookie = build_cookie(&user.token);
             jar = jar.add(cookie);
         }
-        None => return bad_request("incorrect credentials"),
+        None => return bad_request("invalid credentials"),
     }
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
