@@ -92,7 +92,7 @@ fn unauthorized() -> Response {
     (StatusCode::UNAUTHORIZED, "401 Unauthorized").into_response()
 }
 
-const USER_COOKIE: &'static str = "user";
+const COOKIE: &'static str = "user";
 const COOKIE_NOT_FOUND: &'static str = "cookie not found";
 const USER_NOT_FOUND: &'static str = "user not found";
 const BEGIN: &'static str = "begin transaction";
@@ -100,7 +100,7 @@ const COMMIT: &'static str = "commit transaction";
 const ROOT: &'static str = "/";
 
 fn build_cookie(token: &str) -> Cookie<'static> {
-    Cookie::build((USER_COOKIE, token.to_owned()))
+    Cookie::build((COOKIE, token.to_owned()))
         .secure(!dev())
         .http_only(true)
         .same_site(SameSite::Strict)
@@ -118,7 +118,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = match jar.get(USER_COOKIE) {
+    let user = match jar.get(COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user),
             None => return bad_request(USER_NOT_FOUND),
@@ -146,7 +146,7 @@ async fn submit_post(
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user_id: Option<i32> = match jar.get(USER_COOKIE) {
+    let user_id: Option<i32> = match jar.get(COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user.id),
             None => return bad_request(USER_NOT_FOUND),
@@ -190,7 +190,7 @@ async fn register(
             .join("\n");
         return bad_request(&msg);
     }
-    match jar.get(USER_COOKIE) {
+    match jar.get(COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
             let user = credentials.register(&mut tx).await;
@@ -223,14 +223,14 @@ async fn login(
 
 async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    match jar.get(USER_COOKIE) {
+    match jar.get(COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
-            Some(_user) => jar = jar.remove(USER_COOKIE),
+            Some(_user) => jar = jar.remove(COOKIE),
             None => return bad_request(USER_NOT_FOUND),
         },
         None => return bad_request(COOKIE_NOT_FOUND),
     };
-    jar = jar.remove(USER_COOKIE);
+    jar = jar.remove(COOKIE);
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
@@ -238,7 +238,7 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
 
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
-        match $jar.get(USER_COOKIE) {
+        match $jar.get(COOKIE) {
             Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
                 Some(user) => {
                     if !user.admin {
