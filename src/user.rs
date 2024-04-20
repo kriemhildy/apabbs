@@ -32,6 +32,32 @@ impl User {
             .await
             .expect("select user by username")
     }
+
+    pub async fn insert(
+        tx: &mut PgConnection,
+        username: &str,
+        password_hash: &str,
+        password_salt: &str,
+    ) -> User {
+        sqlx::query_as(concat!(
+            "INSERT INTO users (username, password_hash, password_salt) ",
+            "VALUES ($1, $2, $3) RETURNING *"
+        ))
+        .bind(username)
+        .bind(password_hash)
+        .bind(password_salt)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert a new registered user")
+    }
+
+    pub async fn username_taken(tx: &mut PgConnection, username: &str) -> bool {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE lower(username) = $1)")
+            .bind(username.to_lowercase())
+            .fetch_one(&mut *tx)
+            .await
+            .expect("select whether username exists (case insensitive)")
+    }
 }
 
 // PHC salt string used in password hashing
@@ -42,8 +68,7 @@ use crate::{val, ValidationError};
 impl Credentials {
     pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<ValidationError>> {
         let mut errors: Vec<ValidationError> = Vec::new();
-        // maybe rework this to check for case sensitivity
-        if User::select_by_username(tx, &self.username).await.is_some() {
+        if User::username_taken(tx, &self.username).await {
             val!(errors, "username is already taken");
         }
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
@@ -94,16 +119,8 @@ impl Credentials {
     pub async fn register(&self, tx: &mut PgConnection) -> User {
         let phc_salt_string = Credentials::generate_phc_salt_string();
         let password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
-        sqlx::query_as(concat!(
-            "INSERT INTO users (username, password_hash, password_salt) ",
-            "VALUES ($1, $2, $3) RETURNING *"
-        ))
-        .bind(&self.username)
-        .bind(password_hash)
-        .bind(phc_salt_string.as_str()) // converts PHC SaltString to B64 str
-        .fetch_one(&mut *tx)
-        .await
-        .expect("insert a new registered user")
+        let password_salt = phc_salt_string.as_str();
+        User::insert(tx, &self.username, &password_hash, password_salt).await
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
