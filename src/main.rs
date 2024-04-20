@@ -85,7 +85,7 @@ use axum::{
 };
 
 fn bad_request(msg: &str) -> Response {
-    (StatusCode::BAD_REQUEST, format!("400 Bad Request: {msg}")).into_response()
+    (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
 }
 
 fn unauthorized() -> Response {
@@ -164,8 +164,9 @@ async fn register(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    if let Err(e) = credentials.validate(&mut tx).await {
-        return bad_request(&e.to_string());
+    if let Err(errors) = credentials.validate(&mut tx).await {
+        let msg = errors.iter().map(|e| e.to_string()).collect::<Vec<String>>().join("\n");
+        return bad_request(&msg)
     }
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),

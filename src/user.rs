@@ -59,23 +59,27 @@ impl std::fmt::Display for Error {
 use argon2::password_hash::SaltString;
 
 impl Credentials {
-    pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Error> {
+    pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<Error>> {
+        let mut errors: Vec<Error> = Vec::new();
         if User::select_by_username(tx, &self.username).await.is_some() {
-            return Err(Error::UsernameTaken);
+            errors.push(Error::UsernameTaken);
         }
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
-            return Err(Error::UsernameFormatError);
+            errors.push(Error::UsernameFormatError);
         }
         if !(8..=64).contains(&self.password.len()) {
-            return Err(Error::PasswordLengthError);
+            errors.push(Error::PasswordLengthError);
         }
         let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
         if lowercase_password.contains(&lowercase_username) {
-            return Err(Error::PasswordIncludesUsernameError);
+            errors.push(Error::PasswordIncludesUsernameError);
         }
-        Ok(())
+        match errors.is_empty() {
+            true => Ok(()),
+            false => Err(errors),
+        }
     }
 
     fn generate_phc_salt_string() -> SaltString {
