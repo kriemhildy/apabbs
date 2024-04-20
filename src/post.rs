@@ -14,6 +14,7 @@ pub struct PostSubmission {
 #[derive(serde::Deserialize)]
 pub struct PostModeration {
     pub id: i32,
+    pub status: String,
 }
 
 use sqlx::PgConnection;
@@ -50,9 +51,9 @@ impl PostSubmission {
 }
 
 impl PostModeration {
-    pub async fn update_status(&self, tx: &mut PgConnection, status: &str) {
+    pub async fn update_status(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
-            .bind(status)
+            .bind(&self.status)
             .bind(self.id)
             .execute(&mut *tx)
             .await

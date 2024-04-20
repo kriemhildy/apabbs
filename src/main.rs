@@ -37,8 +37,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/register", post(register))
         .route("/login", post(login))
         .route("/logout", post(logout))
-        .route("/approve", post(approve))
-        .route("/reject", post(reject))
+        .route("/admin/update-post-status", post(update_post_status))
         .layer(trace())
         .with_state(state)
 }
@@ -251,26 +250,14 @@ macro_rules! require_admin {
     };
 }
 
-async fn approve(
+async fn update_post_status(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(post_moderation): Form<PostModeration>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    post_moderation.update_status(&mut tx, "approved").await;
-    tx.commit().await.expect(COMMIT);
-    Redirect::to(ROOT).into_response()
-}
-
-async fn reject(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(post_moderation): Form<PostModeration>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    require_admin!(jar, tx);
-    post_moderation.update_status(&mut tx, "rejected").await;
+    post_moderation.update_status(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     Redirect::to(ROOT).into_response()
 }

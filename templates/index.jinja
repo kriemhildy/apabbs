@@ -59,12 +59,14 @@
     <div>
         {{ post.body }}
         {%- if post.status == "new" %}
-        <form action="/approve" method="post" id="approve-form">
+        <form action="/admin/update-post-status" method="post" id="approve-form">
             <input type="hidden" name="id" value="{{ post.id }}">
+            <input type="hidden" name="status" value="approved">
             <input type="submit" value="Approve">
         </form>
-        <form action="/reject" method="post" id="reject-form">
+        <form action="/admin/update-post-status" method="post" id="reject-form">
             <input type="hidden" name="id" value="{{ post.id }}">
+            <input type="hidden" name="status" value="rejected">
             <input type="submit" value="Reject">
         </form>
         {%- endif %}
