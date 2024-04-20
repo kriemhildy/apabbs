@@ -167,6 +167,14 @@ impl std::fmt::Display for ValidationError {
         f.write_str(&self.message)
     }
 }
+#[macro_export]
+macro_rules! valerr {
+    ($vec:expr, $msg:expr) => {
+        $vec.push(ValidationError {
+            message: String::from($msg),
+        })
+    };
+}
 
 async fn register(
     State(state): State<AppState>,

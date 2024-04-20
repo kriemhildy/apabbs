@@ -36,33 +36,26 @@ impl User {
 
 // PHC salt string used in password hashing
 use argon2::password_hash::SaltString;
-use crate::ValidationError;
+
+use crate::{valerr, ValidationError};
 
 impl Credentials {
     pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<ValidationError>> {
         let mut errors: Vec<ValidationError> = Vec::new();
         if User::select_by_username(tx, &self.username).await.is_some() {
-            errors.push(ValidationError {
-                message: String::from("username is already taken"),
-            });
+            valerr!(errors, "username is already taken");
         }
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
-            errors.push(ValidationError {
-                message: String::from("username must be within 4 to 16 word characters"),
-            });
+            valerr!(errors, "username must be within 4 to 16 word characters");
         }
         if !(8..=64).contains(&self.password.len()) {
-            errors.push(ValidationError {
-                message: String::from("password must be within 8 to 64 chars"),
-            });
+            valerr!(errors, "password must be within 8 to 64 chars");
         }
         let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
         if lowercase_password.contains(&lowercase_username) {
-            errors.push(ValidationError {
-                message: String::from("password cannot contain username"),
-            });
+            valerr!(errors, "password cannot contain username");
         }
         match errors.is_empty() {
             true => Ok(()),
