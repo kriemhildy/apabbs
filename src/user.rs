@@ -26,11 +26,11 @@ impl User {
     }
 
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<User> {
-        sqlx::query_as("SELECT * FROM users WHERE username = $1")
-            .bind(username)
+        sqlx::query_as("SELECT * FROM users WHERE lower(username) = $1")
+            .bind(username.to_lowercase())
             .fetch_optional(&mut *tx)
             .await
-            .expect("select user by username")
+            .expect("select user by username (case insensitive)")
     }
 
     pub async fn insert(

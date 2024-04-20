@@ -186,7 +186,7 @@ async fn login(
                 let cookie = build_cookie(&user.token);
                 jar = jar.add(cookie);
             }
-            None => return bad_request("username exists but has an invalid password"),
+            None => return bad_request("username exists but password is wrong"),
         }
     } else {
         if let Err(errors) = credentials.validate() {
