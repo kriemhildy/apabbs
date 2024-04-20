@@ -51,7 +51,7 @@ impl User {
         .expect("insert a new registered user")
     }
 
-    pub async fn username_taken(tx: &mut PgConnection, username: &str) -> bool {
+    pub async fn username_exists(tx: &mut PgConnection, username: &str) -> bool {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE lower(username) = $1)")
             .bind(username.to_lowercase())
             .fetch_one(&mut *tx)
@@ -66,11 +66,8 @@ use argon2::password_hash::SaltString;
 use crate::{val, ValidationError};
 
 impl Credentials {
-    pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<ValidationError>> {
+    pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors: Vec<ValidationError> = Vec::new();
-        if User::username_taken(tx, &self.username).await {
-            val!(errors, "username is already taken");
-        }
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
             val!(errors, "username must be within 4 to 16 word characters");

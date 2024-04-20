@@ -34,7 +34,6 @@ fn router(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
-        .route("/register", post(register))
         .route("/login", post(login))
         .route("/logout", post(logout))
         .route("/admin/update-post-status", post(update_post_status))
@@ -175,45 +174,37 @@ macro_rules! val {
     };
 }
 
-async fn register(
-    State(state): State<AppState>,
-    mut jar: CookieJar,
-    Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    if let Err(errors) = credentials.validate(&mut tx).await {
-        let msg = errors
-            .iter()
-            .map(|e| e.to_string())
-            .collect::<Vec<String>>()
-            .join("\n");
-        return bad_request(&msg);
-    }
-    match jar.get(COOKIE) {
-        Some(_cookie) => return bad_request("log out before registering"),
-        None => {
-            let user = credentials.register(&mut tx).await;
-            let cookie = build_cookie(&user.token);
-            jar = jar.add(cookie);
-        }
-    };
-    tx.commit().await.expect(COMMIT);
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
 async fn login(
     State(state): State<AppState>,
     mut jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    match credentials.authenticate(&mut tx).await {
-        Some(user) => {
-            let cookie = build_cookie(&user.token);
-            jar = jar.add(cookie);
+    if User::username_exists(&mut tx, &credentials.username).await {
+        match credentials.authenticate(&mut tx).await {
+            Some(user) => {
+                let cookie = build_cookie(&user.token);
+                jar = jar.add(cookie);
+            }
+            None => return bad_request("username exists but has an invalid password"),
         }
-        None => return bad_request("invalid credentials"),
+    } else {
+        if let Err(errors) = credentials.validate() {
+            let msg = errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join("\n");
+            return bad_request(&msg);
+        }
+        match jar.get(COOKIE) {
+            Some(_cookie) => return bad_request("log out before registering"),
+            None => {
+                let user = credentials.register(&mut tx).await;
+                let cookie = build_cookie(&user.token);
+                jar = jar.add(cookie);
+            }
+        }
     }
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
