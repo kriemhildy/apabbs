@@ -167,7 +167,7 @@ impl std::fmt::Display for ValidationError {
     }
 }
 #[macro_export]
-macro_rules! valerr {
+macro_rules! val {
     ($vec:expr, $msg:expr) => {
         $vec.push(ValidationError {
             message: String::from($msg),
