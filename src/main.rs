@@ -118,7 +118,6 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    // check for user cookie
     let user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user),
