@@ -34,21 +34,18 @@ impl User {
     }
 }
 
-// PHC salt string used in password hashing
-use argon2::password_hash::SaltString;
-
 #[derive(Debug)]
 pub enum Error {
+    UsernameTaken,
     UsernameFormatError,
     PasswordLengthError,
     PasswordIncludesUsernameError,
 }
-
 impl std::error::Error for Error {}
-
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::UsernameTaken => f.write_str("username is already taken"),
             Self::UsernameFormatError => {
                 f.write_str("username must be within 4 to 16 word characters")
             }
@@ -58,21 +55,18 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl Credentials {
-    pub async fn username_taken(&self, tx: &mut PgConnection) -> bool {
-        User::select_by_username(tx, &self.username).await.is_some()
-    }
+// PHC salt string used in password hashing
+use argon2::password_hash::SaltString;
 
-    pub fn acceptable_username(&self) -> Result<(), Error> {
-        use regex::Regex;
-        let pattern = Regex::new(r"^\w{4,16}$").expect("build regex pattern");
+impl Credentials {
+    pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Error> {
+        if User::select_by_username(tx, &self.username).await.is_some() {
+            return Err(Error::UsernameTaken);
+        }
+        let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
             return Err(Error::UsernameFormatError);
         }
-        Ok(())
-    }
-
-    pub fn acceptable_password(&self) -> Result<(), Error> {
         if !(8..=64).contains(&self.password.len()) {
             return Err(Error::PasswordLengthError);
         }

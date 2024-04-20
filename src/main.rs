@@ -84,22 +84,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-fn http_code(code: StatusCode, msg: &str) -> Response {
-    (code, msg.to_owned()).into_response()
-}
-
-fn bad_request(msg: &str) -> Response {
-    http_code(StatusCode::BAD_REQUEST, msg)
-}
-
-fn conflict(msg: &str) -> Response {
-    http_code(StatusCode::CONFLICT, msg)
-}
-
-fn unauthorized() -> Response {
-    http_code(StatusCode::UNAUTHORIZED, "unauthorized")
-}
-
 const USER_COOKIE: &'static str = "user";
 
 fn build_cookie(token: &str) -> Cookie<'static> {
@@ -125,7 +109,7 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     let user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user),
-            None => return bad_request("cookie user not found"),
+            None => return (StatusCode::BAD_REQUEST, "cookie user not found").into_response(),
         },
         None => None,
     };
@@ -153,7 +137,7 @@ async fn submit_post(
     let user_id: Option<i32> = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(user) => Some(user.id),
-            None => return bad_request("cookie user not found"),
+            None => return (StatusCode::BAD_REQUEST, "cookie user not found").into_response(),
         },
         None => None,
     };
@@ -168,19 +152,13 @@ async fn register(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect("begin transaction");
-    if credentials.username_taken(&mut tx).await {
-        return conflict("username already taken");
-    }
-    match credentials.acceptable_username() {
-        Ok(_) => (),
-        Err(e) => return conflict(&format!("unacceptable username: {e}")),
-    }
-    match credentials.acceptable_password() {
-        Ok(_) => (),
-        Err(e) => return conflict(&format!("unacceptable password: {e}")),
+    if let Err(e) = credentials.validate(&mut tx).await {
+        return (StatusCode::BAD_REQUEST, e.to_string()).into_response();
     }
     match jar.get(USER_COOKIE) {
-        Some(_cookie) => return bad_request("log out before registering"),
+        Some(_cookie) => {
+            return (StatusCode::BAD_REQUEST, "log out before registering").into_response()
+        }
         None => {
             let user = credentials.register(&mut tx).await;
             let cookie = build_cookie(&user.token);
@@ -204,7 +182,7 @@ async fn login(
             jar = jar.add(cookie);
         }
         None => {
-            return bad_request("incorrect credentials");
+            return (StatusCode::BAD_REQUEST, "incorrect credentials").into_response();
         }
     }
     tx.commit().await.expect("commit transaction");
@@ -217,9 +195,9 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
             Some(_user) => jar = jar.remove(USER_COOKIE),
-            None => return bad_request("cookie user not found"),
+            None => return (StatusCode::BAD_REQUEST, "cookie user not found").into_response(),
         },
-        None => return bad_request("no user cookie found"),
+        None => return (StatusCode::BAD_REQUEST, "no user cookie found").into_response(),
     };
     jar = jar.remove(USER_COOKIE);
     tx.commit().await.expect("commit transaction");
@@ -233,12 +211,12 @@ macro_rules! require_admin {
             Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
                 Some(user) => {
                     if !user.admin {
-                        return unauthorized();
+                        return (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
                     }
                 }
-                None => return bad_request("cookie user not found"),
+                None => return (StatusCode::BAD_REQUEST, "cookie user not found").into_response(),
             },
-            None => return bad_request("no user cookie found"),
+            None => return (StatusCode::BAD_REQUEST, "no user cookie found").into_response(),
         };
     };
 }
