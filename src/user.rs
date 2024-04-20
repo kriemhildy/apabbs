@@ -34,47 +34,35 @@ impl User {
     }
 }
 
-#[derive(Debug)]
-pub enum Error {
-    UsernameTaken,
-    UsernameFormatError,
-    PasswordLengthError,
-    PasswordIncludesUsernameError,
-}
-impl std::error::Error for Error {}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UsernameTaken => f.write_str("username is already taken"),
-            Self::UsernameFormatError => {
-                f.write_str("username must be within 4 to 16 word characters")
-            }
-            Self::PasswordLengthError => f.write_str("password must be within 8 to 64 chars"),
-            Self::PasswordIncludesUsernameError => f.write_str("password cannot contain username"),
-        }
-    }
-}
-
 // PHC salt string used in password hashing
 use argon2::password_hash::SaltString;
+use crate::ValidationError;
 
 impl Credentials {
-    pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<Error>> {
-        let mut errors: Vec<Error> = Vec::new();
+    pub async fn validate(&self, tx: &mut PgConnection) -> Result<(), Vec<ValidationError>> {
+        let mut errors: Vec<ValidationError> = Vec::new();
         if User::select_by_username(tx, &self.username).await.is_some() {
-            errors.push(Error::UsernameTaken);
+            errors.push(ValidationError {
+                message: String::from("username is already taken"),
+            });
         }
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
-            errors.push(Error::UsernameFormatError);
+            errors.push(ValidationError {
+                message: String::from("username must be within 4 to 16 word characters"),
+            });
         }
         if !(8..=64).contains(&self.password.len()) {
-            errors.push(Error::PasswordLengthError);
+            errors.push(ValidationError {
+                message: String::from("password must be within 8 to 64 chars"),
+            });
         }
         let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
         if lowercase_password.contains(&lowercase_username) {
-            errors.push(Error::PasswordIncludesUsernameError);
+            errors.push(ValidationError {
+                message: String::from("password cannot contain username"),
+            });
         }
         match errors.is_empty() {
             true => Ok(()),

@@ -158,6 +158,16 @@ async fn submit_post(
     Redirect::to(ROOT).into_response()
 }
 
+#[derive(Debug)]
+pub struct ValidationError {
+    pub message: String,
+}
+impl std::fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
 async fn register(
     State(state): State<AppState>,
     mut jar: CookieJar,
@@ -165,8 +175,12 @@ async fn register(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     if let Err(errors) = credentials.validate(&mut tx).await {
-        let msg = errors.iter().map(|e| e.to_string()).collect::<Vec<String>>().join("\n");
-        return bad_request(&msg)
+        let msg = errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<String>>()
+            .join("\n");
+        return bad_request(&msg);
     }
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),
