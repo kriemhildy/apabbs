@@ -171,11 +171,13 @@ async fn register(
     if credentials.username_taken(&mut tx).await {
         return conflict("username already taken");
     }
-    if !credentials.acceptable_username() {
-        return conflict("unacceptable username");
+    match credentials.acceptable_username() {
+        Ok(_) => (),
+        Err(e) => return conflict(&format!("unacceptable username: {e}")),
     }
-    if !credentials.acceptable_password() {
-        return conflict("unacceptable password");
+    match credentials.acceptable_password() {
+        Ok(_) => (),
+        Err(e) => return conflict(&format!("unacceptable password: {e}")),
     }
     match jar.get(USER_COOKIE) {
         Some(_cookie) => return bad_request("log out before registering"),

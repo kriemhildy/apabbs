@@ -37,23 +37,51 @@ impl User {
 // PHC salt string used in password hashing
 use argon2::password_hash::SaltString;
 
+#[derive(Debug)]
+pub enum Error {
+    UsernameFormatError,
+    PasswordLengthError,
+    PasswordIncludesUsernameError,
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UsernameFormatError => {
+                f.write_str("username must be within 4 to 16 word characters")
+            }
+            Self::PasswordLengthError => f.write_str("password must be within 8 to 64 chars"),
+            Self::PasswordIncludesUsernameError => f.write_str("password cannot contain username"),
+        }
+    }
+}
+
 impl Credentials {
     pub async fn username_taken(&self, tx: &mut PgConnection) -> bool {
         User::select_by_username(tx, &self.username).await.is_some()
     }
 
-    pub fn acceptable_username(&self) -> bool {
+    pub fn acceptable_username(&self) -> Result<(), Error> {
         use regex::Regex;
         let pattern = Regex::new(r"^\w{4,16}$").expect("build regex pattern");
-        pattern.is_match(&self.username)
+        if !pattern.is_match(&self.username) {
+            return Err(Error::UsernameFormatError);
+        }
+        Ok(())
     }
 
-    pub fn acceptable_password(&self) -> bool {
-        (8..=64).contains(&self.password.len()) && {
-            let lowercase_username = self.username.to_lowercase();
-            let lowercase_password = self.password.to_lowercase();
-            !lowercase_password.contains(&lowercase_username)
+    pub fn acceptable_password(&self) -> Result<(), Error> {
+        if !(8..=64).contains(&self.password.len()) {
+            return Err(Error::PasswordLengthError);
         }
+        let lowercase_username = self.username.to_lowercase();
+        let lowercase_password = self.password.to_lowercase();
+        if lowercase_password.contains(&lowercase_username) {
+            return Err(Error::PasswordIncludesUsernameError);
+        }
+        Ok(())
     }
 
     fn generate_phc_salt_string() -> SaltString {
