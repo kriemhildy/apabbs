@@ -5,8 +5,11 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies.sqlx]
+version = "*"
+features = ["postgres", "runtime-tokio-rustls", "ipnetwork"]
+
 [dependencies]
-sqlx = { version = "*", features = ["postgres", "runtime-tokio-rustls", "ipnetwork"] }
 tokio = { version = "*", features = ["full"] }
 axum = { version = "*", features = ["form", "ws", "macros"] }
 axum-extra = { version = "*", features = ["cookie"] }
@@ -18,5 +21,6 @@ minijinja = { version = "*", features = ["loader"] }
 futures = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
-argon2 = "0.5.3"
-regex = "1.10.4"
+argon2 = "*"
+regex = "*"
+uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
