@@ -21,18 +21,18 @@ use sqlx::PgConnection;
 
 impl Post {
     pub async fn select_latest_approved(tx: &mut PgConnection) -> Vec<Post> {
-        sqlx::query_as(concat!(
+        sqlx::query_as(
             "SELECT * FROM posts WHERE status = 'approved' ORDER BY id DESC LIMIT 100",
-        ))
+        )
         .fetch_all(&mut *tx)
         .await
         .expect("select latest 100 approved posts")
     }
 
     pub async fn select_latest_admin(tx: &mut PgConnection) -> Vec<Post> {
-        sqlx::query_as(concat!(
+        sqlx::query_as(
             "SELECT * FROM posts WHERE status <> 'rejected' ORDER BY id DESC LIMIT 100",
-        ))
+        )
         .fetch_all(&mut *tx)
         .await
         .expect("select latest 100 non-rejected posts")
