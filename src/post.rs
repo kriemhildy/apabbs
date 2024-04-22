@@ -26,7 +26,7 @@ impl Post {
         ))
         .fetch_all(&mut *tx)
         .await
-        .expect("select latest 100 posts")
+        .expect("select latest 100 approved posts")
     }
 
     pub async fn select_latest_admin(tx: &mut PgConnection) -> Vec<Post> {
@@ -35,7 +35,7 @@ impl Post {
         ))
         .fetch_all(&mut *tx)
         .await
-        .expect("select latest 100 posts")
+        .expect("select latest 100 non-rejected posts")
     }
 }
 
