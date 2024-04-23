@@ -50,7 +50,7 @@
         {%- if post.username %}
         {{ post.username }}:
         {%- else %}
-        {{ post.short_anon_uuid }}:
+        {{ post.anon_hash }}:
         {%- endif %}
         {{ post.body }}
         {%- if post.status == "new" %}
@@ -74,7 +74,7 @@
         {%- if post.username %}
         {{ post.username }}:
         {%- else %}
-        {{ post.short_anon_uuid }}:
+        {{ post.anon_hash }}:
         {%- endif %}
         {{ post.body }}
     </div>
