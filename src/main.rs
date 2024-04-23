@@ -115,25 +115,40 @@ use post::{Post, PostModeration, PostSubmission};
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
-async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
-            Some(user) => Some(user),
-            None => return bad_request(USER_NOT_FOUND),
-        },
-        None => None,
+macro_rules! user {
+    ($jar:expr, $tx:expr) => {
+        match $jar.get(USER_COOKIE) {
+            Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
+                Some(user) => Some(user),
+                None => return bad_request(USER_NOT_FOUND),
+            },
+            None => None,
+        }
     };
-    let anon_uuid = match user.is_none() {
-        true => match jar.get(ANON_COOKIE) {
-            Some(cookie) => cookie.value().to_owned(),
+}
+
+macro_rules! anon_uuid {
+    ($jar:expr) => {
+        match $jar.get(ANON_COOKIE) {
+            Some(cookie) => match uuid::Uuid::try_parse(cookie.value()) {
+                Ok(uuid) => uuid.hyphenated().to_string(),
+                Err(_) => return bad_request("invalid anon UUID"),
+            },
             None => {
                 let anon_uuid = uuid::Uuid::new_v4().hyphenated().to_string();
                 let cookie = build_cookie(ANON_COOKIE, &anon_uuid);
-                jar = jar.add(cookie);
+                $jar = $jar.add(cookie);
                 anon_uuid
             }
-        },
+        }
+    };
+}
+
+async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    let anon_uuid = match user.is_none() {
+        true => anon_uuid!(jar),
         false => String::default(),
     };
     let posts = match &user {
@@ -156,23 +171,24 @@ use axum::{response::Redirect, Form};
 
 async fn submit_post(
     State(state): State<AppState>,
-    jar: CookieJar,
+    mut jar: CookieJar,
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
-            Some(user) => post_submission.insert_as_user(&mut tx, user.id).await,
-            None => return bad_request(USER_NOT_FOUND),
-        },
-        None => match jar.get(ANON_COOKIE) {
-            Some(cookie) => post_submission.insert_as_anon(&mut tx, cookie.value()).await,
-            None => return bad_request("no cookies set")
+    let user = user!(jar, tx);
+    let _post_id = match user {
+        Some(user) => post_submission.insert_as_user(&mut tx, user.id).await,
+        None => {
+            let anon_uuid = anon_uuid!(jar);
+            post_submission.insert_as_anon(&mut tx, &anon_uuid).await
         }
     };
     tx.commit().await.expect(COMMIT);
-    Redirect::to(ROOT).into_response()
+    let redirect = Redirect::to(ROOT);
+    (jar, redirect).into_response()
 }
+
+// shared model validation code
 
 #[derive(Debug)]
 pub struct ValidationError {
@@ -245,17 +261,10 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
 
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
-        match $jar.get(USER_COOKIE) {
-            Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
-                Some(user) => {
-                    if !user.admin {
-                        return unauthorized();
-                    }
-                }
-                None => return bad_request(USER_NOT_FOUND),
-            },
-            None => return bad_request(COOKIE_NOT_FOUND),
-        };
+        let user = user!($jar, $tx);
+        if !user.is_some_and(|u| u.admin) {
+            return unauthorized();
+        }
     };
 }
 
