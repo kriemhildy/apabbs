@@ -33,6 +33,9 @@
             </fieldset>
         </form>
         <p>anon hash: {{ anon_hash }}</p>
+        <form action="/new-hash" method="post" id="new-hash-form">
+            <input type="submit" value="Generate new hash">
+        </form>
         {%- else %}
         <p class="system">logged in user: <strong>{{ user.username }}</strong></p>
         {%- if user.admin %}

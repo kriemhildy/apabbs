@@ -36,6 +36,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/submit-post", post(submit_post))
         .route("/login", post(login))
         .route("/logout", post(logout))
+        .route("/new-hash", post(new_hash))
         .route("/admin/update-post-status", post(update_post_status))
         .layer(trace())
         .with_state(state)
@@ -262,6 +263,14 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
+
+async fn new_hash(mut jar: CookieJar) -> Response {
+    jar = jar.remove(ANON_COOKIE);
+    let redirect = Redirect::to(ROOT);
+    (jar, redirect).into_response()
+}
+
+// admin handlers follow
 
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
