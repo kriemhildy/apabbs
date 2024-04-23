@@ -110,7 +110,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{Post, PostModeration, PostSubmission};
+use post::{PostDisplay, PostModeration, PostSubmission};
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -153,10 +153,10 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     };
     let posts = match &user {
         Some(user) => match user.admin {
-            true => Post::select_latest_as_admin(&mut tx).await,
-            false => Post::select_latest_as_user(&mut tx, user.id).await,
+            true => PostDisplay::select_latest_as_admin(&mut tx).await,
+            false => PostDisplay::select_latest_as_user(&mut tx, user.id).await,
         },
-        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
+        None => PostDisplay::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
     let html = Html(render(

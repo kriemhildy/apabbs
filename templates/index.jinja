@@ -47,6 +47,11 @@
     <p class="system">posts:</p>
     {%- for post in posts %}
     <div>
+        {%- if post.username %}
+        {{ post.username }}:
+        {%- else %}
+        {{ post.short_anon_uuid }}:
+        {%- endif %}
         {{ post.body }}
         {%- if post.status == "new" %}
         <form action="/admin/update-post-status" method="post" id="approve-form">
@@ -65,7 +70,14 @@
     {%- else %}
     <p class="system">approved posts:</p>
     {%- for post in posts %}
-    <div>{{ post.body }}</div>
+    <div>
+        {%- if post.username %}
+        {{ post.username }}:
+        {%- else %}
+        {{ post.short_anon_uuid }}:
+        {%- endif %}
+        {{ post.body }}
+    </div>
     {%- endfor %}
     {%- endif %}
 </body>

@@ -1,8 +1,10 @@
 #[derive(sqlx::FromRow, serde::Serialize)]
-pub struct Post {
+pub struct PostDisplay {
     pub id: i32,
     pub body: String,
     pub user_id: Option<i32>,
+    pub username: Option<String>,
+    pub short_anon_uuid: Option<String>,
     pub status: String,
 }
 
@@ -19,10 +21,13 @@ pub struct PostModeration {
 
 use sqlx::PgConnection;
 
-impl Post {
-    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Post> {
+impl PostDisplay {
+    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<PostDisplay> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE status = 'approved' OR anon_uuid = $1 ",
+            "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
+            "left(posts.anon_uuid, 8) AS short_anon_uuid FROM posts ",
+            "LEFT OUTER JOIN users ON users.id = posts.user_id ",
+            "WHERE posts.status = 'approved' OR posts.anon_uuid = $1 ",
             "ORDER BY id DESC LIMIT 100"
         ))
         .bind(anon_uuid)
@@ -31,10 +36,13 @@ impl Post {
         .expect("select latest 100 posts as anon")
     }
 
-    pub async fn select_latest_as_user(tx: &mut PgConnection, user_id: i32) -> Vec<Post> {
+    pub async fn select_latest_as_user(tx: &mut PgConnection, user_id: i32) -> Vec<PostDisplay> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE status = 'approved' OR user_id = $1 ",
-            "ORDER BY id DESC LIMIT 100"
+            "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
+            "left(posts.anon_uuid, 8) AS short_anon_uuid FROM posts ",
+            "LEFT OUTER JOIN users ON users.id = posts.user_id ",
+            "WHERE posts.status = 'approved' OR posts.user_id = $1 ",
+            "ORDER BY posts.id DESC LIMIT 100"
         ))
         .bind(user_id)
         .fetch_all(&mut *tx)
@@ -42,11 +50,17 @@ impl Post {
         .expect("select latest 100 posts as user")
     }
 
-    pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<Post> {
-        sqlx::query_as("SELECT * FROM posts WHERE status <> 'rejected' ORDER BY id DESC LIMIT 100")
-            .fetch_all(&mut *tx)
-            .await
-            .expect("select latest 100 posts as admin")
+    pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<PostDisplay> {
+        sqlx::query_as(concat!(
+            "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
+            "left(posts.anon_uuid, 8) AS short_anon_uuid FROM posts ",
+            "LEFT OUTER JOIN users ON users.id = posts.user_id ",
+            "WHERE posts.status <> 'rejected' ",
+            "ORDER BY posts.id DESC LIMIT 100"
+        ))
+        .fetch_all(&mut *tx)
+        .await
+        .expect("select latest 100 posts as admin")
     }
 }
 
