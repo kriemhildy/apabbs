@@ -115,7 +115,7 @@ use post::{Post, PostModeration, PostSubmission};
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
-async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
+async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
@@ -126,18 +126,22 @@ async fn index(State(state): State<AppState>, jar: CookieJar) -> Response {
     };
     let anon_uuid = match user.is_none() {
         true => match jar.get(ANON_COOKIE) {
-            Some(cookie) => Some(cookie.value().to_owned()),
+            Some(cookie) => cookie.value().to_owned(),
             None => {
                 let anon_uuid = uuid::Uuid::new_v4().hyphenated().to_string();
-                build_cookie(ANON_COOKIE, &anon_uuid);
-                Some(anon_uuid)
+                let cookie = build_cookie(ANON_COOKIE, &anon_uuid);
+                jar = jar.add(cookie);
+                anon_uuid
             }
         },
-        false => None,
+        false => String::default(),
     };
-    let posts = match user.as_ref().is_some_and(|u| u.admin) {
-        true => Post::select_latest_admin(&mut tx).await,
-        false => Post::select_latest_approved(&mut tx).await,
+    let posts = match &user {
+        Some(user) => match user.admin {
+            true => Post::select_latest_as_admin(&mut tx).await,
+            false => Post::select_latest_as_user(&mut tx, user.id).await,
+        },
+        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
@@ -156,14 +160,16 @@ async fn submit_post(
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user_id: Option<i32> = match jar.get(USER_COOKIE) {
+    match jar.get(USER_COOKIE) {
         Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
-            Some(user) => Some(user.id),
+            Some(user) => post_submission.insert_as_user(&mut tx, user.id).await,
             None => return bad_request(USER_NOT_FOUND),
         },
-        None => None,
+        None => match jar.get(ANON_COOKIE) {
+            Some(cookie) => post_submission.insert_as_anon(&mut tx, cookie.value()).await,
+            None => return bad_request("no cookies set")
+        }
     };
-    post_submission.insert(&mut tx, user_id).await;
     tx.commit().await.expect(COMMIT);
     Redirect::to(ROOT).into_response()
 }
