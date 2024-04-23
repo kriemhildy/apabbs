@@ -24,3 +24,4 @@ serde_json = "*"
 argon2 = "*"
 regex = "*"
 uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
+sha256 = "*"

@@ -151,6 +151,10 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         true => anon_uuid!(jar),
         false => String::default(),
     };
+    let mut anon_hash = sha256::digest(&anon_uuid);
+    anon_hash.truncate(8);
+    println!("anon_uuid: {anon_uuid}");
+    println!("anon_hash: {anon_hash}");
     let posts = match &user {
         Some(user) => match user.admin {
             true => PostDisplay::select_latest_as_admin(&mut tx).await,
@@ -162,7 +166,7 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(user, posts, anon_uuid),
+        minijinja::context!(user, posts, anon_hash),
     ));
     (jar, html).into_response()
 }

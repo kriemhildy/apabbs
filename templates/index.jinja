@@ -32,7 +32,7 @@
                 <input type="submit" value="Log in or register">
             </fieldset>
         </form>
-        <p>anon uuid: {{ anon_uuid }}</p>
+        <p>anon hash: {{ anon_hash }}</p>
         {%- else %}
         <p class="system">logged in user: <strong>{{ user.username }}</strong></p>
         {%- if user.admin %}

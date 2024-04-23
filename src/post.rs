@@ -25,7 +25,7 @@ impl PostDisplay {
     pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<PostDisplay> {
         sqlx::query_as(concat!(
             "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
-            "left(md5(posts.anon_uuid), 6) AS anon_hash FROM posts ",
+            "left(encode(sha256(posts.anon_uuid::bytea), 'hex'), 6) AS anon_hash FROM posts ",
             "LEFT OUTER JOIN users ON users.id = posts.user_id ",
             "WHERE posts.status = 'approved' OR posts.anon_uuid = $1 ",
             "ORDER BY id DESC LIMIT 100"
@@ -39,7 +39,7 @@ impl PostDisplay {
     pub async fn select_latest_as_user(tx: &mut PgConnection, user_id: i32) -> Vec<PostDisplay> {
         sqlx::query_as(concat!(
             "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
-            "left(md5(posts.anon_uuid), 6) AS anon_hash FROM posts ",
+            "left(encode(sha256(posts.anon_uuid::bytea), 'hex'), $2) AS anon_hash FROM posts ",
             "LEFT OUTER JOIN users ON users.id = posts.user_id ",
             "WHERE posts.status = 'approved' OR posts.user_id = $1 ",
             "ORDER BY posts.id DESC LIMIT 100"
@@ -53,7 +53,7 @@ impl PostDisplay {
     pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<PostDisplay> {
         sqlx::query_as(concat!(
             "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
-            "left(md5(posts.anon_uuid), 6) AS anon_hash FROM posts ",
+            "left(encode(sha256(posts.anon_uuid::bytea), 'hex'), 6) AS anon_hash FROM posts ",
             "LEFT OUTER JOIN users ON users.id = posts.user_id ",
             "WHERE posts.status <> 'rejected' ",
             "ORDER BY posts.id DESC LIMIT 100"
