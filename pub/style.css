@@ -90,6 +90,7 @@ div.post {
     overflow: hidden;
     padding: 10px;
     border-radius: 5px;
+    margin-top: 5px;
 }
 
 span.anon-hash {
@@ -102,9 +103,8 @@ span.username {
 
 div.pending {
     background: #111;
-    border: 1px solid grey;
 }
 
 div.rejected {
-    background: #600;
+    background: #200;
 }

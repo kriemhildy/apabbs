@@ -157,7 +157,7 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
-    let anon_hash = Post::anon_hash(&anon_uuid); // for display
+    let anon_hash = PostSubmission::anon_hash(&anon_uuid); // for display
     let html = Html(render(
         state.jinja,
         "index.jinja",

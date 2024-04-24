@@ -52,10 +52,6 @@ impl Post {
             .await
             .expect("select latest 100 posts as admin")
     }
-
-    pub fn anon_hash(anon_uuid: &str) -> String {
-        sha256::digest(anon_uuid)[..8].to_owned()
-    }
 }
 
 impl PostSubmission {
@@ -63,7 +59,7 @@ impl PostSubmission {
         sqlx::query_scalar(
             "INSERT INTO posts (body, user_id, username) VALUES ($1, $2, $3) RETURNING id",
         )
-        .bind(&self.body)
+        .bind(Self::convert_to_html(&self.body))
         .bind(user.id)
         .bind(user.username)
         .fetch_one(&mut *tx)
@@ -75,12 +71,26 @@ impl PostSubmission {
         sqlx::query_scalar(concat!(
             "INSERT INTO posts (body, anon_uuid, anon_hash) VALUES ($1, $2, $3) RETURNING id"
         ))
-        .bind(&self.body)
+        .bind(Self::convert_to_html(&self.body))
         .bind(anon_uuid)
-        .bind(Post::anon_hash(anon_uuid))
+        .bind(Self::anon_hash(anon_uuid))
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as anon")
+    }
+
+    pub fn anon_hash(anon_uuid: &str) -> String {
+        sha256::digest(anon_uuid)[..8].to_owned()
+    }
+
+    fn convert_to_html(input: &str) -> String {
+        input
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", "<br>\n")
     }
 }
 
