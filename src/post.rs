@@ -85,6 +85,7 @@ impl PostSubmission {
 
     fn convert_to_html(input: &str) -> String {
         input
+            .trim()
             .replace("\r\n", "\n")
             .replace("\r", "\n")
             .replace("&", "&amp;")
