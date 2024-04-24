@@ -149,7 +149,6 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
-    let anon_hash = Post::anon_hash(&anon_uuid);
     let posts = match &user {
         Some(user) => match user.admin {
             true => Post::select_latest_as_admin(&mut tx).await,
@@ -158,6 +157,7 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
+    let anon_hash = Post::anon_hash(&anon_uuid); // for display
     let html = Html(render(
         state.jinja,
         "index.jinja",
