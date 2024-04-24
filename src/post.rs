@@ -62,10 +62,10 @@ impl Post {
         .expect("select latest 100 posts as admin")
     }
 
-    pub async fn select(tx: &mut PgConnection, id: i32) -> Post {
+    pub async fn select(tx: &mut PgConnection, id: i32) -> Option<Post> {
         sqlx::query_as("SELECT * FROM posts WHERE id = $1")
             .bind(id)
-            .fetch_one(&mut *tx)
+            .fetch_optional(&mut *tx)
             .await
             .expect("select post by id")
     }

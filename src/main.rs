@@ -271,14 +271,21 @@ async fn hide_rejected_post(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
-    let post = Post::select(&mut tx, post_hiding.id).await;
+    let post = match Post::select(&mut tx, post_hiding.id).await {
+        Some(post) => post,
+        None => return bad_request("post does not exist"),
+    };
     let wrote_post = match user {
         Some(user) => post.user_id.is_some_and(|id| id == user.id),
         None => post.anon_uuid.is_some_and(|uuid| uuid == anon_uuid),
     };
-    if wrote_post && post.status == "rejected" {
-        post_hiding.hide_post(&mut tx).await;
+    if !wrote_post {
+        return bad_request("not post author");
     }
+    if post.status != "rejected" {
+        return bad_request("post is not rejected");
+    }
+    post_hiding.hide_post(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
