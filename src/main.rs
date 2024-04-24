@@ -37,6 +37,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/login", post(login))
         .route("/logout", post(logout))
         .route("/new-hash", post(new_hash))
+        .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/admin/update-post-status", post(update_post_status))
         .layer(trace())
         .with_state(state)
@@ -111,7 +112,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{Post, PostModeration, PostSubmission};
+use post::{Post, PostHiding, PostModeration, PostSubmission};
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -258,6 +259,27 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
 
 async fn new_hash(mut jar: CookieJar) -> Response {
     jar = jar.remove(ANON_COOKIE);
+    let redirect = Redirect::to(ROOT);
+    (jar, redirect).into_response()
+}
+
+async fn hide_rejected_post(
+    State(state): State<AppState>,
+    mut jar: CookieJar,
+    Form(post_hiding): Form<PostHiding>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    let anon_uuid = anon_uuid!(jar);
+    let post = Post::select(&mut tx, post_hiding.id).await;
+    let wrote_post = match user {
+        Some(user) => post.user_id.is_some_and(|id| id == user.id),
+        None => post.anon_uuid.is_some_and(|uuid| uuid == anon_uuid),
+    };
+    if wrote_post && post.status == "rejected" {
+        post_hiding.hide_post(&mut tx).await;
+    }
+    tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }

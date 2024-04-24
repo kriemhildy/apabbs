@@ -20,14 +20,19 @@ pub struct PostModeration {
     pub status: String,
 }
 
+#[derive(serde::Deserialize)]
+pub struct PostHiding {
+    pub id: i32,
+}
+
 use crate::User;
 use sqlx::PgConnection;
 
 impl Post {
     pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Post> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE status = 'approved' OR anon_uuid = $1 ",
-            "ORDER BY id DESC LIMIT 100"
+            "SELECT * FROM posts WHERE (status = 'approved' OR anon_uuid = $1) ",
+            "AND hidden = false ORDER BY id DESC LIMIT 100"
         ))
         .bind(anon_uuid)
         .fetch_all(&mut *tx)
@@ -37,8 +42,8 @@ impl Post {
 
     pub async fn select_latest_as_user(tx: &mut PgConnection, user: &User) -> Vec<Post> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE status = 'approved' OR user_id = $1 ",
-            "ORDER BY id DESC LIMIT 100"
+            "SELECT * FROM posts WHERE (status = 'approved' OR user_id = $1) ",
+            "AND hidden = false ORDER BY id DESC LIMIT 100"
         ))
         .bind(user.id)
         .fetch_all(&mut *tx)
@@ -48,13 +53,21 @@ impl Post {
 
     pub async fn select_latest_as_admin(tx: &mut PgConnection, user: &User) -> Vec<Post> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE status <> 'rejected' OR user_id = $1 ",
-            " ORDER BY id DESC LIMIT 100"
+            "SELECT * FROM posts WHERE (status <> 'rejected' OR user_id = $1) ",
+            "AND hidden = false ORDER BY id DESC LIMIT 100"
         ))
         .bind(user.id)
         .fetch_all(&mut *tx)
         .await
         .expect("select latest 100 posts as admin")
+    }
+
+    pub async fn select(tx: &mut PgConnection, id: i32) -> Post {
+        sqlx::query_as("SELECT * FROM posts WHERE id = $1")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("select post by id")
     }
 }
 
@@ -72,9 +85,9 @@ impl PostSubmission {
     }
 
     pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str) -> i32 {
-        sqlx::query_scalar(concat!(
+        sqlx::query_scalar(
             "INSERT INTO posts (body, anon_uuid, anon_hash) VALUES ($1, $2, $3) RETURNING id"
-        ))
+        )
         .bind(Self::convert_to_html(&self.body))
         .bind(anon_uuid)
         .bind(Self::anon_hash(anon_uuid))
@@ -107,5 +120,15 @@ impl PostModeration {
             .execute(&mut *tx)
             .await
             .expect("update post status");
+    }
+}
+
+impl PostHiding {
+    pub async fn hide_post(&self, tx: &mut PgConnection) {
+        sqlx::query("UPDATE posts SET hidden = true WHERE id = $1")
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("set hidden flag to true");
     }
 }
