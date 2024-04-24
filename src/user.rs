@@ -70,10 +70,10 @@ impl Credentials {
         let mut errors: Vec<ValidationError> = Vec::new();
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
-            val!(errors, "username must be within 4 to 16 word characters");
+            val!(errors, "username must be 4 to 16 word characters");
         }
         if !(8..=64).contains(&self.password.len()) {
-            val!(errors, "password must be within 8 to 64 chars");
+            val!(errors, "password must be 8 to 64 chars");
         }
         let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
