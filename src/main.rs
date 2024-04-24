@@ -148,20 +148,14 @@ macro_rules! anon_uuid {
 async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let anon_uuid = match user.is_none() {
-        true => Some(anon_uuid!(jar)),
-        false => None,
-    };
-    let anon_hash = match &anon_uuid {
-        Some(anon_uuid) => Some(Post::anon_hash(anon_uuid)),
-        None => None,
-    };
+    let anon_uuid = anon_uuid!(jar);
+    let anon_hash = Post::anon_hash(&anon_uuid);
     let posts = match &user {
         Some(user) => match user.admin {
             true => Post::select_latest_as_admin(&mut tx).await,
             false => Post::select_latest_as_user(&mut tx, user).await,
         },
-        None => Post::select_latest_as_anon(&mut tx, &anon_uuid.unwrap()).await,
+        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
@@ -181,12 +175,10 @@ async fn submit_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
+    let anon_uuid = anon_uuid!(jar);
     let _post_id = match user {
         Some(user) => post_submission.insert_as_user(&mut tx, user).await,
-        None => {
-            let anon_uuid = anon_uuid!(jar);
-            post_submission.insert_as_anon(&mut tx, &anon_uuid).await
-        }
+        None => post_submission.insert_as_anon(&mut tx, &anon_uuid).await
     };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);

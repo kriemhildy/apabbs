@@ -20,8 +20,8 @@ pub struct PostModeration {
     pub status: String,
 }
 
-use sqlx::PgConnection;
 use crate::User;
+use sqlx::PgConnection;
 
 impl Post {
     pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Post> {
@@ -47,12 +47,10 @@ impl Post {
     }
 
     pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<Post> {
-        sqlx::query_as(
-            "SELECT * FROM posts WHERE status <> 'rejected' ORDER BY id DESC LIMIT 100"
-        )
-        .fetch_all(&mut *tx)
-        .await
-        .expect("select latest 100 posts as admin")
+        sqlx::query_as("SELECT * FROM posts WHERE status <> 'rejected' ORDER BY id DESC LIMIT 100")
+            .fetch_all(&mut *tx)
+            .await
+            .expect("select latest 100 posts as admin")
     }
 
     pub fn anon_hash(anon_uuid: &str) -> String {
@@ -62,25 +60,27 @@ impl Post {
 
 impl PostSubmission {
     pub async fn insert_as_user(&self, tx: &mut PgConnection, user: User) -> i32 {
-        sqlx::query_scalar("INSERT INTO posts (body, user_id, username) VALUES ($1, $2, $3) RETURNING id")
-            .bind(&self.body)
-            .bind(user.id)
-            .bind(user.username)
-            .fetch_one(&mut *tx)
-            .await
-            .expect("insert new post as user")
+        sqlx::query_scalar(
+            "INSERT INTO posts (body, user_id, username) VALUES ($1, $2, $3) RETURNING id",
+        )
+        .bind(&self.body)
+        .bind(user.id)
+        .bind(user.username)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert new post as user")
     }
 
     pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str) -> i32 {
         sqlx::query_scalar(concat!(
             "INSERT INTO posts (body, anon_uuid, anon_hash) VALUES ($1, $2, $3) RETURNING id"
         ))
-            .bind(&self.body)
-            .bind(anon_uuid)
-            .bind(Post::anon_hash(anon_uuid))
-            .fetch_one(&mut *tx)
-            .await
-            .expect("insert new post as anon")
+        .bind(&self.body)
+        .bind(anon_uuid)
+        .bind(Post::anon_hash(anon_uuid))
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert new post as anon")
     }
 }
 
