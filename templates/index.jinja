@@ -46,17 +46,18 @@
         </form>
         {%- endif %}
     </section>
-    {%- if user.admin %}
     <p class="system">posts:</p>
     {%- for post in posts %}
-    <div>
+    <div class="post {{ post.status }}">
         {%- if post.username %}
-        {{ post.username }}:
+        <span class="username">{{ post.username }}</span>
         {%- else %}
-        {{ post.anon_hash }}:
+        <span class="anon-hash">{{ post.anon_hash }}</span>
         {%- endif %}
-        {{ post.body }}
-        {%- if post.status == "pending" %}
+        <br>
+        <span class="body">{{ post.body }}</span>
+        {%- if user.admin and post.status == "pending" %}
+        <br>
         <form action="/admin/update-post-status" method="post" id="approve-form">
             <input type="hidden" name="id" value="{{ post.id }}">
             <input type="hidden" name="status" value="approved">
@@ -70,19 +71,6 @@
         {%- endif %}
     </div>
     {%- endfor %}
-    {%- else %}
-    <p class="system">approved posts:</p>
-    {%- for post in posts %}
-    <div>
-        {%- if post.username %}
-        {{ post.username }}:
-        {%- else %}
-        {{ post.anon_hash }}:
-        {%- endif %}
-        {{ post.body }}
-    </div>
-    {%- endfor %}
-    {%- endif %}
 </body>
 
 </html>

@@ -77,11 +77,34 @@ fieldset {
     border-color: var(--back);
 }
 
-.system {
+p.system {
     color: var(--system);
 }
 
 form#approve-form,
 form#reject-form {
     display: inline;
+}
+
+div.post {
+    overflow: hidden;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+span.anon-hash {
+    color: darkslategray;
+}
+
+span.username {
+    color: grey;
+}
+
+div.pending {
+    background: #111;
+    border: 1px solid grey;
+}
+
+div.rejected {
+    background: #600;
 }
