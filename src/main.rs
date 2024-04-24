@@ -151,7 +151,7 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let anon_uuid = anon_uuid!(jar);
     let posts = match &user {
         Some(user) => match user.admin {
-            true => Post::select_latest_as_admin(&mut tx).await,
+            true => Post::select_latest_as_admin(&mut tx, user).await,
             false => Post::select_latest_as_user(&mut tx, user).await,
         },
         None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
@@ -178,7 +178,7 @@ async fn submit_post(
     let anon_uuid = anon_uuid!(jar);
     let _post_id = match user {
         Some(user) => post_submission.insert_as_user(&mut tx, user).await,
-        None => post_submission.insert_as_anon(&mut tx, &anon_uuid).await
+        None => post_submission.insert_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);

@@ -46,11 +46,15 @@ impl Post {
         .expect("select latest 100 posts as user")
     }
 
-    pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<Post> {
-        sqlx::query_as("SELECT * FROM posts WHERE status <> 'rejected' ORDER BY id DESC LIMIT 100")
-            .fetch_all(&mut *tx)
-            .await
-            .expect("select latest 100 posts as admin")
+    pub async fn select_latest_as_admin(tx: &mut PgConnection, user: &User) -> Vec<Post> {
+        sqlx::query_as(concat!(
+            "SELECT * FROM posts WHERE status <> 'rejected' OR user_id = $1 ",
+            " ORDER BY id DESC LIMIT 100"
+        ))
+        .bind(user.id)
+        .fetch_all(&mut *tx)
+        .await
+        .expect("select latest 100 posts as admin")
     }
 }
 
