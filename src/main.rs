@@ -212,7 +212,7 @@ async fn login(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    if User::username_exists(&mut tx, &credentials.username).await {
+    if credentials.username_exists(&mut tx).await {
         match credentials.authenticate(&mut tx).await {
             Some(user) => {
                 let cookie = build_cookie(USER_COOKIE, &user.token);

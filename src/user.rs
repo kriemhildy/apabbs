@@ -50,14 +50,6 @@ impl User {
         .await
         .expect("insert a new registered user")
     }
-
-    pub async fn username_exists(tx: &mut PgConnection, username: &str) -> bool {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
-            .bind(username.to_lowercase())
-            .fetch_one(&mut *tx)
-            .await
-            .expect("select whether username exists")
-    }
 }
 
 // PHC salt string used in password hashing
@@ -66,6 +58,14 @@ use argon2::password_hash::SaltString;
 use crate::{val, ValidationError};
 
 impl Credentials {
+    pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
+            .bind(&self.username)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("select whether username exists")
+    }
+
     pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors: Vec<ValidationError> = Vec::new();
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
