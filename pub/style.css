@@ -5,6 +5,10 @@
         --link: #9cdcda;
         --border: #777;
         --system: #9cdcda;
+        --username: grey;
+        --anon-hash: darkslategray;
+        --pending: #111;
+        --rejected: #200;
     }
 }
 
@@ -15,6 +19,10 @@
         --link: blue;
         --border: #ccc;
         --system: red;
+        --username: grey;
+        --anon-hash: darkslategray;
+        --pending: #ddd;
+        --rejected: #faa;
     }
 }
 
@@ -40,8 +48,8 @@ input {
         position: fixed;
         top: 0;
         left: var(--dynamic-margin);
-        border-bottom: 1px solid grey;
-        background: black;
+        border-bottom: 1px solid var(--border);
+        background: var(--back);
         width: calc(100% - 2 * var(--dynamic-margin));
         margin: 0;
         padding-top: 10px;
@@ -108,17 +116,17 @@ div.post {
 }
 
 span.anon-hash {
-    color: darkslategray;
+    color: var(--anon-hash);
 }
 
 span.username {
-    color: grey;
+    color: var(--username);
 }
 
 div.pending {
-    background: #111;
+    background: var(--pending);
 }
 
 div.rejected {
-    background: #200;
+    background: var(--rejected);
 }
