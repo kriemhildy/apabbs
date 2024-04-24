@@ -149,23 +149,19 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let anon_uuid = match user.is_none() {
-        true => anon_uuid!(jar),
-        false => String::default(),
+        true => Some(anon_uuid!(jar)),
+        false => None,
     };
-    let anon_hash = match anon_uuid.is_empty() {
-        true => None,
-        false => Some(Post::anon_hash(&anon_uuid))
+    let anon_hash = match &anon_uuid {
+        Some(anon_uuid) => Some(Post::anon_hash(anon_uuid)),
+        None => None,
     };
-    println!("anon_uuid: {anon_uuid}");
-    if anon_hash.is_some() {
-        println!("anon_hash: {}", anon_hash.as_ref().expect("extract anon_hash value"));
-    }
     let posts = match &user {
         Some(user) => match user.admin {
             true => Post::select_latest_as_admin(&mut tx).await,
             false => Post::select_latest_as_user(&mut tx, user).await,
         },
-        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
+        None => Post::select_latest_as_anon(&mut tx, &anon_uuid.unwrap()).await,
     };
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
