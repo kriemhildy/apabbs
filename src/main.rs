@@ -111,7 +111,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{PostDisplay, PostModeration, PostSubmission};
+use post::{Post, PostModeration, PostSubmission};
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -152,16 +152,20 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         true => anon_uuid!(jar),
         false => String::default(),
     };
-    let mut anon_hash = sha256::digest(&anon_uuid);
-    anon_hash.truncate(8);
+    let anon_hash = match anon_uuid.is_empty() {
+        true => None,
+        false => Some(Post::anon_hash(&anon_uuid))
+    };
     println!("anon_uuid: {anon_uuid}");
-    println!("anon_hash: {anon_hash}");
+    if anon_hash.is_some() {
+        println!("anon_hash: {}", anon_hash.as_ref().expect("extract anon_hash value"));
+    }
     let posts = match &user {
         Some(user) => match user.admin {
-            true => PostDisplay::select_latest_as_admin(&mut tx).await,
-            false => PostDisplay::select_latest_as_user(&mut tx, user.id).await,
+            true => Post::select_latest_as_admin(&mut tx).await,
+            false => Post::select_latest_as_user(&mut tx, user).await,
         },
-        None => PostDisplay::select_latest_as_anon(&mut tx, &anon_uuid).await,
+        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
@@ -182,7 +186,7 @@ async fn submit_post(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let _post_id = match user {
-        Some(user) => post_submission.insert_as_user(&mut tx, user.id).await,
+        Some(user) => post_submission.insert_as_user(&mut tx, user).await,
         None => {
             let anon_uuid = anon_uuid!(jar);
             post_submission.insert_as_anon(&mut tx, &anon_uuid).await

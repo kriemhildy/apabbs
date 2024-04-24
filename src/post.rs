@@ -1,10 +1,11 @@
 #[derive(sqlx::FromRow, serde::Serialize)]
-pub struct PostDisplay {
+pub struct Post {
     pub id: i32,
     pub body: String,
     pub user_id: Option<i32>,
-    pub username: Option<String>,
-    pub anon_hash: Option<String>,
+    pub username: Option<String>, // cache
+    pub anon_uuid: Option<String>,
+    pub anon_hash: Option<String>, // cache
     pub status: String,
 }
 
@@ -20,14 +21,12 @@ pub struct PostModeration {
 }
 
 use sqlx::PgConnection;
+use crate::User;
 
-impl PostDisplay {
-    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<PostDisplay> {
+impl Post {
+    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Post> {
         sqlx::query_as(concat!(
-            "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
-            "left(encode(sha256(posts.anon_uuid::bytea), 'hex'), 6) AS anon_hash FROM posts ",
-            "LEFT OUTER JOIN users ON users.id = posts.user_id ",
-            "WHERE posts.status = 'approved' OR posts.anon_uuid = $1 ",
+            "SELECT * FROM posts WHERE status = 'approved' OR anon_uuid = $1 ",
             "ORDER BY id DESC LIMIT 100"
         ))
         .bind(anon_uuid)
@@ -36,48 +35,49 @@ impl PostDisplay {
         .expect("select latest 100 posts as anon")
     }
 
-    pub async fn select_latest_as_user(tx: &mut PgConnection, user_id: i32) -> Vec<PostDisplay> {
+    pub async fn select_latest_as_user(tx: &mut PgConnection, user: &User) -> Vec<Post> {
         sqlx::query_as(concat!(
-            "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
-            "left(encode(sha256(posts.anon_uuid::bytea), 'hex'), $2) AS anon_hash FROM posts ",
-            "LEFT OUTER JOIN users ON users.id = posts.user_id ",
-            "WHERE posts.status = 'approved' OR posts.user_id = $1 ",
-            "ORDER BY posts.id DESC LIMIT 100"
+            "SELECT * FROM posts WHERE status = 'approved' OR user_id = $1 ",
+            "ORDER BY id DESC LIMIT 100"
         ))
-        .bind(user_id)
+        .bind(user.id)
         .fetch_all(&mut *tx)
         .await
         .expect("select latest 100 posts as user")
     }
 
-    pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<PostDisplay> {
-        sqlx::query_as(concat!(
-            "SELECT posts.id, posts.body, posts.status, posts.user_id, users.username, ",
-            "left(encode(sha256(posts.anon_uuid::bytea), 'hex'), 6) AS anon_hash FROM posts ",
-            "LEFT OUTER JOIN users ON users.id = posts.user_id ",
-            "WHERE posts.status <> 'rejected' ",
-            "ORDER BY posts.id DESC LIMIT 100"
-        ))
+    pub async fn select_latest_as_admin(tx: &mut PgConnection) -> Vec<Post> {
+        sqlx::query_as(
+            "SELECT * FROM posts WHERE status <> 'rejected' ORDER BY id DESC LIMIT 100"
+        )
         .fetch_all(&mut *tx)
         .await
         .expect("select latest 100 posts as admin")
     }
+
+    pub fn anon_hash(anon_uuid: &str) -> String {
+        sha256::digest(anon_uuid)[..8].to_owned()
+    }
 }
 
 impl PostSubmission {
-    pub async fn insert_as_user(&self, tx: &mut PgConnection, user_id: i32) -> i32 {
-        sqlx::query_scalar("INSERT INTO posts (body, user_id) VALUES ($1, $2) RETURNING id")
+    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: User) -> i32 {
+        sqlx::query_scalar("INSERT INTO posts (body, user_id, username) VALUES ($1, $2, $3) RETURNING id")
             .bind(&self.body)
-            .bind(user_id)
+            .bind(user.id)
+            .bind(user.username)
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post as user")
     }
 
     pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str) -> i32 {
-        sqlx::query_scalar("INSERT INTO posts (body, anon_uuid) VALUES ($1, $2) RETURNING id")
+        sqlx::query_scalar(concat!(
+            "INSERT INTO posts (body, anon_uuid, anon_hash) VALUES ($1, $2, $3) RETURNING id"
+        ))
             .bind(&self.body)
             .bind(anon_uuid)
+            .bind(Post::anon_hash(anon_uuid))
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post as anon")
