@@ -46,31 +46,33 @@
         </form>
         {%- endif %}
     </section>
-    <p class="system">posts:</p>
-    {%- for post in posts %}
-    <div class="post {{ post.status }}">
-        {%- if post.username %}
-        <span class="username">{{ post.username }}</span>
-        {%- else %}
-        <span class="anon-hash">{{ post.anon_hash }}</span>
-        {%- endif %}
-        <br>
-        <span class="body">{{ post.body }}</span>
-        {%- if user.admin and post.status == "pending" %}
-        <br>
-        <form action="/admin/update-post-status" method="post" id="approve-form">
-            <input type="hidden" name="id" value="{{ post.id }}">
-            <input type="hidden" name="status" value="approved">
-            <input type="submit" value="Approve">
-        </form>
-        <form action="/admin/update-post-status" method="post" id="reject-form">
-            <input type="hidden" name="id" value="{{ post.id }}">
-            <input type="hidden" name="status" value="rejected">
-            <input type="submit" value="Reject">
-        </form>
-        {%- endif %}
-    </div>
-    {%- endfor %}
+    <main>
+        <p class="system">posts:</p>
+        {%- for post in posts %}
+        <div class="post {{ post.status }}">
+            {%- if post.username %}
+            <span class="username">{{ post.username }}</span>
+            {%- else %}
+            <span class="anon-hash">{{ post.anon_hash }}</span>
+            {%- endif %}
+            <br>
+            <span class="body">{{ post.body }}</span>
+            {%- if user.admin and post.status == "pending" %}
+            <br>
+            <form action="/admin/update-post-status" method="post" id="approve-form">
+                <input type="hidden" name="id" value="{{ post.id }}">
+                <input type="hidden" name="status" value="approved">
+                <input type="submit" value="Approve">
+            </form>
+            <form action="/admin/update-post-status" method="post" id="reject-form">
+                <input type="hidden" name="id" value="{{ post.id }}">
+                <input type="hidden" name="status" value="rejected">
+                <input type="submit" value="Reject">
+            </form>
+            {%- endif %}
+        </div>
+        {%- endfor %}
+    </main>
 </body>
 
 </html>
