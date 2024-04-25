@@ -24,32 +24,6 @@ impl User {
             .await
             .expect("select user by token")
     }
-
-    pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<User> {
-        sqlx::query_as("SELECT * FROM users WHERE username = $1")
-            .bind(username.to_lowercase())
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("select user by username")
-    }
-
-    pub async fn insert(
-        tx: &mut PgConnection,
-        username: &str,
-        password_hash: &str,
-        password_salt: &str,
-    ) -> User {
-        sqlx::query_as(concat!(
-            "INSERT INTO users (username, password_hash, password_salt) ",
-            "VALUES ($1, $2, $3) RETURNING *"
-        ))
-        .bind(username)
-        .bind(password_hash)
-        .bind(password_salt)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("insert a new registered user")
-    }
 }
 
 // PHC salt string used in password hashing
@@ -117,14 +91,28 @@ impl Credentials {
         let phc_salt_string = Credentials::generate_phc_salt_string();
         let password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         let password_salt = phc_salt_string.as_str();
-        User::insert(tx, &self.username, &password_hash, password_salt).await
+        sqlx::query_as(concat!(
+            "INSERT INTO users (username, password_hash, password_salt) ",
+            "VALUES ($1, $2, $3) RETURNING *"
+        ))
+        .bind(&self.username)
+        .bind(password_hash)
+        .bind(password_salt)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert a new registered user")
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
-        let user = match User::select_by_username(tx, &self.username).await {
-            Some(user) => user,
-            None => return None,
-        };
+        let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = $1")
+            .bind(&self.username)
+            .fetch_optional(&mut *tx)
+            .await
+            .expect("select user by username");
+        if user.is_none() {
+            return None;
+        }
+        let user = user.unwrap();
         let phc_salt_string = Credentials::convert_b64_salt(&user.password_salt);
         let input_password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         match user.password_hash == input_password_hash {
