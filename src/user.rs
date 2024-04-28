@@ -93,7 +93,7 @@ impl Credentials {
         let password_salt = phc_salt_string.as_str();
         sqlx::query_as(concat!(
             "INSERT INTO users (username, password_hash, password_salt, ip) ",
-            "VALUES ($1, $2, $3, $4::inet) RETURNING *"
+            "VALUES ($1, $2, $3, $4) RETURNING *"
         ))
         .bind(&self.username)
         .bind(password_hash)

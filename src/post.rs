@@ -75,7 +75,7 @@ impl PostSubmission {
     pub async fn insert_as_user(&self, tx: &mut PgConnection, user: User, ip: &str) -> i32 {
         sqlx::query_scalar(concat!(
             "INSERT INTO posts (body, user_id, username, ip) ",
-            "VALUES ($1, $2, $3, $4::inet) RETURNING id",
+            "VALUES ($1, $2, $3, $4) RETURNING id",
         ))
         .bind(Self::convert_to_html(&self.body))
         .bind(user.id)
@@ -89,7 +89,7 @@ impl PostSubmission {
     pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str, ip: &str) -> i32 {
         sqlx::query_scalar(concat!(
             "INSERT INTO posts (body, anon_uuid, anon_hash, ip) ",
-            "VALUES ($1, $2, $3, $4::inet) RETURNING id",
+            "VALUES ($1, $2, $3, $4) RETURNING id",
         ))
         .bind(Self::convert_to_html(&self.body))
         .bind(anon_uuid)

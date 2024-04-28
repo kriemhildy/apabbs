@@ -92,6 +92,10 @@ fn unauthorized() -> Response {
     (StatusCode::UNAUTHORIZED, "401 Unauthorized").into_response()
 }
 
+fn forbidden(msg: &str) -> Response {
+    (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")).into_response()
+}
+
 use axum::http::header::HeaderMap;
 
 fn ip(headers: &HeaderMap) -> &str {
@@ -123,6 +127,7 @@ mod user;
 use user::{Credentials, User};
 mod post;
 use post::{Post, PostHiding, PostModeration, PostSubmission};
+mod ban;
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -152,6 +157,20 @@ macro_rules! anon_uuid {
                 $jar = $jar.add(cookie);
                 anon_uuid
             }
+        }
+    };
+}
+
+macro_rules! check_for_ban {
+    ($tx:expr, $ip:expr) => {
+        if ban::exists(&mut $tx, $ip).await {
+            return forbidden(&format!("ip {} has been auto-banned due to flooding", $ip));
+        }
+        if ban::flooding(&mut $tx, $ip).await {
+            ban::insert(&mut $tx, $ip).await;
+            ban::prune(&mut $tx, $ip).await;
+            $tx.commit().await.expect(COMMIT);
+            return forbidden(&format!("ip {} is flooding and has been banned", $ip));
         }
     };
 }
@@ -189,9 +208,14 @@ async fn submit_post(
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
     let ip = ip(&headers);
+    check_for_ban!(tx, ip);
     let _post_id = match user {
         Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
-        None => post_submission.insert_as_anon(&mut tx, &anon_uuid, ip).await,
+        None => {
+            post_submission
+                .insert_as_anon(&mut tx, &anon_uuid, ip)
+                .await
+        }
     };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
@@ -246,6 +270,7 @@ async fn login(
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
                 let ip = ip(&headers);
+                check_for_ban!(tx, ip);
                 let user = credentials.register(&mut tx, ip).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);
