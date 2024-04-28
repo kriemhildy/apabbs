@@ -44,26 +44,12 @@ input {
 }
 
 @media (min-width: 700px) {
-    h1 {
-        position: fixed;
-        top: 0;
-        left: var(--dynamic-margin);
-        border-bottom: 1px solid var(--border);
-        background: var(--back);
-        width: calc(100% - 2 * var(--dynamic-margin));
-        margin: 0;
-        padding-top: 10px;
-        padding-bottom: 10px;
-    }
-    main {
-        padding-top: 40px;
-        width: calc(50%);
-    }
     section#forms {
-        width: calc(52% - (2 * var(--dynamic-margin)));
-        position: fixed;
-        right: var(--dynamic-margin);
-        top: 4em;
+        width: 50%;
+        float: right;
+        margin-top: -1em;
+        margin-left: var(--dynamic-margin);
+        margin-bottom: var(--dynamic-margin);
     }
 }
 
