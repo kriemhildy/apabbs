@@ -5,9 +5,9 @@
         --link: #9cdcda;
         --border: #777;
         --system: #9cdcda;
-        --username: grey;
-        --anon-hash: darkslategray;
-        --pending: #111;
+        --username: rgb(186, 134, 197);
+        --anon-hash: rgb(192, 119, 156);
+        --pending: #111111;
         --rejected: #200;
     }
 }
