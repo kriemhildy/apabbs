@@ -10,8 +10,8 @@
 </head>
 
 <body>
-    <h1>schizo.land</h1>
     <section id="forms">
+        <h1>schizo.land</h1>
         <p class="system">write a post. if it is approved, it will show up later.</p>
         <form action="/submit-post" method="post">
             <fieldset>
@@ -32,22 +32,23 @@
                 <input type="submit" value="Log in or register">
             </fieldset>
         </form>
-        <p>your anon hash: {{ anon_hash }}</p>
         <form action="/new-hash" method="post">
+            <span class="system">your anon hash: {{ anon_hash }}</span>
             <input type="submit" value="Generate new hash">
         </form>
         {%- else %}
-        <p class="system">logged in user: <strong>{{ user.username }}</strong></p>
-        {%- if user.admin %}
-        <p class="system">you are an admin</p>
-        {%- endif %}
         <form action="/logout" method="post">
+            <span class="system">
+                logged in user: <strong>{{ user.username }}</strong>
+                {%- if user.admin %}
+                (admin)
+                {%- endif %}
+            </span>
             <input type="submit" value="Log out">
         </form>
         {%- endif %}
     </section>
     <main>
-        <p class="system">posts:</p>
         {%- for post in posts %}
         <div class="post {{ post.status }}">
             {%- if post.username %}

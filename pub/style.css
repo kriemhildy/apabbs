@@ -7,7 +7,7 @@
         --system: #9cdcda;
         --username: rgb(186, 134, 197);
         --anon-hash: rgb(192, 119, 156);
-        --pending: #111111;
+        --pending: #333333;
         --rejected: #200;
     }
 }
@@ -18,7 +18,7 @@
         --fore: black;
         --link: blue;
         --border: #ccc;
-        --system: red;
+        --system: black;
         --username: grey;
         --anon-hash: darkslategray;
         --pending: #ddd;
@@ -29,10 +29,7 @@
 body {
     margin-top: 10px;
     margin-bottom: 50px;
-    --dynamic-margin: max(calc(13% - 80px), 8px);
-    margin-left: var(--dynamic-margin);
-    margin-right: var(--dynamic-margin);
-    max-width: 1000px;
+    max-width: 600px;
     overflow-wrap: break-word;
 }
 
@@ -45,21 +42,30 @@ input {
     background: var(--back);
 }
 
-@media (min-width: 700px) {
+textarea {
+    width: 95%;
+    height: 5em;
+}
+
+@media (min-width: 750px) {
+    body {
+        max-width: 1000px;
+    }
+
     section#forms {
+        position: fixed;
         width: 40%;
-        float: right;
-        margin-top: -1em;
+        max-width: 410px;
+        top: 0;
     }
 
     main {
-        width: 57%;
+        margin-left: calc(40% + 25px);
     }
-}
 
-textarea {
-    width: 97%;
-    height: 7em;
+    textarea {
+        height: 10em;
+    }
 }
 
 input[type="submit"] {
@@ -70,6 +76,10 @@ input,
 textarea {
     border-radius: 5px;
     border-color: var(--border);
+}
+
+fieldset {
+    border-radius: 5px;
 }
 
 textarea {
