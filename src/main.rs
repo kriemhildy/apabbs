@@ -92,6 +92,16 @@ fn unauthorized() -> Response {
     (StatusCode::UNAUTHORIZED, "401 Unauthorized").into_response()
 }
 
+use axum::http::header::HeaderMap;
+
+fn ip(headers: &HeaderMap) -> &str {
+    headers
+        .get("X-Real-IP")
+        .expect("gets header")
+        .to_str()
+        .expect("converts header to str")
+}
+
 const ANON_COOKIE: &'static str = "anon";
 const USER_COOKIE: &'static str = "user";
 const COOKIE_NOT_FOUND: &'static str = "cookie not found";
@@ -172,14 +182,16 @@ use axum::{response::Redirect, Form};
 async fn submit_post(
     State(state): State<AppState>,
     mut jar: CookieJar,
+    headers: HeaderMap,
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
+    let ip = ip(&headers);
     let _post_id = match user {
-        Some(user) => post_submission.insert_as_user(&mut tx, user).await,
-        None => post_submission.insert_as_anon(&mut tx, &anon_uuid).await,
+        Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
+        None => post_submission.insert_as_anon(&mut tx, &anon_uuid, ip).await,
     };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);

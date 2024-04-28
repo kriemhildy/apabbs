@@ -72,25 +72,29 @@ impl Post {
 }
 
 impl PostSubmission {
-    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: User) -> i32 {
-        sqlx::query_scalar(
-            "INSERT INTO posts (body, user_id, username) VALUES ($1, $2, $3) RETURNING id",
-        )
+    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: User, ip: &str) -> i32 {
+        sqlx::query_scalar(concat!(
+            "INSERT INTO posts (body, user_id, username, ip) ",
+            "VALUES ($1, $2, $3, $4::inet) RETURNING id",
+        ))
         .bind(Self::convert_to_html(&self.body))
         .bind(user.id)
         .bind(user.username)
+        .bind(ip)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as user")
     }
 
-    pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str) -> i32 {
-        sqlx::query_scalar(
-            "INSERT INTO posts (body, anon_uuid, anon_hash) VALUES ($1, $2, $3) RETURNING id"
-        )
+    pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str, ip: &str) -> i32 {
+        sqlx::query_scalar(concat!(
+            "INSERT INTO posts (body, anon_uuid, anon_hash, ip) ",
+            "VALUES ($1, $2, $3, $4::inet) RETURNING id",
+        ))
         .bind(Self::convert_to_html(&self.body))
         .bind(anon_uuid)
         .bind(Self::anon_hash(anon_uuid))
+        .bind(ip)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as anon")
