@@ -128,7 +128,6 @@ use user::{Credentials, User};
 mod post;
 use post::{Post, PostHiding, PostModeration, PostSubmission};
 mod ban;
-use ban::Ban;
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -164,12 +163,12 @@ macro_rules! anon_uuid {
 
 macro_rules! check_for_ban {
     ($tx:expr, $ip:expr, $module:ident) => {
-        if Ban::exists(&mut $tx, $ip).await {
+        if ban::exists(&mut $tx, $ip).await {
             return forbidden(&format!("ip {} has auto-banned due to flooding", $ip));
         }
         if $module::flooding(&mut $tx, $ip).await {
-            Ban::insert(&mut $tx, $ip).await;
-            Ban::prune(&mut $tx, $ip).await;
+            ban::insert(&mut $tx, $ip).await;
+            ban::prune(&mut $tx, $ip).await;
             $tx.commit().await.expect(COMMIT);
             return forbidden(&format!("ip {} is flooding and has been banned", $ip));
         }
