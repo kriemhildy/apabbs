@@ -32,6 +32,8 @@ body {
     --dynamic-margin: max(calc(13% - 80px), 8px);
     margin-left: var(--dynamic-margin);
     margin-right: var(--dynamic-margin);
+    max-width: 1000px;
+    overflow-wrap: break-word;
 }
 
 body,
@@ -45,11 +47,13 @@ input {
 
 @media (min-width: 700px) {
     section#forms {
-        width: 50%;
+        width: 40%;
         float: right;
         margin-top: -1em;
-        margin-left: 3%;
-        margin-bottom: var(--dynamic-margin);
+    }
+
+    main {
+        width: 57%;
     }
 }
 
