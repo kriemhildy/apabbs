@@ -165,13 +165,13 @@ macro_rules! anon_uuid {
 macro_rules! check_for_ban {
     ($tx:expr, $ip:expr, $module:ident) => {
         if ban::exists(&mut $tx, $ip).await {
-            return forbidden(&format!("ip {} has auto-banned due to flooding", $ip));
+            return forbidden(&format!("ip {} was auto-banned due to flooding", $ip));
         }
         if $module::flooding(&mut $tx, $ip).await {
             ban::insert(&mut $tx, $ip).await;
             ban::prune(&mut $tx, $ip).await;
             $tx.commit().await.expect(COMMIT);
-            return forbidden(&format!("ip {} is flooding and has been banned", $ip));
+            return forbidden(&format!("ip {} is flooding and has been auto-banned", $ip));
         }
     };
 }
