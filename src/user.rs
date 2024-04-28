@@ -67,7 +67,7 @@ fn hash_password(password: &str, phc_salt_string: &SaltString) -> String {
     password_hash.to_string()
 }
 
-use crate::{val, ValidationError};
+use crate::validation::{val, ValidationError};
 
 impl Credentials {
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {

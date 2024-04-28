@@ -128,6 +128,7 @@ use user::{Credentials, User};
 mod post;
 use post::{Post, PostHiding, PostModeration, PostSubmission};
 mod ban;
+mod validation;
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -220,26 +221,6 @@ async fn submit_post(
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
-}
-
-// shared model validation code
-
-#[derive(Debug)]
-pub struct ValidationError {
-    pub message: String,
-}
-impl std::fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
-    }
-}
-#[macro_export]
-macro_rules! val {
-    ($vec:expr, $msg:expr) => {
-        $vec.push(ValidationError {
-            message: String::from($msg),
-        })
-    };
 }
 
 async fn login(
