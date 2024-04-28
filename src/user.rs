@@ -8,12 +8,6 @@ pub struct User {
     pub admin: bool,
 }
 
-#[derive(serde::Deserialize)]
-pub struct Credentials {
-    pub username: String,
-    pub password: String,
-}
-
 use sqlx::PgConnection;
 
 impl User {
@@ -68,6 +62,12 @@ fn hash_password(password: &str, phc_salt_string: &SaltString) -> String {
 }
 
 use crate::validation::{val, ValidationError};
+
+#[derive(serde::Deserialize)]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
+}
 
 impl Credentials {
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
