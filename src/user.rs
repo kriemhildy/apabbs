@@ -24,6 +24,17 @@ impl User {
             .await
             .expect("select user by token")
     }
+
+    pub async fn flooding(tx: &mut PgConnection, ip: &str) -> bool {
+        sqlx::query_scalar(concat!(
+            "SELECT count(*) >= 10 FROM users WHERE ip = $1 ",
+            "AND created_at > now() - interval '1 week'"
+        ))
+        .bind(ip)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("detect if ip is flooding")
+    }
 }
 
 // PHC salt string used in password hashing

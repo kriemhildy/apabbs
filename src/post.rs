@@ -69,6 +69,17 @@ impl Post {
             .await
             .expect("select post by id")
     }
+
+    pub async fn flooding(tx: &mut PgConnection, ip: &str) -> bool {
+        sqlx::query_scalar(concat!(
+            "SELECT count(*) >= 10 FROM posts WHERE ip = $1 ",
+            "AND status = 'pending' AND created_at > now() - interval '1 day'"
+        ))
+        .bind(ip)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("detect if ip is flooding")
+    }
 }
 
 impl PostSubmission {

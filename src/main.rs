@@ -128,6 +128,7 @@ use user::{Credentials, User};
 mod post;
 use post::{Post, PostHiding, PostModeration, PostSubmission};
 mod ban;
+use ban::Ban;
 
 use axum::{extract::State, response::Html};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -163,14 +164,8 @@ macro_rules! anon_uuid {
 
 macro_rules! check_for_ban {
     ($tx:expr, $ip:expr) => {
-        if ban::exists(&mut $tx, $ip).await {
-            return forbidden(&format!("ip {} has been auto-banned due to flooding", $ip));
-        }
-        if ban::flooding(&mut $tx, $ip).await {
-            ban::insert(&mut $tx, $ip).await;
-            ban::prune(&mut $tx, $ip).await;
-            $tx.commit().await.expect(COMMIT);
-            return forbidden(&format!("ip {} is flooding and has been banned", $ip));
+        if Ban::exists(&mut $tx, $ip).await {
+            return forbidden(&format!("ip {} has auto-banned due to flooding", $ip));
         }
     };
 }
@@ -209,6 +204,11 @@ async fn submit_post(
     let anon_uuid = anon_uuid!(jar);
     let ip = ip(&headers);
     check_for_ban!(tx, ip);
+    if Post::flooding(&mut tx, ip).await {
+        Ban::insert(&mut tx, ip).await;
+        tx.commit().await.expect(COMMIT);
+        return forbidden(&format!("ip {} is flooding and has been banned", ip));
+    }
     let _post_id = match user {
         Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
         None => {
@@ -271,6 +271,11 @@ async fn login(
             None => {
                 let ip = ip(&headers);
                 check_for_ban!(tx, ip);
+                if User::flooding(&mut tx, ip).await {
+                    Ban::insert(&mut tx, ip).await;
+                    tx.commit().await.expect(COMMIT);
+                    return forbidden(&format!("ip {} is flooding and has been banned", ip));
+                }
                 let user = credentials.register(&mut tx, ip).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);
