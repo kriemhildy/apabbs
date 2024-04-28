@@ -29,7 +29,11 @@
 body {
     margin-top: 10px;
     margin-bottom: 50px;
-    max-width: 600px;
+    max-width: 550px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 8px;
+    padding-right: 8px;
     overflow-wrap: break-word;
 }
 
@@ -47,20 +51,20 @@ textarea {
     height: 5em;
 }
 
-@media (min-width: 750px) {
+@media (min-width: 780px) {
     body {
-        max-width: 1000px;
+        max-width: 1100px;
     }
 
     section#forms {
         position: fixed;
-        width: 40%;
-        max-width: 410px;
+        width: 43%;
+        max-width: 470px;
         top: 0;
     }
 
     main {
-        margin-left: calc(40% + 25px);
+        margin-left: calc(43% + 25px);
     }
 
     textarea {
