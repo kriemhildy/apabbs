@@ -163,9 +163,14 @@ macro_rules! anon_uuid {
 }
 
 macro_rules! check_for_ban {
-    ($tx:expr, $ip:expr) => {
+    ($tx:expr, $ip:expr, $module:ident) => {
         if Ban::exists(&mut $tx, $ip).await {
             return forbidden(&format!("ip {} has auto-banned due to flooding", $ip));
+        }
+        if $module::flooding(&mut $tx, $ip).await {
+            Ban::insert(&mut $tx, $ip).await;
+            $tx.commit().await.expect(COMMIT);
+            return forbidden(&format!("ip {} is flooding and has been banned", $ip));
         }
     };
 }
@@ -203,12 +208,7 @@ async fn submit_post(
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
     let ip = ip(&headers);
-    check_for_ban!(tx, ip);
-    if Post::flooding(&mut tx, ip).await {
-        Ban::insert(&mut tx, ip).await;
-        tx.commit().await.expect(COMMIT);
-        return forbidden(&format!("ip {} is flooding and has been banned", ip));
-    }
+    check_for_ban!(tx, ip, Post);
     let _post_id = match user {
         Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
         None => {
@@ -270,12 +270,7 @@ async fn login(
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
                 let ip = ip(&headers);
-                check_for_ban!(tx, ip);
-                if User::flooding(&mut tx, ip).await {
-                    Ban::insert(&mut tx, ip).await;
-                    tx.commit().await.expect(COMMIT);
-                    return forbidden(&format!("ip {} is flooding and has been banned", ip));
-                }
+                check_for_ban!(tx, ip, User);
                 let user = credentials.register(&mut tx, ip).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);
