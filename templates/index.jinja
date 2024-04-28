@@ -13,27 +13,27 @@
     <h1>schizo.land</h1>
     <section id="forms">
         <p class="system">write a post. if it is approved, it will show up later.</p>
-        <form action="/submit-post" method="post" id="post-form">
+        <form action="/submit-post" method="post">
             <fieldset>
                 <legend>new post</legend>
-                <textarea name="body" id="post-body"></textarea><br>
+                <textarea name="body"></textarea><br>
                 <input type="submit" value="Submit post for review">
             </fieldset>
         </form>
         {%- if user is none %}
         <p class="system">make an account if you want.</p>
-        <form action="/login" method="post" id="login-form">
+        <form action="/login" method="post">
             <fieldset>
                 <legend>login/registration</legend>
                 <label for="login-username">username:</label>
-                <input type="text" name="username" id="login-username" maxlength="16"><br>
+                <input type="text" name="username" maxlength="16"><br>
                 <label for="login-password">password:</label>
-                <input type="password" name="password" id="login-password" maxlength="64"><br>
+                <input type="password" name="password" maxlength="64"><br>
                 <input type="submit" value="Log in or register">
             </fieldset>
         </form>
         <p>your anon hash: {{ anon_hash }}</p>
-        <form action="/new-hash" method="post" id="new-hash-form">
+        <form action="/new-hash" method="post">
             <input type="submit" value="Generate new hash">
         </form>
         {%- else %}
@@ -41,7 +41,7 @@
         {%- if user.admin %}
         <p class="system">you are an admin</p>
         {%- endif %}
-        <form action="/logout" method="post" id="logout-form">
+        <form action="/logout" method="post">
             <input type="submit" value="Log out">
         </form>
         {%- endif %}
@@ -70,7 +70,7 @@
                 <input type="submit" value="Reject">
             </form>
             {%- elif post.status == "rejected" %}
-            <form action="/hide-rejected-post" method="post" id="hide-rejected-form">
+            <form action="/hide-rejected-post" method="post">
                 <span class="system">Post rejected.</span>
                 <input type="hidden" name="id" value="{{ post.id }}">
                 <input type="submit" value="Hide">
