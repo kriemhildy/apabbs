@@ -169,6 +169,7 @@ macro_rules! check_for_ban {
         }
         if $module::flooding(&mut $tx, $ip).await {
             Ban::insert(&mut $tx, $ip).await;
+            Ban::prune(&mut $tx, $ip).await;
             $tx.commit().await.expect(COMMIT);
             return forbidden(&format!("ip {} is flooding and has been banned", $ip));
         }

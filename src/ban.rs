@@ -21,4 +21,20 @@ impl Ban {
             .await
             .expect("check if ip ban exists")
     }
+
+    pub async fn prune(tx: &mut PgConnection, ip: &str) {
+        sqlx::query(concat!(
+            "DELETE FROM users WHERE ip = $1 ",
+            "AND NOT EXISTS(SELECT 1 FROM posts WHERE user_id = users.id AND status <> 'pending')"
+        ))
+        .bind(ip)
+        .execute(&mut *tx)
+        .await
+        .expect("delete banned users with only pending posts");
+        sqlx::query("DELETE FROM posts WHERE ip = $1 AND status = 'pending'")
+            .bind(ip)
+            .execute(&mut *tx)
+            .await
+            .expect("delete banned posts which are pending");
+    }
 }
