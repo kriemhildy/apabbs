@@ -61,13 +61,13 @@ fn hash_password(password: &str, phc_salt_string: &SaltString) -> String {
     password_hash.to_string()
 }
 
-use crate::validation::{val, ValidationError};
-
 #[derive(serde::Deserialize)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
+
+use crate::validation::{val, ValidationError};
 
 impl Credentials {
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
