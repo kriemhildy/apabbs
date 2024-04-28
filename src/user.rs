@@ -87,17 +87,18 @@ impl Credentials {
         password_hash.to_string()
     }
 
-    pub async fn register(&self, tx: &mut PgConnection) -> User {
+    pub async fn register(&self, tx: &mut PgConnection, ip: &str) -> User {
         let phc_salt_string = Credentials::generate_phc_salt_string();
         let password_hash = Credentials::hash_password(&self.password, &phc_salt_string);
         let password_salt = phc_salt_string.as_str();
         sqlx::query_as(concat!(
-            "INSERT INTO users (username, password_hash, password_salt) ",
-            "VALUES ($1, $2, $3) RETURNING *"
+            "INSERT INTO users (username, password_hash, password_salt, ip) ",
+            "VALUES ($1, $2, $3, $4::inet) RETURNING *"
         ))
         .bind(&self.username)
         .bind(password_hash)
         .bind(password_salt)
+        .bind(ip)
         .fetch_one(&mut *tx)
         .await
         .expect("insert a new registered user")

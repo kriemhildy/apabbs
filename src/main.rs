@@ -221,6 +221,7 @@ macro_rules! val {
 async fn login(
     State(state): State<AppState>,
     mut jar: CookieJar,
+    headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -244,7 +245,8 @@ async fn login(
         match jar.get(USER_COOKIE) {
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
-                let user = credentials.register(&mut tx).await;
+                let ip = ip(&headers);
+                let user = credentials.register(&mut tx, ip).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);
             }
