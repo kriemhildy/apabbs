@@ -48,7 +48,7 @@ input {
         width: 50%;
         float: right;
         margin-top: -1em;
-        margin-left: var(--dynamic-margin);
+        margin-left: 3%;
         margin-bottom: var(--dynamic-margin);
     }
 }
@@ -85,7 +85,7 @@ fieldset {
     border-color: var(--back);
 }
 
-p.system {
+.system {
     color: var(--system);
 }
 
@@ -96,9 +96,8 @@ form#reject-form {
 
 div.post {
     overflow: hidden;
-    padding: 10px;
     border-radius: 5px;
-    margin-top: 5px;
+    margin-top: 15px;
 }
 
 span.anon-hash {
@@ -111,8 +110,10 @@ span.username {
 
 div.pending {
     background: var(--pending);
+    padding: 10px;
 }
 
 div.rejected {
     background: var(--rejected);
+    padding: 10px;
 }

@@ -71,6 +71,7 @@
             </form>
             {%- elif post.status == "rejected" %}
             <form action="/hide-rejected-post" method="post" id="hide-rejected-form">
+                <span class="system">Post rejected.</span>
                 <input type="hidden" name="id" value="{{ post.id }}">
                 <input type="submit" value="Hide">
             </form>
