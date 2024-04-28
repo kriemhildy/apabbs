@@ -187,7 +187,7 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
     };
     tx.commit().await.expect(COMMIT);
-    let anon_hash = PostSubmission::anon_hash(&anon_uuid); // for display
+    let anon_hash = post::anon_hash(&anon_uuid); // for display
     let html = Html(render(
         state.jinja,
         "index.jinja",
@@ -208,7 +208,7 @@ async fn submit_post(
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
     let ip = ip(&headers);
-    check_for_ban!(tx, ip, Post);
+    check_for_ban!(tx, ip, post);
     let _post_id = match user {
         Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
         None => {
@@ -270,7 +270,7 @@ async fn login(
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
                 let ip = ip(&headers);
-                check_for_ban!(tx, ip, User);
+                check_for_ban!(tx, ip, user);
                 let user = credentials.register(&mut tx, ip).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);

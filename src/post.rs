@@ -9,27 +9,11 @@ pub struct Post {
     pub status: String,
 }
 
-#[derive(serde::Deserialize)]
-pub struct PostSubmission {
-    pub body: String,
-}
-
-#[derive(serde::Deserialize)]
-pub struct PostModeration {
-    pub id: i32,
-    pub status: String,
-}
-
-#[derive(serde::Deserialize)]
-pub struct PostHiding {
-    pub id: i32,
-}
-
 use crate::User;
 use sqlx::PgConnection;
 
 impl Post {
-    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Post> {
+    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE (status = 'approved' OR anon_uuid = $1) ",
             "AND hidden = false ORDER BY id DESC LIMIT 100"
@@ -40,7 +24,7 @@ impl Post {
         .expect("select latest 100 posts as anon")
     }
 
-    pub async fn select_latest_as_user(tx: &mut PgConnection, user: &User) -> Vec<Post> {
+    pub async fn select_latest_as_user(tx: &mut PgConnection, user: &User) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE (status = 'approved' OR user_id = $1) ",
             "AND hidden = false ORDER BY id DESC LIMIT 100"
@@ -51,7 +35,7 @@ impl Post {
         .expect("select latest 100 posts as user")
     }
 
-    pub async fn select_latest_as_admin(tx: &mut PgConnection, user: &User) -> Vec<Post> {
+    pub async fn select_latest_as_admin(tx: &mut PgConnection, user: &User) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE (status <> 'rejected' OR user_id = $1) ",
             "AND hidden = false ORDER BY id DESC LIMIT 100"
@@ -62,24 +46,44 @@ impl Post {
         .expect("select latest 100 posts as admin")
     }
 
-    pub async fn select(tx: &mut PgConnection, id: i32) -> Option<Post> {
+    pub async fn select(tx: &mut PgConnection, id: i32) -> Option<Self> {
         sqlx::query_as("SELECT * FROM posts WHERE id = $1")
             .bind(id)
             .fetch_optional(&mut *tx)
             .await
             .expect("select post by id")
     }
+}
 
-    pub async fn flooding(tx: &mut PgConnection, ip: &str) -> bool {
-        sqlx::query_scalar(concat!(
-            "SELECT count(*) >= 10 FROM posts WHERE ip = $1 ",
-            "AND status = 'pending' AND created_at > now() - interval '1 day'"
-        ))
-        .bind(ip)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("detect if ip is flooding")
-    }
+pub async fn flooding(tx: &mut PgConnection, ip: &str) -> bool {
+    sqlx::query_scalar(concat!(
+        "SELECT count(*) >= 10 FROM posts WHERE ip = $1 ",
+        "AND status = 'pending' AND created_at > now() - interval '1 day'"
+    ))
+    .bind(ip)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("detect if ip is flooding")
+}
+
+pub fn anon_hash(anon_uuid: &str) -> String {
+    sha256::digest(anon_uuid)[..8].to_owned()
+}
+
+fn convert_to_html(input: &str) -> String {
+    input
+        .trim()
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br>\n")
+}
+
+#[derive(serde::Deserialize)]
+pub struct PostSubmission {
+    pub body: String,
 }
 
 impl PostSubmission {
@@ -88,7 +92,7 @@ impl PostSubmission {
             "INSERT INTO posts (body, user_id, username, ip) ",
             "VALUES ($1, $2, $3, $4) RETURNING id",
         ))
-        .bind(Self::convert_to_html(&self.body))
+        .bind(convert_to_html(&self.body))
         .bind(user.id)
         .bind(user.username)
         .bind(ip)
@@ -102,29 +106,20 @@ impl PostSubmission {
             "INSERT INTO posts (body, anon_uuid, anon_hash, ip) ",
             "VALUES ($1, $2, $3, $4) RETURNING id",
         ))
-        .bind(Self::convert_to_html(&self.body))
+        .bind(convert_to_html(&self.body))
         .bind(anon_uuid)
-        .bind(Self::anon_hash(anon_uuid))
+        .bind(anon_hash(anon_uuid))
         .bind(ip)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as anon")
     }
+}
 
-    pub fn anon_hash(anon_uuid: &str) -> String {
-        sha256::digest(anon_uuid)[..8].to_owned()
-    }
-
-    fn convert_to_html(input: &str) -> String {
-        input
-            .trim()
-            .replace("\r\n", "\n")
-            .replace("\r", "\n")
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\n", "<br>\n")
-    }
+#[derive(serde::Deserialize)]
+pub struct PostModeration {
+    pub id: i32,
+    pub status: String,
 }
 
 impl PostModeration {
@@ -136,6 +131,11 @@ impl PostModeration {
             .await
             .expect("update post status");
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct PostHiding {
+    pub id: i32,
 }
 
 impl PostHiding {
