@@ -2,7 +2,7 @@ set -xe
 if ! [ $DEV == 1 ]; then
     git pull
     nice ../.cargo/bin/cargo build --release
-    nice sqlx migrate run
+    nice ../.cargo/bin/sqlx migrate run
 else
     cargo test --bins
     git push
