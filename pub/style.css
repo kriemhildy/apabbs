@@ -82,10 +82,6 @@ textarea {
     border-color: var(--border);
 }
 
-fieldset {
-    border-radius: 5px;
-}
-
 textarea {
     padding: 5px;
 }
@@ -101,6 +97,7 @@ a:hover {
 
 fieldset {
     border-color: var(--back);
+    border-radius: 5px;
 }
 
 .system {
