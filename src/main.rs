@@ -118,7 +118,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
     Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!dev())
         .http_only(true)
-        //.same_site(SameSite::Strict)
+        .same_site(SameSite::Lax)
         .permanent()
         .build()
 }
