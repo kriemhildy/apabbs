@@ -31,3 +31,20 @@ pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
         .await
         .expect("delete banned posts which are pending");
 }
+
+pub async fn scrub(tx: &mut PgConnection) {
+    sqlx::query(concat!(
+        "UPDATE users SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
+        "AND created_at < now() - interval '1 day'"
+    ))
+    .execute(&mut *tx)
+    .await
+    .expect("scrub ip_hash data from users");
+    sqlx::query(concat!(
+        "UPDATE posts SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
+        "AND created_at < now() - interval '1 day'"
+    ))
+    .execute(&mut *tx)
+    .await
+    .expect("scrub ip_hash data from users");
+}

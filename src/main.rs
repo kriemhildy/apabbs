@@ -8,31 +8,60 @@ struct AppState {
     sender: Arc<Sender<String>>,
 }
 
-#[tokio::main]
-async fn main() {
-    dotenv::dotenv().ok();
-    let state = {
-        let db = {
-            let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
-            sqlx::PgPool::connect(&url).await.expect("connect postgres")
-        };
-        let jinja = {
-            let mut env = minijinja::Environment::new();
-            env.set_loader(minijinja::path_loader("templates"));
-            env.set_keep_trailing_newline(true);
-            env.set_lstrip_blocks(true);
-            env.set_trim_blocks(true);
-            env.add_filter("repeat", str::repeat);
-            Arc::new(RwLock::new(env))
-        };
-        let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
-        AppState { db, jinja, sender }
-    };
-    let router = router(state);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:7878")
-        .await
-        .expect("listen on 7878");
-    axum::serve(listener, router).await.expect("serve axum")
+async fn init_db() -> sqlx::PgPool {
+    let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
+    sqlx::PgPool::connect(&url).await.expect("connect postgres")
+}
+
+mod ban;
+
+async fn init_cron_jobs() {
+    use tokio_cron_scheduler::{Job, JobScheduler};
+    let sched = JobScheduler::new().await.expect("make new job scheduler");
+    // sec   min   hour   day of month   month   day of week   year
+    // *     *     *      *              *       *             *
+    let job = Job::new_async("0 0 * * * * *", |_uuid, _l| {
+        Box::pin(async move {
+            let db = init_db().await;
+            let mut tx = db.begin().await.expect(BEGIN);
+            ban::scrub(&mut tx).await;
+            tx.commit().await.expect(COMMIT);
+            println!("old IP hashes scrubbed");
+        })
+    })
+    .expect("make new job");
+    sched.add(job).await.expect("add job to schedule");
+    sched.start().await.expect("start scheduler");
+}
+
+fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
+    let mut env = minijinja::Environment::new();
+    env.set_loader(minijinja::path_loader("templates"));
+    env.set_keep_trailing_newline(true);
+    env.set_lstrip_blocks(true);
+    env.set_trim_blocks(true);
+    env.add_filter("repeat", str::repeat);
+    Arc::new(RwLock::new(env))
+}
+
+fn init_sender() -> Arc<Sender<String>> {
+    Arc::new(tokio::sync::broadcast::channel(100).0)
+}
+
+use tower_http::{
+    classify::{ServerErrorsAsFailures, SharedClassifier},
+    trace::TraceLayer,
+};
+
+fn trace() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
+    use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse};
+    use tracing::Level;
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .init();
+    TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
+        .on_response(DefaultOnResponse::new().level(Level::DEBUG))
 }
 
 fn router(state: AppState) -> axum::Router {
@@ -50,20 +79,21 @@ fn router(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
-use tower_http::{
-    classify::{ServerErrorsAsFailures, SharedClassifier},
-    trace::TraceLayer,
-};
-
-fn trace() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
-    use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse};
-    use tracing::Level;
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .init();
-    TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
-        .on_response(DefaultOnResponse::new().level(Level::DEBUG))
+#[tokio::main]
+async fn main() {
+    dotenv::dotenv().ok();
+    init_cron_jobs().await;
+    let state = {
+        let db = init_db().await;
+        let jinja = init_jinja();
+        let sender = init_sender();
+        AppState { db, jinja, sender }
+    };
+    let router = router(state);
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:7878")
+        .await
+        .expect("listen on 7878");
+    axum::serve(listener, router).await.expect("serve axum")
 }
 
 // individual http request handlers follow
@@ -139,7 +169,6 @@ mod user;
 use user::{Credentials, User};
 mod post;
 use post::{Post, PostHiding, PostReview, PostSubmission};
-mod ban;
 mod validation;
 
 use axum::{extract::State, response::Html};

@@ -23,7 +23,7 @@ impl User {
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     sqlx::query_scalar(concat!(
         "SELECT count(*) >= 10 FROM users WHERE ip_hash = $1 ",
-        "AND created_at > now() - interval '1 week'"
+        "AND created_at > now() - interval '1 day'"
     ))
     .bind(ip_hash)
     .fetch_one(&mut *tx)
