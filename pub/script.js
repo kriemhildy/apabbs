@@ -45,13 +45,13 @@ document.addEventListener("visibilitychange", restoreTitle);
 window.addEventListener("focus", restoreTitle);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// functions to implement DOM changes from web socket messages
+// implement DOM changes from web socket messages
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const template = document.createElement("template");
 
 function prependPost(html) {
-    let main = document.querySelector("main");
+    const main = document.querySelector("main");
     template.innerHTML = html;
     main.prepend(template.content);
     incrementUnseenPosts();
@@ -89,7 +89,7 @@ const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
 
 document.addEventListener("DOMContentLoaded", function () {
     webSocket.addEventListener("message", function (event) {
-        let json = JSON.parse(event.data);
+        const json = JSON.parse(event.data);
         switch (json.action) {
             case "postSubmitted":
                 handleSubmitted(json.html);
