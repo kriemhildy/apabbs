@@ -2,7 +2,7 @@
 // scrollbar styling for chrome on windows and linux
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-function styleScrollar() {
+document.addEventListener("DOMContentLoaded", function () {
     if (!navigator.userAgent.includes("Macintosh") && navigator.userAgent.includes("WebKit")) {
         const mainLink = document.querySelector("link[rel=stylesheet]");
         const scrollbarLink = document.createElement("link");
@@ -10,29 +10,18 @@ function styleScrollar() {
         scrollbarLink.href = "/scrollbar.css";
         mainLink.after(scrollbarLink);
     }
-}
-
-document.addEventListener("DOMContentLoaded", styleScrollar);
+});
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// init web socket
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-const protocol = location.protocol == "https:" ? "wss:" : "ws:";
-const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// change title for unseen posts received via socket
+// change title for unseen posts received via web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 let unseenPosts = 0;
 let originalTitle;
 
-function setOriginalTitle() {
+document.addEventListener("DOMContentLoaded", function () {
     originalTitle = document.title;
-}
-
-document.addEventListener("DOMContentLoaded", setOriginalTitle);
+});
 
 function incrementUnseenPosts() {
     if (document.visibilityState == "hidden") {
@@ -56,28 +45,8 @@ document.addEventListener("visibilitychange", restoreTitle);
 window.addEventListener("focus", restoreTitle);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// handle new messages to socket
-// we wait for the DOM because these do DOM manipulations
+// functions to implement DOM changes from web socket messages
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-function addMessageListener() {
-    webSocket.addEventListener("message", function (event) {
-        let json = JSON.parse(event.data);
-        switch (json.action) {
-            case "postSubmitted":
-                handlePostSubmitted(json.html);
-                break;
-            case "postApproved":
-                handlePostApproved(json.id, json.html);
-                break;
-            case "postRejected":
-                handlePostRejected(json.id, json.html);
-                break;
-        }
-    });
-}
-
-document.addEventListener("DOMContentLoaded", addMessageListener);
 
 const template = document.createElement("template");
 
@@ -89,11 +58,11 @@ function prependPost(html) {
 }
 
 // admins only
-function handlePostSubmitted(html) {
+function handleSubmitted(html) {
     prependPost(html);
 }
 
-function handlePostApproved(id, html) {
+function handleApproved(id, html) {
     const post = document.querySelector(`div#post-${id}`);
     if (post) {
         template.innerHTML = html;
@@ -103,10 +72,34 @@ function handlePostApproved(id, html) {
     }
 }
 
-function handlePostRejected(id, html) {
+function handleRejected(id, html) {
     const post = document.querySelector(`div#post-${id}`);
     if (post) {
         template.innerHTML = html;
         post.replaceWith(template.content);
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// init web socket
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const protocol = location.protocol == "https:" ? "wss:" : "ws:";
+const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
+
+document.addEventListener("DOMContentLoaded", function () {
+    webSocket.addEventListener("message", function (event) {
+        let json = JSON.parse(event.data);
+        switch (json.action) {
+            case "postSubmitted":
+                handleSubmitted(json.html);
+                break;
+            case "postApproved":
+                handleApproved(json.id, json.html);
+                break;
+            case "postRejected":
+                handleRejected(json.id, json.html);
+                break;
+        }
+    });
+});
