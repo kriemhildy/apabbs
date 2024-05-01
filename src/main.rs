@@ -82,9 +82,8 @@ fn router(state: AppState) -> axum::Router {
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    init_cron_jobs().await;
     let state = {
-        let db = init_db().await;
+        let (db, _) = tokio::join!(init_db(), init_cron_jobs());
         let jinja = init_jinja();
         let sender = init_sender();
         AppState { db, jinja, sender }
