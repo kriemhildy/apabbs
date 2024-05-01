@@ -55,12 +55,12 @@ impl Post {
     }
 }
 
-pub async fn flooding(tx: &mut PgConnection, ip: &str) -> bool {
+pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     sqlx::query_scalar(concat!(
-        "SELECT count(*) >= 10 FROM posts WHERE ip = $1 ",
+        "SELECT count(*) >= 10 FROM posts WHERE ip_hash = $1 ",
         "AND status = 'pending' AND created_at > now() - interval '1 day'"
     ))
-    .bind(ip)
+    .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
     .expect("detect if ip is flooding")
@@ -87,29 +87,34 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
-    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: &User, ip: &str) -> Post {
+    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         sqlx::query_as(concat!(
-            "INSERT INTO posts (body, user_id, username, ip) ",
+            "INSERT INTO posts (body, user_id, username, ip_hash) ",
             "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
         .bind(convert_to_html(&self.body))
         .bind(user.id)
         .bind(&user.username)
-        .bind(ip)
+        .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as user")
     }
 
-    pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str, ip: &str) -> Post {
+    pub async fn insert_as_anon(
+        &self,
+        tx: &mut PgConnection,
+        anon_uuid: &str,
+        ip_hash: &str,
+    ) -> Post {
         sqlx::query_as(concat!(
-            "INSERT INTO posts (body, anon_uuid, anon_hash, ip) ",
+            "INSERT INTO posts (body, anon_uuid, anon_hash, ip_hash) ",
             "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
         .bind(convert_to_html(&self.body))
         .bind(anon_uuid)
         .bind(anon_hash(anon_uuid))
-        .bind(ip)
+        .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as anon")

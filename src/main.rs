@@ -104,13 +104,18 @@ fn forbidden(msg: &str) -> Response {
 }
 
 use axum::http::header::HeaderMap;
+mod crypto;
 
-fn ip(headers: &HeaderMap) -> &str {
-    headers
+fn ip_hash(headers: &HeaderMap) -> String {
+    use crypto::{convert_b64_salt, hash_password};
+    let ip = headers
         .get("X-Real-IP")
         .expect("gets header")
         .to_str()
-        .expect("converts header to str")
+        .expect("converts header to str");
+    let b64_salt = std::env::var("B64_SALT").expect("read B64_SALT env");
+    let phc_salt_string = convert_b64_salt(&b64_salt);
+    hash_password(ip, &phc_salt_string)
 }
 
 const ANON_COOKIE: &'static str = "anon";
@@ -170,15 +175,15 @@ macro_rules! anon_uuid {
 }
 
 macro_rules! check_for_ban {
-    ($tx:expr, $ip:expr, $module:ident) => {
-        if ban::exists(&mut $tx, $ip).await {
-            return forbidden(&format!("ip {} was auto-banned due to flooding", $ip));
+    ($tx:expr, $ip_hash:expr, $module:ident) => {
+        if ban::exists(&mut $tx, $ip_hash).await {
+            return forbidden("ip was auto-banned due to flooding");
         }
-        if $module::flooding(&mut $tx, $ip).await {
-            ban::insert(&mut $tx, $ip).await;
-            ban::prune(&mut $tx, $ip).await;
+        if $module::flooding(&mut $tx, $ip_hash).await {
+            ban::insert(&mut $tx, $ip_hash).await;
+            ban::prune(&mut $tx, $ip_hash).await;
             $tx.commit().await.expect(COMMIT);
-            return forbidden(&format!("ip {} is flooding and has been auto-banned", $ip));
+            return forbidden("ip is flooding and has been auto-banned");
         }
     };
 }
@@ -217,13 +222,17 @@ async fn submit_post(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
-    let ip = ip(&headers);
-    check_for_ban!(tx, ip, post);
+    let ip_hash = ip_hash(&headers);
+    check_for_ban!(tx, &ip_hash, post);
     let post = match &user {
-        Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
+        Some(user) => {
+            post_submission
+                .insert_as_user(&mut tx, user, &ip_hash)
+                .await
+        }
         None => {
             post_submission
-                .insert_as_anon(&mut tx, &anon_uuid, ip)
+                .insert_as_anon(&mut tx, &anon_uuid, &ip_hash)
                 .await
         }
     };
@@ -267,9 +276,9 @@ async fn login(
         match jar.get(USER_COOKIE) {
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
-                let ip = ip(&headers);
-                check_for_ban!(tx, ip, user);
-                let user = credentials.register(&mut tx, ip).await;
+                let ip_hash = ip_hash(&headers);
+                check_for_ban!(tx, &ip_hash, user);
+                let user = credentials.register(&mut tx, &ip_hash).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);
             }
