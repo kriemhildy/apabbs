@@ -87,24 +87,24 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
-    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: User, ip: &str) -> i32 {
-        sqlx::query_scalar(concat!(
+    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: &User, ip: &str) -> Post {
+        sqlx::query_as(concat!(
             "INSERT INTO posts (body, user_id, username, ip) ",
-            "VALUES ($1, $2, $3, $4) RETURNING id",
+            "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
         .bind(convert_to_html(&self.body))
         .bind(user.id)
-        .bind(user.username)
+        .bind(&user.username)
         .bind(ip)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as user")
     }
 
-    pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str, ip: &str) -> i32 {
-        sqlx::query_scalar(concat!(
+    pub async fn insert_as_anon(&self, tx: &mut PgConnection, anon_uuid: &str, ip: &str) -> Post {
+        sqlx::query_as(concat!(
             "INSERT INTO posts (body, anon_uuid, anon_hash, ip) ",
-            "VALUES ($1, $2, $3, $4) RETURNING id",
+            "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
         .bind(convert_to_html(&self.body))
         .bind(anon_uuid)
@@ -117,12 +117,12 @@ impl PostSubmission {
 }
 
 #[derive(serde::Deserialize)]
-pub struct PostModeration {
+pub struct PostReview {
     pub id: i32,
     pub status: String,
 }
 
-impl PostModeration {
+impl PostReview {
     pub async fn update_status(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(&self.status)

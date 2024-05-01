@@ -1,0 +1,28 @@
+        <div class="post {{ post.status }}" id="post-{{ post.id }}">
+            {% if post.username %}
+            <span class="username">{{ post.username }}</span>
+            {% else %}
+            <span class="anon-hash">{{ post.anon_hash }}</span>
+            {% endif %}
+            <br>
+            <span class="body">{{ post.body }}</span>
+            {% if admin and post.status == "pending" %}
+            <br>
+            <form action="/admin/update-post-status" method="post" id="approve-form">
+                <input type="hidden" name="id" value="{{ post.id }}">
+                <input type="hidden" name="status" value="approved">
+                <input type="submit" value="Approve">
+            </form>
+            <form action="/admin/update-post-status" method="post" id="reject-form">
+                <input type="hidden" name="id" value="{{ post.id }}">
+                <input type="hidden" name="status" value="rejected">
+                <input type="submit" value="Reject">
+            </form>
+            {% elif post.status == "rejected" %}
+            <form action="/hide-rejected-post" method="post">
+                <span class="system">Post rejected.</span>
+                <input type="hidden" name="id" value="{{ post.id }}">
+                <input type="submit" value="Hide">
+            </form>
+            {% endif %}
+        </div>

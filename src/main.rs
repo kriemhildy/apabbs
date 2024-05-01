@@ -1,9 +1,11 @@
 use std::sync::{Arc, RwLock};
+use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 struct AppState {
     db: sqlx::PgPool,
     jinja: Arc<RwLock<minijinja::Environment<'static>>>,
+    sender: Arc<Sender<String>>,
 }
 
 #[tokio::main]
@@ -17,10 +19,14 @@ async fn main() {
         let jinja = {
             let mut env = minijinja::Environment::new();
             env.set_loader(minijinja::path_loader("templates"));
+            env.set_keep_trailing_newline(true);
+            env.set_lstrip_blocks(true);
+            env.set_trim_blocks(true);
             env.add_filter("repeat", str::repeat);
             Arc::new(RwLock::new(env))
         };
-        AppState { db, jinja }
+        let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
+        AppState { db, jinja, sender }
     };
     let router = router(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:7878")
@@ -38,6 +44,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/logout", post(logout))
         .route("/new-hash", post(new_hash))
         .route("/hide-rejected-post", post(hide_rejected_post))
+        .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
         .layer(trace())
         .with_state(state)
@@ -118,7 +125,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
     Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!dev())
         .http_only(true)
-        .same_site(SameSite::Lax)
+        .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
         .permanent()
         .build()
 }
@@ -126,7 +133,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{Post, PostHiding, PostModeration, PostSubmission};
+use post::{Post, PostHiding, PostReview, PostSubmission};
 mod ban;
 mod validation;
 
@@ -189,15 +196,17 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     };
     tx.commit().await.expect(COMMIT);
     let anon_hash = post::anon_hash(&anon_uuid); // for display
+    let admin = user.as_ref().is_some_and(|u| u.admin);
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(user, posts, anon_hash),
+        minijinja::context!(user, posts, anon_hash, admin),
     ));
     (jar, html).into_response()
 }
 
 use axum::{response::Redirect, Form};
+use serde_json::json;
 
 async fn submit_post(
     State(state): State<AppState>,
@@ -210,7 +219,7 @@ async fn submit_post(
     let anon_uuid = anon_uuid!(jar);
     let ip = ip(&headers);
     check_for_ban!(tx, ip, post);
-    let _post_id = match user {
+    let post = match &user {
         Some(user) => post_submission.insert_as_user(&mut tx, user, ip).await,
         None => {
             post_submission
@@ -219,6 +228,14 @@ async fn submit_post(
         }
     };
     tx.commit().await.expect(COMMIT);
+    let json = json!({
+        "action": "postSubmitted",
+        "html": render(state.jinja, "post.jinja", minijinja::context!(post, admin => true)),
+    });
+    state
+        .sender
+        .send(json.to_string())
+        .expect("broadcast pending post");
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
@@ -311,12 +328,56 @@ async fn hide_rejected_post(
     (jar, redirect).into_response()
 }
 
+use axum::extract::WebSocketUpgrade;
+
+macro_rules! socket_send {
+    ($socket:expr, $msg:expr) => {
+        if $socket.send(Message::Text($msg)).await.is_err() {
+            break; // client disconnect
+        }
+    };
+}
+
+async fn web_socket(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    upgrade: WebSocketUpgrade,
+) -> Response {
+    use axum::extract::ws::{Message, WebSocket};
+    use tokio::sync::broadcast::Receiver;
+    async fn watch_receiver(
+        mut socket: WebSocket,
+        mut receiver: Receiver<String>,
+        user: Option<User>,
+    ) {
+        while let Ok(msg) = receiver.recv().await {
+            // if message comes from admin, send to everyone
+            // if message comes from user, send to admins
+            let val: serde_json::Value = serde_json::from_str(&msg).unwrap();
+            match val["action"].as_str().unwrap() {
+                "postSubmitted" => {
+                    if user.as_ref().is_some_and(|u| u.admin) {
+                        socket_send!(socket, msg);
+                    }
+                }
+                "postApproved" | "postRejected" => socket_send!(socket, msg),
+                _ => panic!("invalid message action"),
+            }
+        }
+    }
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    tx.commit().await.expect(COMMIT);
+    let receiver = state.sender.subscribe();
+    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
+}
+
 // admin handlers follow
 
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
         let user = user!($jar, $tx);
-        if !user.is_some_and(|u| u.admin) {
+        if !user.as_ref().is_some_and(|u| u.admin) {
             return unauthorized();
         }
     };
@@ -325,11 +386,43 @@ macro_rules! require_admin {
 async fn update_post_status(
     State(state): State<AppState>,
     jar: CookieJar,
-    Form(post_moderation): Form<PostModeration>,
+    Form(post_review): Form<PostReview>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    post_moderation.update_status(&mut tx).await;
+    let post = Post::select(&mut tx, post_review.id).await;
+    match post {
+        Some(post) => {
+            if post.status != "pending" {
+                return bad_request("cannot update non-pending post");
+            }
+        }
+        None => return bad_request("post does not exist"),
+    }
+    post_review.update_status(&mut tx).await;
+    let post = Post::select(&mut tx, post_review.id).await.unwrap();
     tx.commit().await.expect(COMMIT);
+    let html = render(
+        state.jinja,
+        "post.jinja",
+        minijinja::context!(post, admin => false),
+    );
+    let json = match post.status.as_str() {
+        "approved" => json!({
+            "action": "postApproved",
+            "id": post.id,
+            "html": html,
+        }),
+        "rejected" => json!({
+            "action": "postRejected",
+            "id": post.id,
+            "html": html,
+        }),
+        _ => panic!("invalid post status"),
+    };
+    state
+        .sender
+        .send(json.to_string())
+        .expect("broadcast reviewed post");
     Redirect::to(ROOT).into_response()
 }
