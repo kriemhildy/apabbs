@@ -148,9 +148,9 @@ mod crypto;
 fn ip_hash(headers: &HeaderMap) -> String {
     let ip = headers
         .get("X-Real-IP")
-        .expect("gets header")
+        .expect("get header")
         .to_str()
-        .expect("converts header to str");
+        .expect("convert header to str");
     let b64_salt = std::env::var("B64_SALT").expect("read B64_SALT env");
     let phc_salt_string = crypto::convert_b64_salt(&b64_salt);
     crypto::hash_password(ip, &phc_salt_string)
