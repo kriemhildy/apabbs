@@ -1,3 +1,32 @@
+use crate::user::User;
+use sqlx::PgConnection;
+
+pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
+    sqlx::query_scalar(concat!(
+        "SELECT count(*) >= 10 FROM posts WHERE ip_hash = $1 ",
+        "AND status = 'pending' AND created_at > now() - interval '1 day'"
+    ))
+    .bind(ip_hash)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("detect if ip is flooding")
+}
+
+pub fn anon_hash(anon_uuid: &str) -> String {
+    sha256::digest(anon_uuid)[..8].to_owned()
+}
+
+fn convert_to_html(input: &str) -> String {
+    input
+        .trim()
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br>\n")
+}
+
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
 pub struct Post {
     pub id: i32,
@@ -8,9 +37,6 @@ pub struct Post {
     pub anon_hash: Option<String>, // cache
     pub status: String,
 }
-
-use crate::user::User;
-use sqlx::PgConnection;
 
 impl Post {
     pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Self> {
@@ -63,32 +89,6 @@ impl Post {
                 .is_some_and(|uuid| uuid == anon_uuid),
         }
     }
-}
-
-pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
-    sqlx::query_scalar(concat!(
-        "SELECT count(*) >= 10 FROM posts WHERE ip_hash = $1 ",
-        "AND status = 'pending' AND created_at > now() - interval '1 day'"
-    ))
-    .bind(ip_hash)
-    .fetch_one(&mut *tx)
-    .await
-    .expect("detect if ip is flooding")
-}
-
-pub fn anon_hash(anon_uuid: &str) -> String {
-    sha256::digest(anon_uuid)[..8].to_owned()
-}
-
-fn convert_to_html(input: &str) -> String {
-    input
-        .trim()
-        .replace("\r\n", "\n")
-        .replace("\r", "\n")
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\n", "<br>\n")
 }
 
 #[derive(serde::Deserialize)]

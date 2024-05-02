@@ -1,24 +1,8 @@
-#[derive(sqlx::FromRow, serde::Serialize)]
-pub struct User {
-    pub id: i32,
-    pub username: String,
-    pub token: String,
-    pub password_hash: String,
-    pub password_salt: String,
-    pub admin: bool,
-}
-
+use crate::{
+    crypto,
+    validation::{val, ValidationError},
+};
 use sqlx::PgConnection;
-
-impl User {
-    pub async fn select_by_token(tx: &mut PgConnection, token: &str) -> Option<Self> {
-        sqlx::query_as("SELECT * FROM users WHERE token = $1")
-            .bind(token)
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("select user by token")
-    }
-}
 
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     sqlx::query_scalar(concat!(
@@ -35,14 +19,31 @@ pub fn is_admin(user: &Option<User>) -> bool {
     user.as_ref().is_some_and(|u| u.admin)
 }
 
+#[derive(sqlx::FromRow, serde::Serialize)]
+pub struct User {
+    pub id: i32,
+    pub username: String,
+    pub token: String,
+    pub password_hash: String,
+    pub password_salt: String,
+    pub admin: bool,
+}
+
+impl User {
+    pub async fn select_by_token(tx: &mut PgConnection, token: &str) -> Option<Self> {
+        sqlx::query_as("SELECT * FROM users WHERE token = $1")
+            .bind(token)
+            .fetch_optional(&mut *tx)
+            .await
+            .expect("select user by token")
+    }
+}
+
 #[derive(serde::Deserialize)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
-
-use crate::crypto;
-use crate::validation::{val, ValidationError};
 
 impl Credentials {
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
