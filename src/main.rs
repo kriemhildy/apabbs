@@ -156,7 +156,7 @@ fn ip_hash(headers: &HeaderMap) -> String {
     crypto::hash_password(ip, &phc_salt_string)
 }
 
-use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use axum_extra::extract::cookie::{Cookie, SameSite};
 
 fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
     Cookie::build((name.to_owned(), value.to_owned()))
@@ -234,6 +234,7 @@ macro_rules! check_for_ban {
 // individual http request handlers follow
 
 use axum::{extract::State, response::Html};
+use axum_extra::extract::cookie::CookieJar;
 use post::Post;
 
 async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
