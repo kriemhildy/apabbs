@@ -1,4 +1,4 @@
-#[derive(sqlx::FromRow, serde::Serialize)]
+#[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
 pub struct Post {
     pub id: i32,
     pub body: String,
@@ -52,6 +52,16 @@ impl Post {
             .fetch_optional(&mut *tx)
             .await
             .expect("select post by id")
+    }
+
+    pub fn authored_by(&self, user: &Option<User>, anon_uuid: &str) -> bool {
+        match user {
+            Some(user) => self.user_id.is_some_and(|id| id == user.id),
+            None => self
+                .anon_uuid
+                .as_ref()
+                .is_some_and(|uuid| uuid == anon_uuid),
+        }
     }
 }
 
@@ -155,21 +165,12 @@ impl PostHiding {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PostMessage {
-    pub id: i32,
-    pub status: String,
-    pub user_id: Option<i32>,
-    pub anon_uuid: Option<String>,
+    pub post: Post,
     pub html: String,
 }
 
 impl PostMessage {
     pub fn new(post: Post, html: String) -> Self {
-        Self {
-            id: post.id,
-            status: post.status,
-            user_id: post.user_id,
-            anon_uuid: post.anon_uuid,
-            html,
-        }
+        Self { post, html }
     }
 }

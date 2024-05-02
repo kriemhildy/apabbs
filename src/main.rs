@@ -174,20 +174,6 @@ fn is_admin(user: &Option<User>) -> bool {
     user.as_ref().is_some_and(|u| u.admin)
 }
 
-fn is_author(
-    user: &Option<User>,
-    anon_uuid: &str,
-    post_user_id: Option<i32>,
-    post_anon_uuid: &Option<String>,
-) -> bool {
-    match user {
-        Some(user) => post_user_id.is_some_and(|id| id == user.id),
-        None => post_anon_uuid
-            .as_ref()
-            .is_some_and(|uuid| uuid == anon_uuid),
-    }
-}
-
 const USER_COOKIE: &'static str = "user";
 const USER_NOT_FOUND: &'static str = "user not found";
 
@@ -378,7 +364,7 @@ async fn hide_rejected_post(
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
-    if !is_author(&user, &anon_uuid, post.user_id, &post.anon_uuid) {
+    if !post.authored_by(&user, &anon_uuid) {
         return bad_request("not post author");
     }
     if post.status != "rejected" {
@@ -405,16 +391,16 @@ async fn web_socket(
         anon_uuid: String,
     ) {
         while let Ok(msg) = receiver.recv().await {
-            let should_send = match msg.status.as_str() {
+            let should_send = match msg.post.status.as_str() {
                 "pending" => is_admin(&user),
-                "rejected" => is_author(&user, &anon_uuid, msg.user_id, &msg.anon_uuid),
+                "rejected" => msg.post.authored_by(&user, &anon_uuid),
                 "approved" => true,
                 _ => panic!("invalid post status"),
             };
             if !should_send {
                 continue;
             }
-            let json = serde_json::to_string(&msg).expect("convert PostMessage to json");
+            let json = serde_json::json!({"id": msg.post.id, "html": msg.html}).to_string();
             if socket.send(Message::Text(json)).await.is_err() {
                 break; // client disconnect
             }
