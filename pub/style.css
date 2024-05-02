@@ -2,7 +2,7 @@
     body {
         --back: black;
         --fore: #e3e3e3;
-        --link: #9cdcda;
+        --link: rgb(89, 131, 209);
         --border: #777;
         --system: #9cdcda;
         --username: rgb(186, 134, 197);
@@ -90,11 +90,6 @@ textarea {
 
 a {
     color: var(--link);
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
 }
 
 fieldset {
