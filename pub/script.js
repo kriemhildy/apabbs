@@ -45,60 +45,28 @@ document.addEventListener("visibilitychange", restoreTitle);
 window.addEventListener("focus", restoreTitle);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// implement DOM changes from web socket messages
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-const template = document.createElement("template");
-
-function prependToMain(html) {
-    const main = document.querySelector("main");
-    template.innerHTML = html;
-    main.prepend(template.content);
-    incrementUnseenPosts();
-}
-
-function handlePending(html) {
-    prependToMain(html);
-}
-
-function handleApproved(id, html) {
-    const post = document.querySelector(`div#post-${id}`);
-    if (post) {
-        template.innerHTML = html;
-        post.replaceWith(template.content);
-    } else {
-        prependToMain(html);
-    }
-}
-
-function handleRejected(id, html) {
-    const post = document.querySelector(`div#post-${id}`);
-    if (post) {
-        template.innerHTML = html;
-        post.replaceWith(template.content);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // init web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const protocol = location.protocol == "https:" ? "wss:" : "ws:";
 const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
+const template = document.createElement("template");
+
+function updatePost(id, html) {
+    const post = document.querySelector(`div#post-${id}`);
+    template.innerHTML = html;
+    if (post) {
+        post.replaceWith(template.content);
+    } else {
+        const main = document.querySelector("main");
+        main.prepend(template.content);
+        incrementUnseenPosts();
+    }
+}
 
 document.addEventListener("DOMContentLoaded", function () {
     webSocket.addEventListener("message", function (event) {
         const json = JSON.parse(event.data);
-        switch (json.status) {
-            case "pending":
-                handlePending(json.html);
-                break;
-            case "approved":
-                handleApproved(json.id, json.html);
-                break;
-            case "rejected":
-                handleRejected(json.id, json.html);
-                break;
-        }
+        updatePost(json.id, json.html);
     });
 });
