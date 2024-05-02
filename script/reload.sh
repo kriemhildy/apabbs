@@ -1,5 +1,5 @@
 set -x
-if ! [ $DEV == 1 ]; then
+if ! [ "$DEV" == 1 ]; then
     echo "do not run reload on production"
     exit 1
 fi
