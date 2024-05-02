@@ -89,7 +89,6 @@ const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
 document.addEventListener("DOMContentLoaded", function () {
     webSocket.addEventListener("message", function (event) {
         const json = JSON.parse(event.data);
-        console.log(`msg: ${json}`);
         switch (json.status) {
             case "pending":
                 handlePending(json.html);
