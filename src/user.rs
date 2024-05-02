@@ -31,13 +31,17 @@ pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     .expect("detect if ip is flooding")
 }
 
+pub fn is_admin(user: &Option<User>) -> bool {
+    user.as_ref().is_some_and(|u| u.admin)
+}
+
 #[derive(serde::Deserialize)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
 
-use crate::crypto::{convert_b64_salt, generate_phc_salt_string, hash_password};
+use crate::crypto;
 use crate::validation::{val, ValidationError};
 
 impl Credentials {
@@ -70,8 +74,8 @@ impl Credentials {
     }
 
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> User {
-        let phc_salt_string = generate_phc_salt_string();
-        let password_hash = hash_password(&self.password, &phc_salt_string);
+        let phc_salt_string = crypto::generate_phc_salt_string();
+        let password_hash = crypto::hash_password(&self.password, &phc_salt_string);
         let password_salt = phc_salt_string.as_str();
         sqlx::query_as(concat!(
             "INSERT INTO users (username, password_hash, password_salt, ip_hash) ",
@@ -96,8 +100,8 @@ impl Credentials {
             return None;
         }
         let user = user.unwrap();
-        let phc_salt_string = convert_b64_salt(&user.password_salt);
-        let input_password_hash = hash_password(&self.password, &phc_salt_string);
+        let phc_salt_string = crypto::convert_b64_salt(&user.password_salt);
+        let input_password_hash = crypto::hash_password(&self.password, &phc_salt_string);
         match user.password_hash == input_password_hash {
             true => Some(user),
             false => None,

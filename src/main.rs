@@ -2,15 +2,55 @@
 // main.rs
 // author: Kriemhild Gretchen
 
+pub mod ban;
+pub mod crypto;
+pub mod post;
+pub mod user;
+
+pub const BEGIN: &'static str = "begin transaction";
+pub const COMMIT: &'static str = "commit transaction";
+
+pub use post::PostMessage;
+pub use tokio::sync::broadcast::Sender;
+
+mod routes;
+mod validation;
+
+use std::sync::{Arc, RwLock};
+use tower_http::{
+    classify::{ServerErrorsAsFailures, SharedClassifier},
+    trace::TraceLayer,
+};
+
+#[derive(Clone)]
+pub struct AppState {
+    db: sqlx::PgPool,
+    jinja: Arc<RwLock<minijinja::Environment<'static>>>,
+    sender: Arc<Sender<PostMessage>>,
+}
+
+pub fn dev() -> bool {
+    std::env::var("DEV").is_ok_and(|v| v == "1")
+}
+
+pub fn render(
+    lock: Arc<RwLock<minijinja::Environment<'_>>>,
+    name: &str,
+    ctx: minijinja::value::Value,
+) -> String {
+    if dev() {
+        let mut env = lock.write().expect("write jinja env");
+        env.clear_templates();
+    }
+    let env = lock.read().expect("read jinja env");
+    let tmpl = env.get_template(name).expect("get jinja template");
+    tmpl.render(ctx).expect("render template")
+}
+
 async fn init_db() -> sqlx::PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
     sqlx::PgPool::connect(&url).await.expect("connect postgres")
 }
-
-const BEGIN: &'static str = "begin transaction";
-const COMMIT: &'static str = "commit transaction";
-
-mod ban;
 
 async fn init_cron_jobs() {
     use tokio_cron_scheduler::{Job, JobScheduler};
@@ -31,8 +71,6 @@ async fn init_cron_jobs() {
     sched.start().await.expect("start scheduler");
 }
 
-use std::sync::{Arc, RwLock};
-
 fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
     let mut env = minijinja::Environment::new();
     env.set_loader(minijinja::path_loader("templates"));
@@ -43,25 +81,9 @@ fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
     Arc::new(RwLock::new(env))
 }
 
-mod post;
-use post::PostMessage;
-use tokio::sync::broadcast::Sender;
-
 fn init_sender() -> Arc<Sender<PostMessage>> {
     Arc::new(tokio::sync::broadcast::channel(100).0)
 }
-
-#[derive(Clone)]
-struct AppState {
-    db: sqlx::PgPool,
-    jinja: Arc<RwLock<minijinja::Environment<'static>>>,
-    sender: Arc<Sender<PostMessage>>,
-}
-
-use tower_http::{
-    classify::{ServerErrorsAsFailures, SharedClassifier},
-    trace::TraceLayer,
-};
 
 fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
     use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse};
@@ -76,6 +98,7 @@ fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
 
 fn router(state: AppState) -> axum::Router {
     use axum::routing::{get, post};
+    use routes::*;
     axum::Router::new()
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
@@ -103,355 +126,4 @@ async fn main() {
         .await
         .expect("listen on 7878");
     axum::serve(listener, router).await.expect("serve axum")
-}
-
-// prelude
-
-fn dev() -> bool {
-    std::env::var("DEV").is_ok_and(|v| v == "1")
-}
-
-fn render(
-    lock: Arc<RwLock<minijinja::Environment<'_>>>,
-    name: &str,
-    ctx: minijinja::value::Value,
-) -> String {
-    if dev() {
-        let mut env = lock.write().expect("write jinja env");
-        env.clear_templates();
-    }
-    let env = lock.read().expect("read jinja env");
-    let tmpl = env.get_template(name).expect("get jinja template");
-    tmpl.render(ctx).expect("render template")
-}
-
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
-
-fn bad_request(msg: &str) -> Response {
-    (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
-}
-
-fn unauthorized() -> Response {
-    (StatusCode::UNAUTHORIZED, "401 Unauthorized").into_response()
-}
-
-fn forbidden(msg: &str) -> Response {
-    (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")).into_response()
-}
-
-use axum::http::header::HeaderMap;
-mod crypto;
-
-fn ip_hash(headers: &HeaderMap) -> String {
-    let ip = headers
-        .get("X-Real-IP")
-        .expect("get IP header")
-        .to_str()
-        .expect("convert header to str");
-    let b64_salt = std::env::var("IP_SALT").expect("read IP_SALT env");
-    let phc_salt_string = crypto::convert_b64_salt(&b64_salt);
-    crypto::hash_password(ip, &phc_salt_string)
-}
-
-use axum_extra::extract::cookie::{Cookie, SameSite};
-
-fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
-    Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!dev())
-        .http_only(true)
-        .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
-        .permanent()
-        .build()
-}
-
-mod user;
-use user::User;
-
-fn is_admin(user: &Option<User>) -> bool {
-    user.as_ref().is_some_and(|u| u.admin)
-}
-
-const USER_COOKIE: &'static str = "user";
-const USER_NOT_FOUND: &'static str = "user not found";
-
-macro_rules! user {
-    ($jar:expr, $tx:expr) => {
-        match $jar.get(USER_COOKIE) {
-            Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
-                Some(user) => Some(user),
-                None => return bad_request(USER_NOT_FOUND),
-            },
-            None => None,
-        }
-    };
-}
-
-const ANON_COOKIE: &'static str = "anon";
-
-macro_rules! anon_uuid {
-    ($jar:expr) => {
-        match $jar.get(ANON_COOKIE) {
-            Some(cookie) => match uuid::Uuid::try_parse(cookie.value()) {
-                Ok(uuid) => uuid.hyphenated().to_string(),
-                Err(_) => return bad_request("invalid anon UUID"),
-            },
-            None => uuid::Uuid::new_v4().hyphenated().to_string(),
-        }
-    };
-}
-
-macro_rules! check_for_ban {
-    ($tx:expr, $ip_hash:expr, $module:ident) => {
-        if ban::exists(&mut $tx, $ip_hash).await {
-            return forbidden("ip was auto-banned due to flooding");
-        }
-        if $module::flooding(&mut $tx, $ip_hash).await {
-            ban::insert(&mut $tx, $ip_hash).await;
-            ban::prune(&mut $tx, $ip_hash).await;
-            $tx.commit().await.expect(COMMIT);
-            return forbidden("ip is flooding and has been auto-banned");
-        }
-    };
-}
-
-// individual http request handlers follow
-
-use axum::{extract::State, response::Html};
-use axum_extra::extract::cookie::CookieJar;
-use post::Post;
-
-async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
-    let posts = match &user {
-        Some(user) => match user.admin {
-            true => Post::select_latest_as_admin(&mut tx, user).await,
-            false => Post::select_latest_as_user(&mut tx, user).await,
-        },
-        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
-    };
-    tx.commit().await.expect(COMMIT);
-    let anon_hash = post::anon_hash(&anon_uuid); // for display
-    let admin = is_admin(&user);
-    let html = Html(render(
-        state.jinja,
-        "index.jinja",
-        minijinja::context!(user, posts, anon_hash, admin),
-    ));
-    if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &anon_uuid);
-        jar = jar.add(cookie);
-    }
-    (jar, html).into_response()
-}
-
-const ROOT: &'static str = "/";
-use axum::{response::Redirect, Form};
-use post::PostSubmission;
-
-async fn submit_post(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    headers: HeaderMap,
-    Form(post_submission): Form<PostSubmission>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
-    let ip_hash = ip_hash(&headers);
-    check_for_ban!(tx, &ip_hash, post);
-    let post = match &user {
-        Some(user) => {
-            post_submission
-                .insert_as_user(&mut tx, user, &ip_hash)
-                .await
-        }
-        None => {
-            post_submission
-                .insert_as_anon(&mut tx, &anon_uuid, &ip_hash)
-                .await
-        }
-    };
-    tx.commit().await.expect(COMMIT);
-    let html = render(
-        state.jinja,
-        "post.jinja",
-        minijinja::context!(post, admin => true),
-    );
-    let msg = PostMessage { post, html };
-    state.sender.send(msg).expect("broadcast pending post");
-    Redirect::to(ROOT).into_response()
-}
-
-use user::Credentials;
-mod validation;
-
-async fn login(
-    State(state): State<AppState>,
-    mut jar: CookieJar,
-    headers: HeaderMap,
-    Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    if credentials.username_exists(&mut tx).await {
-        match credentials.authenticate(&mut tx).await {
-            Some(user) => {
-                let cookie = build_cookie(USER_COOKIE, &user.token);
-                jar = jar.add(cookie);
-            }
-            None => return bad_request("username exists but password is wrong"),
-        }
-    } else {
-        if let Err(errors) = credentials.validate() {
-            let msg = errors
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-                .join("\n");
-            return bad_request(&msg);
-        }
-        match jar.get(USER_COOKIE) {
-            Some(_cookie) => return bad_request("log out before registering"),
-            None => {
-                let ip_hash = ip_hash(&headers);
-                check_for_ban!(tx, &ip_hash, user);
-                let user = credentials.register(&mut tx, &ip_hash).await;
-                let cookie = build_cookie(USER_COOKIE, &user.token);
-                jar = jar.add(cookie);
-            }
-        }
-    }
-    tx.commit().await.expect(COMMIT);
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
-async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
-            Some(_user) => jar = jar.remove(USER_COOKIE),
-            None => return bad_request(USER_NOT_FOUND),
-        },
-        None => return bad_request("cookie not found"),
-    };
-    tx.commit().await.expect(COMMIT);
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
-async fn new_hash(mut jar: CookieJar) -> Response {
-    jar = jar.remove(ANON_COOKIE);
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
-use post::PostHiding;
-
-async fn hide_rejected_post(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(post_hiding): Form<PostHiding>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
-    let post = match Post::select(&mut tx, post_hiding.id).await {
-        Some(post) => post,
-        None => return bad_request("post does not exist"),
-    };
-    if !post.authored_by(&user, &anon_uuid) {
-        return bad_request("not post author");
-    }
-    if post.status != "rejected" {
-        return bad_request("post is not rejected");
-    }
-    post_hiding.hide_post(&mut tx).await;
-    tx.commit().await.expect(COMMIT);
-    Redirect::to(ROOT).into_response()
-}
-
-use axum::extract::WebSocketUpgrade;
-
-async fn web_socket(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    upgrade: WebSocketUpgrade,
-) -> Response {
-    use axum::extract::ws::{Message, WebSocket};
-    use tokio::sync::broadcast::Receiver;
-    async fn watch_receiver(
-        mut socket: WebSocket,
-        mut receiver: Receiver<PostMessage>,
-        user: Option<User>,
-        anon_uuid: String,
-    ) {
-        while let Ok(msg) = receiver.recv().await {
-            let should_send = match msg.post.status.as_str() {
-                "pending" => is_admin(&user),
-                "rejected" => msg.post.authored_by(&user, &anon_uuid),
-                "approved" => true,
-                _ => panic!("invalid post status"),
-            };
-            if !should_send {
-                continue;
-            }
-            let json = serde_json::json!({"id": msg.post.id, "html": msg.html}).to_string();
-            if socket.send(Message::Text(json)).await.is_err() {
-                break; // client disconnect
-            }
-        }
-    }
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
-    tx.commit().await.expect(COMMIT);
-    let receiver = state.sender.subscribe();
-    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user, anon_uuid))
-}
-
-// admin handlers follow
-
-macro_rules! require_admin {
-    ($jar:expr, $tx:expr) => {
-        let user = user!($jar, $tx);
-        if !is_admin(&user) {
-            return unauthorized();
-        }
-    };
-}
-
-use post::PostReview;
-
-async fn update_post_status(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(post_review): Form<PostReview>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    require_admin!(jar, tx);
-    let post = Post::select(&mut tx, post_review.id).await;
-    match post {
-        Some(post) => {
-            if post.status != "pending" {
-                return bad_request("cannot update non-pending post");
-            }
-        }
-        None => return bad_request("post does not exist"),
-    }
-    post_review.update_status(&mut tx).await;
-    let post = Post::select(&mut tx, post_review.id).await.unwrap();
-    tx.commit().await.expect(COMMIT);
-    let html = render(
-        state.jinja,
-        "post.jinja",
-        minijinja::context!(post, admin => false),
-    );
-    let msg = PostMessage { post, html };
-    state.sender.send(msg).expect("broadcast reviewed post");
-    Redirect::to(ROOT).into_response()
 }

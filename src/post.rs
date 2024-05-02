@@ -9,7 +9,7 @@ pub struct Post {
     pub status: String,
 }
 
-use crate::User;
+use crate::user::User;
 use sqlx::PgConnection;
 
 impl Post {
