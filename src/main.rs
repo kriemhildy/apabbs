@@ -151,7 +151,7 @@ fn ip_hash(headers: &HeaderMap) -> String {
         .expect("get IP header")
         .to_str()
         .expect("convert header to str");
-    let b64_salt = std::env::var("B64_SALT").expect("read B64_SALT env");
+    let b64_salt = std::env::var("IP_SALT").expect("read IP_SALT env");
     let phc_salt_string = crypto::convert_b64_salt(&b64_salt);
     crypto::hash_password(ip, &phc_salt_string)
 }
