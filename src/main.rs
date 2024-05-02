@@ -13,6 +13,7 @@ pub const COMMIT: &'static str = "commit transaction";
 pub use post::PostMessage;
 pub use tokio::sync::broadcast::Sender;
 
+mod jobs;
 mod routes;
 mod validation;
 
@@ -47,26 +48,15 @@ pub fn render(
     tmpl.render(ctx).expect("render template")
 }
 
-async fn init_db() -> sqlx::PgPool {
+pub async fn init_db() -> sqlx::PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
     sqlx::PgPool::connect(&url).await.expect("connect postgres")
 }
 
 async fn init_cron_jobs() {
-    use tokio_cron_scheduler::{Job, JobScheduler};
+    use tokio_cron_scheduler::JobScheduler;
     let sched = JobScheduler::new().await.expect("make new job scheduler");
-    // sec   min   hour   day of month   month   day of week   year
-    // *     *     *      *              *       *             *
-    let job = Job::new_async("0 0 * * * * *", |_uuid, _l| {
-        Box::pin(async move {
-            let db = init_db().await;
-            let mut tx = db.begin().await.expect(BEGIN);
-            ban::scrub(&mut tx).await;
-            tx.commit().await.expect(COMMIT);
-            println!("old IP hashes scrubbed");
-        })
-    })
-    .expect("make new job");
+    let job = jobs::scrub_ips();
     sched.add(job).await.expect("add job to scheduler");
     sched.start().await.expect("start scheduler");
 }
