@@ -1,17 +1,14 @@
-use std::sync::{Arc, RwLock};
-use tokio::sync::broadcast::Sender;
-
-#[derive(Clone)]
-struct AppState {
-    db: sqlx::PgPool,
-    jinja: Arc<RwLock<minijinja::Environment<'static>>>,
-    sender: Arc<Sender<PostMessage>>,
-}
+// schizo.land
+// main.rs
+// author: Kriemhild Gretchen
 
 async fn init_db() -> sqlx::PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
     sqlx::PgPool::connect(&url).await.expect("connect postgres")
 }
+
+const BEGIN: &'static str = "begin transaction";
+const COMMIT: &'static str = "commit transaction";
 
 mod ban;
 
@@ -34,6 +31,8 @@ async fn init_cron_jobs() {
     sched.start().await.expect("start scheduler");
 }
 
+use std::sync::{Arc, RwLock};
+
 fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
     let mut env = minijinja::Environment::new();
     env.set_loader(minijinja::path_loader("templates"));
@@ -44,8 +43,19 @@ fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
     Arc::new(RwLock::new(env))
 }
 
+mod post;
+use post::PostMessage;
+use tokio::sync::broadcast::Sender;
+
 fn init_sender() -> Arc<Sender<PostMessage>> {
     Arc::new(tokio::sync::broadcast::channel(100).0)
+}
+
+#[derive(Clone)]
+struct AppState {
+    db: sqlx::PgPool,
+    jinja: Arc<RwLock<minijinja::Environment<'static>>>,
+    sender: Arc<Sender<PostMessage>>,
 }
 
 use tower_http::{
@@ -53,7 +63,7 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-fn trace() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
+fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
     use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse};
     use tracing::Level;
     tracing_subscriber::fmt()
@@ -75,7 +85,7 @@ fn router(state: AppState) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
-        .layer(trace())
+        .layer(trace_layer())
         .with_state(state)
 }
 
@@ -95,7 +105,7 @@ async fn main() {
     axum::serve(listener, router).await.expect("serve axum")
 }
 
-// individual http request handlers follow
+// prelude
 
 fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
@@ -136,16 +146,29 @@ use axum::http::header::HeaderMap;
 mod crypto;
 
 fn ip_hash(headers: &HeaderMap) -> String {
-    use crypto::{convert_b64_salt, hash_password};
     let ip = headers
         .get("X-Real-IP")
         .expect("gets header")
         .to_str()
         .expect("converts header to str");
     let b64_salt = std::env::var("B64_SALT").expect("read B64_SALT env");
-    let phc_salt_string = convert_b64_salt(&b64_salt);
-    hash_password(ip, &phc_salt_string)
+    let phc_salt_string = crypto::convert_b64_salt(&b64_salt);
+    crypto::hash_password(ip, &phc_salt_string)
 }
+
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+
+fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
+    Cookie::build((name.to_owned(), value.to_owned()))
+        .secure(!dev())
+        .http_only(true)
+        .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
+        .permanent()
+        .build()
+}
+
+mod user;
+use user::User;
 
 fn is_admin(user: &Option<User>) -> bool {
     user.as_ref().is_some_and(|u| u.admin)
@@ -165,31 +188,8 @@ fn is_author(
     }
 }
 
-const ANON_COOKIE: &'static str = "anon";
 const USER_COOKIE: &'static str = "user";
-const COOKIE_NOT_FOUND: &'static str = "cookie not found";
 const USER_NOT_FOUND: &'static str = "user not found";
-const BEGIN: &'static str = "begin transaction";
-const COMMIT: &'static str = "commit transaction";
-const ROOT: &'static str = "/";
-
-fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
-    Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!dev())
-        .http_only(true)
-        .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
-        .permanent()
-        .build()
-}
-
-mod user;
-use user::{Credentials, User};
-mod post;
-use post::{Post, PostHiding, PostMessage, PostReview, PostSubmission};
-mod validation;
-
-use axum::{extract::State, response::Html};
-use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 macro_rules! user {
     ($jar:expr, $tx:expr) => {
@@ -202,6 +202,8 @@ macro_rules! user {
         }
     };
 }
+
+const ANON_COOKIE: &'static str = "anon";
 
 macro_rules! anon_uuid {
     ($jar:expr) => {
@@ -229,6 +231,11 @@ macro_rules! check_for_ban {
     };
 }
 
+// individual http request handlers follow
+
+use axum::{extract::State, response::Html};
+use post::Post;
+
 async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
@@ -255,7 +262,9 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     (jar, html).into_response()
 }
 
+const ROOT: &'static str = "/";
 use axum::{response::Redirect, Form};
+use post::PostSubmission;
 
 async fn submit_post(
     State(state): State<AppState>,
@@ -290,6 +299,9 @@ async fn submit_post(
     state.sender.send(msg).expect("broadcast pending post");
     Redirect::to(ROOT).into_response()
 }
+
+use user::Credentials;
+mod validation;
 
 async fn login(
     State(state): State<AppState>,
@@ -338,7 +350,7 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
             Some(_user) => jar = jar.remove(USER_COOKIE),
             None => return bad_request(USER_NOT_FOUND),
         },
-        None => return bad_request(COOKIE_NOT_FOUND),
+        None => return bad_request("cookie not found"),
     };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
@@ -350,6 +362,8 @@ async fn new_hash(mut jar: CookieJar) -> Response {
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
+
+use post::PostHiding;
 
 async fn hide_rejected_post(
     State(state): State<AppState>,
@@ -423,6 +437,8 @@ macro_rules! require_admin {
         }
     };
 }
+
+use post::PostReview;
 
 async fn update_post_status(
     State(state): State<AppState>,
