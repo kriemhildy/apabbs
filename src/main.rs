@@ -27,7 +27,7 @@ async fn init_cron_jobs() {
         })
     })
     .expect("make new job");
-    sched.add(job).await.expect("add job to schedule");
+    sched.add(job).await.expect("add job to scheduler");
     sched.start().await.expect("start scheduler");
 }
 

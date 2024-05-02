@@ -46,5 +46,5 @@ pub async fn scrub(tx: &mut PgConnection) {
     ))
     .execute(&mut *tx)
     .await
-    .expect("scrub ip_hash data from users");
+    .expect("scrub ip_hash data from posts");
 }
