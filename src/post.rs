@@ -163,7 +163,7 @@ impl PostHiding {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug)]
 pub struct PostMessage {
     pub post: Post,
     pub html: String,
