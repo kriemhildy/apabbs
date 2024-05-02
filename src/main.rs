@@ -5,7 +5,7 @@ use tokio::sync::broadcast::Sender;
 struct AppState {
     db: sqlx::PgPool,
     jinja: Arc<RwLock<minijinja::Environment<'static>>>,
-    sender: Arc<Sender<String>>,
+    sender: Arc<Sender<PostMessage>>,
 }
 
 async fn init_db() -> sqlx::PgPool {
@@ -44,7 +44,7 @@ fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
     Arc::new(RwLock::new(env))
 }
 
-fn init_sender() -> Arc<Sender<String>> {
+fn init_sender() -> Arc<Sender<PostMessage>> {
     Arc::new(tokio::sync::broadcast::channel(100).0)
 }
 
@@ -147,6 +147,24 @@ fn ip_hash(headers: &HeaderMap) -> String {
     hash_password(ip, &phc_salt_string)
 }
 
+fn is_admin(user: &Option<User>) -> bool {
+    user.as_ref().is_some_and(|u| u.admin)
+}
+
+fn is_author(
+    user: &Option<User>,
+    anon_uuid: &str,
+    post_user_id: Option<i32>,
+    post_anon_uuid: &Option<String>,
+) -> bool {
+    match user {
+        Some(user) => post_user_id.is_some_and(|id| id == user.id),
+        None => post_anon_uuid
+            .as_ref()
+            .is_some_and(|uuid| uuid == anon_uuid),
+    }
+}
+
 const ANON_COOKIE: &'static str = "anon";
 const USER_COOKIE: &'static str = "user";
 const COOKIE_NOT_FOUND: &'static str = "cookie not found";
@@ -167,7 +185,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
 mod user;
 use user::{Credentials, User};
 mod post;
-use post::{Post, PostHiding, PostReview, PostSubmission};
+use post::{Post, PostHiding, PostMessage, PostReview, PostSubmission};
 mod validation;
 
 use axum::{extract::State, response::Html};
@@ -192,12 +210,7 @@ macro_rules! anon_uuid {
                 Ok(uuid) => uuid.hyphenated().to_string(),
                 Err(_) => return bad_request("invalid anon UUID"),
             },
-            None => {
-                let anon_uuid = uuid::Uuid::new_v4().hyphenated().to_string();
-                let cookie = build_cookie(ANON_COOKIE, &anon_uuid);
-                $jar = $jar.add(cookie);
-                anon_uuid
-            }
+            None => uuid::Uuid::new_v4().hyphenated().to_string(),
         }
     };
 }
@@ -229,21 +242,24 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     };
     tx.commit().await.expect(COMMIT);
     let anon_hash = post::anon_hash(&anon_uuid); // for display
-    let admin = user.as_ref().is_some_and(|u| u.admin);
+    let admin = is_admin(&user);
     let html = Html(render(
         state.jinja,
         "index.jinja",
         minijinja::context!(user, posts, anon_hash, admin),
     ));
+    if jar.get(ANON_COOKIE).is_none() {
+        let cookie = build_cookie(ANON_COOKIE, &anon_uuid);
+        jar = jar.add(cookie);
+    }
     (jar, html).into_response()
 }
 
 use axum::{response::Redirect, Form};
-use serde_json::json;
 
 async fn submit_post(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     headers: HeaderMap,
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
@@ -265,16 +281,14 @@ async fn submit_post(
         }
     };
     tx.commit().await.expect(COMMIT);
-    let json = json!({
-        "action": "postSubmitted",
-        "html": render(state.jinja, "post.jinja", minijinja::context!(post, admin => true)),
-    });
-    state
-        .sender
-        .send(json.to_string())
-        .expect("broadcast pending post");
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
+    let html = render(
+        state.jinja,
+        "post.jinja",
+        minijinja::context!(post, admin => true),
+    );
+    let msg = PostMessage::new(post, html);
+    state.sender.send(msg).expect("broadcast pending post");
+    Redirect::to(ROOT).into_response()
 }
 
 async fn login(
@@ -339,7 +353,7 @@ async fn new_hash(mut jar: CookieJar) -> Response {
 
 async fn hide_rejected_post(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -349,11 +363,7 @@ async fn hide_rejected_post(
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
-    let wrote_post = match user {
-        Some(user) => post.user_id.is_some_and(|id| id == user.id),
-        None => post.anon_uuid.is_some_and(|uuid| uuid == anon_uuid),
-    };
-    if !wrote_post {
+    if !is_author(&user, &anon_uuid, post.user_id, &post.anon_uuid) {
         return bad_request("not post author");
     }
     if post.status != "rejected" {
@@ -361,19 +371,10 @@ async fn hide_rejected_post(
     }
     post_hiding.hide_post(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
+    Redirect::to(ROOT).into_response()
 }
 
 use axum::extract::WebSocketUpgrade;
-
-macro_rules! socket_send {
-    ($socket:expr, $msg:expr) => {
-        if $socket.send(Message::Text($msg)).await.is_err() {
-            break; // client disconnect
-        }
-    };
-}
 
 async fn web_socket(
     State(state): State<AppState>,
@@ -384,29 +385,32 @@ async fn web_socket(
     use tokio::sync::broadcast::Receiver;
     async fn watch_receiver(
         mut socket: WebSocket,
-        mut receiver: Receiver<String>,
+        mut receiver: Receiver<PostMessage>,
         user: Option<User>,
+        anon_uuid: String,
     ) {
         while let Ok(msg) = receiver.recv().await {
-            // if message comes from admin, send to everyone
-            // if message comes from user, send to admins
-            let val: serde_json::Value = serde_json::from_str(&msg).unwrap();
-            match val["action"].as_str().unwrap() {
-                "postSubmitted" => {
-                    if user.as_ref().is_some_and(|u| u.admin) {
-                        socket_send!(socket, msg);
-                    }
-                }
-                "postApproved" | "postRejected" => socket_send!(socket, msg),
-                _ => panic!("invalid message action"),
+            let should_send = match msg.status.as_str() {
+                "pending" => is_admin(&user),
+                "rejected" => is_author(&user, &anon_uuid, msg.user_id, &msg.anon_uuid),
+                "approved" => true,
+                _ => panic!("invalid post status"),
+            };
+            if !should_send {
+                continue;
+            }
+            let json = serde_json::to_string(&msg).expect("convert PostMessage to json");
+            if socket.send(Message::Text(json)).await.is_err() {
+                break; // client disconnect
             }
         }
     }
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
+    let anon_uuid = anon_uuid!(jar);
     tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
-    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
+    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user, anon_uuid))
 }
 
 // admin handlers follow
@@ -414,7 +418,7 @@ async fn web_socket(
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
         let user = user!($jar, $tx);
-        if !user.as_ref().is_some_and(|u| u.admin) {
+        if !is_admin(&user) {
             return unauthorized();
         }
     };
@@ -444,22 +448,7 @@ async fn update_post_status(
         "post.jinja",
         minijinja::context!(post, admin => false),
     );
-    let json = match post.status.as_str() {
-        "approved" => json!({
-            "action": "postApproved",
-            "id": post.id,
-            "html": html,
-        }),
-        "rejected" => json!({
-            "action": "postRejected",
-            "id": post.id,
-            "html": html,
-        }),
-        _ => panic!("invalid post status"),
-    };
-    state
-        .sender
-        .send(json.to_string())
-        .expect("broadcast reviewed post");
+    let msg = PostMessage::new(post, html);
+    state.sender.send(msg).expect("broadcast reviewed post");
     Redirect::to(ROOT).into_response()
 }

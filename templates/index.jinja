@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>schizo.land</title>
     <link rel="stylesheet" href="/style.css">
-    <script src="/script.js"></script>
+    <script src="/script.js?1"></script>
 </head>
 
 <body>
@@ -27,10 +27,10 @@
             <fieldset>
                 <legend>login/registration</legend>
                 <label for="username">username:</label>
-                <input type="text" name="username" id="username" maxlength="16">
+                <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
                 <br>
                 <label for="password">password:</label>
-                <input type="password" name="password" id="password" maxlength="64">
+                <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
                 <br>
                 <input type="submit" value="Log in or register">
             </fieldset>

@@ -50,16 +50,15 @@ window.addEventListener("focus", restoreTitle);
 
 const template = document.createElement("template");
 
-function prependPost(html) {
+function prependToMain(html) {
     const main = document.querySelector("main");
     template.innerHTML = html;
     main.prepend(template.content);
     incrementUnseenPosts();
 }
 
-// admins only
-function handleSubmitted(html) {
-    prependPost(html);
+function handlePending(html) {
+    prependToMain(html);
 }
 
 function handleApproved(id, html) {
@@ -68,7 +67,7 @@ function handleApproved(id, html) {
         template.innerHTML = html;
         post.replaceWith(template.content);
     } else {
-        prependPost(html);
+        prependToMain(html);
     }
 }
 
@@ -90,14 +89,15 @@ const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
 document.addEventListener("DOMContentLoaded", function () {
     webSocket.addEventListener("message", function (event) {
         const json = JSON.parse(event.data);
-        switch (json.action) {
-            case "postSubmitted":
-                handleSubmitted(json.html);
+        console.log(`msg: ${json}`);
+        switch (json.status) {
+            case "pending":
+                handlePending(json.html);
                 break;
-            case "postApproved":
+            case "approved":
                 handleApproved(json.id, json.html);
                 break;
-            case "postRejected":
+            case "rejected":
                 handleRejected(json.id, json.html);
                 break;
         }

@@ -152,3 +152,24 @@ impl PostHiding {
             .expect("set hidden flag to true");
     }
 }
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PostMessage {
+    pub id: i32,
+    pub status: String,
+    pub user_id: Option<i32>,
+    pub anon_uuid: Option<String>,
+    pub html: String,
+}
+
+impl PostMessage {
+    pub fn new(post: Post, html: String) -> Self {
+        Self {
+            id: post.id,
+            status: post.status,
+            user_id: post.user_id,
+            anon_uuid: post.anon_uuid,
+            html
+        }
+    }
+}
