@@ -1,17 +1,6 @@
 use crate::user::User;
 use sqlx::PgConnection;
 
-pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
-    sqlx::query_scalar(concat!(
-        "SELECT count(*) >= 10 FROM posts WHERE ip_hash = $1 ",
-        "AND status = 'pending' AND created_at > now() - interval '1 day'"
-    ))
-    .bind(ip_hash)
-    .fetch_one(&mut *tx)
-    .await
-    .expect("detect if ip is flooding")
-}
-
 pub fn anon_hash(anon_uuid: &str) -> String {
     sha256::digest(anon_uuid)[..8].to_owned()
 }

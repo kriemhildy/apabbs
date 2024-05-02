@@ -4,17 +4,6 @@ use crate::{
 };
 use sqlx::PgConnection;
 
-pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
-    sqlx::query_scalar(concat!(
-        "SELECT count(*) >= 10 FROM users WHERE ip_hash = $1 ",
-        "AND created_at > now() - interval '1 day'"
-    ))
-    .bind(ip_hash)
-    .fetch_one(&mut *tx)
-    .await
-    .expect("detect if ip is flooding")
-}
-
 pub fn is_admin(user: &Option<User>) -> bool {
     user.as_ref().is_some_and(|u| u.admin)
 }

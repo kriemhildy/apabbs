@@ -16,6 +16,26 @@ pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> bool {
         .expect("check if ip ban exists")
 }
 
+pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
+    let new_users_count: i64 = sqlx::query_scalar(concat!(
+        "SELECT count(*) FROM users WHERE ip_hash = $1 ",
+        "AND created_at > now() - interval '1 day'"
+    ))
+    .bind(ip_hash)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("count new user registrations by IP");
+    let new_posts_count: i64 = sqlx::query_scalar(concat!(
+        "SELECT count(*) FROM posts WHERE ip_hash = $1 ",
+        "AND status = 'pending' AND created_at > now() - interval '1 day'"
+    ))
+    .bind(ip_hash)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("count new pending posts by IP");
+    new_users_count + new_posts_count >= 10
+}
+
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query(concat!(
         "DELETE FROM users WHERE ip_hash = $1 ",

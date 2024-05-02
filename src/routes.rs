@@ -72,11 +72,11 @@ macro_rules! anon_uuid {
 }
 
 macro_rules! check_for_ban {
-    ($tx:expr, $ip_hash:expr, $module:ident) => {
+    ($tx:expr, $ip_hash:expr) => {
         if ban::exists(&mut $tx, $ip_hash).await {
             return forbidden("ip was auto-banned due to flooding");
         }
-        if $module::flooding(&mut $tx, $ip_hash).await {
+        if ban::flooding(&mut $tx, $ip_hash).await {
             ban::insert(&mut $tx, $ip_hash).await;
             ban::prune(&mut $tx, $ip_hash).await;
             $tx.commit().await.expect(COMMIT);
@@ -130,7 +130,7 @@ pub async fn submit_post(
     let user = user!(jar, tx);
     let anon_uuid = anon_uuid!(jar);
     let ip_hash = ip_hash(&headers);
-    check_for_ban!(tx, &ip_hash, post);
+    check_for_ban!(tx, &ip_hash);
     let post = match &user {
         Some(user) => {
             post_submission
@@ -182,7 +182,7 @@ pub async fn login(
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
                 let ip_hash = ip_hash(&headers);
-                check_for_ban!(tx, &ip_hash, user);
+                check_for_ban!(tx, &ip_hash);
                 let user = credentials.register(&mut tx, &ip_hash).await;
                 let cookie = build_cookie(USER_COOKIE, &user.token);
                 jar = jar.add(cookie);
