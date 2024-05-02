@@ -168,9 +168,3 @@ pub struct PostMessage {
     pub post: Post,
     pub html: String,
 }
-
-impl PostMessage {
-    pub fn new(post: Post, html: String) -> Self {
-        Self { post, html }
-    }
-}
