@@ -3,10 +3,10 @@ const USER_NOT_FOUND: &'static str = "user not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 
-use crate::*;
 use crate::{
     post::{Post, PostHiding, PostReview, PostSubmission},
     user::{is_admin, Credentials, User},
+    *,
 };
 use axum::{
     extract::{State, WebSocketUpgrade},
