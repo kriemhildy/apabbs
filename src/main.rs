@@ -48,7 +48,7 @@ pub fn render(
     tmpl.render(ctx).expect("render template")
 }
 
-pub async fn init_db() -> sqlx::PgPool {
+async fn init_db() -> sqlx::PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
     sqlx::PgPool::connect(&url).await.expect("connect postgres")
 }
