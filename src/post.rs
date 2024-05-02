@@ -169,7 +169,7 @@ impl PostMessage {
             status: post.status,
             user_id: post.user_id,
             anon_uuid: post.anon_uuid,
-            html
+            html,
         }
     }
 }
