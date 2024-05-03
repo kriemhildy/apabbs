@@ -47,28 +47,24 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
         .build()
 }
 
-macro_rules! user {
-    ($jar:expr, $tx:expr) => {
-        match $jar.get(USER_COOKIE) {
+macro_rules! cookies {
+    ($jar:expr, $tx:expr) => {{
+        let user = match $jar.get(USER_COOKIE) {
             Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
                 Some(user) => Some(user),
                 None => return bad_request(USER_NOT_FOUND),
             },
             None => None,
-        }
-    };
-}
-
-macro_rules! anon_uuid {
-    ($jar:expr) => {
-        match $jar.get(ANON_COOKIE) {
+        };
+        let anon_uuid = match $jar.get(ANON_COOKIE) {
             Some(cookie) => match uuid::Uuid::try_parse(cookie.value()) {
                 Ok(uuid) => uuid.hyphenated().to_string(),
                 Err(_) => return bad_request("invalid anon UUID"),
             },
             None => uuid::Uuid::new_v4().hyphenated().to_string(),
-        }
-    };
+        };
+        (user, anon_uuid)
+    }};
 }
 
 macro_rules! check_for_ban {
@@ -87,7 +83,7 @@ macro_rules! check_for_ban {
 
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
-        let user = user!($jar, $tx);
+        let (user, _anon_uuid) = cookies!($jar, $tx);
         if !is_admin(&user) {
             return unauthorized();
         }
@@ -96,8 +92,7 @@ macro_rules! require_admin {
 
 pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
+    let (user, anon_uuid) = cookies!(jar, tx);
     let posts = match &user {
         Some(user) => match user.admin {
             true => Post::select_latest_as_admin(&mut tx, user).await,
@@ -127,8 +122,7 @@ pub async fn submit_post(
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
+    let (user, anon_uuid) = cookies!(jar, tx);
     let ip_hash = ip_hash(&headers);
     check_for_ban!(tx, &ip_hash);
     let post = match &user {
@@ -220,8 +214,7 @@ pub async fn hide_rejected_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
+    let (user, anon_uuid) = cookies!(jar, tx);
     let post = match Post::select(&mut tx, post_hiding.id).await {
         Some(post) => post,
         None => return bad_request("post does not exist"),
@@ -267,8 +260,7 @@ pub async fn web_socket(
         }
     }
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let anon_uuid = anon_uuid!(jar);
+    let (user, anon_uuid) = cookies!(jar, tx);
     tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
     upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user, anon_uuid))
