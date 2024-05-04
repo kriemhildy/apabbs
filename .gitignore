@@ -2,5 +2,3 @@ target
 .env
 .vscode
 .DS_Store
-db/schiz.sql*
-
