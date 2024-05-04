@@ -33,9 +33,11 @@ fn ip_hash(headers: &HeaderMap) -> String {
         .expect("get IP header")
         .to_str()
         .expect("convert header to str");
-    let b64_salt = std::env::var("IP_SALT").expect("read IP_SALT env");
-    let phc_salt_string = crypto::convert_b64_salt(&b64_salt);
-    crypto::hash_password(ip, &phc_salt_string)
+    let ip_salt = std::env::var("IP_SALT").expect("read IP_SALT env");
+    if ip_salt.len() < 16 {
+        panic!("IP_SALT env must be at least 16 chars");
+    }
+    sha256::digest(ip_salt + ip)
 }
 
 fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
