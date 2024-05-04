@@ -16,8 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // change title for unseen posts received via web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-let unseenPosts = 0;
-let originalTitle;
+let originalTitle, unseenPosts = 0;
 
 document.addEventListener("DOMContentLoaded", function () {
     originalTitle = document.title;
@@ -48,8 +47,8 @@ window.addEventListener("focus", restoreTitle);
 // init web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const protocol = location.protocol == "https:" ? "wss:" : "ws:";
-const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
+const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
+const webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
 let template, main;
 
 function updatePost(id, html) {
