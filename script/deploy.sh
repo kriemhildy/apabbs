@@ -1,6 +1,7 @@
 set -xe
 if ! [ "$DEV" == 1 ]; then
     git pull
+    nice ../.cargo/bin/rustup upgrade
     nice ../.cargo/bin/cargo build --release
     nice ../.cargo/bin/sqlx migrate run
 else
