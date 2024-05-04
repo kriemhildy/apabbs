@@ -51,6 +51,7 @@ window.addEventListener("focus", restoreTitle);
 const protocol = location.protocol == "https:" ? "wss:" : "ws:";
 const webSocket = new WebSocket(`${protocol}//${location.hostname}/web-socket`);
 const template = document.createElement("template");
+let main;
 
 function updatePost(id, html) {
     const post = document.querySelector(`div#post-${id}`);
@@ -58,7 +59,6 @@ function updatePost(id, html) {
     if (post) {
         post.replaceWith(template.content);
     } else {
-        const main = document.querySelector("main");
         main.prepend(template.content);
         incrementUnseenPosts();
     }
@@ -69,4 +69,5 @@ document.addEventListener("DOMContentLoaded", function () {
         const json = JSON.parse(event.data);
         updatePost(json.id, json.html);
     });
+    main = document.querySelector("main");
 });
