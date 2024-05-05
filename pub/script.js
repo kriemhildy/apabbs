@@ -51,8 +51,8 @@ const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
 const webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
 let template, main;
 
-function updatePost(id, html) {
-    const post = document.querySelector(`div#post-${id}`);
+function updatePost(uuid, html) {
+    const post = document.querySelector(`div#post-${uuid}`);
     template.innerHTML = html;
     if (post) {
         post.replaceWith(template.content);
@@ -65,7 +65,7 @@ function updatePost(id, html) {
 document.addEventListener("DOMContentLoaded", function () {
     webSocket.addEventListener("message", function (event) {
         const json = JSON.parse(event.data);
-        updatePost(json.id, json.html);
+        updatePost(json.uuid, json.html);
     });
     template = document.createElement("template");
     main = document.querySelector("main");

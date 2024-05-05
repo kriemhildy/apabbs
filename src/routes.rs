@@ -213,7 +213,7 @@ pub async fn hide_rejected_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let post = match Post::select(&mut tx, post_hiding.id).await {
+    let post = match Post::select_by_uuid(&mut tx, &post_hiding.uuid).await {
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
@@ -249,7 +249,7 @@ pub async fn web_socket(
             if !should_send {
                 continue;
             }
-            let json = serde_json::json!({"id": msg.post.id, "html": msg.html}).to_string();
+            let json = serde_json::json!({"uuid": msg.post.uuid, "html": msg.html}).to_string();
             if socket.send(Message::Text(json)).await.is_err() {
                 break; // client disconnect
             }
@@ -271,7 +271,7 @@ pub async fn update_post_status(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = Post::select(&mut tx, post_review.id).await;
+    let post = Post::select_by_uuid(&mut tx, &post_review.uuid).await;
     match post {
         Some(post) => {
             if post.status != PostStatus::Pending {
@@ -281,7 +281,7 @@ pub async fn update_post_status(
         None => return bad_request("post does not exist"),
     }
     post_review.update_status(&mut tx).await;
-    let post = Post::select(&mut tx, post_review.id)
+    let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
         .expect("assume post exists");
     tx.commit().await.expect(COMMIT);

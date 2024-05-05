@@ -19,6 +19,7 @@ pub struct Post {
     pub anon_uuid: Option<String>,
     pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
+    pub uuid: String,
 }
 
 impl Post {
@@ -47,14 +48,6 @@ impl Post {
             .expect("select latest posts")
     }
 
-    pub async fn select(tx: &mut PgConnection, id: i32) -> Option<Self> {
-        sqlx::query_as("SELECT * FROM posts WHERE id = $1")
-            .bind(id)
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("select post by id")
-    }
-
     pub fn authored_by(&self, user: &User) -> bool {
         match &user.account {
             Some(account) => self.account_id.is_some_and(|id| id == account.id),
@@ -63,6 +56,14 @@ impl Post {
                 .as_ref()
                 .is_some_and(|uuid| uuid == &user.anon_uuid),
         }
+    }
+
+    pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &str) -> Option<Self> {
+        sqlx::query_as("SELECT * FROM posts WHERE uuid = $1")
+            .bind(uuid)
+            .fetch_optional(&mut *tx)
+            .await
+            .expect("select post by uuid")
     }
 }
 
@@ -114,15 +115,15 @@ impl PostSubmission {
 
 #[derive(serde::Deserialize)]
 pub struct PostReview {
-    pub id: i32,
+    pub uuid: String,
     pub status: PostStatus,
 }
 
 impl PostReview {
     pub async fn update_status(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET status = $1 WHERE uuid = $2")
             .bind(&self.status)
-            .bind(self.id)
+            .bind(&self.uuid)
             .execute(&mut *tx)
             .await
             .expect("update post status");
@@ -131,13 +132,13 @@ impl PostReview {
 
 #[derive(serde::Deserialize)]
 pub struct PostHiding {
-    pub id: i32,
+    pub uuid: String,
 }
 
 impl PostHiding {
     pub async fn hide_post(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET hidden = true WHERE id = $1")
-            .bind(self.id)
+        sqlx::query("UPDATE posts SET hidden = true WHERE uuid = $1")
+            .bind(&self.uuid)
             .execute(&mut *tx)
             .await
             .expect("set hidden flag to true");
