@@ -1,5 +1,5 @@
 use crate::user::{Account, User};
-use sqlx::PgConnection;
+use sqlx::{PgConnection, Postgres, QueryBuilder};
 
 fn convert_to_html(input: &str) -> String {
     input
@@ -33,47 +33,29 @@ pub struct Post {
 }
 
 impl Post {
-    async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Self> {
-        sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE (status = 'approved' OR anon_uuid = $1) ",
-            "AND hidden = false ORDER BY id DESC LIMIT 100"
-        ))
-        .bind(anon_uuid)
-        .fetch_all(&mut *tx)
-        .await
-        .expect("select latest posts as anon")
-    }
-
-    async fn select_latest_as_account(tx: &mut PgConnection, account: &Account) -> Vec<Self> {
-        sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE (status = 'approved' OR account_id = $1) ",
-            "AND hidden = false ORDER BY id DESC LIMIT 100"
-        ))
-        .bind(account.id)
-        .fetch_all(&mut *tx)
-        .await
-        .expect("select latest posts as account")
-    }
-
-    async fn select_latest_as_admin(tx: &mut PgConnection, account: &Account) -> Vec<Self> {
-        sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE (status <> 'rejected' OR account_id = $1) ",
-            "AND hidden = false ORDER BY id DESC LIMIT 100"
-        ))
-        .bind(account.id)
-        .fetch_all(&mut *tx)
-        .await
-        .expect("select latest posts as admin")
-    }
-
     pub async fn select_latest(tx: &mut PgConnection, user: &User) -> Vec<Self> {
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new("SELECT * FROM posts WHERE (");
         match &user.account {
-            Some(account) => match account.admin {
-                true => Post::select_latest_as_admin(tx, &account).await,
-                false => Post::select_latest_as_account(tx, &account).await,
-            },
-            None => Post::select_latest_as_anon(tx, &user.anon_uuid).await,
+            Some(account) => {
+                match account.admin {
+                    true => query_builder.push("status <> 'rejected' "),
+                    false => query_builder.push("status = 'approved' "),
+                };
+                query_builder.push("OR account_id = ");
+                query_builder.push_bind(account.id);
+            }
+            None => {
+                query_builder.push("status = 'approved' OR anon_uuid = ");
+                query_builder.push_bind(&user.anon_uuid);
+            }
         }
+        query_builder.push(") AND hidden = false ORDER BY id DESC LIMIT 100");
+        query_builder
+            .build_query_as()
+            .fetch_all(&mut *tx)
+            .await
+            .expect("select latest posts")
     }
 
     pub async fn select(tx: &mut PgConnection, id: i32) -> Option<Self> {
