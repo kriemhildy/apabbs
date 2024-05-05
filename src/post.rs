@@ -1,4 +1,4 @@
-use crate::user::{Account, User};
+use crate::user::User;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
@@ -72,53 +72,32 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
-    async fn insert_as_account(
-        &self,
-        tx: &mut PgConnection,
-        account: &Account,
-        ip_hash: &str,
-    ) -> Post {
-        sqlx::query_as(concat!(
-            "INSERT INTO posts (body, account_id, username, ip_hash) ",
-            "VALUES ($1, $2, $3, $4) RETURNING *",
-        ))
-        .bind(&self.body_as_html())
-        .bind(account.id)
-        .bind(&account.username)
-        .bind(ip_hash)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("insert new post as account")
-    }
-
-    async fn insert_as_anon(
-        &self,
-        tx: &mut PgConnection,
-        anon_uuid: &str,
-        anon_hash: &str,
-        ip_hash: &str,
-    ) -> Post {
-        sqlx::query_as(concat!(
-            "INSERT INTO posts (body, anon_uuid, anon_hash, ip_hash) ",
-            "VALUES ($1, $2, $3, $4) RETURNING *",
-        ))
-        .bind(&self.body_as_html())
-        .bind(anon_uuid)
-        .bind(anon_hash)
-        .bind(ip_hash)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("insert new post as anon")
-    }
-
     pub async fn insert(&self, tx: &mut PgConnection, user: User, ip_hash: &str) -> Post {
+        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
+        query_builder.push(match &user.account {
+            Some(_account) => "account_id, username",
+            None => "anon_uuid, anon_hash",
+        });
+        query_builder.push(", body, ip_hash) VALUES (");
+        let mut separated = query_builder.separated(", ");
         match user.account {
-            Some(account) => self.insert_as_account(tx, &account, &ip_hash).await,
+            Some(account) => {
+                separated.push_bind(account.id);
+                separated.push_bind(account.username);
+            }
             None => {
-                self.insert_as_anon(tx, &user.anon_uuid, &user.anon_hash(), &ip_hash)
-                    .await
+                separated.push_bind(&user.anon_uuid);
+                separated.push_bind(user.anon_hash());
             }
         }
+        query_builder.push(", $3, $4) RETURNING *");
+        query_builder
+            .build_query_as()
+            .bind(&self.body_as_html())
+            .bind(ip_hash)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("insert new post")
     }
 
     fn body_as_html(&self) -> String {
