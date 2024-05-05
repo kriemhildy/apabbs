@@ -1,17 +1,6 @@
 use crate::user::{Account, User};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 
-fn convert_to_html(input: &str) -> String {
-    input
-        .trim()
-        .replace("\r\n", "\n")
-        .replace("\r", "\n")
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\n", "<br>\n")
-}
-
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
@@ -93,7 +82,7 @@ impl PostSubmission {
             "INSERT INTO posts (body, account_id, username, ip_hash) ",
             "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
-        .bind(convert_to_html(&self.body))
+        .bind(&self.body_as_html())
         .bind(account.id)
         .bind(&account.username)
         .bind(ip_hash)
@@ -113,7 +102,7 @@ impl PostSubmission {
             "INSERT INTO posts (body, anon_uuid, anon_hash, ip_hash) ",
             "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
-        .bind(convert_to_html(&self.body))
+        .bind(&self.body_as_html())
         .bind(anon_uuid)
         .bind(anon_hash)
         .bind(ip_hash)
@@ -130,6 +119,17 @@ impl PostSubmission {
                     .await
             }
         }
+    }
+
+    fn body_as_html(&self) -> String {
+        self.body
+            .trim()
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", "<br>\n")
     }
 }
 
