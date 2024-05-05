@@ -17,6 +17,13 @@ impl User {
     pub fn anon_hash(&self) -> String {
         sha256::digest(&self.anon_uuid)[..8].to_owned()
     }
+
+    pub fn username(&self) -> Option<&String> {
+        match &self.account {
+            Some(account) => Some(&account.username),
+            None => None,
+        }
+    }
 }
 
 #[derive(sqlx::FromRow, serde::Serialize)]

@@ -21,7 +21,7 @@
                 <input type="submit" value="Submit post for review">
             </fieldset>
         </form>
-        {% if account is none %}
+        {% if username is none %}
         <p class="system">make an account if you want.</p>
         <form action="/login" method="post">
             <fieldset>
@@ -42,8 +42,8 @@
         {% else %}
         <form action="/logout" method="post">
             <span class="system">
-                logged in as: <strong>{{ account.username }}</strong>
-                {% if account.admin %}
+                logged in as: <strong>{{ username }}</strong>
+                {% if admin %}
                 (admin)
                 {% endif %}
             </span>

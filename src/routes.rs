@@ -113,13 +113,13 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
     let user = user!(jar, tx);
     let posts = Post::select_latest(&mut tx, &user).await;
     tx.commit().await.expect(COMMIT);
-    let anon_hash = user.anon_hash(); // for display
+    let anon_hash = user.anon_hash();
     let admin = user.admin();
-    let account = user.account;
+    let username = user.username();
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(account, posts, anon_hash, admin),
+        minijinja::context!(username, posts, anon_hash, admin),
     ));
     if jar.get(ANON_COOKIE).is_none() {
         let cookie = build_cookie(ANON_COOKIE, &user.anon_uuid);
