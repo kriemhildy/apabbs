@@ -115,12 +115,12 @@ impl PostSubmission {
 #[derive(serde::Deserialize)]
 pub struct PostReview {
     pub id: i32,
-    pub status: String,
+    pub status: PostStatus,
 }
 
 impl PostReview {
     pub async fn update_status(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET status = $1::post_status WHERE id = $2")
+        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(&self.status)
             .bind(self.id)
             .execute(&mut *tx)
