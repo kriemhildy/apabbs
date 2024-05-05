@@ -73,14 +73,14 @@ macro_rules! user {
             },
             None => None,
         };
-        let anon_uuid = match $jar.get(ANON_COOKIE) {
+        let anon_token = match $jar.get(ANON_COOKIE) {
             Some(cookie) => match uuid::Uuid::try_parse(cookie.value()) {
                 Ok(uuid) => uuid.hyphenated().to_string(),
                 Err(_) => return bad_request("invalid anon UUID"),
             },
             None => uuid::Uuid::new_v4().hyphenated().to_string(),
         };
-        User { account, anon_uuid }
+        User { account, anon_token }
     }};
 }
 
@@ -122,7 +122,7 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
         minijinja::context!(username, posts, anon_hash, admin),
     ));
     if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &user.anon_uuid);
+        let cookie = build_cookie(ANON_COOKIE, &user.anon_token);
         jar = jar.add(cookie);
     }
     (jar, html).into_response()

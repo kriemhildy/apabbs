@@ -3,7 +3,7 @@ use sqlx::PgConnection;
 
 pub struct User {
     pub account: Option<Account>,
-    pub anon_uuid: String,
+    pub anon_token: String,
 }
 
 impl User {
@@ -12,7 +12,7 @@ impl User {
     }
 
     pub fn anon_hash(&self) -> String {
-        sha256::digest(&self.anon_uuid)[..8].to_owned()
+        sha256::digest(&self.anon_token)[..8].to_owned()
     }
 
     pub fn username(&self) -> Option<&str> {

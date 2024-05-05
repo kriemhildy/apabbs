@@ -16,7 +16,7 @@ pub struct Post {
     pub body: String,
     pub account_id: Option<i32>,
     pub username: Option<String>, // cache
-    pub anon_uuid: Option<String>,
+    pub anon_token: Option<String>,
     pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
     pub uuid: String,
@@ -36,8 +36,8 @@ impl Post {
                 query_builder.push_bind(account.id);
             }
             None => {
-                query_builder.push("status = 'approved' OR anon_uuid = ");
-                query_builder.push_bind(&user.anon_uuid);
+                query_builder.push("status = 'approved' OR anon_token = ");
+                query_builder.push_bind(&user.anon_token);
             }
         }
         query_builder.push(") AND hidden = false ORDER BY id DESC LIMIT 100");
@@ -52,9 +52,9 @@ impl Post {
         match &user.account {
             Some(account) => self.account_id.is_some_and(|id| id == account.id),
             None => self
-                .anon_uuid
+                .anon_token
                 .as_ref()
-                .is_some_and(|uuid| uuid == &user.anon_uuid),
+                .is_some_and(|uuid| uuid == &user.anon_token),
         }
     }
 
@@ -77,7 +77,7 @@ impl PostSubmission {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
         query_builder.push(match &user.account {
             Some(_account) => "account_id, username",
-            None => "anon_uuid, anon_hash",
+            None => "anon_token, anon_hash",
         });
         query_builder.push(", body, ip_hash) VALUES (");
         let mut separated = query_builder.separated(", ");
@@ -87,7 +87,7 @@ impl PostSubmission {
                 separated.push_bind(account.username);
             }
             None => {
-                separated.push_bind(&user.anon_uuid);
+                separated.push_bind(&user.anon_token);
                 separated.push_bind(user.anon_hash());
             }
         }
