@@ -1,1 +1,1 @@
-site is temporarily down for maintenance, please try again soon.
+site is temporarily down for a database migration, please try again soon.
