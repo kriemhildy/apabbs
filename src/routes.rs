@@ -5,7 +5,7 @@ const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 
 use crate::{
-    post::{Post, PostHiding, PostReview, PostSubmission},
+    post::{Post, PostHiding, PostReview, PostStatus, PostSubmission},
     user::{Account, Credentials, User},
     *,
 };
@@ -224,7 +224,7 @@ pub async fn hide_rejected_post(
     if !post.authored_by(&user) {
         return bad_request("not post author");
     }
-    if post.status != "rejected" {
+    if post.status != PostStatus::Rejected {
         return bad_request("post is not rejected");
     }
     post_hiding.hide_post(&mut tx).await;
@@ -245,11 +245,10 @@ pub async fn web_socket(
         user: User,
     ) {
         while let Ok(msg) = receiver.recv().await {
-            let should_send = match msg.post.status.as_str() {
-                "pending" => user.admin(),
-                "rejected" => msg.post.authored_by(&user),
-                "approved" => true,
-                _ => panic!("invalid post status"),
+            let should_send = match msg.post.status {
+                PostStatus::Pending => user.admin(),
+                PostStatus::Rejected => msg.post.authored_by(&user),
+                PostStatus::Approved => true,
             };
             if !should_send {
                 continue;
@@ -279,7 +278,7 @@ pub async fn update_post_status(
     let post = Post::select(&mut tx, post_review.id).await;
     match post {
         Some(post) => {
-            if post.status != "pending" {
+            if post.status != PostStatus::Pending {
                 return bad_request("cannot update non-pending post");
             }
         }

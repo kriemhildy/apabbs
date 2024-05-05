@@ -12,6 +12,15 @@ fn convert_to_html(input: &str) -> String {
         .replace("\n", "<br>\n")
 }
 
+#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "post_status", rename_all = "snake_case")]
+pub enum PostStatus {
+    Pending,
+    Approved,
+    Rejected,
+}
+
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
 pub struct Post {
     pub id: i32,
@@ -20,7 +29,7 @@ pub struct Post {
     pub username: Option<String>, // cache
     pub anon_uuid: Option<String>,
     pub anon_hash: Option<String>, // cache
-    pub status: String,
+    pub status: PostStatus,
 }
 
 impl Post {
@@ -150,7 +159,7 @@ pub struct PostReview {
 
 impl PostReview {
     pub async fn update_status(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET status = $1::post_status WHERE id = $2")
             .bind(&self.status)
             .bind(self.id)
             .execute(&mut *tx)
