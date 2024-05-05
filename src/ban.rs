@@ -38,7 +38,7 @@ pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
 
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query(concat!(
-        "DELETE FROM users WHERE ip_hash = $1 ",
+        "DELETE FROM accounts WHERE ip_hash = $1 ",
         "AND NOT ",
         "EXISTS(SELECT 1 FROM posts WHERE account_id = accounts.id AND status <> 'pending')"
     ))
