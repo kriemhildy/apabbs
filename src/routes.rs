@@ -166,13 +166,9 @@ pub async fn login(
             None => return bad_request("username exists but password is wrong"),
         }
     } else {
-        if let Err(errors) = credentials.validate() {
-            let msg = errors
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-                .join("\n");
-            return bad_request(&msg);
+        let errors = credentials.validate();
+        if !errors.is_empty() {
+            return bad_request(&errors.join("\n"));
         }
         match jar.get(ACCOUNT_COOKIE) {
             Some(_cookie) => return bad_request("log out before registering"),

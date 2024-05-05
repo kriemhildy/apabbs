@@ -1,7 +1,4 @@
-use crate::{
-    crypto,
-    validation::{val, ValidationError},
-};
+use crate::crypto;
 use sqlx::PgConnection;
 
 pub struct User {
@@ -61,24 +58,21 @@ impl Credentials {
             .expect("select whether username exists")
     }
 
-    pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
-        let mut errors: Vec<ValidationError> = Vec::new();
+    pub fn validate(&self) -> Vec<&str> {
+        let mut errors: Vec<&str> = Vec::new();
         let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
-            val!(errors, "username must be 4 to 16 word characters");
+            errors.push("username must be 4 to 16 word characters");
         }
         if !(8..=64).contains(&self.password.len()) {
-            val!(errors, "password must be 8 to 64 chars");
+            errors.push("password must be 8 to 64 chars");
         }
         let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
         if lowercase_password.contains(&lowercase_username) {
-            val!(errors, "password cannot contain username");
+            errors.push("password cannot contain username");
         }
-        match errors.is_empty() {
-            true => Ok(()),
-            false => Err(errors),
-        }
+        errors
     }
 
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {

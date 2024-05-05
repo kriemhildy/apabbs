@@ -15,7 +15,6 @@ pub use tokio::sync::broadcast::Sender;
 
 mod jobs;
 mod routes;
-mod validation;
 
 use std::sync::{Arc, RwLock};
 use tower_http::{
