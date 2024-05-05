@@ -1,11 +1,12 @@
-const USER_COOKIE: &'static str = "user";
-const USER_NOT_FOUND: &'static str = "user not found";
+const OLD_USER_COOKIE: &'static str = "user"; // temporary for migration period
+const ACCOUNT_COOKIE: &'static str = "account";
+const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 
 use crate::{
     post::{Post, PostHiding, PostReview, PostSubmission},
-    user::{is_admin, Credentials, User},
+    user::{Account, Credentials, User},
     *,
 };
 use axum::{
@@ -49,12 +50,26 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
         .build()
 }
 
-macro_rules! cookies {
+// temporary for migration period
+macro_rules! migrate_user_cookie {
+    ($jar:expr) => {{
+        match $jar.get(OLD_USER_COOKIE) {
+            Some(cookie) => {
+                let cookie = build_cookie(ACCOUNT_COOKIE, cookie.value());
+                $jar = $jar.add(cookie);
+                $jar = $jar.remove(OLD_USER_COOKIE);
+            }
+            None => (),
+        };
+    }};
+}
+
+macro_rules! user {
     ($jar:expr, $tx:expr) => {{
-        let user = match $jar.get(USER_COOKIE) {
-            Some(cookie) => match User::select_by_token(&mut $tx, cookie.value()).await {
-                Some(user) => Some(user),
-                None => return bad_request(USER_NOT_FOUND),
+        let account = match $jar.get(ACCOUNT_COOKIE) {
+            Some(cookie) => match Account::select_by_token(&mut $tx, cookie.value()).await {
+                Some(account) => Some(account),
+                None => return bad_request(ACCOUNT_NOT_FOUND),
             },
             None => None,
         };
@@ -65,7 +80,7 @@ macro_rules! cookies {
             },
             None => uuid::Uuid::new_v4().hyphenated().to_string(),
         };
-        (user, anon_uuid)
+        User { account, anon_uuid }
     }};
 }
 
@@ -85,8 +100,8 @@ macro_rules! check_for_ban {
 
 macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
-        let (user, _anon_uuid) = cookies!($jar, $tx);
-        if !is_admin(&user) {
+        let user = user!($jar, $tx);
+        if !user.admin() {
             return unauthorized();
         }
     };
@@ -94,24 +109,20 @@ macro_rules! require_admin {
 
 pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, anon_uuid) = cookies!(jar, tx);
-    let posts = match &user {
-        Some(user) => match user.admin {
-            true => Post::select_latest_as_admin(&mut tx, user).await,
-            false => Post::select_latest_as_user(&mut tx, user).await,
-        },
-        None => Post::select_latest_as_anon(&mut tx, &anon_uuid).await,
-    };
+    migrate_user_cookie!(jar);
+    let user = user!(jar, tx);
+    let posts = Post::select_latest(&mut tx, &user).await;
     tx.commit().await.expect(COMMIT);
-    let anon_hash = post::anon_hash(&anon_uuid); // for display
-    let admin = is_admin(&user);
+    let anon_hash = user.anon_hash(); // for display
+    let admin = user.admin();
+    let account = user.account;
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(user, posts, anon_hash, admin),
+        minijinja::context!(account, posts, anon_hash, admin),
     ));
     if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &anon_uuid);
+        let cookie = build_cookie(ANON_COOKIE, &user.anon_uuid);
         jar = jar.add(cookie);
     }
     (jar, html).into_response()
@@ -124,21 +135,10 @@ pub async fn submit_post(
     Form(post_submission): Form<PostSubmission>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, anon_uuid) = cookies!(jar, tx);
+    let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
     check_for_ban!(tx, &ip_hash);
-    let post = match &user {
-        Some(user) => {
-            post_submission
-                .insert_as_user(&mut tx, user, &ip_hash)
-                .await
-        }
-        None => {
-            post_submission
-                .insert_as_anon(&mut tx, &anon_uuid, &ip_hash)
-                .await
-        }
-    };
+    let post = post_submission.insert(&mut tx, user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
     let html = render(
         state.jinja,
@@ -159,8 +159,8 @@ pub async fn login(
     let mut tx = state.db.begin().await.expect(BEGIN);
     if credentials.username_exists(&mut tx).await {
         match credentials.authenticate(&mut tx).await {
-            Some(user) => {
-                let cookie = build_cookie(USER_COOKIE, &user.token);
+            Some(account) => {
+                let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
                 jar = jar.add(cookie);
             }
             None => return bad_request("username exists but password is wrong"),
@@ -174,13 +174,13 @@ pub async fn login(
                 .join("\n");
             return bad_request(&msg);
         }
-        match jar.get(USER_COOKIE) {
+        match jar.get(ACCOUNT_COOKIE) {
             Some(_cookie) => return bad_request("log out before registering"),
             None => {
                 let ip_hash = ip_hash(&headers);
                 check_for_ban!(tx, &ip_hash);
-                let user = credentials.register(&mut tx, &ip_hash).await;
-                let cookie = build_cookie(USER_COOKIE, &user.token);
+                let account = credentials.register(&mut tx, &ip_hash).await;
+                let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
                 jar = jar.add(cookie);
             }
         }
@@ -192,10 +192,10 @@ pub async fn login(
 
 pub async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    match jar.get(USER_COOKIE) {
-        Some(cookie) => match User::select_by_token(&mut tx, cookie.value()).await {
-            Some(_user) => jar = jar.remove(USER_COOKIE),
-            None => return bad_request(USER_NOT_FOUND),
+    match jar.get(ACCOUNT_COOKIE) {
+        Some(cookie) => match Account::select_by_token(&mut tx, cookie.value()).await {
+            Some(_account) => jar = jar.remove(ACCOUNT_COOKIE),
+            None => return bad_request(ACCOUNT_NOT_FOUND),
         },
         None => return bad_request("cookie not found"),
     };
@@ -216,12 +216,12 @@ pub async fn hide_rejected_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, anon_uuid) = cookies!(jar, tx);
+    let user = user!(jar, tx);
     let post = match Post::select(&mut tx, post_hiding.id).await {
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
-    if !post.authored_by(&user, &anon_uuid) {
+    if !post.authored_by(&user) {
         return bad_request("not post author");
     }
     if post.status != "rejected" {
@@ -242,13 +242,12 @@ pub async fn web_socket(
     async fn watch_receiver(
         mut socket: WebSocket,
         mut receiver: Receiver<PostMessage>,
-        user: Option<User>,
-        anon_uuid: String,
+        user: User,
     ) {
         while let Ok(msg) = receiver.recv().await {
             let should_send = match msg.post.status.as_str() {
-                "pending" => is_admin(&user),
-                "rejected" => msg.post.authored_by(&user, &anon_uuid),
+                "pending" => user.admin(),
+                "rejected" => msg.post.authored_by(&user),
                 "approved" => true,
                 _ => panic!("invalid post status"),
             };
@@ -262,10 +261,10 @@ pub async fn web_socket(
         }
     }
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, anon_uuid) = cookies!(jar, tx);
+    let user = user!(jar, tx);
     tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
-    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user, anon_uuid))
+    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
 }
 
 // admin handlers follow
@@ -287,7 +286,9 @@ pub async fn update_post_status(
         None => return bad_request("post does not exist"),
     }
     post_review.update_status(&mut tx).await;
-    let post = Post::select(&mut tx, post_review.id).await.unwrap();
+    let post = Post::select(&mut tx, post_review.id)
+        .await
+        .expect("assume post exists");
     tx.commit().await.expect(COMMIT);
     let html = render(
         state.jinja,

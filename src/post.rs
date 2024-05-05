@@ -1,9 +1,5 @@
-use crate::user::User;
+use crate::user::{Account, User};
 use sqlx::PgConnection;
-
-pub fn anon_hash(anon_uuid: &str) -> String {
-    sha256::digest(anon_uuid)[..8].to_owned()
-}
 
 fn convert_to_html(input: &str) -> String {
     input
@@ -20,7 +16,7 @@ fn convert_to_html(input: &str) -> String {
 pub struct Post {
     pub id: i32,
     pub body: String,
-    pub user_id: Option<i32>,
+    pub account_id: Option<i32>,
     pub username: Option<String>, // cache
     pub anon_uuid: Option<String>,
     pub anon_hash: Option<String>, // cache
@@ -28,7 +24,7 @@ pub struct Post {
 }
 
 impl Post {
-    pub async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Self> {
+    async fn select_latest_as_anon(tx: &mut PgConnection, anon_uuid: &str) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE (status = 'approved' OR anon_uuid = $1) ",
             "AND hidden = false ORDER BY id DESC LIMIT 100"
@@ -36,29 +32,39 @@ impl Post {
         .bind(anon_uuid)
         .fetch_all(&mut *tx)
         .await
-        .expect("select latest 100 posts as anon")
+        .expect("select latest posts as anon")
     }
 
-    pub async fn select_latest_as_user(tx: &mut PgConnection, user: &User) -> Vec<Self> {
+    async fn select_latest_as_account(tx: &mut PgConnection, account: &Account) -> Vec<Self> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE (status = 'approved' OR user_id = $1) ",
+            "SELECT * FROM posts WHERE (status = 'approved' OR account_id = $1) ",
             "AND hidden = false ORDER BY id DESC LIMIT 100"
         ))
-        .bind(user.id)
+        .bind(account.id)
         .fetch_all(&mut *tx)
         .await
-        .expect("select latest 100 posts as user")
+        .expect("select latest posts as account")
     }
 
-    pub async fn select_latest_as_admin(tx: &mut PgConnection, user: &User) -> Vec<Self> {
+    async fn select_latest_as_admin(tx: &mut PgConnection, account: &Account) -> Vec<Self> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE (status <> 'rejected' OR user_id = $1) ",
+            "SELECT * FROM posts WHERE (status <> 'rejected' OR account_id = $1) ",
             "AND hidden = false ORDER BY id DESC LIMIT 100"
         ))
-        .bind(user.id)
+        .bind(account.id)
         .fetch_all(&mut *tx)
         .await
-        .expect("select latest 100 posts as admin")
+        .expect("select latest posts as admin")
+    }
+
+    pub async fn select_latest(tx: &mut PgConnection, user: &User) -> Vec<Self> {
+        match &user.account {
+            Some(account) => match account.admin {
+                true => Post::select_latest_as_admin(tx, &account).await,
+                false => Post::select_latest_as_account(tx, &account).await,
+            },
+            None => Post::select_latest_as_anon(tx, &user.anon_uuid).await,
+        }
     }
 
     pub async fn select(tx: &mut PgConnection, id: i32) -> Option<Self> {
@@ -69,13 +75,13 @@ impl Post {
             .expect("select post by id")
     }
 
-    pub fn authored_by(&self, user: &Option<User>, anon_uuid: &str) -> bool {
-        match user {
-            Some(user) => self.user_id.is_some_and(|id| id == user.id),
+    pub fn authored_by(&self, user: &User) -> bool {
+        match &user.account {
+            Some(account) => self.account_id.is_some_and(|id| id == account.id),
             None => self
                 .anon_uuid
                 .as_ref()
-                .is_some_and(|uuid| uuid == anon_uuid),
+                .is_some_and(|uuid| uuid == &user.anon_uuid),
         }
     }
 }
@@ -86,24 +92,30 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
-    pub async fn insert_as_user(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
+    async fn insert_as_account(
+        &self,
+        tx: &mut PgConnection,
+        account: &Account,
+        ip_hash: &str,
+    ) -> Post {
         sqlx::query_as(concat!(
-            "INSERT INTO posts (body, user_id, username, ip_hash) ",
+            "INSERT INTO posts (body, account_id, username, ip_hash) ",
             "VALUES ($1, $2, $3, $4) RETURNING *",
         ))
         .bind(convert_to_html(&self.body))
-        .bind(user.id)
-        .bind(&user.username)
+        .bind(account.id)
+        .bind(&account.username)
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .expect("insert new post as user")
+        .expect("insert new post as account")
     }
 
-    pub async fn insert_as_anon(
+    async fn insert_as_anon(
         &self,
         tx: &mut PgConnection,
         anon_uuid: &str,
+        anon_hash: &str,
         ip_hash: &str,
     ) -> Post {
         sqlx::query_as(concat!(
@@ -112,11 +124,21 @@ impl PostSubmission {
         ))
         .bind(convert_to_html(&self.body))
         .bind(anon_uuid)
-        .bind(anon_hash(anon_uuid))
+        .bind(anon_hash)
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post as anon")
+    }
+
+    pub async fn insert(&self, tx: &mut PgConnection, user: User, ip_hash: &str) -> Post {
+        match user.account {
+            Some(account) => self.insert_as_account(tx, &account, &ip_hash).await,
+            None => {
+                self.insert_as_anon(tx, &user.anon_uuid, &user.anon_hash(), &ip_hash)
+                    .await
+            }
+        }
     }
 }
 

@@ -4,12 +4,23 @@ use crate::{
 };
 use sqlx::PgConnection;
 
-pub fn is_admin(user: &Option<User>) -> bool {
-    user.as_ref().is_some_and(|u| u.admin)
+pub struct User {
+    pub account: Option<Account>,
+    pub anon_uuid: String,
+}
+
+impl User {
+    pub fn admin(&self) -> bool {
+        self.account.as_ref().is_some_and(|a| a.admin)
+    }
+
+    pub fn anon_hash(&self) -> String {
+        sha256::digest(&self.anon_uuid)[..8].to_owned()
+    }
 }
 
 #[derive(sqlx::FromRow, serde::Serialize)]
-pub struct User {
+pub struct Account {
     pub id: i32,
     pub username: String,
     pub token: String,
@@ -18,13 +29,13 @@ pub struct User {
     pub admin: bool,
 }
 
-impl User {
+impl Account {
     pub async fn select_by_token(tx: &mut PgConnection, token: &str) -> Option<Self> {
-        sqlx::query_as("SELECT * FROM users WHERE token = $1")
+        sqlx::query_as("SELECT * FROM accounts WHERE token = $1")
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
-            .expect("select user by token")
+            .expect("select account by token")
     }
 }
 
@@ -36,7 +47,7 @@ pub struct Credentials {
 
 impl Credentials {
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)")
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE username = $1)")
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
@@ -63,12 +74,12 @@ impl Credentials {
         }
     }
 
-    pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> User {
+    pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         let phc_salt_string = crypto::generate_phc_salt_string();
         let password_hash = crypto::hash_password(&self.password, &phc_salt_string);
         let password_salt = phc_salt_string.as_str();
         sqlx::query_as(concat!(
-            "INSERT INTO users (username, password_hash, password_salt, ip_hash) ",
+            "INSERT INTO accounts (username, password_hash, password_salt, ip_hash) ",
             "VALUES ($1, $2, $3, $4) RETURNING *"
         ))
         .bind(&self.username)
@@ -77,23 +88,23 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .expect("insert a new registered user")
+        .expect("insert a new registered account")
     }
 
-    pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<User> {
-        let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = $1")
+    pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<Account> {
+        let account: Option<Account> = sqlx::query_as("SELECT * FROM accounts WHERE username = $1")
             .bind(&self.username)
             .fetch_optional(&mut *tx)
             .await
-            .expect("select user by username");
-        if user.is_none() {
+            .expect("select account by username");
+        if account.is_none() {
             return None;
         }
-        let user = user.unwrap();
-        let phc_salt_string = crypto::convert_b64_salt(&user.password_salt);
+        let account = account.expect("assume account exists");
+        let phc_salt_string = crypto::convert_b64_salt(&account.password_salt);
         let input_password_hash = crypto::hash_password(&self.password, &phc_salt_string);
-        match user.password_hash == input_password_hash {
-            true => Some(user),
+        match account.password_hash == input_password_hash {
+            true => Some(account),
             false => None,
         }
     }

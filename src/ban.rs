@@ -18,13 +18,13 @@ pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> bool {
 
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     let new_users_count: i64 = sqlx::query_scalar(concat!(
-        "SELECT count(*) FROM users WHERE ip_hash = $1 ",
+        "SELECT count(*) FROM accounts WHERE ip_hash = $1 ",
         "AND created_at > now() - interval '1 day'"
     ))
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("count new user registrations by IP");
+    .expect("count new account registrations by IP");
     let new_posts_count: i64 = sqlx::query_scalar(concat!(
         "SELECT count(*) FROM posts WHERE ip_hash = $1 ",
         "AND status = 'pending' AND created_at > now() - interval '1 day'"
@@ -39,12 +39,13 @@ pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query(concat!(
         "DELETE FROM users WHERE ip_hash = $1 ",
-        "AND NOT EXISTS(SELECT 1 FROM posts WHERE user_id = users.id AND status <> 'pending')"
+        "AND NOT ",
+        "EXISTS(SELECT 1 FROM posts WHERE account_id = accounts.id AND status <> 'pending')"
     ))
     .bind(ip_hash)
     .execute(&mut *tx)
     .await
-    .expect("delete banned users with only pending posts");
+    .expect("delete banned accounts with only pending posts");
     sqlx::query("DELETE FROM posts WHERE ip_hash = $1 AND status = 'pending'")
         .bind(ip_hash)
         .execute(&mut *tx)
@@ -54,7 +55,7 @@ pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
 
 pub async fn scrub(tx: &mut PgConnection) {
     sqlx::query(concat!(
-        "UPDATE users SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
+        "UPDATE accounts SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
         "AND created_at < now() - interval '1 day'"
     ))
     .execute(&mut *tx)
