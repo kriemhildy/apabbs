@@ -104,10 +104,10 @@ impl Credentials {
             .fetch_optional(&mut *tx)
             .await
             .expect("select account by username");
-        if account.is_none() {
-            return None;
-        }
-        let account = account.expect("assume account exists");
+        let account = match account {
+            Some(account) => account,
+            None => return None,
+        };
         let phc_salt_string = crypto::convert_b64_salt(&account.password_salt);
         let input_password_hash = crypto::hash_password(&self.password, &phc_salt_string);
         match account.password_hash == input_password_hash {
