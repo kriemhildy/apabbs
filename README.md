@@ -13,6 +13,8 @@ schizo.land
 9. run "sqlx database create" to create the database.
 10. run "sqlx migrate run" to update the database schema to the current point.
 11. configure a web server (e.g. nginx) to proxy to the app server.
-    this is necessary for receiving assets (css and js).
-12. run "cargo run" to start the app server on port 7878.
+    this is necessary for receiving assets (css and js). this server will also
+    need to enable web socket upgrades and IP forwarding.
+12. run "cargo run" to start the app server on port 7878. alternatively set a
+    "PORT" env var to run on a different port.
 13. access the app via "localhost" in a browser.

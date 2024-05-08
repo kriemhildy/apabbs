@@ -111,8 +111,13 @@ async fn main() {
         AppState { db, jinja, sender }
     };
     let router = router(state);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:7878")
+    let port: u16 = match std::env::var("PORT") {
+        Ok(port) => port.parse().expect("parse PORT env"),
+        Err(_) => 7878
+    };
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
-        .expect("listen on 7878");
+        .expect(&format!("listen on port {port}"));
+    println!("app listening on port {port}");
     axum::serve(listener, router).await.expect("serve axum")
 }
