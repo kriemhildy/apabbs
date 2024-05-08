@@ -101,6 +101,13 @@ fn router(state: AppState) -> axum::Router {
         .with_state(state)
 }
 
+fn port() -> u16 {
+    match std::env::var("PORT") {
+        Ok(port) => port.parse().expect("parse PORT env"),
+        Err(_) => 7878
+    }
+}
+
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
@@ -111,10 +118,7 @@ async fn main() {
         AppState { db, jinja, sender }
     };
     let router = router(state);
-    let port: u16 = match std::env::var("PORT") {
-        Ok(port) => port.parse().expect("parse PORT env"),
-        Err(_) => 7878
-    };
+    let port = port();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .expect(&format!("listen on port {port}"));
