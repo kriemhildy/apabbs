@@ -80,7 +80,10 @@ macro_rules! user {
             },
             None => uuid::Uuid::new_v4().hyphenated().to_string(),
         };
-        User { account, anon_token }
+        User {
+            account,
+            anon_token,
+        }
     }};
 }
 

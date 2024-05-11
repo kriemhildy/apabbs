@@ -104,7 +104,7 @@ fn router(state: AppState) -> axum::Router {
 fn port() -> u16 {
     match std::env::var("PORT") {
         Ok(port) => port.parse().expect("parse PORT env"),
-        Err(_) => 7878
+        Err(_) => 7878,
     }
 }
 
