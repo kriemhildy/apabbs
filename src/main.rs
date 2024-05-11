@@ -25,24 +25,6 @@ pub struct AppState {
     sender: Arc<Sender<PostMessage>>,
 }
 
-pub fn dev() -> bool {
-    std::env::var("DEV").is_ok_and(|v| v == "1")
-}
-
-pub fn render(
-    lock: Arc<RwLock<minijinja::Environment<'_>>>,
-    name: &str,
-    ctx: minijinja::value::Value,
-) -> String {
-    if dev() {
-        let mut env = lock.write().expect("write jinja env");
-        env.clear_templates();
-    }
-    let env = lock.read().expect("read jinja env");
-    let tmpl = env.get_template(name).expect("get jinja template");
-    tmpl.render(ctx).expect("render template")
-}
-
 async fn init_db() -> sqlx::PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
     sqlx::PgPool::connect(&url).await.expect("connect postgres")

@@ -50,6 +50,28 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
         .build()
 }
 
+fn dev() -> bool {
+    std::env::var("DEV").is_ok_and(|v| v == "1")
+}
+
+fn site_name() -> String {
+    std::env::var("SITE_NAME").expect("read SITE_NAME env")
+}
+
+fn render(
+    lock: Arc<RwLock<minijinja::Environment<'_>>>,
+    name: &str,
+    ctx: minijinja::value::Value,
+) -> String {
+    if dev() {
+        let mut env = lock.write().expect("write jinja env");
+        env.clear_templates();
+    }
+    let env = lock.read().expect("read jinja env");
+    let tmpl = env.get_template(name).expect("get jinja template");
+    tmpl.render(ctx).expect("render template")
+}
+
 // temporary for migration period
 macro_rules! migrate_user_cookie {
     ($jar:expr) => {{
@@ -120,10 +142,11 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
     let admin = user.admin();
     let username = user.username();
     let anon = user.anon();
+    let site_name = site_name();
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(username, posts, anon_hash, admin, anon),
+        minijinja::context!(site_name, username, posts, anon_hash, admin, anon),
     ));
     if jar.get(ANON_COOKIE).is_none() {
         let cookie = build_cookie(ANON_COOKIE, &user.anon_token);
@@ -159,7 +182,8 @@ pub async fn submit_post(
 }
 
 pub async fn login_form(State(state): State<AppState>) -> Html<String> {
-    Html(render(state.jinja, "login.jinja", minijinja::context!()))
+    let site_name = site_name();
+    Html(render(state.jinja, "login.jinja", minijinja::context!(site_name)))
 }
 
 pub async fn authenticate(
@@ -187,7 +211,8 @@ pub async fn authenticate(
 }
 
 pub async fn registration_form(State(state): State<AppState>) -> Html<String> {
-    Html(render(state.jinja, "register.jinja", minijinja::context!()))
+    let site_name = site_name();
+    Html(render(state.jinja, "register.jinja", minijinja::context!(site_name)))
 }
 
 pub async fn create_account(
