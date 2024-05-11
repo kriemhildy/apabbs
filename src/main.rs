@@ -1,7 +1,3 @@
-// schizo.land
-// main.rs
-// author: Kriemhild Gretchen
-
 pub mod ban;
 pub mod crypto;
 pub mod post;
