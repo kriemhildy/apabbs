@@ -17,7 +17,7 @@ Installation
 3. install "pkg-config" via your package manager.
 4. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
-5. create a role with CREATEDB (or SUPERUSER) and LOGIN in postgresql.
+5. create a role with CREATEDB and LOGIN in postgresql.
 6. add DATABASE_URL with postgres connection credentials to an ".env" file.
 7. also set "DEV=1" in the .env file.
 8. add a random IP_SALT (at least 16 chars) to the .env file.
