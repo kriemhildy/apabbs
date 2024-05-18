@@ -153,7 +153,39 @@ pub async fn submit_post(
     Redirect::to(ROOT).into_response()
 }
 
-pub async fn login(
+pub async fn login_form(State(state): State<AppState>) -> Html<String> {
+    Html(render(state.jinja, "login.jinja", minijinja::context!()))
+}
+
+pub async fn authenticate(
+    State(state): State<AppState>,
+    mut jar: CookieJar,
+    Form(credentials): Form<Credentials>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    if jar.get(ACCOUNT_COOKIE).is_some() {
+        return bad_request("already logged in");
+    }
+    if !credentials.username_exists(&mut tx).await {
+        return bad_request("username does not exist");
+    }
+    match credentials.authenticate(&mut tx).await {
+        Some(account) => {
+            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
+            jar = jar.add(cookie);
+        }
+        None => return bad_request("password is wrong"),
+    }
+    tx.commit().await.expect(COMMIT);
+    let redirect = Redirect::to(ROOT);
+    (jar, redirect).into_response()
+}
+
+pub async fn registration_form(State(state): State<AppState>) -> Html<String> {
+    Html(render(state.jinja, "register.jinja", minijinja::context!()))
+}
+
+pub async fn create_account(
     State(state): State<AppState>,
     mut jar: CookieJar,
     headers: HeaderMap,
@@ -161,27 +193,20 @@ pub async fn login(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     if credentials.username_exists(&mut tx).await {
-        match credentials.authenticate(&mut tx).await {
-            Some(account) => {
-                let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
-                jar = jar.add(cookie);
-            }
-            None => return bad_request("username exists but password is wrong"),
-        }
-    } else {
-        let errors = credentials.validate();
-        if !errors.is_empty() {
-            return bad_request(&errors.join("\n"));
-        }
-        match jar.get(ACCOUNT_COOKIE) {
-            Some(_cookie) => return bad_request("log out before registering"),
-            None => {
-                let ip_hash = ip_hash(&headers);
-                check_for_ban!(tx, &ip_hash);
-                let account = credentials.register(&mut tx, &ip_hash).await;
-                let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
-                jar = jar.add(cookie);
-            }
+        return bad_request("username is taken");
+    }
+    let errors = credentials.validate();
+    if !errors.is_empty() {
+        return bad_request(&errors.join("\n"));
+    }
+    match jar.get(ACCOUNT_COOKIE) {
+        Some(_cookie) => return bad_request("log out before registering"),
+        None => {
+            let ip_hash = ip_hash(&headers);
+            check_for_ban!(tx, &ip_hash);
+            let account = credentials.register(&mut tx, &ip_hash).await;
+            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
+            jar = jar.add(cookie);
         }
     }
     tx.commit().await.expect(COMMIT);

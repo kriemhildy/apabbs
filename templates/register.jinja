@@ -1,0 +1,17 @@
+{% extends "layout.jinja" %}
+{% block body %}
+<body>
+    <form action="/register" method="post">
+        <fieldset>
+            <legend>registration</legend>
+            <label for="username">username:</label>
+            <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
+            <br>
+            <label for="password">password:</label>
+            <input type="password" name="password" id="password" maxlength="64" autocomplete="new-password">
+            <br>
+            <input type="submit" value="Register">
+        </fieldset>
+    </form>
+</body>
+{% endblock %}

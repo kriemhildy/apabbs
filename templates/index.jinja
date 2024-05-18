@@ -1,44 +1,15 @@
-<!DOCTYPE html>
-<html lang="en-US">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>schizo.land</title>
-    <link rel="stylesheet" href="/style.css?1">
-    <script src="/script.js?3"></script>
-</head>
-
+{% extends "layout.jinja" %}
+{% block body %}
 <body>
     <section id="forms">
-        <h1>schizo.land</h1>
-        <p class="system">write a post. if approved, it will show up later.</p>
-        <form action="/submit-post" method="post">
-            <fieldset>
-                <legend>new post</legend>
-                <textarea name="body"></textarea>
-                <br>
-                <input type="submit" value="Submit post for review">
-            </fieldset>
+        <h2>schizo.land</h2>
+        <form action="/post" method="post">
+            <textarea name="body"></textarea>
+            <br>
+            <input type="submit" value="Post">
         </form>
         {% if username is none %}
-        <p class="system">make an account if you want.</p>
-        <form action="/login" method="post">
-            <fieldset>
-                <legend>login/registration</legend>
-                <label for="username">username:</label>
-                <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
-                <br>
-                <label for="password">password:</label>
-                <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
-                <br>
-                <input type="submit" value="Log in or register">
-            </fieldset>
-        </form>
-        <form action="/new-hash" method="post">
-            <span class="system">your anon hash: {{ anon_hash }}</span>
-            <input type="submit" value="Generate new hash">
-        </form>
+        <p class="system"><a href="/login">log in</a> or <a href="/register">register</a></p>
         {% else %}
         <form action="/logout" method="post">
             <span class="system">
@@ -50,6 +21,10 @@
             <input type="submit" value="Log out">
         </form>
         {% endif %}
+        <form action="/hash" method="post">
+            <span class="system">your anon hash: {{ anon_hash }}</span>
+            <input type="submit" value="Generate new hash">
+        </form>
     </section>
     <main>
         {% for post in posts %}
@@ -57,5 +32,4 @@
         {% endfor %}
     </main>
 </body>
-
-</html>
+{% endblock %}
