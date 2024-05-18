@@ -41,6 +41,14 @@ fn ip_hash(headers: &HeaderMap) -> String {
     sha256::digest(ip_salt + ip)
 }
 
+fn site_name() -> String {
+    std::env::var("SITE_NAME").expect("read SITE_NAME env")
+}
+
+fn dev() -> bool {
+    std::env::var("DEV").is_ok_and(|v| v == "1")
+}
+
 fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
     Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!dev())
@@ -48,14 +56,6 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
         .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
         .permanent()
         .build()
-}
-
-fn dev() -> bool {
-    std::env::var("DEV").is_ok_and(|v| v == "1")
-}
-
-fn site_name() -> String {
-    std::env::var("SITE_NAME").expect("read SITE_NAME env")
 }
 
 fn render(
