@@ -3,32 +3,36 @@
 <body>
     <section id="forms">
         <h2>schizo.land</h2>
+        <ul class="system">
+            {% if username is none %}
+            <li><a href="/login">log in</a> or <a href="/register">register</a></li>
+            {% else %}
+            <li>
+                <form action="/logout" method="post">
+                    logged in as: <strong>{{ username }}</strong>
+                    {% if admin %}
+                    (admin)
+                    {% endif %}
+                    <input type="submit" value="Log out">
+                </form>
+            </li>
+            {% endif %}
+            <li>
+                <form action="/hash" method="post">
+                    <span class="system">your anon hash: {{ anon_hash }}</span>
+                    <input type="submit" value="Generate new hash">
+                </form>
+            </li>
+        </ul>
         <form action="/post" method="post">
             <textarea name="body"></textarea>
             <br>
+            <input type="submit" value="Post" id="post-button">
             {% if username %}
-            <input type="checkbox" name="anon" id="anon"{{ " checked" if anon }}>
-            <label for="anon">Post anonymously</a>
+            <input type="checkbox" name="anon" id="anon" {{ " checked" if anon }}>
+            <label for="anon">Post anonymously</label>
             <br>
             {% endif %}
-            <input type="submit" value="Post">
-        </form>
-        {% if username is none %}
-        <p class="system"><a href="/login">log in</a> or <a href="/register">register</a></p>
-        {% else %}
-        <form action="/logout" method="post">
-            <span class="system">
-                logged in as: <strong>{{ username }}</strong>
-                {% if admin %}
-                (admin)
-                {% endif %}
-            </span>
-            <input type="submit" value="Log out">
-        </form>
-        {% endif %}
-        <form action="/hash" method="post">
-            <span class="system">your anon hash: {{ anon_hash }}</span>
-            <input type="submit" value="Generate new hash">
         </form>
     </section>
     <main>

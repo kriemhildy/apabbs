@@ -1,17 +1,15 @@
 {% extends "layout.jinja" %}
 {% block body %}
 <body>
+    <h2>Login</h2>
     <form action="/login" method="post">
-        <fieldset>
-            <legend>login</legend>
-            <label for="username">username:</label>
-            <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
-            <br>
-            <label for="password">password:</label>
-            <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
-            <br>
-            <input type="submit" value="Log in">
-        </fieldset>
+        <label for="username">username:</label>
+        <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
+        <br>
+        <label for="password">password:</label>
+        <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
+        <br>
+        <input type="submit" value="Log in">
     </form>
 </body>
 {% endblock %}
