@@ -26,19 +26,18 @@ impl Post {
     pub async fn select_latest(tx: &mut PgConnection, user: &User) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
+        match user.admin() {
+            true => query_builder.push("status <> 'rejected' "),
+            false => query_builder.push("status = 'approved' "),
+        };
+        query_builder.push("OR anon_token = ");
+        query_builder.push_bind(&user.anon_token);
         match &user.account {
             Some(account) => {
-                match account.admin {
-                    true => query_builder.push("status <> 'rejected' "),
-                    false => query_builder.push("status = 'approved' "),
-                };
-                query_builder.push("OR account_id = ");
+                query_builder.push(" OR account_id = ");
                 query_builder.push_bind(account.id);
             }
-            None => {
-                query_builder.push("status = 'approved' OR anon_token = ");
-                query_builder.push_bind(&user.anon_token);
-            }
+            None => (),
         }
         query_builder.push(") AND hidden = false ORDER BY id DESC LIMIT 100");
         query_builder
@@ -49,13 +48,13 @@ impl Post {
     }
 
     pub fn authored_by(&self, user: &User) -> bool {
-        match &user.account {
-            Some(account) => self.account_id.is_some_and(|id| id == account.id),
-            None => self
-                .anon_token
+        self.anon_token
+            .as_ref()
+            .is_some_and(|uuid| uuid == &user.anon_token)
+            || user
+                .account
                 .as_ref()
-                .is_some_and(|uuid| uuid == &user.anon_token),
-        }
+                .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
     pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &str) -> Option<Self> {
@@ -70,25 +69,28 @@ impl Post {
 #[derive(serde::Deserialize)]
 pub struct PostSubmission {
     pub body: String,
+    pub anon: Option<String>,
 }
 
 impl PostSubmission {
-    pub async fn insert(&self, tx: &mut PgConnection, user: User, ip_hash: &str) -> Post {
+    pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
-        query_builder.push(match &user.account {
-            Some(_account) => "account_id, username",
-            None => "anon_token, anon_hash",
+        query_builder.push(match user.anon() {
+            true => "anon_token, anon_hash",
+            false => "account_id, username",
         });
         query_builder.push(", body, ip_hash) VALUES (");
         let mut separated = query_builder.separated(", ");
-        match user.account {
-            Some(account) => {
-                separated.push_bind(account.id);
-                separated.push_bind(account.username);
-            }
-            None => {
+        println!("user.anon(): {}", user.anon());
+        match user.anon() {
+            true => {
                 separated.push_bind(&user.anon_token);
                 separated.push_bind(user.anon_hash());
+            }
+            false => {
+                let account = user.account.as_ref().unwrap();
+                separated.push_bind(account.id);
+                separated.push_bind(&account.username);
             }
         }
         query_builder.push(", $3, $4) RETURNING *");
@@ -99,6 +101,10 @@ impl PostSubmission {
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post")
+    }
+
+    pub fn anon(&self) -> bool {
+        self.anon.as_ref().is_some_and(|a| a == "on")
     }
 
     fn body_as_html(&self) -> String {

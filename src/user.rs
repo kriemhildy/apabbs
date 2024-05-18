@@ -21,6 +21,27 @@ impl User {
             None => None,
         }
     }
+
+    pub fn anon(&self) -> bool {
+        match &self.account {
+            Some(account) => account.anon,
+            None => true,
+        }
+    }
+
+    pub async fn update_anon(mut self, tx: &mut PgConnection, anon: bool) -> Self {
+        self.account = match self.account {
+            Some(mut account) => {
+                if account.anon != anon {
+                    account.anon = anon;
+                    account.update_anon(tx, anon).await;
+                }
+                Some(account)
+            }
+            None => None,
+        };
+        self
+    }
 }
 
 #[derive(sqlx::FromRow, serde::Serialize)]
@@ -31,6 +52,7 @@ pub struct Account {
     pub password_hash: String,
     pub password_salt: String,
     pub admin: bool,
+    pub anon: bool,
 }
 
 impl Account {
@@ -40,6 +62,15 @@ impl Account {
             .fetch_optional(&mut *tx)
             .await
             .expect("select account by token")
+    }
+
+    pub async fn update_anon(&self, tx: &mut PgConnection, anon: bool) {
+        sqlx::query("UPDATE accounts SET anon = $1 WHERE id = $2")
+            .bind(anon)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update anon bool");
     }
 }
 

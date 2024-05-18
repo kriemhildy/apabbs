@@ -119,10 +119,11 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
     let anon_hash = user.anon_hash();
     let admin = user.admin();
     let username = user.username();
+    let anon = user.anon();
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(username, posts, anon_hash, admin),
+        minijinja::context!(username, posts, anon_hash, admin, anon),
     ));
     if jar.get(ANON_COOKIE).is_none() {
         let cookie = build_cookie(ANON_COOKIE, &user.anon_token);
@@ -141,7 +142,11 @@ pub async fn submit_post(
     let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
     check_for_ban!(tx, &ip_hash);
-    let post = post_submission.insert(&mut tx, user, &ip_hash).await;
+    // want to update user and call user.anon() instead of doing this
+    // post_submission.anon(&user) garbage.
+    // but mutability and stuff gets in the way
+    let user = user.update_anon(&mut tx, post_submission.anon()).await;
+    let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
     let html = render(
         state.jinja,

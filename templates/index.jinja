@@ -6,6 +6,11 @@
         <form action="/post" method="post">
             <textarea name="body"></textarea>
             <br>
+            {% if username %}
+            <input type="checkbox" name="anon" id="anon"{{ " checked" if anon }}>
+            <label for="anon">Post anonymously</a>
+            <br>
+            {% endif %}
             <input type="submit" value="Post">
         </form>
         {% if username is none %}
