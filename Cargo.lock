@@ -61,6 +61,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "apabbs"
+version = "0.2.0"
+dependencies = [
+ "argon2",
+ "axum",
+ "axum-extra",
+ "dotenv",
+ "futures",
+ "minijinja",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha256",
+ "sqlx",
+ "tokio",
+ "tokio-cron-scheduler",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1414,29 +1437,6 @@ name = "ryu"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
-
-[[package]]
-name = "schiz"
-version = "0.2.0"
-dependencies = [
- "argon2",
- "axum",
- "axum-extra",
- "dotenv",
- "futures",
- "minijinja",
- "regex",
- "serde",
- "serde_json",
- "sha256",
- "sqlx",
- "tokio",
- "tokio-cron-scheduler",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
 
 [[package]]
 name = "scopeguard"
