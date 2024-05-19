@@ -38,13 +38,13 @@ function restoreTitle() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    if (url.pathname == "/") {
+if (url.pathname == "/") {
+    document.addEventListener("DOMContentLoaded", function () {
         originalTitle = document.title;
         document.addEventListener("visibilitychange", restoreTitle);
         window.addEventListener("focus", restoreTitle);
-    }
-});
+    });
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // init web socket
@@ -63,8 +63,8 @@ function updatePost(uuid, html) {
     }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    if (url.pathname == "/") {
+if (url.pathname == "/") {
+    document.addEventListener("DOMContentLoaded", function () {
         const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
         const webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
         webSocket.addEventListener("message", function (event) {
@@ -73,5 +73,5 @@ document.addEventListener("DOMContentLoaded", function () {
         });
         template = document.createElement("template");
         main = document.querySelector("main");
-    }
-});
+    });
+}
