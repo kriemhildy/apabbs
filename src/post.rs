@@ -81,7 +81,6 @@ impl PostSubmission {
         });
         query_builder.push(", body, ip_hash) VALUES (");
         let mut separated = query_builder.separated(", ");
-        println!("user.anon(): {}", user.anon());
         match user.anon() {
             true => {
                 separated.push_bind(&user.anon_token);
