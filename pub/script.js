@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// init url for route switching
+// init current url for route handling
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const url = new URL(window.location.href);
@@ -24,22 +24,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
 let originalTitle, unseenPosts = 0;
 
-document.addEventListener("DOMContentLoaded", function () {
-    if (url.pathname == "/") {
-        originalTitle = document.title;
-    }
-});
-
 function incrementUnseenPosts() {
     if (document.visibilityState == "hidden") {
         unseenPosts++;
         document.title = `(${unseenPosts}) ${originalTitle}`;
     }
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// restore original title when window becomes focused
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function restoreTitle() {
     if (document.visibilityState == "visible") {
@@ -50,6 +40,7 @@ function restoreTitle() {
 
 document.addEventListener("DOMContentLoaded", function () {
     if (url.pathname == "/") {
+        originalTitle = document.title;
         document.addEventListener("visibilitychange", restoreTitle);
         window.addEventListener("focus", restoreTitle);
     }
