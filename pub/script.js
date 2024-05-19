@@ -50,6 +50,7 @@ if (url.pathname == "/") {
 // init web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
 let template, main;
 
 function updatePost(uuid, html) {
@@ -65,7 +66,6 @@ function updatePost(uuid, html) {
 
 if (url.pathname == "/") {
     document.addEventListener("DOMContentLoaded", function () {
-        const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
         const webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
         webSocket.addEventListener("message", function (event) {
             const json = JSON.parse(event.data);
