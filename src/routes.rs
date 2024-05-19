@@ -142,11 +142,11 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
     let admin = user.admin();
     let username = user.username();
     let anon = user.anon();
-    let site_name = site_name();
+    let title = site_name();
     let html = Html(render(
         state.jinja,
         "index.jinja",
-        minijinja::context!(site_name, username, posts, anon_hash, admin, anon),
+        minijinja::context!(title, username, posts, anon_hash, admin, anon),
     ));
     if jar.get(ANON_COOKIE).is_none() {
         let cookie = build_cookie(ANON_COOKIE, &user.anon_token);
@@ -182,8 +182,8 @@ pub async fn submit_post(
 }
 
 pub async fn login_form(State(state): State<AppState>) -> Html<String> {
-    let site_name = site_name();
-    Html(render(state.jinja, "login.jinja", minijinja::context!(site_name)))
+    let title = site_name();
+    Html(render(state.jinja, "login.jinja", minijinja::context!(title)))
 }
 
 pub async fn authenticate(
@@ -211,8 +211,8 @@ pub async fn authenticate(
 }
 
 pub async fn registration_form(State(state): State<AppState>) -> Html<String> {
-    let site_name = site_name();
-    Html(render(state.jinja, "register.jinja", minijinja::context!(site_name)))
+    let title = site_name();
+    Html(render(state.jinja, "register.jinja", minijinja::context!(title)))
 }
 
 pub async fn create_account(
