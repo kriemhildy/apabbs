@@ -165,9 +165,6 @@ pub async fn submit_post(
     let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
     check_for_ban!(tx, &ip_hash);
-    // want to update user and call user.anon() instead of doing this
-    // post_submission.anon(&user) garbage.
-    // but mutability and stuff gets in the way
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
@@ -183,7 +180,11 @@ pub async fn submit_post(
 
 pub async fn login_form(State(state): State<AppState>) -> Html<String> {
     let title = site_name();
-    Html(render(state.jinja, "login.jinja", minijinja::context!(title)))
+    Html(render(
+        state.jinja,
+        "login.jinja",
+        minijinja::context!(title),
+    ))
 }
 
 pub async fn authenticate(
@@ -212,7 +213,11 @@ pub async fn authenticate(
 
 pub async fn registration_form(State(state): State<AppState>) -> Html<String> {
     let title = site_name();
-    Html(render(state.jinja, "register.jinja", minijinja::context!(title)))
+    Html(render(
+        state.jinja,
+        "register.jinja",
+        minijinja::context!(title),
+    ))
 }
 
 pub async fn create_account(
