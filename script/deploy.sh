@@ -7,8 +7,8 @@ if ! [ "$DEV" == 1 ]; then
 else
     cargo test
     git push
-    ssh $APP_SSH_ACCOUNT "cd schiz && script/deploy.sh"
-    ssh $SUDO_SSH_ACCOUNT "sudo systemctl stop apabbs"
-    ssh $APP_SSH_ACCOUNT "cd schiz && ~/.cargo/bin/sqlx migrate run"
-    ssh $SUDO_SSH_ACCOUNT "sudo systemctl start apabbs"
+    ssh $SSH_APP_USER "cd schiz && script/deploy.sh"
+    ssh $SSH_SUDO_USER "sudo systemctl stop apabbs"
+    ssh $SSH_APP_USER "cd schiz && ~/.cargo/bin/sqlx migrate run"
+    ssh $SSH_SUDO_USER "sudo systemctl start apabbs"
 fi
