@@ -1,4 +1,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// init url for route switching
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const url = new URL(window.location.href);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // scrollbar styling for chrome on windows and linux
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -19,7 +25,9 @@ document.addEventListener("DOMContentLoaded", function () {
 let originalTitle, unseenPosts = 0;
 
 document.addEventListener("DOMContentLoaded", function () {
-    originalTitle = document.title;
+    if (url.pathname == "/") {
+        originalTitle = document.title;
+    }
 });
 
 function incrementUnseenPosts() {
@@ -40,15 +48,17 @@ function restoreTitle() {
     }
 }
 
-document.addEventListener("visibilitychange", restoreTitle);
-window.addEventListener("focus", restoreTitle);
+document.addEventListener("DOMContentLoaded", function () {
+    if (url.pathname == "/") {
+        document.addEventListener("visibilitychange", restoreTitle);
+        window.addEventListener("focus", restoreTitle);
+    }
+});
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // init web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
-const webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
 let template, main;
 
 function updatePost(uuid, html) {
@@ -63,10 +73,14 @@ function updatePost(uuid, html) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    webSocket.addEventListener("message", function (event) {
-        const json = JSON.parse(event.data);
-        updatePost(json.uuid, json.html);
-    });
-    template = document.createElement("template");
-    main = document.querySelector("main");
+    if (url.pathname == "/") {
+        const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
+        const webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
+        webSocket.addEventListener("message", function (event) {
+            const json = JSON.parse(event.data);
+            updatePost(json.uuid, json.html);
+        });
+        template = document.createElement("template");
+        main = document.querySelector("main");
+    }
 });
