@@ -108,13 +108,14 @@ impl PostSubmission {
 
     fn body_as_html(&self) -> String {
         self.body
-            .trim()
+            .trim_end()
             .replace("\r\n", "\n")
             .replace("\r", "\n")
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
+            .replace("  ", " &nbsp;")
     }
 }
 
