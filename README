@@ -20,7 +20,7 @@ Installation
 5. create a role with CREATEDB and LOGIN in postgresql.
 6. install direnv and set it up to load .env files in your shell:
    https://dev.to/charlesloder/tidbit-get-direnv-to-use-env-5fkn
-7. copy .env.example to .env and set the variables as needed
+7. copy .env.example to .env and set the variables as needed.
 8. run "sqlx database create" to create the database.
 9. run "sqlx migrate run" to update the database schema to the current point.
 10. configure a web server (e.g. nginx) to proxy to the app server.
