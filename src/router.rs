@@ -16,6 +16,10 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/// URL path router
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 pub fn router(state: AppState) -> axum::Router {
     use axum::routing::{get, post};
     axum::Router::new()
@@ -31,6 +35,10 @@ pub fn router(state: AppState) -> axum::Router {
         .layer(trace_layer())
         .with_state(state)
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// helper functions and macros
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
@@ -147,6 +155,10 @@ macro_rules! require_admin {
         }
     };
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// route handlers
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -345,7 +357,7 @@ async fn web_socket(
     upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
 }
 
-// admin handlers follow
+// admin handlers
 
 async fn update_post_status(
     State(state): State<AppState>,
