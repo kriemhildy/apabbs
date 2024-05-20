@@ -177,7 +177,7 @@ pub async fn submit_post(
         minijinja::context!(post, admin => true),
     );
     let msg = PostMessage { post, html };
-    state.sender.send(msg).expect("broadcast pending post");
+    state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
 }
 
@@ -355,6 +355,6 @@ pub async fn update_post_status(
         minijinja::context!(post, admin => false),
     );
     let msg = PostMessage { post, html };
-    state.sender.send(msg).expect("broadcast reviewed post");
+    state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
 }
