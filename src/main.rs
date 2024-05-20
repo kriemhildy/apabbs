@@ -1,27 +1,26 @@
-pub mod ban;
-pub mod crypto;
-pub mod post;
-pub mod user;
-
-pub const BEGIN: &'static str = "begin transaction";
-pub const COMMIT: &'static str = "commit transaction";
-
-pub use post::PostMessage;
-pub use tokio::sync::broadcast::Sender;
-
+mod ban;
+mod crypto;
 mod jobs;
+mod post;
 mod router;
+mod user;
 
+use minijinja::Environment;
+use post::PostMessage;
 use std::sync::{Arc, RwLock};
+use tokio::sync::broadcast::Sender;
 use tower_http::{
     classify::{ServerErrorsAsFailures, SharedClassifier},
     trace::TraceLayer,
 };
 
+const BEGIN: &'static str = "begin transaction";
+const COMMIT: &'static str = "commit transaction";
+
 #[derive(Clone)]
-pub struct AppState {
+struct AppState {
     db: sqlx::PgPool,
-    jinja: Arc<RwLock<minijinja::Environment<'static>>>,
+    jinja: Arc<RwLock<Environment<'static>>>,
     sender: Arc<Sender<PostMessage>>,
 }
 
@@ -38,8 +37,8 @@ async fn init_cron_jobs() {
     sched.start().await.expect("start scheduler");
 }
 
-fn init_jinja() -> Arc<RwLock<minijinja::Environment<'static>>> {
-    let mut env = minijinja::Environment::new();
+fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
+    let mut env = Environment::new();
     env.set_loader(minijinja::path_loader("templates"));
     env.set_keep_trailing_newline(true);
     env.set_lstrip_blocks(true);

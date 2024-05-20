@@ -1,9 +1,3 @@
-const OLD_USER_COOKIE: &'static str = "user"; // temporary for migration period
-const ACCOUNT_COOKIE: &'static str = "account";
-const ACCOUNT_NOT_FOUND: &'static str = "account not found";
-const ANON_COOKIE: &'static str = "anon";
-const ROOT: &'static str = "/";
-
 use crate::{
     post::{Post, PostHiding, PostReview, PostStatus, PostSubmission},
     user::{Account, Credentials, User},
@@ -15,6 +9,12 @@ use axum::{
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+
+const OLD_USER_COOKIE: &'static str = "user"; // temporary for migration period
+const ACCOUNT_COOKIE: &'static str = "account";
+const ACCOUNT_NOT_FOUND: &'static str = "account not found";
+const ANON_COOKIE: &'static str = "anon";
+const ROOT: &'static str = "/";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -82,11 +82,7 @@ fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
         .build()
 }
 
-fn render(
-    lock: Arc<RwLock<minijinja::Environment<'_>>>,
-    name: &str,
-    ctx: minijinja::value::Value,
-) -> String {
+fn render(lock: Arc<RwLock<Environment<'_>>>, name: &str, ctx: minijinja::value::Value) -> String {
     if dev() {
         let mut env = lock.write().expect("write jinja env");
         env.clear_templates();
