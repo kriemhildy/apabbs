@@ -10,7 +10,7 @@ pub use post::PostMessage;
 pub use tokio::sync::broadcast::Sender;
 
 mod jobs;
-mod routes;
+mod router;
 
 use std::sync::{Arc, RwLock};
 use tower_http::{
@@ -63,23 +63,6 @@ fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
         .on_response(DefaultOnResponse::new().level(Level::DEBUG))
 }
 
-fn router(state: AppState) -> axum::Router {
-    use axum::routing::{get, post};
-    use routes::*;
-    axum::Router::new()
-        .route("/", get(index))
-        .route("/post", post(submit_post))
-        .route("/login", get(login_form).post(authenticate))
-        .route("/register", get(registration_form).post(create_account))
-        .route("/logout", post(logout))
-        .route("/hash", post(new_hash))
-        .route("/hide-rejected-post", post(hide_rejected_post))
-        .route("/web-socket", get(web_socket))
-        .route("/admin/update-post-status", post(update_post_status))
-        .layer(trace_layer())
-        .with_state(state)
-}
-
 fn port() -> u16 {
     match std::env::var("PORT") {
         Ok(port) => port.parse().expect("parse PORT env"),
@@ -96,7 +79,7 @@ async fn main() {
         let sender = init_sender();
         AppState { db, jinja, sender }
     };
-    let router = router(state);
+    let router = router::router(state);
     let port = port();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await

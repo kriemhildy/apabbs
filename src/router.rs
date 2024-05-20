@@ -16,6 +16,22 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
+pub fn router(state: AppState) -> axum::Router {
+    use axum::routing::{get, post};
+    axum::Router::new()
+        .route("/", get(index))
+        .route("/post", post(submit_post))
+        .route("/login", get(login_form).post(authenticate))
+        .route("/register", get(registration_form).post(create_account))
+        .route("/logout", post(logout))
+        .route("/hash", post(new_hash))
+        .route("/hide-rejected-post", post(hide_rejected_post))
+        .route("/web-socket", get(web_socket))
+        .route("/admin/update-post-status", post(update_post_status))
+        .layer(trace_layer())
+        .with_state(state)
+}
+
 fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
 }
@@ -132,7 +148,7 @@ macro_rules! require_admin {
     };
 }
 
-pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     migrate_user_cookie!(jar);
     let user = user!(jar, tx);
@@ -158,7 +174,7 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
     (jar, html).into_response()
 }
 
-pub async fn submit_post(
+async fn submit_post(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
@@ -184,7 +200,7 @@ pub async fn submit_post(
     Redirect::to(ROOT).into_response()
 }
 
-pub async fn login_form(State(state): State<AppState>) -> Html<String> {
+async fn login_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         state.jinja,
         "login.jinja",
@@ -192,7 +208,7 @@ pub async fn login_form(State(state): State<AppState>) -> Html<String> {
     ))
 }
 
-pub async fn authenticate(
+async fn authenticate(
     State(state): State<AppState>,
     mut jar: CookieJar,
     Form(credentials): Form<Credentials>,
@@ -216,7 +232,7 @@ pub async fn authenticate(
     (jar, redirect).into_response()
 }
 
-pub async fn registration_form(State(state): State<AppState>) -> Html<String> {
+async fn registration_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         state.jinja,
         "register.jinja",
@@ -224,7 +240,7 @@ pub async fn registration_form(State(state): State<AppState>) -> Html<String> {
     ))
 }
 
-pub async fn create_account(
+async fn create_account(
     State(state): State<AppState>,
     mut jar: CookieJar,
     headers: HeaderMap,
@@ -253,7 +269,7 @@ pub async fn create_account(
     (jar, redirect).into_response()
 }
 
-pub async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     match jar.get(ACCOUNT_COOKIE) {
         Some(cookie) => match Account::select_by_token(&mut tx, cookie.value()).await {
@@ -267,13 +283,13 @@ pub async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Respon
     (jar, redirect).into_response()
 }
 
-pub async fn new_hash(mut jar: CookieJar) -> Response {
+async fn new_hash(mut jar: CookieJar) -> Response {
     jar = jar.remove(ANON_COOKIE);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
 
-pub async fn hide_rejected_post(
+async fn hide_rejected_post(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(post_hiding): Form<PostHiding>,
@@ -295,7 +311,7 @@ pub async fn hide_rejected_post(
     Redirect::to(ROOT).into_response()
 }
 
-pub async fn web_socket(
+async fn web_socket(
     State(state): State<AppState>,
     jar: CookieJar,
     upgrade: WebSocketUpgrade,
@@ -331,7 +347,7 @@ pub async fn web_socket(
 
 // admin handlers follow
 
-pub async fn update_post_status(
+async fn update_post_status(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(post_review): Form<PostReview>,
