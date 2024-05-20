@@ -7,6 +7,7 @@ mod user;
 
 use minijinja::Environment;
 use post::PostMessage;
+use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 use tower_http::{
@@ -19,14 +20,14 @@ const COMMIT: &'static str = "commit transaction";
 
 #[derive(Clone)]
 struct AppState {
-    db: sqlx::PgPool,
+    db: PgPool,
     jinja: Arc<RwLock<Environment<'static>>>,
     sender: Arc<Sender<PostMessage>>,
 }
 
-async fn init_db() -> sqlx::PgPool {
+async fn init_db() -> PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
-    sqlx::PgPool::connect(&url).await.expect("connect postgres")
+    PgPool::connect(&url).await.expect("connect postgres")
 }
 
 async fn init_cron_jobs() {
