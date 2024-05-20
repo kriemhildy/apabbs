@@ -143,8 +143,9 @@ pub async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Respons
         "index.jinja",
         minijinja::context!(
             title => site_name(),
-            username => user.username(),
             posts,
+            logged_in => user.account.is_some(),
+            username => user.username(),
             anon_hash => user.anon_hash(),
             admin => user.admin(),
             anon => user.anon()

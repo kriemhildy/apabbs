@@ -4,7 +4,7 @@
     <section id="forms">
         <h2>{{ title }}</h2>
         <ul class="system">
-            {% if username is none %}
+            {% if not logged_in %}
             <li><a href="/login">log in</a> or <a href="/register">register</a></li>
             {% else %}
             <li>
@@ -28,7 +28,7 @@
             <textarea name="body"></textarea>
             <br>
             <input type="submit" value="Post" id="post-button">
-            {% if username %}
+            {% if logged_in %}
             <input type="checkbox" name="anon" id="anon" {{ " checked" if anon }}>
             <label for="anon">Post anonymously</label>
             <br>
