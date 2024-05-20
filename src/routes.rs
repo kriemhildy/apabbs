@@ -168,6 +168,9 @@ pub async fn submit_post(
     let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
     check_for_ban!(tx, &ip_hash);
+    if post_submission.body.is_empty() {
+        return bad_request("post cannot be empty");
+    }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
