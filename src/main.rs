@@ -22,7 +22,7 @@ struct AppState {
 }
 
 mod init {
-    use crate::*;
+    use crate::{jobs, Arc, Environment, PgPool, PostMessage, RwLock, Sender};
     use tower_http::{
         classify::{ServerErrorsAsFailures, SharedClassifier},
         trace::TraceLayer,
