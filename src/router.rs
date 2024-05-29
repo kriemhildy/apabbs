@@ -32,7 +32,7 @@ pub fn router(state: AppState) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
-        .layer(trace_layer())
+        .layer(init::trace_layer())
         .with_state(state)
 }
 
