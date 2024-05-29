@@ -1,7 +1,7 @@
 {% extends "layout.jinja" %}
 {% block body %}
 <body>
-    <section id="forms">
+    <header>
         <h2>{{ title }}</h2>
         <ul class="system">
             {% if not logged_in %}
@@ -33,7 +33,7 @@
             <label for="anon">Post anonymously</label>
             {% endif %}
         </form>
-    </section>
+    </header>
     <main>
         {% for post in posts %}
         {% include "post.jinja" %}
