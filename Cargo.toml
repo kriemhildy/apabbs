@@ -25,4 +25,4 @@ argon2 = "*"
 regex = "*"
 uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
 sha256 = "*"
-tokio-cron-scheduler = "0.10.2"
+tokio-cron-scheduler = "*"
