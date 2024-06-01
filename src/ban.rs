@@ -10,7 +10,7 @@ pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
     expires_at.to_string()
 }
 
-pub async fn expiration(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
+pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
     let expires_at: Option<OffsetDateTime> =
         sqlx::query_scalar("SELECT expires_at FROM bans WHERE ip_hash = $1 AND expires_at > now()")
             .bind(ip_hash)

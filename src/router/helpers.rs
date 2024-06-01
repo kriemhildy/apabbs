@@ -94,7 +94,7 @@ pub(super) use user;
 
 macro_rules! check_for_ban {
     ($tx:expr, $ip_hash:expr) => {
-        match ban::expiration(&mut $tx, $ip_hash).await {
+        match ban::exists(&mut $tx, $ip_hash).await {
             Some(expires_at) => return ban_message(&expires_at),
             None => (),
         };
