@@ -1,19 +1,26 @@
-use sqlx::PgConnection;
+use sqlx::{types::time::OffsetDateTime, PgConnection};
 
-pub async fn insert(tx: &mut PgConnection, ip_hash: &str) {
-    sqlx::query("INSERT INTO bans (ip_hash) VALUES ($1)")
-        .bind(ip_hash)
-        .execute(&mut *tx)
-        .await
-        .expect("insert ip ban");
+pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
+    let expires_at: OffsetDateTime =
+        sqlx::query_scalar("INSERT INTO bans (ip_hash) VALUES ($1) RETURNING expires_at")
+            .bind(ip_hash)
+            .fetch_one(&mut *tx)
+            .await
+            .expect("insert ip ban");
+    expires_at.to_string()
 }
 
-pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> bool {
-    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM bans WHERE ip_hash = $1)")
-        .bind(ip_hash)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("check if ip ban exists")
+pub async fn expiration(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
+    let expires_at: Option<OffsetDateTime> =
+        sqlx::query_scalar("SELECT expires_at FROM bans WHERE ip_hash = $1 AND expires_at > now()")
+            .bind(ip_hash)
+            .fetch_optional(&mut *tx)
+            .await
+            .expect("return expiration if ip ban exists");
+    match expires_at {
+        Some(expires_at) => Some(expires_at.to_string()),
+        None => None,
+    }
 }
 
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {

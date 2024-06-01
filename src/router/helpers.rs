@@ -21,6 +21,11 @@ pub fn forbidden(msg: &str) -> Response {
     (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")).into_response()
 }
 
+pub fn ban_message(expires_at: &str) -> Response {
+    let msg = format!("IP has been auto-banned due to flooding until {expires_at}");
+    forbidden(&msg)
+}
+
 pub fn ip_hash(headers: &HeaderMap) -> String {
     let ip = headers
         .get("X-Real-IP")
@@ -106,14 +111,15 @@ pub(super) use user;
 
 macro_rules! check_for_ban {
     ($tx:expr, $ip_hash:expr) => {
-        if ban::exists(&mut $tx, $ip_hash).await {
-            return forbidden("ip was auto-banned due to flooding");
-        }
+        match ban::expiration(&mut $tx, $ip_hash).await {
+            Some(expires_at) => return ban_message(&expires_at),
+            None => (),
+        };
         if ban::flooding(&mut $tx, $ip_hash).await {
-            ban::insert(&mut $tx, $ip_hash).await;
+            let expires_at = ban::insert(&mut $tx, $ip_hash).await;
             ban::prune(&mut $tx, $ip_hash).await;
             $tx.commit().await.expect(COMMIT);
-            return forbidden("ip is flooding and has been auto-banned");
+            return ban_message(&expires_at);
         }
     };
 }

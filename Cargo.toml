@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies.sqlx]
 version = "*"
-features = ["postgres", "runtime-tokio-rustls", "ipnetwork"]
+features = ["postgres", "runtime-tokio-rustls", "ipnetwork", "time"]
 
 [dependencies]
 tokio = { version = "*", features = ["full"] }
