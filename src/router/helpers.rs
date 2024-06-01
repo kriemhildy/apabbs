@@ -7,8 +7,6 @@ use crate::{Arc, Environment, RwLock};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 
-pub const OLD_USER_COOKIE: &'static str = "user"; // temporary for migration period
-
 pub fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
 }
@@ -69,21 +67,6 @@ pub fn render(
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
 }
-
-// temporary for migration period
-macro_rules! migrate_user_cookie {
-    ($jar:expr) => {{
-        match $jar.get(OLD_USER_COOKIE) {
-            Some(cookie) => {
-                let cookie = build_cookie(ACCOUNT_COOKIE, cookie.value());
-                $jar = $jar.add(cookie);
-                $jar = $jar.remove(OLD_USER_COOKIE);
-            }
-            None => (),
-        };
-    }};
-}
-pub(super) use migrate_user_cookie;
 
 macro_rules! user {
     ($jar:expr, $tx:expr) => {{

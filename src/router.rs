@@ -45,7 +45,6 @@ pub fn router(state: AppState) -> axum::Router {
 
 async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    migrate_user_cookie!(jar);
     let user = user!(jar, tx);
     let posts = Post::select_latest(&mut tx, &user).await;
     tx.commit().await.expect(COMMIT);
