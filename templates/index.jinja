@@ -27,6 +27,8 @@
         <form action="/post" method="post">
             <textarea name="body"></textarea>
             <br>
+            <input type="file" name="image">
+            <br>
             <input type="submit" value="Post" id="post-button">
             {% if logged_in %}
             <input type="checkbox" name="anon" id="anon"{{ " checked" if anon }}>
