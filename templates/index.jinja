@@ -24,10 +24,11 @@
                 </form>
             </li>
         </ul>
-        <form action="/post" method="post">
+        <form action="/post" method="post" enctype="multipart/form-data">
             <textarea name="body"></textarea>
             <br>
-            <input type="file" name="image">
+            <label for="image">Image:</label>
+            <input type="file" name="image" id="image">
             <br>
             <input type="submit" value="Post" id="post-button">
             {% if logged_in %}

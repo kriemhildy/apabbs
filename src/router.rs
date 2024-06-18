@@ -7,7 +7,7 @@ use crate::{
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
-    extract::{State, WebSocketUpgrade},
+    extract::{Multipart, State, WebSocketUpgrade},
     http::header::HeaderMap,
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -72,12 +72,28 @@ async fn submit_post(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-    Form(post_submission): Form<PostSubmission>,
+    mut multipart: Multipart,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
     check_for_ban!(tx, &ip_hash);
+    let mut post_submission = PostSubmission {
+        body: String::default(),
+        anon: None,
+    };
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let name = field.name().unwrap().to_string();
+        match name.as_str() {
+            "body" => post_submission.body = field.text().await.unwrap(),
+            "anon" => post_submission.anon = Some(field.text().await.unwrap()),
+            "image" => {
+                let data = field.bytes().await.unwrap();
+                println!("Length of `{}` is {} bytes", name, data.len())
+            }
+            _ => return bad_request(&format!("unexpected field: {name}")),
+        };
+    }
     if post_submission.body.is_empty() {
         return bad_request("post cannot be empty");
     }

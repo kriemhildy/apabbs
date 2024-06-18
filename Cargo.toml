@@ -11,7 +11,7 @@ features = ["postgres", "runtime-tokio-rustls", "time"]
 
 [dependencies]
 tokio = { version = "*", features = ["full"] }
-axum = { version = "*", features = ["form", "ws", "macros"] }
+axum = { version = "*", features = ["form", "ws", "macros", "multipart"] }
 axum-extra = { version = "*", features = ["cookie"] }
 dotenv = "*"
 tower-http = { version = "*", features = ["trace"] }
