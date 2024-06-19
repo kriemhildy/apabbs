@@ -26,3 +26,4 @@ regex = "*"
 uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
 sha256 = "*"
 tokio-cron-scheduler = "*"
+tokio-util = { version = "*", features = ["io"] }

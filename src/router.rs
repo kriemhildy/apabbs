@@ -18,6 +18,7 @@ const ACCOUNT_COOKIE: &'static str = "account";
 const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
+const UPLOADS_DIR: &'static str = "uploads";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -74,6 +75,14 @@ async fn submit_post(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Response {
+    use futures::TryStreamExt;
+    use std::{
+        io::{Error, ErrorKind},
+        path::Path,
+    };
+    use tokio::{fs::File, io::BufWriter};
+    use tokio_util::io::StreamReader;
+
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
@@ -88,8 +97,21 @@ async fn submit_post(
             "body" => post_submission.body = field.text().await.unwrap(),
             "anon" => post_submission.anon = Some(field.text().await.unwrap()),
             "image" => {
-                let data = field.bytes().await.unwrap();
-                println!("Length of `{}` is {} bytes", name, data.len())
+                // https://github.com/tokio-rs/axum/blob/main/examples/stream-to-file/src/main.rs
+                let path = match field.file_name() {
+                    Some(file_name) => file_name.to_owned(),
+                    None => return bad_request("image has no filename"),
+                };
+                let body_with_io_error = field.map_err(|err| Error::new(ErrorKind::Other, err));
+                let mut body_reader = StreamReader::new(body_with_io_error);
+                let path = Path::new(UPLOADS_DIR).join(path);
+                let mut file = BufWriter::new(File::create(path).await.unwrap());
+
+                // Copy the body into the file.
+                tokio::io::copy(&mut body_reader, &mut file).await.unwrap();
+                // old non-streaming multipart implementation
+                //let data = field.bytes().await.unwrap();
+                //println!("Length of `{}` is {} bytes", name, data.len())
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
