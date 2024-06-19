@@ -4,8 +4,11 @@
 
 use super::{HeaderMap, IntoResponse, Response};
 use crate::{Arc, Environment, RwLock};
-use axum::http::StatusCode;
+use axum::{body::Bytes, http::StatusCode, BoxError};
 use axum_extra::extract::cookie::{Cookie, SameSite};
+use futures::Stream;
+
+const UPLOADS_DIR: &'static str = "uploads";
 
 pub fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
@@ -66,6 +69,31 @@ pub fn render(
     let env = lock.read().expect("read jinja env");
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
+}
+
+// https://github.com/tokio-rs/axum/blob/main/examples/stream-to-file/src/main.rs
+pub async fn stream_to_file<S, E>(file_name: &str, stream: S)
+where
+    S: Stream<Item = Result<Bytes, E>>,
+    E: Into<BoxError>,
+{
+    use futures::TryStreamExt;
+    use std::{
+        io::{Error, ErrorKind},
+        path::Path,
+    };
+    use tokio::{fs::File, io::BufWriter};
+    use tokio_util::io::StreamReader;
+
+    let stream = stream.map_err(|err| Error::new(ErrorKind::Other, err));
+    let stream_reader = StreamReader::new(stream);
+    futures::pin_mut!(stream_reader);
+
+    let path = Path::new(UPLOADS_DIR).join(&file_name);
+    let mut file = BufWriter::new(File::create(path).await.unwrap());
+    tokio::io::copy(&mut stream_reader, &mut file)
+        .await
+        .unwrap();
 }
 
 macro_rules! user {
