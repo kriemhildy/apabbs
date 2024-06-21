@@ -13,18 +13,23 @@ use axum::{
 };
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
+use std::{fs::File, io::prelude::*, path::Path};
 
 const ACCOUNT_COOKIE: &'static str = "account";
 const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
+const UPLOADS_DIR: &'static str = "uploads";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn router(state: AppState) -> axum::Router {
-    use axum::routing::{get, post};
+    use axum::{
+        extract::DefaultBodyLimit,
+        routing::{get, post},
+    };
     axum::Router::new()
         .route("/", get(index))
         .route("/post", post(submit_post))
@@ -36,6 +41,7 @@ pub fn router(state: AppState) -> axum::Router {
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
         .layer(init::trace_layer())
+        .layer(DefaultBodyLimit::max(10_000_000))
         .with_state(state)
 }
 
@@ -93,7 +99,10 @@ async fn submit_post(
                     Some(file_name) => file_name.to_owned(),
                     None => return bad_request("image has no filename"),
                 };
-                stream_to_file(&file_name, field).await;
+                let path = Path::new(UPLOADS_DIR).join(&file_name);
+                let mut file = File::create(path).expect("create file");
+                file.write_all(&field.bytes().await.unwrap())
+                    .expect("write to file");
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
