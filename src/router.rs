@@ -94,12 +94,11 @@ async fn submit_post(
             "body" => post_submission.body = field.text().await.unwrap(),
             "anon" => post_submission.anon = Some(field.text().await.unwrap()),
             "image" => {
-                // https://github.com/tokio-rs/axum/blob/main/examples/stream-to-file/src/main.rs
                 let file_name = match field.file_name() {
-                    Some(file_name) => file_name.to_owned(),
+                    Some(file_name) => file_name,
                     None => return bad_request("image has no filename"),
                 };
-                let path = Path::new(UPLOADS_DIR).join(&file_name);
+                let path = Path::new(UPLOADS_DIR).join(file_name);
                 let mut file = File::create(path).expect("create file");
                 file.write_all(&field.bytes().await.unwrap())
                     .expect("write to file");
