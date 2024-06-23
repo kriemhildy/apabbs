@@ -78,11 +78,11 @@ macro_rules! user {
             None => None,
         };
         let anon_token = match $jar.get(ANON_COOKIE) {
-            Some(cookie) => match uuid::Uuid::try_parse(cookie.value()) {
+            Some(cookie) => match Uuid::try_parse(cookie.value()) {
                 Ok(uuid) => uuid.hyphenated().to_string(),
                 Err(_) => return bad_request("invalid anon UUID"),
             },
-            None => uuid::Uuid::new_v4().hyphenated().to_string(),
+            None => Uuid::new_v4().hyphenated().to_string(),
         };
         User {
             account,

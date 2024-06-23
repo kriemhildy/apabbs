@@ -71,6 +71,7 @@ pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,
     pub image_name: Option<String>,
+    pub uuid: String,
 }
 
 impl PostSubmission {
@@ -80,7 +81,7 @@ impl PostSubmission {
             true => "anon_token, anon_hash",
             false => "account_id, username",
         });
-        query_builder.push(", body, ip_hash, image_name) VALUES (");
+        query_builder.push(", body, ip_hash, image_name, uuid) VALUES (");
         let mut separated = query_builder.separated(", ");
         match user.anon() {
             true => {
@@ -93,12 +94,13 @@ impl PostSubmission {
                 separated.push_bind(&account.username);
             }
         }
-        query_builder.push(", $3, $4, $5) RETURNING *");
+        query_builder.push(", $3, $4, $5, $6) RETURNING *");
         query_builder
             .build_query_as()
             .bind(&self.body_as_html())
             .bind(ip_hash)
             .bind(&self.image_name)
+            .bind(&self.uuid)
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post")

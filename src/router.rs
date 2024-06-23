@@ -14,6 +14,7 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::{fs::File, io::prelude::*, path::Path};
+use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
 const ACCOUNT_NOT_FOUND: &'static str = "account not found";
@@ -88,6 +89,7 @@ async fn submit_post(
         body: String::default(),
         anon: None,
         image_name: None,
+        uuid: Uuid::new_v4().hyphenated().to_string(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
@@ -108,7 +110,11 @@ async fn submit_post(
                 if file_name.is_empty() {
                     continue;
                 }
-                let path = Path::new(UPLOADS_DIR).join(&file_name);
+                let path = Path::new(UPLOADS_DIR)
+                    .join(&post_submission.uuid)
+                    .join(&file_name);
+                let uuid_dir = path.parent().unwrap();
+                std::fs::create_dir(uuid_dir).expect("create uuid dir");
                 let mut file = File::create(path).expect("create file");
                 file.write_all(&field.bytes().await.unwrap())
                     .expect("write to file");
