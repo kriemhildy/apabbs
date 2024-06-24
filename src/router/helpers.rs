@@ -30,11 +30,8 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
         .expect("get IP header")
         .to_str()
         .expect("convert header to str");
-    let ip_salt = std::env::var("IP_SALT").expect("read IP_SALT env");
-    if ip_salt.len() < 16 {
-        panic!("IP_SALT env must be at least 16 chars");
-    }
-    sha256::digest(ip_salt + ip)
+    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+    sha256::digest(secret_key + ip)
 }
 
 pub fn site_name() -> String {

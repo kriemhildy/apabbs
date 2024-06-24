@@ -72,11 +72,19 @@ mod init {
             Err(_) => 7878,
         }
     }
+
+    pub fn validate_secret_key() {
+        let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+        if secret_key.len() < 16 {
+            panic!("SECRET_KEY env must be at least 16 chars");
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
+    init::validate_secret_key();
     let state = {
         let (db, _) = tokio::join!(init::db(), init::cron_jobs());
         let jinja = init::jinja();

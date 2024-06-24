@@ -12,10 +12,10 @@ use axum::{
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
+use cocoon::Cocoon;
 use helpers::*;
 use std::{
     fs::{create_dir, File},
-    io::prelude::*,
     path::Path,
 };
 use uuid::Uuid;
@@ -114,15 +114,20 @@ async fn submit_post(
                 if file_name.is_empty() {
                     continue;
                 }
+                let cocoon_file_name = file_name.clone() + ".cocoon";
                 let path = Path::new(UPLOADS_DIR)
                     .join(&post_submission.uuid)
-                    .join(&file_name);
+                    .join(&cocoon_file_name);
                 let uuid_dir = path.parent().unwrap();
                 create_dir(uuid_dir).expect("create uuid dir");
-                let mut file = File::create(path).expect("create file");
-                let data = field.bytes().await.unwrap();
-                file.write_all(&data).expect("write to file");
+                let mut file = File::create(&path).expect("create file");
+                // https://docs.rs/cocoon/latest/cocoon/index.html#cocoon
+                let data = field.bytes().await.unwrap().to_vec();
+                let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+                let mut cocoon = Cocoon::new(secret_key.as_bytes());
+                cocoon.dump(data, &mut file).expect("dump cocoon to file");
                 post_submission.image_name = Some(file_name);
+                println!("file uploaded and encrypted as: {}", path.to_str().unwrap());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };

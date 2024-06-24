@@ -27,3 +27,4 @@ uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
 sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
+cocoon = "0.4.2"
