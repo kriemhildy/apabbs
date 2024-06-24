@@ -96,6 +96,6 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .expect(&format!("listen on port {port}"));
-    println!("app listening on port {port}");
+    println!("APABBS listening on port {port}");
     axum::serve(listener, router).await.expect("serve axum")
 }
