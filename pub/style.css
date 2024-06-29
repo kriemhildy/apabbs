@@ -26,7 +26,7 @@
     }
 }
 
-body {
+main {
     max-width: 800px;
     overflow-wrap: break-word;
 }
@@ -51,6 +51,19 @@ textarea {
         margin-right: 50px;
         margin-bottom: 50px;
         text-align: justify;
+        float: right;
+    }
+}
+
+@media (min-width: 1250px) {
+    body {
+        float: none;
+    }
+    header {
+        float: left;
+    }
+    main {
+        margin-top: 20px;
         float: right;
     }
 }
