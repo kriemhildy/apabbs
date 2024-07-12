@@ -271,3 +271,41 @@ async fn update_post_status(
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+        Router,
+    };
+    use http_body_util::BodyExt; // for `collect`
+    use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
+
+    async fn init_test() -> (AppState, Router) {
+        if !dev() {
+            panic!("not in dev mode");
+        }
+        let state = init::app_state().await;
+        let router = router(state.clone());
+        (state, router)
+    }
+
+    async fn body_string(response: Response) -> String {
+        std::str::from_utf8(&response.into_body().collect().await.unwrap().to_bytes())
+            .unwrap()
+            .to_owned()
+    }
+
+    #[tokio::test]
+    async fn test_index() {
+        let (_state, router) = init_test().await;
+        let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = body_string(response).await;
+        assert!(body.contains("<!DOCTYPE html>"));
+        assert!(body.contains(&site_name()));
+    }
+}

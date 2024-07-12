@@ -22,7 +22,7 @@ struct AppState {
 }
 
 mod init {
-    use crate::{jobs, Arc, Environment, PgPool, PostMessage, RwLock, Sender};
+    use crate::{jobs, AppState, Arc, Environment, PgPool, PostMessage, RwLock, Sender};
     use tower_http::{
         classify::{ServerErrorsAsFailures, SharedClassifier},
         trace::TraceLayer,
@@ -72,17 +72,19 @@ mod init {
             Err(_) => 7878,
         }
     }
+
+    pub async fn app_state() -> AppState {
+        let (db, _) = tokio::join!(db(), cron_jobs());
+        let jinja = jinja();
+        let sender = sender();
+        AppState { db, jinja, sender }
+    }
 }
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    let state = {
-        let (db, _) = tokio::join!(init::db(), init::cron_jobs());
-        let jinja = init::jinja();
-        let sender = init::sender();
-        AppState { db, jinja, sender }
-    };
+    let state = init::app_state().await;
     let router = router::router(state);
     let port = init::port();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
