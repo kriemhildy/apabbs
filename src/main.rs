@@ -86,7 +86,8 @@ mod init {
 async fn main() {
     dotenv::dotenv().ok();
     let state = init::app_state().await;
-    let router = router::router(state, true);
+    let trace = !std::env::var("TRACE").is_ok_and(|v| v == "0");
+    let router = router::router(state, trace);
     let port = init::port();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
