@@ -60,7 +60,8 @@ mod init {
         use tracing::Level;
         tracing_subscriber::fmt()
             .with_max_level(Level::DEBUG)
-            .init();
+            .try_init()
+            .ok();
         TraceLayer::new_for_http()
             .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
             .on_response(DefaultOnResponse::new().level(Level::DEBUG))
