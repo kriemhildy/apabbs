@@ -23,9 +23,9 @@ const ROOT: &'static str = "/";
 /// URL path router
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub fn router(state: AppState) -> axum::Router {
+pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
-    axum::Router::new()
+    let router = axum::Router::new()
         .route("/", get(index))
         .route("/post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
@@ -34,9 +34,12 @@ pub fn router(state: AppState) -> axum::Router {
         .route("/hash", post(new_hash))
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
-        .route("/admin/update-post-status", post(update_post_status))
-        .layer(init::trace_layer())
-        .with_state(state)
+        .route("/admin/update-post-status", post(update_post_status));
+    let router = match trace {
+        true => router.layer(init::trace_layer()),
+        false => router,
+    };
+    router.with_state(state)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -287,7 +290,7 @@ mod tests {
             panic!("not in dev mode");
         }
         let state = init::app_state().await;
-        router(state)
+        router(state, false)
     }
 
     #[tokio::test]
