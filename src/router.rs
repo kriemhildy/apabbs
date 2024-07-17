@@ -323,4 +323,15 @@ mod tests {
         let response = router.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
     }
+
+    #[tokio::test]
+    async fn test_not_found() {
+        let router = init_test_router().await;
+        let request = Request::builder()
+            .uri("/not-found")
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }
