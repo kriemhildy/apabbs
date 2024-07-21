@@ -290,8 +290,7 @@ mod tests {
             panic!("not in dev mode");
         }
         let state = init::app_state().await;
-        let trace = std::env::var("TRACE").is_ok_and(|v| v == "1");
-        router(state, trace)
+        router(state, false)
     }
 
     #[tokio::test]
