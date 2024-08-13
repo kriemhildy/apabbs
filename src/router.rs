@@ -280,30 +280,39 @@ mod tests {
     use super::*;
     use axum::{
         body::Body,
-        http::{Request, StatusCode},
+        http::{
+            header::{CONTENT_TYPE, SET_COOKIE},
+            Method, Request, StatusCode,
+        },
         Router,
     };
+    use sqlx::Executor;
     use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
 
-    async fn init_test_router() -> Router {
+    async fn init_test() -> (Router, AppState) {
         if !dev() {
             panic!("not in dev mode");
         }
         let state = init::app_state().await;
-        router(state, false)
+        let router = router(state.clone(), false);
+        (router, state)
     }
 
     #[tokio::test]
     async fn test_index() {
-        let router = init_test_router().await;
+        let (router, _state) = init_test().await;
         let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
         let response = router.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
     }
 
     #[tokio::test]
     async fn test_login_form() {
-        let router = init_test_router().await;
+        let (router, _state) = init_test().await;
         let request = Request::builder()
             .uri("/login")
             .body(Body::empty())
@@ -313,8 +322,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_authenticate() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let credentials = Credentials {
+            username: String::from("test_account"),
+            password: String::from("test_password"),
+        };
+        credentials.register(&mut tx, "::1").await;
+        tx.commit().await.expect(COMMIT);
+        let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/login")
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(Body::from(creds_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        state.db.execute("DELETE FROM accounts WHERE username = 'test_account'")
+            .await
+            .expect("delete test account");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
+    }
+
+    #[tokio::test]
     async fn test_registration_form() {
-        let router = init_test_router().await;
+        let (router, _state) = init_test().await;
         let request = Request::builder()
             .uri("/register")
             .body(Body::empty())
@@ -325,7 +362,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_not_found() {
-        let router = init_test_router().await;
+        let (router, _state) = init_test().await;
         let request = Request::builder()
             .uri("/not-found")
             .body(Body::empty())
