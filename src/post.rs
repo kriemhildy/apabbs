@@ -119,7 +119,7 @@ impl PostSubmission {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
     pub uuid: String,
     pub status: PostStatus,

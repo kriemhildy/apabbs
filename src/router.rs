@@ -499,13 +499,13 @@ mod tests {
         let post_hiding = PostHiding {
             uuid: post.uuid.clone(),
         };
-        let post_str = serde_urlencoded::to_string(&post_hiding).unwrap();
+        let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
         let request = Request::builder()
             .method(Method::POST)
             .uri("/hide-rejected-post")
             .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
             .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
-            .body(Body::from(post_str))
+            .body(Body::from(post_hiding_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
         sqlx::query("DELETE FROM posts WHERE anon_token = $1")
@@ -513,6 +513,64 @@ mod tests {
             .execute(&state.db)
             .await
             .expect("delete test post");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    }
+
+    #[tokio::test]
+    async fn test_update_post_status() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let post_user = User {
+            account: None,
+            anon_token: uuid::Uuid::new_v4().hyphenated().to_string(),
+        };
+        let post = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+        }
+        .insert(&mut tx, &post_user, LOCAL_IP)
+        .await;
+        let admin_account = Credentials {
+            username: String::from("test4"),
+            password: String::from("test_password"),
+        }
+        .register(&mut tx, LOCAL_IP)
+        .await;
+        sqlx::query("UPDATE accounts SET admin = $2 WHERE username = $1")
+            .bind(admin_account.username.clone())
+            .bind(true)
+            .execute(&mut *tx)
+            .await
+            .expect("set account as admin");
+        tx.commit().await.expect(COMMIT);
+        let post_review = PostReview {
+            uuid: post.uuid.clone(),
+            status: PostStatus::Approved,
+        };
+        let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/admin/update-post-status")
+            .header(
+                COOKIE,
+                format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+            )
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(Body::from(post_review_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
+            .bind(post_user.anon_token)
+            .execute(&mut *tx)
+            .await
+            .expect("delete test post");
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind(admin_account.username)
+            .execute(&mut * tx)
+            .await
+            .expect("delete test admin account");
+        tx.commit().await.expect(COMMIT);
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
     }
 }
