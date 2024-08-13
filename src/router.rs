@@ -424,6 +424,11 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
+        state
+            .db
+            .execute("DELETE FROM accounts WHERE username = 'test3'")
+            .await
+            .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
     }
 }
