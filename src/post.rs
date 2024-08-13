@@ -136,7 +136,7 @@ impl PostReview {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
     pub uuid: String,
 }

@@ -338,8 +338,8 @@ mod tests {
         let request = Request::builder()
             .method(Method::POST)
             .uri("/post")
-            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
             .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
             .header(X_REAL_IP, LOCAL_IP)
             .body(Body::from(post_str))
             .unwrap();
@@ -473,5 +473,46 @@ mod tests {
             .headers()
             .get(SET_COOKIE)
             .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
+    }
+
+    #[tokio::test]
+    async fn test_hide_rejected_post() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let user = User {
+            account: None,
+            anon_token: uuid::Uuid::new_v4().hyphenated().to_string(),
+        };
+        let post = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+        }
+        .insert(&mut tx, &user, LOCAL_IP)
+        .await;
+        PostReview {
+            uuid: post.uuid.clone(),
+            status: PostStatus::Rejected,
+        }
+        .update_status(&mut tx)
+        .await;
+        tx.commit().await.expect(COMMIT);
+        let post_hiding = PostHiding {
+            uuid: post.uuid.clone(),
+        };
+        let post_str = serde_urlencoded::to_string(&post_hiding).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/hide-rejected-post")
+            .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(Body::from(post_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
+            .bind(user.anon_token)
+            .execute(&state.db)
+            .await
+            .expect("delete test post");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
     }
 }
