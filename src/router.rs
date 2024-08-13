@@ -304,6 +304,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_not_found() {
+        let (router, _state) = init_test().await;
+        let request = Request::builder()
+            .uri("/not-found")
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
     async fn test_index() {
         let (router, _state) = init_test().await;
         let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
@@ -419,17 +430,6 @@ mod tests {
             .headers()
             .get(SET_COOKIE)
             .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
-    }
-
-    #[tokio::test]
-    async fn test_not_found() {
-        let (router, _state) = init_test().await;
-        let request = Request::builder()
-            .uri("/not-found")
-            .body(Body::empty())
-            .unwrap();
-        let response = router.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
