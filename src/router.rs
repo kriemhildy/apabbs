@@ -341,7 +341,9 @@ mod tests {
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        state.db.execute("DELETE FROM accounts WHERE username = 'test1'")
+        state
+            .db
+            .execute("DELETE FROM accounts WHERE username = 'test1'")
             .await
             .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -378,7 +380,9 @@ mod tests {
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        state.db.execute("DELETE FROM accounts WHERE username = 'test2'")
+        state
+            .db
+            .execute("DELETE FROM accounts WHERE username = 'test2'")
             .await
             .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
