@@ -285,7 +285,7 @@ mod tests {
     use axum::{
         body::Body,
         http::{
-            header::{CONTENT_TYPE, SET_COOKIE},
+            header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
             Method, Request, StatusCode,
         },
         Router,
@@ -405,5 +405,25 @@ mod tests {
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_logout() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let credentials = Credentials {
+            username: String::from("test3"),
+            password: String::from("test_password"),
+        };
+        let account = credentials.register(&mut tx, LOCAL_IP).await;
+        tx.commit().await.expect(COMMIT);
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/logout")
+            .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
     }
 }
