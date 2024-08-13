@@ -66,7 +66,7 @@ impl Post {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,

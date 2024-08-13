@@ -290,7 +290,6 @@ mod tests {
         },
         Router,
     };
-    use sqlx::Executor;
     use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
 
     const LOCAL_IP: &'static str = "::1";
@@ -314,6 +313,32 @@ mod tests {
             .headers()
             .get(SET_COOKIE)
             .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
+    }
+
+    #[tokio::test]
+    async fn test_submit_post() {
+        let (router, state) = init_test().await;
+        let post_submission = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+        };
+        let post_str = serde_urlencoded::to_string(&post_submission).unwrap();
+        let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/post")
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
+            .header(X_REAL_IP, LOCAL_IP)
+            .body(Body::from(post_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
+            .bind(anon_token)
+            .execute(&state.db)
+            .await
+            .expect("delete test post");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
     }
 
     #[tokio::test]
@@ -345,9 +370,9 @@ mod tests {
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        state
-            .db
-            .execute("DELETE FROM accounts WHERE username = 'test1'")
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind("test1")
+            .execute(&state.db)
             .await
             .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -384,9 +409,9 @@ mod tests {
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        state
-            .db
-            .execute("DELETE FROM accounts WHERE username = 'test2'")
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind("test2")
+            .execute(&state.db)
             .await
             .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -424,9 +449,9 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        state
-            .db
-            .execute("DELETE FROM accounts WHERE username = 'test3'")
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind("test3")
+            .execute(&state.db)
             .await
             .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
