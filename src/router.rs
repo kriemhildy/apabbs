@@ -289,6 +289,8 @@ mod tests {
     use sqlx::Executor;
     use tower::ServiceExt; // for `call`, `oneshot`, and `ready`
 
+    const LOCAL_IP: &'static str = "::1";
+
     async fn init_test() -> (Router, AppState) {
         if !dev() {
             panic!("not in dev mode");
@@ -326,10 +328,10 @@ mod tests {
         let (router, state) = init_test().await;
         let mut tx = state.db.begin().await.expect(BEGIN);
         let credentials = Credentials {
-            username: String::from("test_account"),
+            username: String::from("test1"),
             password: String::from("test_password"),
         };
-        credentials.register(&mut tx, "::1").await;
+        credentials.register(&mut tx, LOCAL_IP).await;
         tx.commit().await.expect(COMMIT);
         let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
         let request = Request::builder()
@@ -339,7 +341,7 @@ mod tests {
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        state.db.execute("DELETE FROM accounts WHERE username = 'test_account'")
+        state.db.execute("DELETE FROM accounts WHERE username = 'test1'")
             .await
             .expect("delete test account");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -358,6 +360,32 @@ mod tests {
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_account() {
+        let (router, state) = init_test().await;
+        let credentials = Credentials {
+            username: String::from("test2"),
+            password: String::from("test_password"),
+        };
+        let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/register")
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(X_REAL_IP, LOCAL_IP)
+            .body(Body::from(creds_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        state.db.execute("DELETE FROM accounts WHERE username = 'test2'")
+            .await
+            .expect("delete test account");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
     }
 
     #[tokio::test]
