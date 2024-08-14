@@ -560,9 +560,9 @@ mod tests {
         }
         .register(&mut tx, LOCAL_IP)
         .await;
-        sqlx::query("UPDATE accounts SET admin = $2 WHERE username = $1")
-            .bind(admin_account.username.clone())
+        sqlx::query("UPDATE accounts SET admin = $1 WHERE username = $2")
             .bind(true)
+            .bind(&admin_account.username)
             .execute(&mut *tx)
             .await
             .expect("set account as admin");
@@ -585,12 +585,12 @@ mod tests {
         let response = router.oneshot(request).await.unwrap();
         let mut tx = state.db.begin().await.expect(BEGIN);
         sqlx::query("DELETE FROM posts WHERE anon_token = $1")
-            .bind(post_user.anon_token)
+            .bind(&post_user.anon_token)
             .execute(&mut *tx)
             .await
             .expect("delete test post");
         sqlx::query("DELETE FROM accounts WHERE username = $1")
-            .bind(admin_account.username)
+            .bind(&admin_account.username)
             .execute(&mut * tx)
             .await
             .expect("delete test admin account");
