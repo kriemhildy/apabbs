@@ -285,7 +285,7 @@ mod tests {
     use axum::{
         body::Body,
         http::{
-            header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
+            header::{CONNECTION, CONTENT_TYPE, COOKIE, SET_COOKIE, UPGRADE},
             Method, Request, StatusCode,
         },
         Router,
@@ -514,6 +514,20 @@ mod tests {
             .await
             .expect("delete test post");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    }
+
+    #[tokio::test]
+    #[ignore] // does not work currently
+    async fn test_web_socket() {
+        let (router, _state) = init_test().await;
+        let request = Request::builder()
+            .uri("/web-socket")
+            .header(CONNECTION, "Upgrade")
+            .header(UPGRADE, "WebSocket")
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SWITCHING_PROTOCOLS);
     }
 
     #[tokio::test]
