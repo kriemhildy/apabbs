@@ -330,13 +330,12 @@ async fn update_post_status(
                     std::fs::create_dir(images_uuid_dir).expect("create images uuid dir");
                     std::fs::write(&image_path, data).expect("write image file");
                 }
-                PostStatus::Rejected => {
-                    let uploads_uuid_dir = cocoon_path.parent().unwrap();
-                    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
-                    std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
-                }
+                PostStatus::Rejected => (),
                 _ => panic!("unexpected post status"),
             }
+            let uploads_uuid_dir = cocoon_path.parent().unwrap();
+            std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+            std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
         }
         None => (),
     }
