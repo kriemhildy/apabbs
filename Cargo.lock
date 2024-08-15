@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "apabbs"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "argon2",
  "axum",

@@ -15,18 +15,19 @@ Installation
 1. install postgresql version 15+.
 2. install rust using rustup.
 3. install "pkg-config" via your package manager.
-4. install sqlx-cli for postgres only:
+4. install rsync.
+5. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
-5. create a role with CREATEDB and LOGIN in postgresql.
-6. install direnv and set it up to load .env files in your shell:
+6. create a role with CREATEDB and LOGIN in postgresql.
+7. install direnv and set it up to load .env files in your shell:
    https://dev.to/charlesloder/tidbit-get-direnv-to-use-env-5fkn
-7. copy .env.example to .env and set the variables as needed.
-8. run "sqlx database create" to create the database.
-9. run "sqlx migrate run" to update the database schema to the current point.
-10. configure a web server (e.g. nginx) to proxy to the app server.
+8. copy .env.example to .env and set the variables as needed.
+9. run "sqlx database create" to create the database.
+10. run "sqlx migrate run" to update the database schema to the current point.
+11. configure a web server (e.g. nginx) to proxy to the app server.
     this is necessary for receiving assets (css and js). this server will also
     need to enable web socket upgrades and X-Real-IP forwarding.
-11. run "cargo run" to start the app server on port 7878. alternatively set a
+12. run "cargo run" to start the app server on port 7878. alternatively set a
     "PORT" env var to run on a different port.
-12. access the app via "localhost" in a browser.
-13. DO NOT post on your own forum as the admin. ever.
+13. access the app via "localhost" in a browser.
+14. DO NOT post on your own forum as the admin. ever.
