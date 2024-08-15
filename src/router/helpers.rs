@@ -71,6 +71,32 @@ pub fn render(
     tmpl.render(ctx).expect("render template")
 }
 
+pub fn image_mime_type(image_name: &str) -> &str {
+    let path = std::path::Path::new(&image_name);
+    match path.extension() {
+        Some(ext_os_str) => {
+            let ext_os_string = ext_os_str.to_ascii_lowercase();
+            match ext_os_string.to_str() {
+                Some(ext_str) => match ext_str {
+                    "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp"  => "image/jpeg",
+                    "gif" => "image/gif",
+                    "png" => "image/png",
+                    "webp" => "image/webp",
+                    "svg" => "image/svg+xml",
+                    "avif" => "image/avif",
+                    "ico" | "cur" => "image/x-icon",
+                    "apng" => "image/apng",
+                    "bmp" => "image/bmp",
+                    "tiff" | "tif" => "image/tiff",
+                    _ => "application/octet-stream",
+                },
+                None => "application/octet-stream",
+            }
+        },
+        None => "application/octet-stream",
+    }
+}
+
 macro_rules! user {
     ($jar:expr, $tx:expr) => {{
         let account = match $jar.get(ACCOUNT_COOKIE) {

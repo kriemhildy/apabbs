@@ -372,19 +372,7 @@ async fn decrypt_image(
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let cocoon = Cocoon::new(secret_key.as_bytes());
     let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-    let content_type = match std::path::Path::new(&image_name).extension() {
-        Some(ext) => match ext.to_ascii_lowercase().to_str() {
-            Some("png") => "image/png",
-            Some("jpg") => "image/jpeg",
-            Some("jpeg") => "image/jpeg",
-            Some("gif") => "image/gif",
-            Some("webp") => "image/webp",
-            Some("bmp") => "image/bmp",
-            Some("avif") => "image/avif",
-            _ => "application/octet-stream",
-        },
-        None => "application/octet-stream",
-    };
+    let content_type = image_mime_type(&image_name);
     let headers = [
         (CONTENT_TYPE, content_type),
         (
