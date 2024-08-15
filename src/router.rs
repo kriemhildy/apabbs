@@ -30,12 +30,12 @@ const UPLOADS_DIR: &'static str = "uploads";
 /// URL path router
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-pub fn router(state: AppState) -> axum::Router {
+pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::{
         extract::DefaultBodyLimit,
         routing::{get, post},
     };
-    axum::Router::new()
+    let router = axum::Router::new()
         .route("/", get(index))
         .route("/post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
@@ -45,9 +45,12 @@ pub fn router(state: AppState) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
-        .layer(init::trace_layer())
-        .layer(DefaultBodyLimit::max(10_000_000))
-        .with_state(state)
+        .layer(DefaultBodyLimit::max(10_000_000));
+    let router = match trace {
+        true => router.layer(init::trace_layer()),
+        false => router,
+    };
+    router.with_state(state)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -324,4 +327,320 @@ async fn update_post_status(
     let msg = PostMessage { post, html };
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// tests
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{
+            header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
+            Method, Request, StatusCode,
+        },
+        Router,
+    };
+    use http_body_util::BodyExt;
+    use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
+
+    const LOCAL_IP: &'static str = "::1";
+
+    async fn init_test() -> (Router, AppState) {
+        if !dev() {
+            panic!("not in dev mode");
+        }
+        let state = init::app_state().await;
+        let router = router(state.clone(), false);
+        (router, state)
+    }
+
+    #[tokio::test]
+    async fn test_not_found() {
+        let (router, _state) = init_test().await;
+        let request = Request::builder()
+            .uri("/not-found")
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_index() {
+        let (router, _state) = init_test().await;
+        let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains(&site_name()));
+    }
+
+    #[tokio::test]
+    async fn test_submit_post() {
+        let (router, state) = init_test().await;
+        let post_submission = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+            image_name: None,
+            uuid: Uuid::new_v4().hyphenated().to_string(),
+        };
+        let post_str = serde_urlencoded::to_string(&post_submission).unwrap();
+        let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/post")
+            .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(X_REAL_IP, LOCAL_IP)
+            .body(Body::from(post_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
+            .bind(anon_token)
+            .execute(&state.db)
+            .await
+            .expect("delete test post");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    }
+
+    #[tokio::test]
+    async fn test_login_form() {
+        let (router, _state) = init_test().await;
+        let request = Request::builder()
+            .uri("/login")
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("Login"));
+    }
+
+    #[tokio::test]
+    async fn test_authenticate() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let credentials = Credentials {
+            username: String::from("test1"),
+            password: String::from("test_password"),
+        };
+        credentials.register(&mut tx, LOCAL_IP).await;
+        tx.commit().await.expect(COMMIT);
+        let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/login")
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(Body::from(creds_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind("test1")
+            .execute(&state.db)
+            .await
+            .expect("delete test account");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
+    }
+
+    #[tokio::test]
+    async fn test_registration_form() {
+        let (router, _state) = init_test().await;
+        let request = Request::builder()
+            .uri("/register")
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("Register"));
+    }
+
+    #[tokio::test]
+    async fn test_create_account() {
+        let (router, state) = init_test().await;
+        let credentials = Credentials {
+            username: String::from("test2"),
+            password: String::from("test_password"),
+        };
+        let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/register")
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(X_REAL_IP, LOCAL_IP)
+            .body(Body::from(creds_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind("test2")
+            .execute(&state.db)
+            .await
+            .expect("delete test account");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
+    }
+
+    #[tokio::test]
+    async fn test_logout() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let credentials = Credentials {
+            username: String::from("test3"),
+            password: String::from("test_password"),
+        };
+        let account = credentials.register(&mut tx, LOCAL_IP).await;
+        tx.commit().await.expect(COMMIT);
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/logout")
+            .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind("test3")
+            .execute(&state.db)
+            .await
+            .expect("delete test account");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    }
+
+    #[tokio::test]
+    async fn test_new_hash() {
+        let (router, _state) = init_test().await;
+        let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/hash")
+            .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
+            .body(Body::empty())
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert!(response
+            .headers()
+            .get(SET_COOKIE)
+            .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
+    }
+
+    #[tokio::test]
+    async fn test_hide_rejected_post() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let user = User {
+            account: None,
+            anon_token: uuid::Uuid::new_v4().hyphenated().to_string(),
+        };
+        let post = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+            image_name: None,
+            uuid: Uuid::new_v4().hyphenated().to_string(),
+        }
+        .insert(&mut tx, &user, LOCAL_IP)
+        .await;
+        PostReview {
+            uuid: post.uuid.clone(),
+            status: PostStatus::Rejected,
+        }
+        .update_status(&mut tx)
+        .await;
+        tx.commit().await.expect(COMMIT);
+        let post_hiding = PostHiding {
+            uuid: post.uuid.clone(),
+        };
+        let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/hide-rejected-post")
+            .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(Body::from(post_hiding_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
+            .bind(user.anon_token)
+            .execute(&state.db)
+            .await
+            .expect("delete test post");
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    }
+
+    #[tokio::test]
+    async fn test_update_post_status() {
+        let (router, state) = init_test().await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let post_user = User {
+            account: None,
+            anon_token: uuid::Uuid::new_v4().hyphenated().to_string(),
+        };
+        let post = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+            image_name: None,
+            uuid: Uuid::new_v4().hyphenated().to_string(),
+        }
+        .insert(&mut tx, &post_user, LOCAL_IP)
+        .await;
+        let admin_account = Credentials {
+            username: String::from("test4"),
+            password: String::from("test_password"),
+        }
+        .register(&mut tx, LOCAL_IP)
+        .await;
+        sqlx::query("UPDATE accounts SET admin = $1 WHERE username = $2")
+            .bind(true)
+            .bind(&admin_account.username)
+            .execute(&mut *tx)
+            .await
+            .expect("set account as admin");
+        tx.commit().await.expect(COMMIT);
+        let post_review = PostReview {
+            uuid: post.uuid.clone(),
+            status: PostStatus::Approved,
+        };
+        let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/admin/update-post-status")
+            .header(
+                COOKIE,
+                format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+            )
+            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(Body::from(post_review_str))
+            .unwrap();
+        let response = router.oneshot(request).await.unwrap();
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
+            .bind(&post_user.anon_token)
+            .execute(&mut *tx)
+            .await
+            .expect("delete test post");
+        sqlx::query("DELETE FROM accounts WHERE username = $1")
+            .bind(&admin_account.username)
+            .execute(&mut *tx)
+            .await
+            .expect("delete test admin account");
+        tx.commit().await.expect(COMMIT);
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    }
 }

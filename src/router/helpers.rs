@@ -7,6 +7,8 @@ use crate::{Arc, Environment, RwLock};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 
+pub const X_REAL_IP: &'static str = "X-Real-IP";
+
 pub fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
 }
@@ -26,7 +28,7 @@ pub fn ban_message(expires_at: &str) -> Response {
 
 pub fn ip_hash(headers: &HeaderMap) -> String {
     let ip = headers
-        .get("X-Real-IP")
+        .get(X_REAL_IP)
         .expect("get IP header")
         .to_str()
         .expect("convert header to str");

@@ -22,7 +22,7 @@ struct AppState {
 }
 
 mod init {
-    use crate::{jobs, Arc, Environment, PgPool, PostMessage, RwLock, Sender};
+    use crate::{jobs, AppState, Arc, Environment, PgPool, PostMessage, RwLock, Sender};
     use tower_http::{
         classify::{ServerErrorsAsFailures, SharedClassifier},
         trace::TraceLayer,
@@ -60,7 +60,8 @@ mod init {
         use tracing::Level;
         tracing_subscriber::fmt()
             .with_max_level(Level::DEBUG)
-            .init();
+            .try_init()
+            .ok();
         TraceLayer::new_for_http()
             .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
             .on_response(DefaultOnResponse::new().level(Level::DEBUG))
@@ -71,6 +72,13 @@ mod init {
             Ok(port) => port.parse().expect("parse PORT env"),
             Err(_) => 7878,
         }
+    }
+
+    pub async fn app_state() -> AppState {
+        let (db, _) = tokio::join!(db(), cron_jobs());
+        let jinja = jinja();
+        let sender = sender();
+        AppState { db, jinja, sender }
     }
 
     pub fn validate_secret_key() {
@@ -85,13 +93,8 @@ mod init {
 async fn main() {
     dotenv::dotenv().ok();
     init::validate_secret_key();
-    let state = {
-        let (db, _) = tokio::join!(init::db(), init::cron_jobs());
-        let jinja = init::jinja();
-        let sender = init::sender();
-        AppState { db, jinja, sender }
-    };
-    let router = router::router(state);
+    let state = init::app_state().await;
+    let router = router::router(state, true);
     let port = init::port();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await

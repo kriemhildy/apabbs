@@ -66,7 +66,7 @@ impl Post {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,
@@ -123,7 +123,7 @@ impl PostSubmission {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
     pub uuid: String,
     pub status: PostStatus,
@@ -140,7 +140,7 @@ impl PostReview {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
     pub uuid: String,
 }
