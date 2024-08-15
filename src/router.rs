@@ -42,7 +42,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
-        .route("/admin/decrypted-image/:uuid/:image_name", get(decrypted_image))
+        .route("/admin/decrypt-image/:uuid/:image_name", get(decrypt_image))
         .layer(DefaultBodyLimit::max(10_000_000));
     let router = match trace {
         true => router.layer(init::trace_layer()),
@@ -327,7 +327,7 @@ async fn update_post_status(
     Redirect::to(ROOT).into_response()
 }
 
-async fn decrypted_image(
+async fn decrypt_image(
     State(state): State<AppState>,
     jar: CookieJar,
     Path((uuid, image_name)): Path<(String, String)>,
