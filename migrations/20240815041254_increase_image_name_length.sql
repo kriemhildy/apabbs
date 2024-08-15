@@ -1,0 +1,2 @@
+ALTER TABLE posts
+  ALTER COLUMN image_name TYPE VARCHAR(255);
