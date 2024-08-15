@@ -4,11 +4,10 @@
         --fore: #e3e3e3;
         --link: rgb(89, 131, 209);
         --border: #777;
-        --system: #9cdcda;
-        --username: rgb(174, 109, 187);
-        --anon-hash: rgb(141, 141, 141);
-        --pending: #333333;
-        --rejected: #200;
+        --header: #9cdcda;
+        --system: rgb(141, 141, 141);
+        --pending: #222222;
+        --rejected: rgb(37, 4, 4);
     }
 }
 
@@ -18,11 +17,10 @@
         --fore: black;
         --link: blue;
         --border: #ccc;
-        --system: black;
-        --username: grey;
-        --anon-hash: darkslategray;
-        --pending: #ddd;
-        --rejected: #faa;
+        --header: black;
+        --system: darkslategray;
+        --pending: #eeeeee;
+        --rejected: rgb(250, 226, 226);
     }
 }
 
@@ -79,6 +77,10 @@ fieldset {
     border-radius: 5px;
 }
 
+.header {
+    color: var(--header);
+}
+
 .system {
     color: var(--system);
 }
@@ -92,14 +94,6 @@ div.post {
     overflow: hidden;
     border-radius: 5px;
     margin-top: 15px;
-}
-
-span.anon-hash {
-    color: var(--anon-hash);
-}
-
-span.username {
-    color: var(--username);
 }
 
 div.pending {

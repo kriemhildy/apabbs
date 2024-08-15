@@ -1,26 +1,27 @@
         <div class="post {{ post.status }}" id="post-{{ post.uuid }}">
             {% if post.username %}
-            <span class="username">{{ post.username }}</span>
+            <span class="system">{{ post.username }}</span>
             {% else %}
-            <span class="anon-hash">{{ post.anon_hash }}</span>
+            <span class="system">{{ post.anon_hash }}</span>
             {% endif %}
             <br>
             {% if not post.body|length == 0 %}
             <span class="body">{{ post.body }}</span>
-            {% if post.image_name %}
             <br>
-            {% endif %}
             {% endif %}
             {% if post.image_name %}
             {% if post.status == "approved" %}
             <img src="/images/{{ post.uuid }}/{{ post.image_name }}">
             {% elif post.status == "rejected" %}
-            <span class="system">Image {{ post.image_name }} deleted.</span>
+            <br>
+            <span class="system">File "{{ post.image_name }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
-            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}">
+            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}"><br>
+            <span class="system">File: {{ post.image_name }}</span>
             {% else %}
-            <span class="system">Image pending approval.</span>
+            <br>
+            <span class="system">File "{{ post.image_name }}" pending approval.</span>
             {% endif %}
             {% endif %}
             {% endif %}

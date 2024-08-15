@@ -3,7 +3,7 @@
 <body>
     <header>
         <h2>{{ title }}</h2>
-        <ul class="system">
+        <ul class="header">
             {% if not logged_in %}
             <li><a href="/login">log in</a> or <a href="/register">register</a></li>
             {% else %}
@@ -27,7 +27,7 @@
         <form action="/post" method="post" enctype="multipart/form-data">
             <textarea name="body"></textarea>
             <br>
-            <label for="image">Image:</label>
+            <label for="image" class="header">Image:</label>
             <input type="file" name="image" id="image">
             <br>
             <input type="submit" value="Post" id="post-button">
