@@ -17,7 +17,8 @@
             <span class="system">File "{{ post.image_name }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
-            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}"><br>
+            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}">
+            <br>
             <span class="system">File: {{ post.image_name }}</span>
             {% else %}
             <br>
