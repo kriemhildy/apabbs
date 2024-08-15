@@ -8,6 +8,7 @@
             <span class="body">{{ post.body }}</span>
             {% if admin and post.status == "pending" %}
             {% if post.image_name %}
+            <br>
             <img src="/admin/decrypted-image/{{ post.uuid }}/{{ post.image_name }}" alt="decrypted image">
             {% endif %}
             <br>
