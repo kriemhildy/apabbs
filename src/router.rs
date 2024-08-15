@@ -527,20 +527,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // does not work currently
-    async fn test_web_socket() {
-        let (router, _state) = init_test().await;
-        let request = Request::builder()
-            .uri("/web-socket")
-            .header(CONNECTION, "Upgrade")
-            .header(UPGRADE, "WebSocket")
-            .body(Body::empty())
-            .unwrap();
-        let response = router.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::SWITCHING_PROTOCOLS);
-    }
-
-    #[tokio::test]
     async fn test_update_post_status() {
         let (router, state) = init_test().await;
         let mut tx = state.db.begin().await.expect(BEGIN);
