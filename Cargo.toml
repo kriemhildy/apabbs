@@ -32,6 +32,5 @@ cocoon = "*"
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
 http-body-util = "*"
-mime = "*"
 serde_urlencoded = "*"
 form-data-builder = "*"

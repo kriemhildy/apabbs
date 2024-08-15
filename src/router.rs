@@ -123,7 +123,6 @@ async fn submit_post(
                 let uuid_dir = path.parent().unwrap();
                 std::fs::create_dir(uuid_dir).expect("create uuid dir");
                 let mut file = File::create(&path).expect("create file");
-                // https://docs.rs/cocoon/latest/cocoon/index.html#cocoon
                 let data = field.bytes().await.unwrap().to_vec();
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                 let mut cocoon = Cocoon::new(secret_key.as_bytes());
@@ -400,10 +399,10 @@ mod tests {
     };
     use form_data_builder::FormData;
     use http_body_util::BodyExt;
-    use mime::APPLICATION_WWW_FORM_URLENCODED;
     use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
     const LOCAL_IP: &'static str = "::1";
+    const APPLICATION_WWW_FORM_URLENCODED: &'static str = "application/x-www-form-urlencoded";
 
     async fn init_test() -> (Router, AppState) {
         if !dev() {
@@ -497,7 +496,7 @@ mod tests {
         let request = Request::builder()
             .method(Method::POST)
             .uri("/login")
-            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
@@ -538,7 +537,7 @@ mod tests {
         let request = Request::builder()
             .method(Method::POST)
             .uri("/register")
-            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
             .header(X_REAL_IP, LOCAL_IP)
             .body(Body::from(creds_str))
             .unwrap();
@@ -629,7 +628,7 @@ mod tests {
             .method(Method::POST)
             .uri("/hide-rejected-post")
             .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
-            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
             .body(Body::from(post_hiding_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
@@ -682,7 +681,7 @@ mod tests {
                 COOKIE,
                 format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
             )
-            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
             .body(Body::from(post_review_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();

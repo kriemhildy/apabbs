@@ -8,6 +8,7 @@ use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
+const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 
 pub fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
@@ -88,12 +89,12 @@ pub fn image_mime_type(image_name: &str) -> &str {
                     "apng" => "image/apng",
                     "bmp" => "image/bmp",
                     "tiff" | "tif" => "image/tiff",
-                    _ => "application/octet-stream",
+                    _ => APPLICATION_OCTET_STREAM,
                 },
-                None => "application/octet-stream",
+                None => APPLICATION_OCTET_STREAM,
             }
         },
-        None => "application/octet-stream",
+        None => APPLICATION_OCTET_STREAM,
     }
 }
 
