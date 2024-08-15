@@ -27,10 +27,11 @@ uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
 sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
-cocoon = "0.4.2"
+cocoon = "*"
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
 http-body-util = "*"
 mime = "*"
 serde_urlencoded = "*"
+form-data-builder = "*"

@@ -103,6 +103,7 @@ dependencies = [
  "axum-extra",
  "cocoon",
  "dotenv",
+ "form-data-builder",
  "futures",
  "http-body-util",
  "mime",
@@ -270,6 +271,12 @@ dependencies = [
  "object",
  "rustc-demangle",
 ]
+
+[[package]]
+name = "base64"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "base64"
@@ -674,6 +681,16 @@ name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
+
+[[package]]
+name = "form-data-builder"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30ff8fb4527b05539a9f573ba2831a1127038a7b45eea385a338a63dc5ab6829"
+dependencies = [
+ "base64 0.13.1",
+ "rand",
+]
 
 [[package]]
 name = "form_urlencoded"

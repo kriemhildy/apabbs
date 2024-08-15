@@ -344,7 +344,9 @@ mod tests {
         },
         Router,
     };
+    use form_data_builder::FormData;
     use http_body_util::BodyExt;
+    use mime::APPLICATION_WWW_FORM_URLENCODED;
     use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
     const LOCAL_IP: &'static str = "::1";
@@ -393,15 +395,16 @@ mod tests {
             image_name: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         };
-        let post_str = serde_urlencoded::to_string(&post_submission).unwrap();
         let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
+        let mut form = FormData::new(Vec::new());
+        form.write_field("body", &post_submission.body).unwrap();
         let request = Request::builder()
             .method(Method::POST)
             .uri("/post")
             .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
-            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, form.content_type_header())
             .header(X_REAL_IP, LOCAL_IP)
-            .body(Body::from(post_str))
+            .body(Body::from(form.finish().unwrap()))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
         sqlx::query("DELETE FROM posts WHERE anon_token = $1")
@@ -440,7 +443,7 @@ mod tests {
         let request = Request::builder()
             .method(Method::POST)
             .uri("/login")
-            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
             .body(Body::from(creds_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
@@ -481,7 +484,7 @@ mod tests {
         let request = Request::builder()
             .method(Method::POST)
             .uri("/register")
-            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
             .header(X_REAL_IP, LOCAL_IP)
             .body(Body::from(creds_str))
             .unwrap();
@@ -572,7 +575,7 @@ mod tests {
             .method(Method::POST)
             .uri("/hide-rejected-post")
             .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
-            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
             .body(Body::from(post_hiding_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
@@ -625,7 +628,7 @@ mod tests {
                 COOKIE,
                 format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
             )
-            .header(CONTENT_TYPE, mime::APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
             .body(Body::from(post_review_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
