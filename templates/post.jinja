@@ -5,20 +5,26 @@
             <span class="anon-hash">{{ post.anon_hash }}</span>
             {% endif %}
             <br>
+            {% if not post.body|length == 0 %}
             <span class="body">{{ post.body }}</span>
             {% if post.image_name %}
             <br>
+            {% endif %}
+            {% endif %}
+            {% if post.image_name %}
             {% if post.status == "approved" %}
             <img src="/images/{{ post.uuid }}/{{ post.image_name }}">
             {% elif post.status == "rejected" %}
             <span class="system">Image {{ post.image_name }} deleted.</span>
+            {% elif post.status == "pending" %}
+            {% if admin %}
+            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}">
+            {% else %}
+            <span class="system">Image pending approval.</span>
+            {% endif %}
             {% endif %}
             {% endif %}
             {% if admin and post.status == "pending" %}
-            {% if post.image_name %}
-            <br>
-            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}">
-            {% endif %}
             <br>
             <form action="/admin/update-post-status" method="post" id="approve-form">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">

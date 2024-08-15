@@ -134,8 +134,8 @@ async fn submit_post(
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    if post_submission.body.is_empty() {
-        return bad_request("post cannot be empty");
+    if post_submission.body.is_empty() && post_submission.image_name.is_none() {
+        return bad_request("post cannot be empty unless there is an image");
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
@@ -380,6 +380,7 @@ async fn decrypt_image(
             Some("gif") => "image/gif",
             Some("webp") => "image/webp",
             Some("bmp") => "image/bmp",
+            Some("avif") => "image/avif",
             _ => "application/octet-stream",
         },
         None => "application/octet-stream",
