@@ -7,8 +7,8 @@ use crate::{
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
-    extract::{Multipart, State, WebSocketUpgrade, Path},
-    http::header::{HeaderMap, CONTENT_TYPE, CONTENT_DISPOSITION},
+    extract::{Multipart, Path, State, WebSocketUpgrade},
+    http::header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
@@ -313,7 +313,9 @@ async fn update_post_status(
     match post.image_name {
         Some(image_name) => {
             let cocoon_name = image_name.clone() + ".cocoon";
-            let cocoon_path = std::path::Path::new(UPLOADS_DIR).join(&post_review.uuid).join(&cocoon_name);
+            let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+                .join(&post_review.uuid)
+                .join(&cocoon_name);
             if !cocoon_path.exists() {
                 return bad_request("cocoon file does not exist");
             }
@@ -362,7 +364,9 @@ async fn decrypt_image(
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
     let cocoon_name = image_name.clone() + ".cocoon";
-    let path = std::path::Path::new(UPLOADS_DIR).join(&uuid).join(&cocoon_name);
+    let path = std::path::Path::new(UPLOADS_DIR)
+        .join(&uuid)
+        .join(&cocoon_name);
     let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(_) => return not_found(),

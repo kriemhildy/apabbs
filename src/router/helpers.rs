@@ -79,7 +79,7 @@ pub fn image_mime_type(image_name: &str) -> &str {
             let ext_os_string = ext_os_str.to_ascii_lowercase();
             match ext_os_string.to_str() {
                 Some(ext_str) => match ext_str {
-                    "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp"  => "image/jpeg",
+                    "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => "image/jpeg",
                     "gif" => "image/gif",
                     "png" => "image/png",
                     "webp" => "image/webp",
@@ -93,7 +93,7 @@ pub fn image_mime_type(image_name: &str) -> &str {
                 },
                 None => APPLICATION_OCTET_STREAM,
             }
-        },
+        }
         None => APPLICATION_OCTET_STREAM,
     }
 }
