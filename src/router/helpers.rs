@@ -21,6 +21,10 @@ pub fn forbidden(msg: &str) -> Response {
     (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")).into_response()
 }
 
+pub fn not_found() -> Response {
+    (StatusCode::NOT_FOUND, "404 Not Found").into_response()
+}
+
 pub fn ban_message(expires_at: &str) -> Response {
     let msg = format!("IP has been auto-banned due to flooding until {expires_at}");
     forbidden(&msg)

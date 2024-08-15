@@ -7,17 +7,14 @@ use crate::{
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
-    extract::{Multipart, State, WebSocketUpgrade},
-    http::header::HeaderMap,
+    extract::{Multipart, State, WebSocketUpgrade, Path},
+    http::header::{HeaderMap, CONTENT_TYPE, CONTENT_DISPOSITION},
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
 use cocoon::Cocoon;
 use helpers::*;
-use std::{
-    fs::{create_dir, File},
-    path::Path,
-};
+use std::fs::{create_dir, File};
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
@@ -45,6 +42,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
+        .route("/admin/decrypted-image/:uuid/:image_name", get(decrypted_image))
         .layer(DefaultBodyLimit::max(10_000_000));
     let router = match trace {
         true => router.layer(init::trace_layer()),
@@ -118,7 +116,7 @@ async fn submit_post(
                     continue;
                 }
                 let cocoon_file_name = file_name.clone() + ".cocoon";
-                let path = Path::new(UPLOADS_DIR)
+                let path = std::path::Path::new(UPLOADS_DIR)
                     .join(&post_submission.uuid)
                     .join(&cocoon_file_name);
                 let uuid_dir = path.parent().unwrap();
@@ -327,6 +325,33 @@ async fn update_post_status(
     let msg = PostMessage { post, html };
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
+}
+
+async fn decrypted_image(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path((uuid, image_name)): Path<(String, String)>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    require_admin!(jar, tx);
+    let cocoon_name = image_name.clone() + ".cocoon";
+    let path = std::path::Path::new(UPLOADS_DIR).join(&uuid).join(&cocoon_name);
+    let mut file = match File::open(&path) {
+        Ok(file) => file,
+        Err(_) => return not_found(),
+    };
+    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+    let cocoon = Cocoon::new(secret_key.as_bytes());
+    let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
+    let content_type = mime_guess::from_path(&path).first_or_octet_stream();
+    let headers = [
+        (CONTENT_TYPE, content_type.as_ref()),
+        (
+            CONTENT_DISPOSITION,
+            &format!(r#"inline; filename="{}""#, image_name),
+        ),
+    ];
+    (headers, data).into_response()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

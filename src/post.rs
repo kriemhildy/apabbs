@@ -20,6 +20,7 @@ pub struct Post {
     pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
     pub uuid: String,
+    pub image_name: Option<String>,
 }
 
 impl Post {

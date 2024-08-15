@@ -7,6 +7,9 @@
             <br>
             <span class="body">{{ post.body }}</span>
             {% if admin and post.status == "pending" %}
+            {% if post.image_name %}
+            <img src="/admin/decrypted-image/{{ post.uuid }}/{{ post.image_name }}" alt="decrypted image">
+            {% endif %}
             <br>
             <form action="/admin/update-post-status" method="post" id="approve-form">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
