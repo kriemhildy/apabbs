@@ -14,7 +14,7 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use cocoon::Cocoon;
 use helpers::*;
-use std::fs::{create_dir, File};
+use std::fs::File;
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
@@ -22,6 +22,7 @@ const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 const UPLOADS_DIR: &'static str = "uploads";
+const IMAGES_DIR: &'static str = "pub/images";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -120,7 +121,7 @@ async fn submit_post(
                     .join(&post_submission.uuid)
                     .join(&cocoon_file_name);
                 let uuid_dir = path.parent().unwrap();
-                create_dir(uuid_dir).expect("create uuid dir");
+                std::fs::create_dir(uuid_dir).expect("create uuid dir");
                 let mut file = File::create(&path).expect("create file");
                 // https://docs.rs/cocoon/latest/cocoon/index.html#cocoon
                 let data = field.bytes().await.unwrap().to_vec();
@@ -303,14 +304,42 @@ async fn update_post_status(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = Post::select_by_uuid(&mut tx, &post_review.uuid).await;
-    match post {
-        Some(post) => {
-            if post.status != PostStatus::Pending {
-                return bad_request("cannot update non-pending post");
+    let post = match Post::select_by_uuid(&mut tx, &post_review.uuid).await {
+        Some(post) => post,
+        None => return bad_request("post does not exist"),
+    };
+    if post.status != PostStatus::Pending {
+        return bad_request("cannot update non-pending post");
+    }
+    match post.image_name {
+        Some(image_name) => {
+            let cocoon_name = image_name.clone() + ".cocoon";
+            let cocoon_path = std::path::Path::new(UPLOADS_DIR).join(&post_review.uuid).join(&cocoon_name);
+            if !cocoon_path.exists() {
+                return bad_request("cocoon file does not exist");
+            }
+            match post_review.status {
+                PostStatus::Approved => {
+                    let mut file = File::open(&cocoon_path).expect("open file");
+                    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+                    let cocoon = Cocoon::new(secret_key.as_bytes());
+                    let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
+                    let image_path = std::path::Path::new(IMAGES_DIR)
+                        .join(&post_review.uuid)
+                        .join(&image_name);
+                    let images_uuid_dir = image_path.parent().unwrap();
+                    std::fs::create_dir(images_uuid_dir).expect("create images uuid dir");
+                    std::fs::write(&image_path, data).expect("write image file");
+                }
+                PostStatus::Rejected => {
+                    let uploads_uuid_dir = cocoon_path.parent().unwrap();
+                    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+                    std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
+                }
+                _ => panic!("unexpected post status"),
             }
         }
-        None => return bad_request("post does not exist"),
+        None => (),
     }
     post_review.update_status(&mut tx).await;
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
