@@ -9,7 +9,7 @@
             {% if admin and post.status == "pending" %}
             {% if post.image_name %}
             <br>
-            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}" alt="decrypt image">
+            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}" alt="decrypted image">
             {% endif %}
             <br>
             <form action="/admin/update-post-status" method="post" id="approve-form">
