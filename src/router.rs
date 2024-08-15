@@ -285,7 +285,7 @@ mod tests {
     use axum::{
         body::Body,
         http::{
-            header::{CONNECTION, CONTENT_TYPE, COOKIE, SET_COOKIE, UPGRADE},
+            header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
             Method, Request, StatusCode,
         },
         Router,
@@ -577,7 +577,7 @@ mod tests {
             .expect("delete test post");
         sqlx::query("DELETE FROM accounts WHERE username = $1")
             .bind(&admin_account.username)
-            .execute(&mut * tx)
+            .execute(&mut *tx)
             .await
             .expect("delete test admin account");
         tx.commit().await.expect(COMMIT);
