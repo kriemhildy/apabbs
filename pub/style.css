@@ -120,3 +120,8 @@ input#post-button {
     font-weight: bold;
     font-size: 1.1em;
 }
+
+div.post img {
+    max-width: 100%;
+    max-height: 1000px;
+}
