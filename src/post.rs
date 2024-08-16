@@ -89,14 +89,16 @@ pub struct PostSubmission {
 
 impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
-        let (media_category, media_mime_type) = Self::determine_media_type(self.media_filename.as_deref());
+        let (media_category, media_mime_type) =
+            Self::determine_media_type(self.media_filename.as_deref());
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
         query_builder.push(match user.anon() {
             true => "anon_token, anon_hash",
             false => "account_id, username",
         });
-        query_builder
-            .push(", body, ip_hash, uuid, media_filename, media_category, media_mime_type) VALUES (");
+        query_builder.push(
+            ", body, ip_hash, uuid, media_filename, media_category, media_mime_type) VALUES (",
+        );
         let mut separated = query_builder.separated(", ");
         match user.anon() {
             true => {
