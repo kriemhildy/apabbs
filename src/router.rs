@@ -22,7 +22,7 @@ const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 const UPLOADS_DIR: &'static str = "uploads";
-const IMAGES_DIR: &'static str = "pub/images";
+const MEDIA_DIR: &'static str = "pub/media";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -102,16 +102,16 @@ async fn submit_post(
         match name.as_str() {
             "body" => post_submission.body = field.text().await.unwrap(),
             "anon" => post_submission.anon = Some(field.text().await.unwrap()),
-            "image" => {
+            "media" => {
                 // what is stopping them from uploading 50 files with this name
                 // is this even possible to do?
                 // better safe than sorry?
                 if post_submission.media_filename.is_some() {
-                    return bad_request("only upload one image");
+                    return bad_request("only upload one media file");
                 }
                 let file_name = match field.file_name() {
                     Some(file_name) => file_name.to_owned(),
-                    None => return bad_request("image has no filename"),
+                    None => return bad_request("media file has no filename"),
                 };
                 if file_name.is_empty() {
                     continue;
@@ -134,7 +134,7 @@ async fn submit_post(
         };
     }
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
-        return bad_request("post cannot be empty unless there is an image");
+        return bad_request("post cannot be empty unless there is a media file");
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
@@ -325,12 +325,12 @@ async fn update_post_status(
                     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                     let cocoon = Cocoon::new(secret_key.as_bytes());
                     let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-                    let image_path = std::path::Path::new(IMAGES_DIR)
+                    let media_path = std::path::Path::new(MEDIA_DIR)
                         .join(&post_review.uuid)
                         .join(&media_filename);
-                    let images_uuid_dir = image_path.parent().unwrap();
-                    std::fs::create_dir(images_uuid_dir).expect("create images uuid dir");
-                    std::fs::write(&image_path, data).expect("write image file");
+                    let media_uuid_dir = media_path.parent().unwrap();
+                    std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
+                    std::fs::write(&media_path, data).expect("write media file");
                 }
                 PostStatus::Rejected => (),
                 _ => panic!("unexpected post status"),

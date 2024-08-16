@@ -3,5 +3,5 @@ target
 .vscode
 .DS_Store
 uploads/*
-pub/images/*
+pub/media/*
 

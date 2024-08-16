@@ -11,13 +11,15 @@
             {% endif %}
             {% if post.media_filename %}
             {% if post.status == "approved" %}
-            <img src="/images/{{ post.uuid }}/{{ post.media_filename }}">
+            {% set media_path = "/media/" + post.uuid + "/" + post.media_filename %}
+            {% include "media.jinja" %}
             {% elif post.status == "rejected" %}
             <br>
             <span class="system">File "{{ post.media_filename }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
-            <img src="/admin/decrypt-media/{{ post.uuid }}">
+            {% set media_path = "/admin/decrypt-media/" + post.uuid %}
+            {% include "media.jinja" %}
             <br>
             <span class="system">File: {{ post.media_filename }}</span>
             {% else %}

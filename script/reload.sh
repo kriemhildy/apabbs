@@ -12,4 +12,4 @@ createdb schiz -O schiz
 psql $DATABASE_URL < schiz.sql
 rm schiz.sql
 rsync -av --del $SSH_APP_USER:schiz/uploads .
-rsync -av --del $SSH_APP_USER:schiz/pub/images pub
+rsync -av --del $SSH_APP_USER:schiz/pub/media pub
