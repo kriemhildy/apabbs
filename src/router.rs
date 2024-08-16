@@ -44,7 +44,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
         .route("/admin/decrypt-media/:uuid", get(decrypt_media))
-        .layer(DefaultBodyLimit::max(10_000_000));
+        .layer(DefaultBodyLimit::max(20_000_000));
     let router = match trace {
         true => router.layer(init::trace_layer()),
         false => router,

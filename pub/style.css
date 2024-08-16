@@ -115,7 +115,7 @@ input#post-button {
     font-size: 1.1em;
 }
 
-div.post img, video, source {
+div.post img, video {
     max-width: 100%;
     max-height: 1000px;
 }
