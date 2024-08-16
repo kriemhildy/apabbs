@@ -43,7 +43,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
-        .route("/admin/decrypt-media/:uuid/:media_file", get(decrypt_media))
+        .route("/admin/decrypt-media/:uuid", get(decrypt_media))
         .layer(DefaultBodyLimit::max(10_000_000));
     let router = match trace {
         true => router.layer(init::trace_layer()),
@@ -94,7 +94,7 @@ async fn submit_post(
     let mut post_submission = PostSubmission {
         body: String::default(),
         anon: None,
-        media_file: None,
+        media_filename: None,
         uuid: Uuid::new_v4().hyphenated().to_string(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
@@ -106,7 +106,7 @@ async fn submit_post(
                 // what is stopping them from uploading 50 files with this name
                 // is this even possible to do?
                 // better safe than sorry?
-                if post_submission.media_file.is_some() {
+                if post_submission.media_filename.is_some() {
                     return bad_request("only upload one image");
                 }
                 let file_name = match field.file_name() {
@@ -127,13 +127,13 @@ async fn submit_post(
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                 let mut cocoon = Cocoon::new(secret_key.as_bytes());
                 cocoon.dump(data, &mut file).expect("dump cocoon to file");
-                post_submission.media_file = Some(file_name);
+                post_submission.media_filename = Some(file_name);
                 println!("file uploaded and encrypted as: {}", path.to_str().unwrap());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    if post_submission.body.is_empty() && post_submission.media_file.is_none() {
+    if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
         return bad_request("post cannot be empty unless there is an image");
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
@@ -310,12 +310,12 @@ async fn update_post_status(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
-    match post.media_file {
-        Some(media_file) => {
-            let cocoon_name = media_file.clone() + ".cocoon";
+    match post.media_filename {
+        Some(media_filename) => {
+            let cocoon_filename = media_filename.clone() + ".cocoon";
             let cocoon_path = std::path::Path::new(UPLOADS_DIR)
                 .join(&post_review.uuid)
-                .join(&cocoon_name);
+                .join(&cocoon_filename);
             if !cocoon_path.exists() {
                 return bad_request("cocoon file does not exist");
             }
@@ -327,7 +327,7 @@ async fn update_post_status(
                     let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
                     let image_path = std::path::Path::new(IMAGES_DIR)
                         .join(&post_review.uuid)
-                        .join(&media_file);
+                        .join(&media_filename);
                     let images_uuid_dir = image_path.parent().unwrap();
                     std::fs::create_dir(images_uuid_dir).expect("create images uuid dir");
                     std::fs::write(&image_path, data).expect("write image file");
@@ -359,30 +359,31 @@ async fn update_post_status(
 async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path((uuid, media_file)): Path<(String, String)>,
+    Path(uuid): Path<String>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let cocoon_name = media_file.clone() + ".cocoon";
+    let post = Post::select_by_uuid(&mut tx, &uuid)
+        .await
+        .expect("select post");
+    let media_filename = post.media_filename.expect("read media filename");
+    let cocoon_filename = media_filename.clone() + ".cocoon";
     let path = std::path::Path::new(UPLOADS_DIR)
         .join(&uuid)
-        .join(&cocoon_name);
-    let mut file = match File::open(&path) {
+        .join(&cocoon_filename);
+    let mut cocoon_file = match File::open(&path) {
         Ok(file) => file,
         Err(_) => return not_found(),
     };
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let cocoon = Cocoon::new(secret_key.as_bytes());
-    let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-    let post = Post::select_by_uuid(&mut tx, &uuid)
-        .await
-        .expect("select post");
-    let content_type = &post.media_mime.expect("read mime type");
+    let data = cocoon.parse(&mut cocoon_file).expect("decrypt cocoon file");
+    let content_type = post.media_mime_type.expect("read mime type");
     let headers = [
-        (CONTENT_TYPE, content_type),
+        (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; filename="{}""#, &media_file),
+            &format!(r#"inline; filename="{}""#, &media_filename),
         ),
     ];
     (headers, data).into_response()
@@ -451,7 +452,7 @@ mod tests {
         let post_submission = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_file: None,
+            media_filename: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         };
         let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
@@ -614,7 +615,7 @@ mod tests {
         let post = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_file: None,
+            media_filename: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &user, LOCAL_IP)
@@ -657,7 +658,7 @@ mod tests {
         let post = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_file: None,
+            media_filename: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &post_user, LOCAL_IP)
