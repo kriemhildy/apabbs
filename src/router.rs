@@ -43,7 +43,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
         .route("/admin/update-post-status", post(update_post_status))
-        .route("/admin/decrypt-image/:uuid/:image_name", get(decrypt_image))
+        .route("/admin/decrypt-media/:uuid/:media_file", get(decrypt_media))
         .layer(DefaultBodyLimit::max(10_000_000));
     let router = match trace {
         true => router.layer(init::trace_layer()),
@@ -94,7 +94,7 @@ async fn submit_post(
     let mut post_submission = PostSubmission {
         body: String::default(),
         anon: None,
-        image_name: None,
+        media_file: None,
         uuid: Uuid::new_v4().hyphenated().to_string(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
@@ -106,7 +106,7 @@ async fn submit_post(
                 // what is stopping them from uploading 50 files with this name
                 // is this even possible to do?
                 // better safe than sorry?
-                if post_submission.image_name.is_some() {
+                if post_submission.media_file.is_some() {
                     return bad_request("only upload one image");
                 }
                 let file_name = match field.file_name() {
@@ -127,13 +127,13 @@ async fn submit_post(
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                 let mut cocoon = Cocoon::new(secret_key.as_bytes());
                 cocoon.dump(data, &mut file).expect("dump cocoon to file");
-                post_submission.image_name = Some(file_name);
+                post_submission.media_file = Some(file_name);
                 println!("file uploaded and encrypted as: {}", path.to_str().unwrap());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    if post_submission.body.is_empty() && post_submission.image_name.is_none() {
+    if post_submission.body.is_empty() && post_submission.media_file.is_none() {
         return bad_request("post cannot be empty unless there is an image");
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
@@ -310,9 +310,9 @@ async fn update_post_status(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
-    match post.image_name {
-        Some(image_name) => {
-            let cocoon_name = image_name.clone() + ".cocoon";
+    match post.media_file {
+        Some(media_file) => {
+            let cocoon_name = media_file.clone() + ".cocoon";
             let cocoon_path = std::path::Path::new(UPLOADS_DIR)
                 .join(&post_review.uuid)
                 .join(&cocoon_name);
@@ -327,7 +327,7 @@ async fn update_post_status(
                     let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
                     let image_path = std::path::Path::new(IMAGES_DIR)
                         .join(&post_review.uuid)
-                        .join(&image_name);
+                        .join(&media_file);
                     let images_uuid_dir = image_path.parent().unwrap();
                     std::fs::create_dir(images_uuid_dir).expect("create images uuid dir");
                     std::fs::write(&image_path, data).expect("write image file");
@@ -344,7 +344,7 @@ async fn update_post_status(
     post_review.update_status(&mut tx).await;
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
-        .expect("assume post exists");
+        .expect("select post");
     tx.commit().await.expect(COMMIT);
     let html = render(
         state.jinja,
@@ -356,14 +356,14 @@ async fn update_post_status(
     Redirect::to(ROOT).into_response()
 }
 
-async fn decrypt_image(
+async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path((uuid, image_name)): Path<(String, String)>,
+    Path((uuid, media_file)): Path<(String, String)>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let cocoon_name = image_name.clone() + ".cocoon";
+    let cocoon_name = media_file.clone() + ".cocoon";
     let path = std::path::Path::new(UPLOADS_DIR)
         .join(&uuid)
         .join(&cocoon_name);
@@ -374,12 +374,15 @@ async fn decrypt_image(
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let cocoon = Cocoon::new(secret_key.as_bytes());
     let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-    let content_type = image_mime_type(&image_name);
+    let post = Post::select_by_uuid(&mut tx, &uuid)
+        .await
+        .expect("select post");
+    let content_type = &post.media_mime.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; filename="{}""#, image_name),
+            &format!(r#"inline; filename="{}""#, &media_file),
         ),
     ];
     (headers, data).into_response()
@@ -448,7 +451,7 @@ mod tests {
         let post_submission = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            image_name: None,
+            media_file: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         };
         let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
@@ -611,7 +614,7 @@ mod tests {
         let post = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            image_name: None,
+            media_file: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &user, LOCAL_IP)
@@ -654,7 +657,7 @@ mod tests {
         let post = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            image_name: None,
+            media_file: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &post_user, LOCAL_IP)

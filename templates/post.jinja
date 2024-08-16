@@ -9,20 +9,20 @@
             <span class="body">{{ post.body }}</span>
             <br>
             {% endif %}
-            {% if post.image_name %}
+            {% if post.media_file %}
             {% if post.status == "approved" %}
-            <img src="/images/{{ post.uuid }}/{{ post.image_name }}">
+            <img src="/images/{{ post.uuid }}/{{ post.media_file }}">
             {% elif post.status == "rejected" %}
             <br>
-            <span class="system">File "{{ post.image_name }}" deleted.</span>
+            <span class="system">File "{{ post.media_file }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
-            <img src="/admin/decrypt-image/{{ post.uuid }}/{{ post.image_name }}">
+            <img src="/admin/decrypt-media/{{ post.uuid }}/{{ post.media_file }}">
             <br>
-            <span class="system">File: {{ post.image_name }}</span>
+            <span class="system">File: {{ post.media_file }}</span>
             {% else %}
             <br>
-            <span class="system">File "{{ post.image_name }}" pending review.</span>
+            <span class="system">File "{{ post.media_file }}" pending review.</span>
             {% endif %}
             {% endif %}
             {% endif %}

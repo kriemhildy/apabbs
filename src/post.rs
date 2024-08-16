@@ -1,6 +1,8 @@
 use crate::user::User;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 
+const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
+
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
@@ -8,6 +10,15 @@ pub enum PostStatus {
     Pending,
     Approved,
     Rejected,
+}
+
+#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "post_media_category", rename_all = "snake_case")]
+pub enum PostMediaCategory {
+    Image,
+    Video,
+    Audio,
 }
 
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
@@ -20,7 +31,9 @@ pub struct Post {
     pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
     pub uuid: String,
-    pub image_name: Option<String>,
+    pub media_file: Option<String>,
+    pub media_category: Option<PostMediaCategory>,
+    pub media_mime: Option<String>,
 }
 
 impl Post {
@@ -70,18 +83,20 @@ impl Post {
 pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,
-    pub image_name: Option<String>,
+    pub media_file: Option<String>,
     pub uuid: String,
 }
 
 impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
+        let (media_category, media_mime) = Self::determine_media_type(self.media_file.clone());
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
         query_builder.push(match user.anon() {
             true => "anon_token, anon_hash",
             false => "account_id, username",
         });
-        query_builder.push(", body, ip_hash, image_name, uuid) VALUES (");
+        query_builder
+            .push(", body, ip_hash, uuid, media_file, media_category, media_mime) VALUES (");
         let mut separated = query_builder.separated(", ");
         match user.anon() {
             true => {
@@ -94,13 +109,15 @@ impl PostSubmission {
                 separated.push_bind(&account.username);
             }
         }
-        query_builder.push(", $3, $4, $5, $6) RETURNING *");
+        query_builder.push(", $3, $4, $5, $6, $7, $8) RETURNING *");
         query_builder
             .build_query_as()
             .bind(&self.body_as_html())
             .bind(ip_hash)
-            .bind(&self.image_name)
             .bind(&self.uuid)
+            .bind(&self.media_file)
+            .bind(&media_category)
+            .bind(&media_mime)
             .fetch_one(&mut *tx)
             .await
             .expect("insert new post")
@@ -120,6 +137,61 @@ impl PostSubmission {
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
             .replace("  ", " &nbsp;")
+    }
+
+    fn determine_media_type(
+        media_file: Option<String>,
+    ) -> (Option<PostMediaCategory>, Option<String>) {
+        if media_file.is_none() {
+            return (None, None);
+        }
+        let media_file = media_file.unwrap();
+        use PostMediaCategory::*;
+        let path = std::path::Path::new(&media_file);
+        let (media_category, media_mime_str) = match path.extension() {
+            Some(ext_os_str) => {
+                let ext_os_string = ext_os_str.to_ascii_lowercase();
+                match ext_os_string.to_str() {
+                    Some(ext_str) => match ext_str {
+                        "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => {
+                            (Some(Image), "image/jpeg")
+                        }
+                        "gif" => (Some(Image), "image/gif"),
+                        "png" => (Some(Image), "image/png"),
+                        "webp" => (Some(Image), "image/webp"),
+                        "svg" => (Some(Image), "image/svg+xml"),
+                        "avif" => (Some(Image), "image/avif"),
+                        "ico" | "cur" => (Some(Image), "image/x-icon"),
+                        "apng" => (Some(Image), "image/apng"),
+                        "bmp" => (Some(Image), "image/bmp"),
+                        "tiff" | "tif" => (Some(Image), "image/tiff"),
+                        "avi" => (Some(Video), "video/x-msvideo"),
+                        "mpeg" | "mpg" | "mpe" => (Some(Video), "video/mpeg"),
+                        "mp4" | "m4v" => (Some(Video), "video/mp4"),
+                        "webm" => (Some(Video), "video/webm"),
+                        "ogv" => (Some(Video), "video/ogg"),
+                        "flv" => (Some(Video), "video/x-flv"),
+                        "mov" => (Some(Video), "video/quicktime"),
+                        "wmv" => (Some(Video), "video/x-ms-wmv"),
+                        "mp3" => (Some(Audio), "audio/mpeg"),
+                        "ogg" => (Some(Audio), "audio/ogg"),
+                        "wav" => (Some(Audio), "audio/wav"),
+                        "flac" => (Some(Audio), "audio/flac"),
+                        "opus" => (Some(Audio), "audio/opus"),
+                        "m4a" => (Some(Audio), "audio/mp4"),
+                        "aac" => (Some(Audio), "audio/aac"),
+                        "wma" => (Some(Audio), "audio/x-ms-wma"),
+                        "weba" => (Some(Audio), "audio/webm"),
+                        "3gp" => (Some(Audio), "audio/3gpp"),
+                        "3g2" => (Some(Audio), "audio/3gpp2"),
+                        _ => (None, APPLICATION_OCTET_STREAM),
+                    },
+                    None => (None, APPLICATION_OCTET_STREAM),
+                }
+            }
+            None => (None, APPLICATION_OCTET_STREAM),
+        };
+        (media_category, Some(media_mime_str.to_owned()))
     }
 }
 

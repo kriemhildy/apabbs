@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
-const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 
 pub fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
@@ -70,32 +69,6 @@ pub fn render(
     let env = lock.read().expect("read jinja env");
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
-}
-
-pub fn image_mime_type(image_name: &str) -> &str {
-    let path = std::path::Path::new(&image_name);
-    match path.extension() {
-        Some(ext_os_str) => {
-            let ext_os_string = ext_os_str.to_ascii_lowercase();
-            match ext_os_string.to_str() {
-                Some(ext_str) => match ext_str {
-                    "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => "image/jpeg",
-                    "gif" => "image/gif",
-                    "png" => "image/png",
-                    "webp" => "image/webp",
-                    "svg" => "image/svg+xml",
-                    "avif" => "image/avif",
-                    "ico" | "cur" => "image/x-icon",
-                    "apng" => "image/apng",
-                    "bmp" => "image/bmp",
-                    "tiff" | "tif" => "image/tiff",
-                    _ => APPLICATION_OCTET_STREAM,
-                },
-                None => APPLICATION_OCTET_STREAM,
-            }
-        }
-        None => APPLICATION_OCTET_STREAM,
-    }
 }
 
 macro_rules! user {
