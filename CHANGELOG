@@ -1,3 +1,8 @@
+0.6.0
+
+Added the ability to list posts from a starting post.
+The title text and post author text are now links.
+
 0.5.0
 
 Auto-link all posted URLs. Retroactively link URLs in old posts.

@@ -1,9 +1,6 @@
         <div class="post {{ post.status }}" id="post-{{ post.uuid }}">
-            {% if post.username %}
-            <span class="system">{{ post.username }}</span>
-            {% else %}
-            <span class="system">{{ post.anon_hash }}</span>
-            {% endif %}
+            {% set post_author = post.username if post.username else post.anon_hash %}
+            <a href="/?from={{ post.uuid }}" class="post-author">{{ post_author }}</a>
             <br>
             {% if not post.body|length == 0 %}
             <span class="body">{{ post.body }}</span>

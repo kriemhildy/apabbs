@@ -2,8 +2,8 @@
 {% block body %}
 <body>
     <header>
-        <h2>{{ title }}</h2>
-        <ul class="header">
+        <h2><a href="/" id="title">{{ title }}</a></h2>
+        <ul>
             {% if not logged_in %}
             <li><a href="/login">log in</a> or <a href="/register">register</a></li>
             {% else %}
@@ -27,7 +27,7 @@
         <form action="/post" method="post" enctype="multipart/form-data">
             <textarea name="body"></textarea>
             <br>
-            <label for="media" class="header">Media:</label>
+            <label for="media">Media:</label>
             <input type="file" name="media" id="media">
             <br>
             <input type="submit" value="Post" id="post-button">
@@ -38,6 +38,9 @@
         </form>
     </header>
     <main>
+        {% if from_post %}
+        <p class="header">Listing posts from {{ from_post.uuid }}.</p>
+        {% endif %}
         {% for post in posts %}
         {% include "post.jinja" %}
         {% endfor %}

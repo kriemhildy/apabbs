@@ -7,7 +7,7 @@ use crate::{
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
-    extract::{Multipart, Path, State, WebSocketUpgrade},
+    extract::{Multipart, Path, Query, State, WebSocketUpgrade},
     http::header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -56,10 +56,31 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 // route handlers
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+#[derive(serde::Deserialize)]
+struct IndexQuery {
+    from: Option<String>,
+}
+
+async fn index(
+    State(state): State<AppState>,
+    mut jar: CookieJar,
+    query: Query<IndexQuery>,
+) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let posts = Post::select_latest(&mut tx, &user).await;
+    let from_post = match query.from.as_deref() {
+        Some(from) => Some(
+            Post::select_by_uuid(&mut tx, &from)
+                .await
+                .expect("select from post"),
+        ),
+        None => None,
+    };
+    let from_id = match &from_post {
+        Some(post) => Some(post.id),
+        None => None,
+    };
+    let posts = Post::select_latest(&mut tx, &user, from_id).await;
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         state.jinja,
@@ -71,7 +92,8 @@ async fn index(State(state): State<AppState>, mut jar: CookieJar) -> Response {
             username => user.username(),
             anon_hash => user.anon_hash(),
             admin => user.admin(),
-            anon => user.anon()
+            anon => user.anon(),
+            from_post => from_post
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {

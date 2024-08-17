@@ -37,7 +37,11 @@ pub struct Post {
 }
 
 impl Post {
-    pub async fn select_latest(tx: &mut PgConnection, user: &User) -> Vec<Self> {
+    pub async fn select_latest(
+        tx: &mut PgConnection,
+        user: &User,
+        from_id: Option<i32>,
+    ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
         match user.admin() {
@@ -53,7 +57,12 @@ impl Post {
             }
             None => (),
         }
-        query_builder.push(") AND hidden = false ORDER BY id DESC LIMIT 100");
+        query_builder.push(") AND hidden = false ");
+        if let Some(from_id) = from_id {
+            query_builder.push("AND id <= ");
+            query_builder.push_bind(from_id);
+        }
+        query_builder.push(" ORDER BY id DESC LIMIT 100");
         query_builder
             .build_query_as()
             .fetch_all(&mut *tx)
@@ -130,7 +139,8 @@ impl PostSubmission {
     }
 
     fn body_as_html(&self) -> String {
-        let escaped = self.body
+        let escaped = self
+            .body
             .trim_end()
             .replace("\r\n", "\n")
             .replace("\r", "\n")
