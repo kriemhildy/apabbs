@@ -70,7 +70,7 @@ async fn index(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let from_post = match query.from.as_deref() {
-        Some(from) => Some(match Post::select_by_uuid(&mut tx, &from).await {
+        Some(from) => Some(match Post::select_by_uuid(&mut tx, from).await {
             Some(post) => post,
             None => return bad_request("from post does not exist"),
         }),
