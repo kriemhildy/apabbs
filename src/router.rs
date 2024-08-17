@@ -23,6 +23,7 @@ const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
+const PER_PAGE: i32 = 100;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -81,7 +82,15 @@ async fn index(
         Some(post) => Some(post.id),
         None => None,
     };
-    let posts = Post::select_latest(&mut tx, &user, from_id).await;
+    let posts = Post::select_latest(&mut tx, &user, from_id, PER_PAGE).await;
+    let latest_posts_after_last = match posts.last() {
+        Some(last_post) => {
+            let post_id_before_last = last_post.id - 1;
+            Post::select_latest(&mut tx, &user, Some(post_id_before_last), 1).await
+        },
+        None => Vec::new(),
+    };
+    let next_page_post = latest_posts_after_last.first();
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         state.jinja,
@@ -94,7 +103,8 @@ async fn index(
             anon_hash => user.anon_hash(),
             admin => user.admin(),
             anon => user.anon(),
-            from_post => from_post
+            from_post => from_post,
+            next_page_post => next_page_post,
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {

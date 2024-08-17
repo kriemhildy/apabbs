@@ -44,6 +44,9 @@
         {% for post in posts %}
         {% include "post.jinja" %}
         {% endfor %}
+        {% if next_page_post %}
+        <p><a href="/?from={{ next_page_post.uuid }}" class="header">Next page</a></p>
+        {% endif %}
     </main>
 </body>
 {% endblock %}

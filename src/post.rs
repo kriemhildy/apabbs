@@ -41,6 +41,7 @@ impl Post {
         tx: &mut PgConnection,
         user: &User,
         from_id: Option<i32>,
+        limit: i32,
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
@@ -62,7 +63,8 @@ impl Post {
             query_builder.push("AND id <= ");
             query_builder.push_bind(from_id);
         }
-        query_builder.push(" ORDER BY id DESC LIMIT 100");
+        query_builder.push(" ORDER BY id DESC LIMIT ");
+        query_builder.push_bind(limit);
         query_builder
             .build_query_as()
             .fetch_all(&mut *tx)
