@@ -1,0 +1,22 @@
+0.5.0
+
+Auto-link all posted URLs. Retroactively link URLs in old posts.
+
+0.4.0
+
+Add support for video and audio files.
+The pub/images directory has been renamed to pub/media.
+
+0.3.2
+
+Delete encrypted cocoon file upon image approval as well as rejection.
+
+0.3.1
+
+Add rsync of production images to reload script.
+
+0.3.0
+
+Add support for image uploads. The images are encrypted upon upload. Only the
+admin(s) can view them.
+
