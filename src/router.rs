@@ -81,14 +81,14 @@ async fn index(
         None => None,
     };
     let posts = Post::select_latest(&mut tx, &user, from_id, PER_PAGE).await;
-    let latest_posts_after_last = match posts.last() {
+    let posts_before_last = match posts.last() {
         Some(last_post) => {
             let post_id_before_last = last_post.id - 1;
             Post::select_latest(&mut tx, &user, Some(post_id_before_last), 1).await
         }
         None => Vec::new(),
     };
-    let next_page_post = latest_posts_after_last.first();
+    let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         state.jinja,
