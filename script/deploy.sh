@@ -11,4 +11,5 @@ else
     ssh $SSH_SUDO_USER "sudo systemctl stop apabbs"
     ssh $SSH_APP_USER "cd schiz && ~/.cargo/bin/sqlx migrate run"
     ssh $SSH_SUDO_USER "sudo systemctl start apabbs"
+    git push github
 fi
