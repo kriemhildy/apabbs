@@ -130,7 +130,7 @@ impl PostSubmission {
     }
 
     fn body_as_html(&self) -> String {
-        self.body
+        let escaped = self.body
             .trim_end()
             .replace("\r\n", "\n")
             .replace("\r", "\n")
@@ -138,7 +138,11 @@ impl PostSubmission {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
-            .replace("  ", " &nbsp;")
+            .replace("  ", " &nbsp;");
+        let pattern = regex::Regex::new(r"(https?://\S+)").expect("build regex pattern");
+        pattern
+            .replace_all(&escaped, "<a href=\"$1\" target=\"_blank\">$1</a>")
+            .to_string()
     }
 
     fn determine_media_type(
