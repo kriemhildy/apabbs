@@ -4,14 +4,15 @@
             <br>
             {% if not post.body|length == 0 %}
             <span class="body">{{ post.body }}</span>
+            {% if post.media_file_name %}
             <br>
+            {% endif %}
             {% endif %}
             {% if post.media_file_name %}
             {% if post.status == "approved" %}
             {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
             {% include "media.jinja" %}
             {% elif post.status == "rejected" %}
-            <br>
             <span class="system">File "{{ post.media_file_name }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
