@@ -70,9 +70,10 @@ async fn index(
     let user = user!(jar, tx);
     let from_post = match query.from.as_deref() {
         Some(from) => Some(
-            Post::select_by_uuid(&mut tx, &from)
-                .await
-                .expect("select from post"),
+            match Post::select_by_uuid(&mut tx, &from).await {
+                Some(post) => post,
+                None => return bad_request("from post does not exist"),
+            },
         ),
         None => None,
     };

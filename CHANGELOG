@@ -1,3 +1,7 @@
+0.6.1
+
+Fixed a bug where providing a non-existent "from" post caused an error.
+
 0.6.0
 
 Added the ability to list posts from a starting post.
