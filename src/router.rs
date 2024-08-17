@@ -70,12 +70,10 @@ async fn index(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let from_post = match query.from.as_deref() {
-        Some(from) => Some(
-            match Post::select_by_uuid(&mut tx, &from).await {
-                Some(post) => post,
-                None => return bad_request("from post does not exist"),
-            },
-        ),
+        Some(from) => Some(match Post::select_by_uuid(&mut tx, &from).await {
+            Some(post) => post,
+            None => return bad_request("from post does not exist"),
+        }),
         None => None,
     };
     let from_id = match &from_post {
@@ -87,7 +85,7 @@ async fn index(
         Some(last_post) => {
             let post_id_before_last = last_post.id - 1;
             Post::select_latest(&mut tx, &user, Some(post_id_before_last), 1).await
-        },
+        }
         None => Vec::new(),
     };
     let next_page_post = latest_posts_after_last.first();
