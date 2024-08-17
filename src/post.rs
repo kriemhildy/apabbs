@@ -31,7 +31,7 @@ pub struct Post {
     pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
     pub uuid: String,
-    pub media_filename: Option<String>,
+    pub media_file_name: Option<String>,
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
 }
@@ -94,21 +94,21 @@ impl Post {
 pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,
-    pub media_filename: Option<String>,
+    pub media_file_name: Option<String>,
     pub uuid: String,
 }
 
 impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let (media_category, media_mime_type) =
-            Self::determine_media_type(self.media_filename.as_deref());
+            Self::determine_media_type(self.media_file_name.as_deref());
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
         query_builder.push(match user.anon() {
             true => "anon_token, anon_hash",
             false => "account_id, username",
         });
         query_builder.push(
-            ", body, ip_hash, uuid, media_filename, media_category, media_mime_type) VALUES (",
+            ", body, ip_hash, uuid, media_file_name, media_category, media_mime_type) VALUES (",
         );
         let mut separated = query_builder.separated(", ");
         match user.anon() {
@@ -128,7 +128,7 @@ impl PostSubmission {
             .bind(&self.body_as_html())
             .bind(ip_hash)
             .bind(&self.uuid)
-            .bind(self.media_filename.as_deref())
+            .bind(self.media_file_name.as_deref())
             .bind(media_category)
             .bind(media_mime_type.as_deref())
             .fetch_one(&mut *tx)
@@ -158,14 +158,14 @@ impl PostSubmission {
     }
 
     fn determine_media_type(
-        media_filename: Option<&str>,
+        media_file_name: Option<&str>,
     ) -> (Option<PostMediaCategory>, Option<String>) {
-        if media_filename.is_none() {
+        if media_file_name.is_none() {
             return (None, None);
         }
-        let media_filename = media_filename.unwrap();
+        let media_file_name = media_file_name.unwrap();
         use PostMediaCategory::*;
-        let path = std::path::Path::new(&media_filename);
+        let path = std::path::Path::new(&media_file_name);
         let (media_category, media_mime_type_str) = match path.extension() {
             Some(ext_os_str) => {
                 let ext_os_string = ext_os_str.to_ascii_lowercase();

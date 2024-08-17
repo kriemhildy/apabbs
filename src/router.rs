@@ -125,7 +125,7 @@ async fn submit_post(
     let mut post_submission = PostSubmission {
         body: String::default(),
         anon: None,
-        media_filename: None,
+        media_file_name: None,
         uuid: Uuid::new_v4().hyphenated().to_string(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
@@ -137,12 +137,12 @@ async fn submit_post(
                 // what is stopping them from uploading 50 files with this name
                 // is this even possible to do?
                 // better safe than sorry?
-                if post_submission.media_filename.is_some() {
+                if post_submission.media_file_name.is_some() {
                     return bad_request("only upload one media file");
                 }
                 let file_name = match field.file_name() {
                     Some(file_name) => file_name.to_owned(),
-                    None => return bad_request("media file has no filename"),
+                    None => return bad_request("media file has no file_name"),
                 };
                 if file_name.is_empty() {
                     continue;
@@ -158,13 +158,13 @@ async fn submit_post(
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                 let mut cocoon = Cocoon::new(secret_key.as_bytes());
                 cocoon.dump(data, &mut file).expect("dump cocoon to file");
-                post_submission.media_filename = Some(file_name);
+                post_submission.media_file_name = Some(file_name);
                 println!("file uploaded and encrypted as: {}", path.to_str().unwrap());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
+    if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
@@ -341,12 +341,12 @@ async fn update_post_status(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
-    match post.media_filename {
-        Some(media_filename) => {
-            let cocoon_filename = media_filename.clone() + ".cocoon";
+    match post.media_file_name {
+        Some(media_file_name) => {
+            let cocoon_file_name = media_file_name.clone() + ".cocoon";
             let cocoon_path = std::path::Path::new(UPLOADS_DIR)
                 .join(&post_review.uuid)
-                .join(&cocoon_filename);
+                .join(&cocoon_file_name);
             if !cocoon_path.exists() {
                 return bad_request("cocoon file does not exist");
             }
@@ -358,7 +358,7 @@ async fn update_post_status(
                     let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
                     let media_path = std::path::Path::new(MEDIA_DIR)
                         .join(&post_review.uuid)
-                        .join(&media_filename);
+                        .join(&media_file_name);
                     let media_uuid_dir = media_path.parent().unwrap();
                     std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
                     std::fs::write(&media_path, data).expect("write media file");
@@ -397,11 +397,11 @@ async fn decrypt_media(
     let post = Post::select_by_uuid(&mut tx, &uuid)
         .await
         .expect("select post");
-    let media_filename = post.media_filename.expect("read media filename");
-    let cocoon_filename = media_filename.clone() + ".cocoon";
+    let media_file_name = post.media_file_name.expect("read media file_name");
+    let cocoon_file_name = media_file_name.clone() + ".cocoon";
     let path = std::path::Path::new(UPLOADS_DIR)
         .join(&uuid)
-        .join(&cocoon_filename);
+        .join(&cocoon_file_name);
     let mut cocoon_file = match File::open(&path) {
         Ok(file) => file,
         Err(_) => return not_found(),
@@ -414,7 +414,7 @@ async fn decrypt_media(
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; filename="{}""#, &media_filename),
+            &format!(r#"inline; file_name="{}""#, &media_file_name),
         ),
     ];
     (headers, data).into_response()
@@ -483,7 +483,7 @@ mod tests {
         let post_submission = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_filename: None,
+            media_file_name: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         };
         let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
@@ -646,7 +646,7 @@ mod tests {
         let post = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_filename: None,
+            media_file_name: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &user, LOCAL_IP)
@@ -689,7 +689,7 @@ mod tests {
         let post = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_filename: None,
+            media_file_name: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &post_user, LOCAL_IP)

@@ -6,22 +6,22 @@
             <span class="body">{{ post.body }}</span>
             <br>
             {% endif %}
-            {% if post.media_filename %}
+            {% if post.media_file_name %}
             {% if post.status == "approved" %}
-            {% set media_path = "/media/" + post.uuid + "/" + post.media_filename %}
+            {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
             {% include "media.jinja" %}
             {% elif post.status == "rejected" %}
             <br>
-            <span class="system">File "{{ post.media_filename }}" deleted.</span>
+            <span class="system">File "{{ post.media_file_name }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
             {% set media_path = "/admin/decrypt-media/" + post.uuid %}
             {% include "media.jinja" %}
             <br>
-            <span class="system">File: {{ post.media_filename }}</span>
+            <span class="system">File: {{ post.media_file_name }}</span>
             {% else %}
             <br>
-            <span class="system">File "{{ post.media_filename }}" pending review.</span>
+            <span class="system">File "{{ post.media_file_name }}" pending review.</span>
             {% endif %}
             {% endif %}
             {% endif %}
