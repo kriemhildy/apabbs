@@ -97,10 +97,9 @@ pub(super) use user;
 
 macro_rules! check_for_ban {
     ($tx:expr, $ip_hash:expr) => {
-        match ban::exists(&mut $tx, $ip_hash).await {
-            Some(expires_at) => return ban_message(&expires_at),
-            None => (),
-        };
+        if let Some(expires_at) = ban::exists(&mut $tx, $ip_hash).await {
+            return ban_message(&expires_at);
+        }
         if ban::flooding(&mut $tx, $ip_hash).await {
             let expires_at = ban::insert(&mut $tx, $ip_hash).await;
             ban::prune(&mut $tx, $ip_hash).await;

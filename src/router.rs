@@ -341,36 +341,33 @@ async fn update_post_status(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
-    match post.media_file_name {
-        Some(media_file_name) => {
-            let cocoon_file_name = media_file_name.clone() + ".cocoon";
-            let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-                .join(&post_review.uuid)
-                .join(&cocoon_file_name);
-            if !cocoon_path.exists() {
-                return bad_request("cocoon file does not exist");
-            }
-            match post_review.status {
-                PostStatus::Approved => {
-                    let mut file = File::open(&cocoon_path).expect("open file");
-                    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                    let cocoon = Cocoon::new(secret_key.as_bytes());
-                    let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-                    let media_path = std::path::Path::new(MEDIA_DIR)
-                        .join(&post_review.uuid)
-                        .join(&media_file_name);
-                    let media_uuid_dir = media_path.parent().unwrap();
-                    std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
-                    std::fs::write(&media_path, data).expect("write media file");
-                }
-                PostStatus::Rejected => (),
-                _ => panic!("unexpected post status"),
-            }
-            let uploads_uuid_dir = cocoon_path.parent().unwrap();
-            std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
-            std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
+    if let Some(media_file_name) = post.media_file_name {
+        let cocoon_file_name = media_file_name.clone() + ".cocoon";
+        let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+            .join(&post_review.uuid)
+            .join(&cocoon_file_name);
+        if !cocoon_path.exists() {
+            return bad_request("cocoon file does not exist");
         }
-        None => (),
+        match post_review.status {
+            PostStatus::Approved => {
+                let mut file = File::open(&cocoon_path).expect("open file");
+                let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+                let cocoon = Cocoon::new(secret_key.as_bytes());
+                let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
+                let media_path = std::path::Path::new(MEDIA_DIR)
+                    .join(&post_review.uuid)
+                    .join(&media_file_name);
+                let media_uuid_dir = media_path.parent().unwrap();
+                std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
+                std::fs::write(&media_path, data).expect("write media file");
+            }
+            PostStatus::Rejected => (),
+            _ => panic!("unexpected post status"),
+        }
+        let uploads_uuid_dir = cocoon_path.parent().unwrap();
+        std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+        std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
     }
     post_review.update_status(&mut tx).await;
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)

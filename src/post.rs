@@ -51,12 +51,9 @@ impl Post {
         };
         query_builder.push("OR anon_token = ");
         query_builder.push_bind(&user.anon_token);
-        match &user.account {
-            Some(account) => {
-                query_builder.push(" OR account_id = ");
-                query_builder.push_bind(account.id);
-            }
-            None => (),
+        if let Some(account) = &user.account {
+            query_builder.push(" OR account_id = ");
+            query_builder.push_bind(account.id);
         }
         query_builder.push(") AND hidden = false ");
         if let Some(from_id) = from_id {
