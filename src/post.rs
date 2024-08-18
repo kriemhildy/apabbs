@@ -138,8 +138,8 @@ impl PostSubmission {
     }
 
     fn body_as_html(&self) -> String {
-        // escape
-        let html = self
+        // escape html
+        let mut html = self
             .body
             .trim_end()
             .replace("\r\n", "\n")
@@ -149,12 +149,22 @@ impl PostSubmission {
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
             .replace("  ", " &nbsp;");
-        // youtube
-        let pattern = regex::Regex::new(
-            r"https?://(?:www.youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+        let link_pattern = regex::Regex::new(r#"(https?://\S+)"#).expect("build regex pattern");
+        link_pattern.find_iter(&mut html).for_each(|m| {
+            let link = &html[m.start()..m.end()];
+            let replacement = if link.len() > 50 {
+                format!("<a href=\"{}\" target=\"_blank\">{}</a>", link, &link[..50])
+            } else {
+                format!("<a href=\"{}\" target=\"_blank\">{}</a>", link, link)
+            };
+            html.replace_range(m.start()..m.end(), &replacement);
+        });
+        // embed youtube
+        let youtube_pattern = regex::Regex::new(
+            r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
         )
         .expect("build regex pattern");
-        let html = pattern.replace_all(
+        let html = youtube_pattern.replace_all(
             &html,
             concat!(
                 r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
@@ -164,9 +174,9 @@ impl PostSubmission {
                 r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
             ),
         );
-        // links
-        let pattern = regex::Regex::new(r#"[^"](https?://\S+)"#).expect("build regex pattern");
-        let html = pattern.replace_all(&html, r#"<a href="$1" target="_blank">$1</a>"#);
+        // other links
+        let link_pattern = regex::Regex::new(r#"(https?://\S+)"#).expect("build regex pattern");
+        let html = link_pattern.replace_all(&html, r#"<a href="$1" target="_blank">$1</a>"#);
         html.to_string()
     }
 
