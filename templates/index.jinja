@@ -3,7 +3,7 @@
 <body>
     <header>
         <h2><a href="/" id="title">{{ title }}</a></h2>
-        <ul>
+        <ul class="system">
             {% if not logged_in %}
             <li><a href="/login">log in</a> or <a href="/register">register</a></li>
             {% else %}
@@ -39,13 +39,13 @@
     </header>
     <main>
         {% if from_post %}
-        <p class="header">Listing posts from {{ from_post.uuid }}.</p>
+        <p class="system">Listing posts from {{ from_post.uuid }}.</p>
         {% endif %}
         {% for post in posts %}
         {% include "post.jinja" %}
         {% endfor %}
         {% if next_page_post %}
-        <p><a href="/?from={{ next_page_post.uuid }}" class="header">Next page</a></p>
+        <p><a href="/?from={{ next_page_post.uuid }}" class="system">Next page</a></p>
         {% endif %}
     </main>
 </body>

@@ -4,8 +4,8 @@
         --fore: #e3e3e3;
         --link: rgb(89, 131, 209);
         --border: #777;
-        --header: #9cdcda;
-        --system: rgb(141, 141, 141);
+        --system: #9cdcda;
+        --post-info: rgb(141, 141, 141);
         --pending: #222222;
         --rejected: rgb(37, 4, 4);
     }
@@ -17,8 +17,8 @@
         --fore: black;
         --link: blue;
         --border: #ccc;
-        --header: black;
-        --system: darkslategray;
+        --system: black;
+        --post-info: darkslategray;
         --pending: #eeeeee;
         --rejected: rgb(250, 226, 226);
     }
@@ -82,13 +82,12 @@ header h2 a#title {
     color: var(--fore);
 }
 
-header ul,
-.header {
-    color: var(--header);
-}
-
 .system {
     color: var(--system);
+}
+
+.post-info {
+    color: var(--post-info);
 }
 
 form#approve-form,
@@ -129,5 +128,5 @@ video {
 
 a.post-author {
     text-decoration: none;
-    color: var(--system);
+    color: var(--post-info);
 }

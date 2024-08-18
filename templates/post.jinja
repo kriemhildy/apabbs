@@ -13,16 +13,16 @@
             {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
             {% include "media.jinja" %}
             {% elif post.status == "rejected" %}
-            <span class="system">File "{{ post.media_file_name }}" deleted.</span>
+            <span class="post-info">File "{{ post.media_file_name }}" deleted.</span>
             {% elif post.status == "pending" %}
             {% if admin %}
             {% set media_path = "/admin/decrypt-media/" + post.uuid %}
             {% include "media.jinja" %}
             <br>
-            <span class="system">File: {{ post.media_file_name }}</span>
+            <span class="post-info">File: {{ post.media_file_name }}</span>
             {% else %}
             <br>
-            <span class="system">File "{{ post.media_file_name }}" pending review.</span>
+            <span class="post-info">File "{{ post.media_file_name }}" pending review.</span>
             {% endif %}
             {% endif %}
             {% endif %}
@@ -40,7 +40,7 @@
             </form>
             {% elif post.status == "rejected" %}
             <form action="/hide-rejected-post" method="post">
-                <span class="system">Post rejected.</span>
+                <span class="post-info">Post rejected.</span>
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
                 <input type="submit" value="Hide">
             </form>
