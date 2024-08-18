@@ -138,7 +138,8 @@ impl PostSubmission {
     }
 
     fn body_as_html(&self) -> String {
-        let escaped = self
+        // escape
+        let html = self
             .body
             .trim_end()
             .replace("\r\n", "\n")
@@ -148,10 +149,25 @@ impl PostSubmission {
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
             .replace("  ", " &nbsp;");
-        let pattern = regex::Regex::new(r"(https?://\S+)").expect("build regex pattern");
-        pattern
-            .replace_all(&escaped, "<a href=\"$1\" target=\"_blank\">$1</a>")
-            .to_string()
+        // youtube
+        let pattern = regex::Regex::new(
+            r"https?://(?:www.youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+        )
+        .expect("build regex pattern");
+        let html = pattern.replace_all(
+            &html,
+            concat!(
+                r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
+                r#"title="YouTube video player" frameborder="0" "#,
+                r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
+                r#"gyroscope; picture-in-picture; web-share" "#,
+                r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
+            ),
+        );
+        // links
+        let pattern = regex::Regex::new(r#"[^"](https?://\S+)"#).expect("build regex pattern");
+        let html = pattern.replace_all(&html, r#"<a href="$1" target="_blank">$1</a>"#);
+        html.to_string()
     }
 
     fn determine_media_type(
