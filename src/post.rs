@@ -138,7 +138,6 @@ impl PostSubmission {
     }
 
     fn body_as_html(&self) -> String {
-        // escape html
         let html = self
             .body
             .trim_end()
@@ -148,28 +147,24 @@ impl PostSubmission {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("  ", " &nbsp;");
-        let youtube_pattern = regex::Regex::new(
-            r"\bhttps?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
-        )
+        let url_pattern = regex::Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
+        let anchor_tag = r#"<a href="$1" target="_blank">$1</a>"#;
+        let html = url_pattern.replace_all(&html, anchor_tag);
+        let youtube_link_pattern = regex::Regex::new(concat!(
+            r#"<a href=""#,
+            r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+            r#" target="_blank">\S+</a>"#,
+        ))
         .expect("build regex pattern");
-        let youtube_placeholder = r"<YOUTUBE>$1$2</YOUTUBE>";
-        let placeholder_pattern = regex::Regex::new(r"<YOUTUBE>([^<]+)</YOUTUBE>")
-            .expect("build regex pattern");
-        let youtube_embed = concat!(
-            r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1" "#,
+        let youtube_iframe = concat!(
+            r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
             r#"title="YouTube video player" frameborder="0" "#,
             r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
             r#"gyroscope; picture-in-picture; web-share" "#,
             r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
         );
-        let link_pattern = regex::Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
-        let link_replacement = r#"<a href="$1" target="_blank">$1</a>"#;
-        let html = youtube_pattern
-            .replace_all(&html, youtube_placeholder);
-        let html = link_pattern.replace_all(&html, link_replacement);
-        let html = placeholder_pattern.replace_all(&html, youtube_embed);
-        let html = html.replace("\n", "<br>\n");
-        html.to_string()
+        let html = youtube_link_pattern.replace_all(&html, youtube_iframe);
+        html.replace("\n", "<br>\n")
     }
 
     fn determine_media_type(
