@@ -1,3 +1,7 @@
+0.8.0
+
+Add YouTube iframe embeds.
+
 0.7.0
 
 Add simple pagination system for accessing a next page after the limit is reached.
