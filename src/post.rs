@@ -147,14 +147,13 @@ impl PostSubmission {
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
-            .replace("\n", "<br>\n")
             .replace("  ", " &nbsp;");
         let youtube_pattern = regex::Regex::new(
             r"\bhttps?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
         )
         .expect("build regex pattern");
-        let youtube_placeholder = r#"<YOUTUBE>$1$2</YOUTUBE>"#;
-        let placeholder_pattern = regex::Regex::new(r#"<YOUTUBE>([^<]+)</YOUTUBE>"#)
+        let youtube_placeholder = r"<YOUTUBE>$1$2</YOUTUBE>";
+        let placeholder_pattern = regex::Regex::new(r"<YOUTUBE>([^<]+)</YOUTUBE>")
             .expect("build regex pattern");
         let youtube_embed = concat!(
             r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1" "#,
@@ -169,6 +168,7 @@ impl PostSubmission {
             .replace_all(&html, youtube_placeholder);
         let html = link_pattern.replace_all(&html, link_replacement);
         let html = placeholder_pattern.replace_all(&html, youtube_embed);
+        let html = html.replace("\n", "<br>\n");
         html.to_string()
     }
 
