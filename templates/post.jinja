@@ -38,6 +38,10 @@
                 <input type="hidden" name="status" value="rejected">
                 <input type="submit" value="Reject">
             </form>
+            <form action="/admin/delete-and-ban" method="post" class="ban">
+                <input type="hidden" name="uuid" value="{{ post.uuid }}">
+                <input type="submit" value="Ban">
+            </form>
             {% elif post.status == "rejected" %}
             <form action="/hide-rejected-post" method="post">
                 <span class="post-info">Post rejected.</span>

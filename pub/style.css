@@ -91,7 +91,8 @@ header h2 a#title {
 }
 
 form.approve,
-form.reject {
+form.reject,
+form.ban {
     display: inline;
 }
 
