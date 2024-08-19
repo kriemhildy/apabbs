@@ -149,32 +149,27 @@ impl PostSubmission {
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
             .replace("  ", " &nbsp;");
-        let link_pattern = regex::Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
-        let link_replacement = r#"<a href="$1" target="_blank">$1</a>"#;
         let youtube_pattern = regex::Regex::new(
             r"\bhttps?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
         )
         .expect("build regex pattern");
-        let youtube_replacement = concat!(
-            r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
+        let youtube_placeholder = r#"<YOUTUBE>$1$2</YOUTUBE>"#;
+        let placeholder_pattern = regex::Regex::new(r#"<YOUTUBE>([^<]+)</YOUTUBE>"#)
+            .expect("build regex pattern");
+        let youtube_embed = concat!(
+            r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1" "#,
             r#"title="YouTube video player" frameborder="0" "#,
             r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
             r#"gyroscope; picture-in-picture; web-share" "#,
             r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
         );
-        let mut linked_html = html.clone();
-        link_pattern.find_iter(&html).for_each(|m| {
-            let link = &html[m.start()..m.end()];
-            println!("link: {}", link);
-            if youtube_pattern.is_match(link) {
-                let youtube_embed = youtube_pattern.replace(link, youtube_replacement);
-                linked_html = linked_html.replace(link, &youtube_embed);
-            } else {
-                let anchor_tag = link_pattern.replace(link, link_replacement);
-                linked_html = linked_html.replace(link, &anchor_tag);
-            }
-        });
-        linked_html
+        let link_pattern = regex::Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
+        let link_replacement = r#"<a href="$1" target="_blank">$1</a>"#;
+        let html = youtube_pattern
+            .replace_all(&html, youtube_placeholder);
+        let html = link_pattern.replace_all(&html, link_replacement);
+        let html = placeholder_pattern.replace_all(&html, youtube_embed);
+        html.to_string()
     }
 
     fn determine_media_type(
