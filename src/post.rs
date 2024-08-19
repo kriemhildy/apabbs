@@ -139,7 +139,7 @@ impl PostSubmission {
 
     fn body_as_html(&self) -> String {
         // escape html
-        let mut html = self
+        let html = self
             .body
             .trim_end()
             .replace("\r\n", "\n")
@@ -149,35 +149,32 @@ impl PostSubmission {
             .replace(">", "&gt;")
             .replace("\n", "<br>\n")
             .replace("  ", " &nbsp;");
-        let link_pattern = regex::Regex::new(r#"(https?://\S+)"#).expect("build regex pattern");
-        link_pattern.find_iter(&mut html).for_each(|m| {
-            let link = &html[m.start()..m.end()];
-            let replacement = if link.len() > 50 {
-                format!("<a href=\"{}\" target=\"_blank\">{}</a>", link, &link[..50])
-            } else {
-                format!("<a href=\"{}\" target=\"_blank\">{}</a>", link, link)
-            };
-            html.replace_range(m.start()..m.end(), &replacement);
-        });
-        // embed youtube
+        let link_pattern = regex::Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
+        let link_replacement = r#"<a href="$1" target="_blank">$1</a>"#;
         let youtube_pattern = regex::Regex::new(
-            r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+            r"\bhttps?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
         )
         .expect("build regex pattern");
-        let html = youtube_pattern.replace_all(
-            &html,
-            concat!(
-                r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
-                r#"title="YouTube video player" frameborder="0" "#,
-                r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
-                r#"gyroscope; picture-in-picture; web-share" "#,
-                r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
-            ),
+        let youtube_replacement = concat!(
+            r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
+            r#"title="YouTube video player" frameborder="0" "#,
+            r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
+            r#"gyroscope; picture-in-picture; web-share" "#,
+            r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
         );
-        // other links
-        let link_pattern = regex::Regex::new(r#"(https?://\S+)"#).expect("build regex pattern");
-        let html = link_pattern.replace_all(&html, r#"<a href="$1" target="_blank">$1</a>"#);
-        html.to_string()
+        let mut linked_html = html.clone();
+        link_pattern.find_iter(&html).for_each(|m| {
+            let link = &html[m.start()..m.end()];
+            println!("link: {}", link);
+            if youtube_pattern.is_match(link) {
+                let youtube_embed = youtube_pattern.replace(link, youtube_replacement);
+                linked_html = linked_html.replace(link, &youtube_embed);
+            } else {
+                let anchor_tag = link_pattern.replace(link, link_replacement);
+                linked_html = linked_html.replace(link, &anchor_tag);
+            }
+        });
+        linked_html
     }
 
     fn determine_media_type(
