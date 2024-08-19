@@ -90,8 +90,8 @@ header h2 a#title {
     color: var(--post-info);
 }
 
-form#approve-form,
-form#reject-form {
+form.approve,
+form.reject {
     display: inline;
 }
 

@@ -28,12 +28,12 @@
             {% endif %}
             {% if admin and post.status == "pending" %}
             <br>
-            <form action="/admin/update-post-status" method="post" id="approve-form">
+            <form action="/admin/update-post-status" method="post" class="approve">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
                 <input type="hidden" name="status" value="approved">
                 <input type="submit" value="Approve">
             </form>
-            <form action="/admin/update-post-status" method="post" id="reject-form">
+            <form action="/admin/update-post-status" method="post" class="reject">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
                 <input type="hidden" name="status" value="rejected">
                 <input type="submit" value="Reject">
