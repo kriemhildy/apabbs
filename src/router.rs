@@ -43,7 +43,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hash", post(new_hash))
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
-        .route("/admin/update-post-status", post(update_post_status))
+        .route("/admin/review-post", post(review_post))
         .route("/admin/decrypt-media/:uuid", get(decrypt_media))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = match trace {
@@ -327,7 +327,7 @@ async fn web_socket(
 
 // admin handlers
 
-async fn update_post_status(
+async fn review_post(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(post_review): Form<PostReview>,
@@ -676,7 +676,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update_post_status() {
+    async fn test_review_post() {
         let (router, state) = init_test().await;
         let mut tx = state.db.begin().await.expect(BEGIN);
         let post_user = User {
@@ -711,7 +711,7 @@ mod tests {
         let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
         let request = Request::builder()
             .method(Method::POST)
-            .uri("/admin/update-post-status")
+            .uri("/admin/review-post")
             .header(
                 COOKIE,
                 format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
