@@ -341,11 +341,7 @@ async fn review_post(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
-    let new_status = match post_review.action.as_str() {
-        "approve" => PostStatus::Approved,
-        "reject" => PostStatus::Rejected,
-        _ => return bad_request("unexpected action"),
-    };
+    // could put this into a separate function if we want to make a new handler
     if let Some(media_file_name) = post.media_file_name {
         let cocoon_file_name = media_file_name.clone() + ".cocoon";
         let cocoon_path = std::path::Path::new(UPLOADS_DIR)
@@ -354,30 +350,41 @@ async fn review_post(
         if !cocoon_path.exists() {
             return bad_request("cocoon file does not exist");
         }
-        match &new_status {
-            PostStatus::Approved => {
-                let mut file = File::open(&cocoon_path).expect("open file");
-                let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                let cocoon = Cocoon::new(secret_key.as_bytes());
-                let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-                let media_path = std::path::Path::new(MEDIA_DIR)
-                    .join(&post_review.uuid)
-                    .join(&media_file_name);
-                let media_uuid_dir = media_path.parent().unwrap();
-                std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
-                std::fs::write(&media_path, data).expect("write media file");
-            }
-            PostStatus::Rejected => (),
-            _ => panic!("unexpected post status"),
+        if post_review.action.as_str() == "approve" {
+            let mut file = File::open(&cocoon_path).expect("open file");
+            let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+            let cocoon = Cocoon::new(secret_key.as_bytes());
+            let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
+            let media_path = std::path::Path::new(MEDIA_DIR)
+                .join(&post_review.uuid)
+                .join(&media_file_name);
+            let media_uuid_dir = media_path.parent().unwrap();
+            std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
+            std::fs::write(&media_path, data).expect("write media file");
         }
         let uploads_uuid_dir = cocoon_path.parent().unwrap();
         std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
         std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
     }
-    post_review.update_status(&mut tx, &new_status).await;
+    if post_review.action.as_str() == "ban" {
+        // delete post and ban ip
+        let ip_hash = post.ip_hash.expect("read ip_hash");
+        ban::insert(&mut tx, &ip_hash).await;
+        post_review.delete_post(&mut tx).await;
+    } else {
+        let new_status = match post_review.action.as_str() {
+            "approve" => PostStatus::Approved,
+            "reject" => PostStatus::Rejected,
+            _ => return bad_request("unexpected action"),
+        };
+        post_review.update_status(&mut tx, &new_status).await;
+    }
+    // we cannot do this if the post is deleted
+    // can we just pass uuid into sender instead? (not if we want author data)
+    // can it be a 'ghost post' (object persists for websocket despite actual record being deleted)
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
-        .await
-        .expect("select post");
+    .await
+    .expect("select post");
     tx.commit().await.expect(COMMIT);
     let html = render(
         state.jinja,

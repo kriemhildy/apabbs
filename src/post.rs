@@ -34,6 +34,7 @@ pub struct Post {
     pub media_file_name: Option<String>,
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
+    pub ip_hash: Option<String>,
 }
 
 impl Post {
@@ -230,13 +231,21 @@ pub struct PostReview {
 }
 
 impl PostReview {
-    pub async fn update_status(&self, tx: &mut PgConnection, new_status: &PostStatus) {
+    pub async fn update_status(&self, tx: &mut PgConnection, status: &PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE uuid = $2")
-            .bind(new_status)
+            .bind(status)
             .bind(&self.uuid)
             .execute(&mut *tx)
             .await
             .expect("update post status");
+    }
+
+    pub async fn delete_post(&self, tx: &mut PgConnection) {
+        sqlx::query("DELETE FROM posts WHERE uuid = $1")
+            .bind(&self.uuid)
+            .execute(&mut *tx)
+            .await
+            .expect("delete post");
     }
 }
 
