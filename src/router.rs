@@ -341,6 +341,11 @@ async fn review_post(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
+    let new_status = match post_review.action.as_str() {
+        "approve" => PostStatus::Approved,
+        "reject" => PostStatus::Rejected,
+        _ => return bad_request("unexpected action"),
+    };
     if let Some(media_file_name) = post.media_file_name {
         let cocoon_file_name = media_file_name.clone() + ".cocoon";
         let cocoon_path = std::path::Path::new(UPLOADS_DIR)
@@ -349,7 +354,7 @@ async fn review_post(
         if !cocoon_path.exists() {
             return bad_request("cocoon file does not exist");
         }
-        match post_review.status {
+        match &new_status {
             PostStatus::Approved => {
                 let mut file = File::open(&cocoon_path).expect("open file");
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
@@ -369,7 +374,7 @@ async fn review_post(
         std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
         std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
     }
-    post_review.update_status(&mut tx).await;
+    post_review.update_status(&mut tx, &new_status).await;
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
         .expect("select post");
@@ -650,9 +655,9 @@ mod tests {
         .await;
         PostReview {
             uuid: post.uuid.clone(),
-            status: PostStatus::Rejected,
+            action: String::from("reject"),
         }
-        .update_status(&mut tx)
+        .update_status(&mut tx, &PostStatus::Rejected)
         .await;
         tx.commit().await.expect(COMMIT);
         let post_hiding = PostHiding {
@@ -706,7 +711,7 @@ mod tests {
         tx.commit().await.expect(COMMIT);
         let post_review = PostReview {
             uuid: post.uuid.clone(),
-            status: PostStatus::Approved,
+            action: String::from("approve"),
         };
         let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
         let request = Request::builder()

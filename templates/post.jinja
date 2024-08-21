@@ -30,16 +30,17 @@
             <br>
             <form action="/admin/review-post" method="post" class="approve">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
-                <input type="hidden" name="status" value="approved">
+                <input type="hidden" name="action" value="approve">
                 <input type="submit" value="Approve">
             </form>
             <form action="/admin/review-post" method="post" class="reject">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
-                <input type="hidden" name="status" value="rejected">
+                <input type="hidden" name="action" value="reject">
                 <input type="submit" value="Reject">
             </form>
-            <form action="/admin/delete-and-ban" method="post" class="ban">
+            <form action="/admin/review-post" method="post" class="ban">
                 <input type="hidden" name="uuid" value="{{ post.uuid }}">
+                <input type="hidden" name="action" value="ban">
                 <input type="submit" value="Ban">
             </form>
             {% elif post.status == "rejected" %}

@@ -226,13 +226,13 @@ impl PostSubmission {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
     pub uuid: String,
-    pub status: PostStatus,
+    pub action: String,
 }
 
 impl PostReview {
-    pub async fn update_status(&self, tx: &mut PgConnection) {
+    pub async fn update_status(&self, tx: &mut PgConnection, new_status: &PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE uuid = $2")
-            .bind(&self.status)
+            .bind(new_status)
             .bind(&self.uuid)
             .execute(&mut *tx)
             .await
