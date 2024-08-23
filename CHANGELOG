@@ -1,3 +1,7 @@
+0.8.1
+
+Fix a bug where iframe embeds were too wide in small browsers (like mobile).
+
 0.8.0
 
 Add YouTube iframe embeds.
