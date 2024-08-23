@@ -391,6 +391,7 @@ async fn review_post(
         "post.jinja",
         minijinja::context!(post, admin => false),
     );
+    // uuid, html, author,
     let msg = PostMessage { post, html };
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
