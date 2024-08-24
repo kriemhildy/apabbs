@@ -1,3 +1,9 @@
+0.8.3
+
+Add lazy loading of images and iframes.
+Allow for wide browser sizes if desired.
+Increase per-page limit to 1,000.
+
 0.8.2
 
 Fix bug where YouTube iframes were not preserving 16:9 aspect ratio at short widths.
