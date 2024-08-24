@@ -134,7 +134,7 @@ iframe {
     aspect-ratio: 16 / 9;
 }
 
-a.post-author {
+a.author {
     text-decoration: none;
     color: var(--post-info);
 }

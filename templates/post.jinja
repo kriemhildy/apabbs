@@ -1,6 +1,6 @@
         <article class="{{ post.status }}" id="post-{{ post.uuid }}">
-            {% set post_author = post.username if post.username else post.anon_hash %}
-            <a href="/?until={{ post.uuid }}" class="post-author">{{ post_author }}</a>
+            {% set author = post.username if post.username else post.anon_hash %}
+            <a href="/?until={{ post.uuid }}" class="author">{{ author }}</a>
             <br>
             {% if post.body|length > 0 and post.status != "banned" %}
             <span class="body">{{ post.body }}</span>
