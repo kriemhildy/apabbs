@@ -23,7 +23,7 @@ const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
-const PER_PAGE: i32 = 100;
+const PER_PAGE: i32 = 1_000;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
