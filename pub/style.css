@@ -25,8 +25,8 @@
 }
 
 body {
-    max-width: 800px;
     overflow-wrap: break-word;
+    margin-bottom: 50px;
 }
 
 body,
@@ -42,15 +42,6 @@ input,
 textarea {
     width: 95%;
     height: 8em;
-}
-
-@media (min-width: 800px) {
-    body {
-        margin-left: 50px;
-        margin-right: 50px;
-        margin-bottom: 50px;
-        text-align: justify;
-    }
 }
 
 input[type="submit"] {
