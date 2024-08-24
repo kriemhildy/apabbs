@@ -164,7 +164,7 @@ impl PostSubmission {
             r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#,
         );
         let html = youtube_link_pattern.replace_all(&html, youtube_iframe);
-        html.replace("\n", "<br>\n")
+        html.replace("\n", "<br>")
     }
 
     fn determine_media_type(
