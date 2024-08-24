@@ -95,7 +95,7 @@ form.reject {
     display: inline;
 }
 
-div.post {
+article {
     overflow: hidden;
     border-radius: 5px;
     margin-top: 15px;
@@ -120,7 +120,7 @@ input#post-button {
     font-size: 1.1em;
 }
 
-div.post img,
+article img,
 video {
     max-width: 100%;
     max-height: 1000px;
