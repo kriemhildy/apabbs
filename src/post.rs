@@ -157,11 +157,11 @@ impl PostSubmission {
         ))
         .expect("build regex pattern");
         let youtube_iframe = concat!(
-            r#"<iframe width="560" height="315" src="https://www.youtube.com/embed/$1$2" "#,
+            r#"<iframe src="https://www.youtube.com/embed/$1$2" "#,
             r#"title="YouTube video player" frameborder="0" "#,
             r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
             r#"gyroscope; picture-in-picture; web-share" "#,
-            r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#
+            r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#,
         );
         let html = youtube_link_pattern.replace_all(&html, youtube_iframe);
         html.replace("\n", "<br>\n")
