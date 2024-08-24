@@ -92,12 +92,12 @@ article {
     margin-top: 15px;
 }
 
-div.pending {
+article.pending {
     background: var(--pending);
     padding: 10px;
 }
 
-div.rejected {
+article.rejected {
     background: var(--rejected);
     padding: 10px;
 }
