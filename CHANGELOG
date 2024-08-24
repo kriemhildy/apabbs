@@ -1,3 +1,8 @@
+0.8.2
+
+Fix bug where YouTube iframes were not preserving 16:9 aspect ratio at short widths.
+Also expand width of iframes to fill their container at larger sizes.
+
 0.8.1
 
 Fix a bug where iframe embeds were too wide in small browsers (like mobile).
