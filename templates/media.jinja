@@ -1,5 +1,5 @@
             {% if post.media_category == "image" %}
-            <img src="{{ media_path }}">
+            <img src="{{ media_path }}" loading="lazy">
             {% elif post.media_category == "video" %}
             <video controls>
                 <source src="{{ media_path }}" type="{{ post.media_mime_type }}">

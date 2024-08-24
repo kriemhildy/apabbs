@@ -158,7 +158,7 @@ impl PostSubmission {
         .expect("build regex pattern");
         let youtube_iframe = concat!(
             r#"<iframe src="https://www.youtube.com/embed/$1$2" "#,
-            r#"title="YouTube video player" frameborder="0" "#,
+            r#"loading="lazy" title="YouTube video player" frameborder="0" "#,
             r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
             r#"gyroscope; picture-in-picture; web-share" "#,
             r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#,
