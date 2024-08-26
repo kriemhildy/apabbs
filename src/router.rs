@@ -371,7 +371,7 @@ async fn review_post(
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
         .expect("select post");
-    if post_review.status == PostStatus::Banned {
+    if post.status == PostStatus::Banned {
         // delete post and ban ip
         let ip_hash = post.ip_hash.as_ref().expect("read ip_hash");
         ban::insert(&mut tx, ip_hash).await;
