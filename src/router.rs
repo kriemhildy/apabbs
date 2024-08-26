@@ -342,7 +342,6 @@ async fn review_post(
     if post.status != PostStatus::Pending {
         return bad_request("cannot update non-pending post");
     }
-    // could put this into a separate function if we want to make a new handler
     if let Some(media_file_name) = post.media_file_name {
         let cocoon_file_name = media_file_name.clone() + ".cocoon";
         let cocoon_path = std::path::Path::new(UPLOADS_DIR)
