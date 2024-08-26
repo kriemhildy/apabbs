@@ -10,7 +10,7 @@ pub enum PostStatus {
     Pending,
     Approved,
     Rejected,
-    Banned, // does not exist in the database yet
+    Banned,
 }
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
