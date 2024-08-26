@@ -26,7 +26,7 @@ pub fn not_found() -> Response {
 }
 
 pub fn ban_message(expires_at: &str) -> Response {
-    let msg = format!("IP has been auto-banned due to flooding until {expires_at}");
+    let msg = format!("IP has been banned until {expires_at}");
     forbidden(&msg)
 }
 
