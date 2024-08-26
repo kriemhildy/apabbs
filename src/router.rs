@@ -308,6 +308,7 @@ async fn web_socket(
                 PostStatus::Pending => user.admin(),
                 PostStatus::Rejected => msg.post.authored_by(&user),
                 PostStatus::Approved => true,
+                PostStatus::Banned => msg.post.authored_by(&user),
             };
             if !should_send {
                 continue;
@@ -350,7 +351,7 @@ async fn review_post(
         if !cocoon_path.exists() {
             return bad_request("cocoon file does not exist");
         }
-        if post_review.action.as_str() == "approve" {
+        if post_review.status == PostStatus::Approved {
             let mut file = File::open(&cocoon_path).expect("open file");
             let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
             let cocoon = Cocoon::new(secret_key.as_bytes());
@@ -366,32 +367,22 @@ async fn review_post(
         std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
         std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
     }
-    if post_review.action.as_str() == "ban" {
-        // delete post and ban ip
-        let ip_hash = post.ip_hash.expect("read ip_hash");
-        ban::insert(&mut tx, &ip_hash).await;
-        post_review.delete_post(&mut tx).await;
-    } else {
-        let new_status = match post_review.action.as_str() {
-            "approve" => PostStatus::Approved,
-            "reject" => PostStatus::Rejected,
-            _ => return bad_request("unexpected action"),
-        };
-        post_review.update_status(&mut tx, &new_status).await;
-    }
-    // we cannot do this if the post is deleted
-    // can we just pass uuid into sender instead? (not if we want author data)
-    // can it be a 'ghost post' (object persists for websocket despite actual record being deleted)
+    post_review.update_status(&mut tx).await;
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
-    .await
-    .expect("select post");
+        .await
+        .expect("select post");
+    if post_review.status == PostStatus::Banned {
+        // delete post and ban ip
+        let ip_hash = post.ip_hash.as_ref().expect("read ip_hash");
+        ban::insert(&mut tx, ip_hash).await;
+        post.delete(&mut tx).await;
+    }
     tx.commit().await.expect(COMMIT);
     let html = render(
         state.jinja,
         "post.jinja",
         minijinja::context!(post, admin => false),
     );
-    // uuid, html, author,
     let msg = PostMessage { post, html };
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
@@ -663,9 +654,9 @@ mod tests {
         .await;
         PostReview {
             uuid: post.uuid.clone(),
-            action: String::from("reject"),
+            status: PostStatus::Rejected,
         }
-        .update_status(&mut tx, &PostStatus::Rejected)
+        .update_status(&mut tx)
         .await;
         tx.commit().await.expect(COMMIT);
         let post_hiding = PostHiding {
@@ -719,7 +710,7 @@ mod tests {
         tx.commit().await.expect(COMMIT);
         let post_review = PostReview {
             uuid: post.uuid.clone(),
-            action: String::from("approve"),
+            status: PostStatus::Approved,
         };
         let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
         let request = Request::builder()

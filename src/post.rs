@@ -10,6 +10,7 @@ pub enum PostStatus {
     Pending,
     Approved,
     Rejected,
+    Banned, // does not exist in the database yet
 }
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
@@ -86,6 +87,14 @@ impl Post {
             .fetch_optional(&mut *tx)
             .await
             .expect("select post by uuid")
+    }
+
+    pub async fn delete(&self, tx: &mut PgConnection) {
+        sqlx::query("DELETE FROM posts WHERE id = $1")
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("delete post");
     }
 }
 
@@ -227,25 +236,17 @@ impl PostSubmission {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
     pub uuid: String,
-    pub action: String,
+    pub status: PostStatus,
 }
 
 impl PostReview {
-    pub async fn update_status(&self, tx: &mut PgConnection, status: &PostStatus) {
+    pub async fn update_status(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE posts SET status = $1 WHERE uuid = $2")
-            .bind(status)
+            .bind(&self.status)
             .bind(&self.uuid)
             .execute(&mut *tx)
             .await
             .expect("update post status");
-    }
-
-    pub async fn delete_post(&self, tx: &mut PgConnection) {
-        sqlx::query("DELETE FROM posts WHERE uuid = $1")
-            .bind(&self.uuid)
-            .execute(&mut *tx)
-            .await
-            .expect("delete post");
     }
 }
 
