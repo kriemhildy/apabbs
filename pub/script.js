@@ -48,7 +48,7 @@ const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
 let webSocket, template, main;
 
 function updatePost(uuid, html) {
-    const post = document.querySelector(`div#post-${uuid}`);
+    const post = document.querySelector(`article#post-${uuid}`);
     template.innerHTML = html;
     if (post) {
         post.replaceWith(template.content);
