@@ -2,7 +2,7 @@
             {% set post_author = post.username if post.username else post.anon_hash %}
             <a href="/?from={{ post.uuid }}" class="post-author">{{ post_author }}</a>
             <br>
-            {% if not post.body|length == 0 %}
+            {% if post.body|length > 0 and post.status != "banned" %}
             <span class="body">{{ post.body }}</span>
             {% if post.media_file_name %}
             <br>
@@ -50,6 +50,6 @@
                 <input type="submit" value="Hide">
             </form>
             {% elif post.status == "banned" %}
-            <p class="post-info">This post has been deleted and your IP has been banned for a month.</p>
+            <span class="post-info">This post has been deleted and your IP has been banned for a month.</span>
             {% endif %}
         </article>
