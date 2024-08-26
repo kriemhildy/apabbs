@@ -70,7 +70,7 @@ fieldset {
     border-radius: 5px;
 }
 
-header h2 a#title {
+header h3 a#title {
     text-decoration: none;
     color: var(--fore);
 }
