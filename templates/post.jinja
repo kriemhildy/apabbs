@@ -1,4 +1,4 @@
-        <div class="post {{ post.status }}" id="post-{{ post.uuid }}">
+        <article class="{{ post.status }}" id="post-{{ post.uuid }}">
             {% set post_author = post.username if post.username else post.anon_hash %}
             <a href="/?from={{ post.uuid }}" class="post-author">{{ post_author }}</a>
             <br>
@@ -50,4 +50,4 @@
                 <input type="submit" value="Hide">
             </form>
             {% endif %}
-        </div>
+        </article>

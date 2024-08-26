@@ -1,13 +1,11 @@
             {% if post.media_category == "image" %}
-            <img src="{{ media_path }}">
+            <img src="{{ media_path }}" loading="lazy">
             {% elif post.media_category == "video" %}
             <video controls>
                 <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
-                Your browser does not support the video tag.
             </video>
             {% elif post.media_category == "audio" %}
             <audio controls>
                 <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
-                Your browser does not support the audio tag.
             </audio>
             {% endif %}
