@@ -74,7 +74,7 @@ function initWebSocket() {
 
 const url = new URL(window.location.href);
 
-if (url.pathname == "/") {
+if (url.pathname == "/" && !url.searchParams.has('from')) {
     for (fn of [initUnseenPosts, initWebSocket]) {
         document.addEventListener("DOMContentLoaded", fn);
     }

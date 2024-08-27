@@ -3,6 +3,7 @@
 <body>
     <header>
         <h3><a href="/" id="title">{{ title }}</a></h3>
+        {% if from_post is none %}
         <ul class="system">
             {% if logged_in %}
             <li>
@@ -34,11 +35,12 @@
             <label for="anon">Post anonymously</label>
             {% endif %}
         </form>
+        {% endif %}
     </header>
 
     <main>
         {% if from_post %}
-        <p class="system">Listing posts from {{ from_post.uuid }}.</p>
+        <p class="system">Posts from {{ from_post.uuid }}.</p>
         {% endif %}
         {% for post in posts %}
         {% include "post.jinja" %}
