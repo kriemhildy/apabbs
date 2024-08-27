@@ -46,7 +46,7 @@
         <p class="system">Posts from {{ from_post.uuid }}.</p>
         {% endif %}
         {% for post in posts %}
-        {% include "post.jinja" %}
+        {%   include "post.jinja" %}
         {% endfor %}
         {% if next_page_post %}
         <p><a href="/?from={{ next_page_post.uuid }}" class="system">Next page</a></p>
