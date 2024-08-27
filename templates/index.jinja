@@ -4,37 +4,40 @@
     <header>
         <h3><a href="/" id="title">{{ title }}</a></h3>
         {% if from_post is none %}
-        <ul class="system">
-            {% if logged_in %}
-            <li>
-                <form action="/logout" method="post">
-                    logged in as: <strong>{{ username }}</strong>
-                    {% if admin %}
-                    (admin)
-                    {% endif %}
-                    <input type="submit" value="Log out">
-                </form>
-            </li>
-            {% endif %}
-            <li>
-                <form action="/hash" method="post">
-                    anon hash: <strong>{{ anon_hash }}</strong>
-                    <input type="submit" value="New hash">
-                </form>
-            </li>
-        </ul>
-        <form action="/post" method="post" enctype="multipart/form-data">
-            <textarea name="body"></textarea>
-            <br>
-            <label for="media">Media:</label>
-            <input type="file" name="media" id="media">
-            <br>
-            <input type="submit" value="Post" id="post-button">
-            {% if logged_in %}
-            <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
-            <label for="anon">Post anonymously</label>
-            {% endif %}
-        </form>
+        <details>
+            <summary>Add post</summary>
+            <ul class="system">
+                {% if logged_in %}
+                <li>
+                    <form action="/logout" method="post">
+                        logged in as: <strong>{{ username }}</strong>
+                        {% if admin %}
+                        (admin)
+                        {% endif %}
+                        <input type="submit" value="Log out">
+                    </form>
+                </li>
+                {% endif %}
+                <li>
+                    <form action="/hash" method="post">
+                        anon hash: <strong>{{ anon_hash }}</strong>
+                        <input type="submit" value="New hash">
+                    </form>
+                </li>
+            </ul>
+            <form action="/post" method="post" enctype="multipart/form-data">
+                <textarea name="body"></textarea>
+                <br>
+                <label for="media">Media:</label>
+                <input type="file" name="media" id="media">
+                <br>
+                <input type="submit" value="Post" id="post-button">
+                {% if logged_in %}
+                <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
+                <label for="anon">Post anonymously</label>
+                {% endif %}
+            </form>
+        </details>
         {% endif %}
     </header>
 
