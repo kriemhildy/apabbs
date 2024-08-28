@@ -45,7 +45,7 @@
 
     <main>
         {% if until_post %}
-        <p class="system">Posts until {{ until_post.uuid }}.</p>
+        <p class="system">Posts until {{ until_post.uuid }}</p>
         {% endif %}
         {% for post in posts %}
         {%   include "post.jinja" %}
