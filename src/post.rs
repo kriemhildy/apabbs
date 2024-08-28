@@ -42,7 +42,7 @@ impl Post {
     pub async fn select_latest(
         tx: &mut PgConnection,
         user: &User,
-        from_id: Option<i32>,
+        until_id: Option<i32>,
         limit: i32,
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
@@ -58,9 +58,9 @@ impl Post {
             query_builder.push_bind(account.id);
         }
         query_builder.push(") AND hidden = false ");
-        if let Some(from_id) = from_id {
+        if let Some(until_id) = until_id {
             query_builder.push("AND id <= ");
-            query_builder.push_bind(from_id);
+            query_builder.push_bind(until_id);
         }
         query_builder.push(" ORDER BY id DESC LIMIT ");
         query_builder.push_bind(limit);

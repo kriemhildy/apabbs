@@ -3,7 +3,7 @@
 <body>
     <header>
         <h3><a href="/" id="title">{{ title }}</a></h3>
-        {% if from_post is none %}
+        {% if until_post is none %}
         <details>
             <summary>Add post</summary>
             <ul class="system">
@@ -44,14 +44,14 @@
     </header>
 
     <main>
-        {% if from_post %}
-        <p class="system">Posts from {{ from_post.uuid }}.</p>
+        {% if until_post %}
+        <p class="system">Posts until {{ until_post.uuid }}.</p>
         {% endif %}
         {% for post in posts %}
         {%   include "post.jinja" %}
         {% endfor %}
         {% if next_page_post %}
-        <p><a href="/?from={{ next_page_post.uuid }}" class="system">Next page</a></p>
+        <p><a href="/?until={{ next_page_post.uuid }}" class="system">Next page</a></p>
         {% endif %}
     </main>
 </body>

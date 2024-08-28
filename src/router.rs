@@ -59,7 +59,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 
 #[derive(serde::Deserialize)]
 struct IndexQuery {
-    from: Option<String>,
+    until: Option<String>,
 }
 
 async fn index(
@@ -69,18 +69,18 @@ async fn index(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let from_post = match query.from.as_deref() {
-        Some(from) => Some(match Post::select_by_uuid(&mut tx, from).await {
+    let until_post = match query.until.as_deref() {
+        Some(until) => Some(match Post::select_by_uuid(&mut tx, until).await {
             Some(post) => post,
-            None => return bad_request("from post does not exist"),
+            None => return bad_request("until post does not exist"),
         }),
         None => None,
     };
-    let from_id = match &from_post {
+    let until_id = match &until_post {
         Some(post) => Some(post.id),
         None => None,
     };
-    let posts = Post::select_latest(&mut tx, &user, from_id, PER_PAGE).await;
+    let posts = Post::select_latest(&mut tx, &user, until_id, PER_PAGE).await;
     let posts_before_last = match posts.last() {
         Some(last_post) => {
             let post_id_before_last = last_post.id - 1;
@@ -101,7 +101,7 @@ async fn index(
             anon_hash => user.anon_hash(),
             admin => user.admin(),
             anon => user.anon(),
-            from_post => from_post,
+            until_post => until_post,
             next_page_post => next_page_post,
         ),
     ));
