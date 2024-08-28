@@ -7,7 +7,9 @@
         <details>
             <summary>Add post</summary>
             <ul class="system">
-                {% if logged_in %}
+                {% if not logged_in %}
+                <li>optionally <a href="/register">register</a> or <a href="/login">log in</a> for a username.</li>
+                {% else %}
                 <li>
                     <form action="/logout" method="post">
                         logged in as: <strong>{{ username }}</strong>
