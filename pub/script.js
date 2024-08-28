@@ -31,6 +31,11 @@ function initUnseenPosts() {
 const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
 let webSocket, template, main;
 
+function initTemplateAndMain() {
+    template = document.createElement("template");
+    main = document.querySelector("main");
+}
+
 function updatePost(uuid, html) {
     const post = document.querySelector(`article#post-${uuid}`);
     template.innerHTML = html;
@@ -48,8 +53,9 @@ function initWebSocket() {
         const json = JSON.parse(event.data);
         updatePost(json.uuid, json.html);
     });
-    template = document.createElement("template");
-    main = document.querySelector("main");
+    webSocket.addEventListener("close", function() {
+        setTimeout(initWebSocket, 3_000);
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +65,7 @@ function initWebSocket() {
 const url = new URL(window.location.href);
 
 if (url.pathname == "/" && !url.searchParams.has('until')) {
-    for (fn of [initUnseenPosts, initWebSocket]) {
+    for (fn of [initTemplateAndMain, initUnseenPosts, initWebSocket]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
