@@ -1,58 +1,56 @@
 {% extends "layout.jinja" %}
 {% block body %}
-<body>
-    <header>
-        <h3><a href="/" id="title">{{ title }}</a></h3>
-        {% if until_post is none %}
-        <details>
-            <summary>Add post</summary>
-            <ul class="system">
-                {% if not logged_in %}
-                <li>optionally <a href="/register">register</a> or <a href="/login">log in</a></li>
-                {% else %}
-                <li>
-                    <form action="/logout" method="post">
-                        logged in as: <strong>{{ username }}</strong>
-                        {% if admin %}
-                        (admin)
-                        {% endif %}
-                        <input type="submit" value="Log out">
-                    </form>
-                </li>
-                {% endif %}
-                <li>
-                    <form action="/hash" method="post">
-                        anon hash: <strong>{{ anon_hash }}</strong>
-                        <input type="submit" value="New hash">
-                    </form>
-                </li>
-            </ul>
-            <form action="/post" method="post" enctype="multipart/form-data">
-                <textarea name="body"></textarea>
-                <br>
-                <label for="media">Media:</label>
-                <input type="file" name="media" id="media">
-                <br>
-                <input type="submit" value="Post" id="post-button">
-                {% if logged_in %}
-                <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
-                <label for="anon">Post anonymously</label>
-                {% endif %}
-            </form>
-        </details>
-        {% endif %}
-    </header>
+<header>
+    <h3><a href="/" id="title">{{ title }}</a></h3>
+    {% if until_post is none %}
+    <details>
+        <summary>Add post</summary>
+        <ul class="system">
+            {% if not logged_in %}
+            <li>optionally <a href="/register">register</a> or <a href="/login">log in</a></li>
+            {% else %}
+            <li>
+                <form action="/logout" method="post">
+                    logged in as: <strong>{{ username }}</strong>
+                    {% if admin %}
+                    (admin)
+                    {% endif %}
+                    <input type="submit" value="Log out">
+                </form>
+            </li>
+            {% endif %}
+            <li>
+                <form action="/hash" method="post">
+                    anon hash: <strong>{{ anon_hash }}</strong>
+                    <input type="submit" value="New hash">
+                </form>
+            </li>
+        </ul>
+        <form action="/post" method="post" enctype="multipart/form-data">
+            <textarea name="body"></textarea>
+            <br>
+            <label for="media">Media:</label>
+            <input type="file" name="media" id="media">
+            <br>
+            <input type="submit" value="Post" id="post-button">
+            {% if logged_in %}
+            <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
+            <label for="anon">Post anonymously</label>
+            {% endif %}
+        </form>
+    </details>
+    {% endif %}
+</header>
 
-    <main>
-        {% if until_post %}
-        <p class="system">Posts until {{ until_post.uuid }}</p>
-        {% endif %}
-        {% for post in posts %}
-        {%   include "post.jinja" %}
-        {% endfor %}
-        {% if next_page_post %}
-        <p><a href="/?until={{ next_page_post.uuid }}" class="system">Next page</a></p>
-        {% endif %}
-    </main>
-</body>
+<main>
+    {% if until_post %}
+    <p class="system">Posts until {{ until_post.uuid }}</p>
+    {% endif %}
+    {% for post in posts %}
+    {% include "post.jinja" %}
+    {% endfor %}
+    {% if next_page_post %}
+    <p><a href="/?until={{ next_page_post.uuid }}" class="system">Next page</a></p>
+    {% endif %}
+</main>
 {% endblock %}

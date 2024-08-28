@@ -1,55 +1,55 @@
-        <article class="{{ post.status }}" id="post-{{ post.uuid }}">
-            {% set author = post.username if post.username else post.anon_hash %}
-            <a href="/?until={{ post.uuid }}" class="author">{{ author }}</a>
-            <br>
-            {% if post.body|length > 0 and post.status != "banned" %}
-            <span class="body">{{ post.body }}</span>
-            {%   if post.media_file_name %}
-            <br>
-            {%   endif %}
-            {% endif %}
-            {% if post.media_file_name %}
-            {%   if post.status == "approved" %}
-            {%     set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
-            {%     include "media.jinja" %}
-            {%   elif post.status == "rejected" %}
-            <span class="post-info">File "{{ post.media_file_name }}" deleted.</span>
-            {%   elif post.status == "pending" %}
-            {%     if admin %}
-            {%       set media_path = "/admin/decrypt-media/" + post.uuid %}
-            {%       include "media.jinja" %}
-            <br>
-            <span class="post-info">File: {{ post.media_file_name }}</span>
-            {%     else %}
-            <br>
-            <span class="post-info">File "{{ post.media_file_name }}" pending review.</span>
-            {%     endif %}
-            {%   endif %}
-            {% endif %}
-            {% if admin and post.status == "pending" %}
-            <br>
-            <form action="/admin/review-post" method="post" class="approve">
-                <input type="hidden" name="uuid" value="{{ post.uuid }}">
-                <input type="hidden" name="status" value="approved">
-                <input type="submit" value="Approve">
-            </form>
-            <form action="/admin/review-post" method="post" class="reject">
-                <input type="hidden" name="uuid" value="{{ post.uuid }}">
-                <input type="hidden" name="status" value="rejected">
-                <input type="submit" value="Reject">
-            </form>
-            <form action="/admin/review-post" method="post" class="ban">
-                <input type="hidden" name="uuid" value="{{ post.uuid }}">
-                <input type="hidden" name="status" value="banned">
-                <input type="submit" value="Ban">
-            </form>
-            {% elif post.status == "rejected" %}
-            <form action="/hide-rejected-post" method="post">
-                <span class="post-info">Post rejected.</span>
-                <input type="hidden" name="uuid" value="{{ post.uuid }}">
-                <input type="submit" value="Hide">
-            </form>
-            {% elif post.status == "banned" %}
-            <span class="post-info">This post has been deleted and its IP has been banned for a month.</span>
-            {% endif %}
-        </article>
+<article class="{{ post.status }}" id="post-{{ post.uuid }}">
+    {% set author = post.username if post.username else post.anon_hash %}
+    <a href="/?until={{ post.uuid }}" class="author">{{ author }}</a>
+    <br>
+    {% if post.body|length > 0 and post.status != "banned" %}
+    <span class="body">{{ post.body }}</span>
+    {% if post.media_file_name %}
+    <br>
+    {% endif %}
+    {% endif %}
+    {% if post.media_file_name %}
+    {% if post.status == "approved" %}
+    {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
+    {% include "media.jinja" %}
+    {% elif post.status == "rejected" %}
+    <span class="post-info">File "{{ post.media_file_name }}" deleted.</span>
+    {% elif post.status == "pending" %}
+    {% if admin %}
+    {% set media_path = "/admin/decrypt-media/" + post.uuid %}
+    {% include "media.jinja" %}
+    <br>
+    <span class="post-info">File: {{ post.media_file_name }}</span>
+    {% else %}
+    <br>
+    <span class="post-info">File "{{ post.media_file_name }}" pending review.</span>
+    {% endif %}
+    {% endif %}
+    {% endif %}
+    {% if admin and post.status == "pending" %}
+    <br>
+    <form action="/admin/review-post" method="post" class="approve">
+        <input type="hidden" name="uuid" value="{{ post.uuid }}">
+        <input type="hidden" name="status" value="approved">
+        <input type="submit" value="Approve">
+    </form>
+    <form action="/admin/review-post" method="post" class="reject">
+        <input type="hidden" name="uuid" value="{{ post.uuid }}">
+        <input type="hidden" name="status" value="rejected">
+        <input type="submit" value="Reject">
+    </form>
+    <form action="/admin/review-post" method="post" class="ban">
+        <input type="hidden" name="uuid" value="{{ post.uuid }}">
+        <input type="hidden" name="status" value="banned">
+        <input type="submit" value="Ban">
+    </form>
+    {% elif post.status == "rejected" %}
+    <form action="/hide-rejected-post" method="post">
+        <span class="post-info">Post rejected.</span>
+        <input type="hidden" name="uuid" value="{{ post.uuid }}">
+        <input type="submit" value="Hide">
+    </form>
+    {% elif post.status == "banned" %}
+    <span class="post-info">This post has been deleted and its IP has been banned for a month.</span>
+    {% endif %}
+</article>
