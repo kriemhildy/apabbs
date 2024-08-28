@@ -1,14 +1,14 @@
 /* Only applied on non-Mac operating systems to WebKit browsers */
 
 body::-webkit-scrollbar {
-    width: 7px;
+    width: 8px;
 }
 
 body::-webkit-scrollbar-track {
-    background-color: var(--back);
+    background-color: var(--track);
 }
 
 body::-webkit-scrollbar-thumb {
     background-color: var(--border);
-    border-radius: 7px;
+    border-radius: 8px;
 }

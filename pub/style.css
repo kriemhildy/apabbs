@@ -9,6 +9,7 @@
         --pending: #222222;
         --rejected: rgb(37, 4, 4);
         --banned: rgb(105, 10, 10);
+        --track: #222;
     }
 }
 
@@ -23,6 +24,7 @@
         --pending: #eeeeee;
         --rejected: rgb(250, 226, 226);
         --banned: rgb(231, 63, 63);
+        --track: #eee;
     }
 }
 
