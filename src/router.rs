@@ -280,6 +280,9 @@ async fn hide_rejected_post(
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
+    if user.admin() {
+        return Redirect::to(ROOT).into_response();
+    }
     if !post.authored_by(&user) {
         return bad_request("not post author");
     }
@@ -306,9 +309,9 @@ async fn web_socket(
         while let Ok(msg) = receiver.recv().await {
             let should_send = match msg.post.status {
                 PostStatus::Pending => user.admin(),
-                PostStatus::Rejected => msg.post.authored_by(&user),
+                PostStatus::Rejected => user.admin() || msg.post.authored_by(&user),
                 PostStatus::Approved => true,
-                PostStatus::Banned => msg.post.authored_by(&user),
+                PostStatus::Banned => user.admin() || msg.post.authored_by(&user),
             };
             if !should_send {
                 continue;
