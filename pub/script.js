@@ -1,4 +1,20 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// scrollbar styling for chrome on windows and linux
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+function styleScrollbar() {
+    if (!navigator.userAgent.includes("Macintosh") && navigator.userAgent.includes("WebKit")) {
+        const mainLink = document.querySelector("link[rel=stylesheet]");
+        const scrollbarLink = document.createElement("link");
+        scrollbarLink.rel = "stylesheet";
+        scrollbarLink.href = "/scrollbar.css";
+        mainLink.after(scrollbarLink);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", styleScrollbar);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // change title for unseen posts received via web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
