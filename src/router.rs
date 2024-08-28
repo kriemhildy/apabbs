@@ -492,6 +492,8 @@ mod tests {
         let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
         let mut form = FormData::new(Vec::new());
         form.write_field("body", &post_submission.body).unwrap();
+        form.write_path("media", "test/image.jpeg", "image/jpeg")
+            .unwrap();
         let request = Request::builder()
             .method(Method::POST)
             .uri("/post")
@@ -501,11 +503,25 @@ mod tests {
             .body(Body::from(form.finish().unwrap()))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        sqlx::query("DELETE FROM posts WHERE anon_token = $1")
-            .bind(anon_token)
+        let uuid: String = sqlx::query_scalar(
+            "SELECT uuid FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1",
+        )
+        .bind(anon_token)
+        .fetch_one(&state.db)
+        .await
+        .expect("select post uuid");
+        sqlx::query("DELETE FROM posts WHERE uuid = $1")
+            .bind(&uuid)
             .execute(&state.db)
             .await
             .expect("delete test post");
+        let cocoon_file_name = "image.jpeg.cocoon";
+        let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+            .join(&uuid)
+            .join(&cocoon_file_name);
+        let uploads_uuid_dir = cocoon_path.parent().unwrap();
+        std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+        std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
     }
 
