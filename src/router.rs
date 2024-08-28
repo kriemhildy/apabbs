@@ -441,6 +441,7 @@ mod tests {
     use form_data_builder::FormData;
     use http_body_util::BodyExt;
     use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
+    use crate::post::PostMediaCategory;
 
     const LOCAL_IP: &'static str = "::1";
     const APPLICATION_WWW_FORM_URLENCODED: &'static str = "application/x-www-form-urlencoded";
@@ -484,7 +485,7 @@ mod tests {
     async fn test_submit_post() {
         let (router, state) = init_test().await;
         let post_submission = PostSubmission {
-            body: String::from("test body"),
+            body: String::from("<test body"),
             anon: Some(String::from("on")),
             media_file_name: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
@@ -503,26 +504,29 @@ mod tests {
             .body(Body::from(form.finish().unwrap()))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
-        let uuid: String = sqlx::query_scalar(
-            "SELECT uuid FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1",
-        )
-        .bind(anon_token)
-        .fetch_one(&state.db)
-        .await
-        .expect("select post uuid");
-        sqlx::query("DELETE FROM posts WHERE uuid = $1")
-            .bind(&uuid)
+        let post: Post =
+            sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
+                .bind(&anon_token)
+                .fetch_one(&state.db)
+                .await
+                .expect("select post");
+        sqlx::query("DELETE FROM posts WHERE id = $1")
+            .bind(post.id)
             .execute(&state.db)
             .await
             .expect("delete test post");
         let cocoon_file_name = "image.jpeg.cocoon";
         let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-            .join(&uuid)
+            .join(&post.uuid)
             .join(&cocoon_file_name);
         let uploads_uuid_dir = cocoon_path.parent().unwrap();
         std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
         std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(post.body, "&lt;test body");
+        assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
+        assert_eq!(post.media_category, Some(PostMediaCategory::Image));
+        assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
     }
 
     #[tokio::test]
