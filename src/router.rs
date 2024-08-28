@@ -280,10 +280,10 @@ async fn hide_rejected_post(
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
-    if user.admin() {
-        return Redirect::to(ROOT).into_response();
-    }
     if !post.authored_by(&user) {
+        if user.admin() {
+            return Redirect::to(ROOT).into_response();
+        }
         return bad_request("not post author");
     }
     if post.status != PostStatus::Rejected {
