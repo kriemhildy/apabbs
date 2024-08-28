@@ -5,7 +5,7 @@ use crate::{ban, init, BEGIN, COMMIT};
 use tokio_cron_scheduler::Job;
 
 pub fn scrub_ips() -> Job {
-    Job::new_async("0 0 * * * * *", |_uuid, _l| {
+    Job::new_async("0 0 4 * * * *", |_uuid, _l| {
         Box::pin(async move {
             let db = init::db().await;
             let mut tx = db.begin().await.expect(BEGIN);
