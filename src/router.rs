@@ -156,7 +156,10 @@ async fn submit_post(
                 let mut cocoon = Cocoon::new(secret_key.as_bytes());
                 cocoon.dump(data, &mut file).expect("dump cocoon to file");
                 post_submission.media_file_name = Some(file_name);
-                println!("file uploaded and encrypted as: {}", cocoon_path.to_str().unwrap());
+                println!(
+                    "file uploaded and encrypted as: {}",
+                    cocoon_path.to_str().unwrap()
+                );
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
