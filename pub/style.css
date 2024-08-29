@@ -12,7 +12,7 @@
         --track: #222;
     }
 
-    img {
+    img, video, audio, iframe {
         filter: brightness(75%);
     }
 }
