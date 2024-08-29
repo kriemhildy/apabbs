@@ -755,10 +755,13 @@ mod tests {
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
         assert!(!cocoon_uuid_dir.exists());
-        let image_path = std::path::Path::new(MEDIA_DIR)
+        let media_path = std::path::Path::new(MEDIA_DIR)
             .join(&post_submission.uuid)
             .join("image.jpeg");
-        assert!(image_path.exists());
+        assert!(media_path.exists());
+        std::fs::remove_file(&media_path).expect("remove media file");
+        let media_uuid_dir = media_path.parent().unwrap();
+        std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
         let mut tx = state.db.begin().await.expect(BEGIN);
         sqlx::query("DELETE FROM posts WHERE anon_token = $1")
             .bind(&post_user.anon_token)
