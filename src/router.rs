@@ -134,9 +134,6 @@ async fn submit_post(
             "body" => post_submission.body = field.text().await.unwrap(),
             "anon" => post_submission.anon = Some(field.text().await.unwrap()),
             "media" => {
-                // what is stopping them from uploading 50 files with this name
-                // is this even possible to do?
-                // better safe than sorry?
                 if post_submission.media_file_name.is_some() {
                     return bad_request("only upload one media file");
                 }
@@ -148,18 +145,18 @@ async fn submit_post(
                     continue;
                 }
                 let cocoon_file_name = file_name.clone() + ".cocoon";
-                let path = std::path::Path::new(UPLOADS_DIR)
+                let cocoon_path = std::path::Path::new(UPLOADS_DIR)
                     .join(&post_submission.uuid)
                     .join(&cocoon_file_name);
-                let uuid_dir = path.parent().unwrap();
-                std::fs::create_dir(uuid_dir).expect("create uuid dir");
-                let mut file = File::create(&path).expect("create file");
+                let cocoon_uuid_dir = cocoon_path.parent().unwrap();
+                std::fs::create_dir(cocoon_uuid_dir).expect("create cocoon uuid dir");
+                let mut file = File::create(&cocoon_path).expect("create file");
                 let data = field.bytes().await.unwrap().to_vec();
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                 let mut cocoon = Cocoon::new(secret_key.as_bytes());
                 cocoon.dump(data, &mut file).expect("dump cocoon to file");
                 post_submission.media_file_name = Some(file_name);
-                println!("file uploaded and encrypted as: {}", path.to_str().unwrap());
+                println!("file uploaded and encrypted as: {}", cocoon_path.to_str().unwrap());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
@@ -430,6 +427,7 @@ async fn decrypt_media(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::post::PostMediaCategory;
     use axum::{
         body::Body,
         http::{
@@ -441,7 +439,6 @@ mod tests {
     use form_data_builder::FormData;
     use http_body_util::BodyExt;
     use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
-    use crate::post::PostMediaCategory;
 
     const LOCAL_IP: &'static str = "::1";
     const APPLICATION_WWW_FORM_URLENCODED: &'static str = "application/x-www-form-urlencoded";
@@ -490,7 +487,7 @@ mod tests {
             media_file_name: None,
             uuid: Uuid::new_v4().hyphenated().to_string(),
         };
-        let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
+        let anon_token = Uuid::new_v4().hyphenated().to_string();
         let mut form = FormData::new(Vec::new());
         form.write_field("body", &post_submission.body).unwrap();
         form.write_path("media", "test/image.jpeg", "image/jpeg")
@@ -643,7 +640,7 @@ mod tests {
     #[tokio::test]
     async fn test_new_hash() {
         let (router, _state) = init_test().await;
-        let anon_token = uuid::Uuid::new_v4().hyphenated().to_string();
+        let anon_token = Uuid::new_v4().hyphenated().to_string();
         let request = Request::builder()
             .method(Method::POST)
             .uri("/hash")
@@ -664,7 +661,7 @@ mod tests {
         let mut tx = state.db.begin().await.expect(BEGIN);
         let user = User {
             account: None,
-            anon_token: uuid::Uuid::new_v4().hyphenated().to_string(),
+            anon_token: Uuid::new_v4().hyphenated().to_string(),
         };
         let post = PostSubmission {
             body: String::from("test body"),
@@ -707,16 +704,27 @@ mod tests {
         let mut tx = state.db.begin().await.expect(BEGIN);
         let post_user = User {
             account: None,
-            anon_token: uuid::Uuid::new_v4().hyphenated().to_string(),
+            anon_token: Uuid::new_v4().hyphenated().to_string(),
         };
-        let post = PostSubmission {
+        let post_submission = PostSubmission {
             body: String::from("test body"),
             anon: Some(String::from("on")),
-            media_file_name: None,
+            media_file_name: Some(String::from("image.jpeg")),
             uuid: Uuid::new_v4().hyphenated().to_string(),
         }
         .insert(&mut tx, &post_user, LOCAL_IP)
         .await;
+        let cocoon_file_name = post_submission.media_file_name.unwrap().clone() + ".cocoon";
+        let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+            .join(&post_submission.uuid)
+            .join(&cocoon_file_name);
+        let cocoon_uuid_dir = cocoon_path.parent().unwrap();
+        std::fs::create_dir(cocoon_uuid_dir).expect("create uuid dir");
+        let mut file = File::create(&cocoon_path).expect("create file");
+        let data = std::fs::read("test/image.jpeg").expect("read test/image.jpeg");
+        let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+        let mut cocoon = Cocoon::new(secret_key.as_bytes());
+        cocoon.dump(data, &mut file).expect("dump cocoon to file");
         let admin_account = Credentials {
             username: String::from("test4"),
             password: String::from("test_password"),
@@ -731,7 +739,7 @@ mod tests {
             .expect("set account as admin");
         tx.commit().await.expect(COMMIT);
         let post_review = PostReview {
-            uuid: post.uuid.clone(),
+            uuid: post_submission.uuid.clone(),
             status: PostStatus::Approved,
         };
         let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
@@ -746,6 +754,11 @@ mod tests {
             .body(Body::from(post_review_str))
             .unwrap();
         let response = router.oneshot(request).await.unwrap();
+        assert!(!cocoon_uuid_dir.exists());
+        let image_path = std::path::Path::new(MEDIA_DIR)
+            .join(&post_submission.uuid)
+            .join("image.jpeg");
+        assert!(image_path.exists());
         let mut tx = state.db.begin().await.expect(BEGIN);
         sqlx::query("DELETE FROM posts WHERE anon_token = $1")
             .bind(&post_user.anon_token)
