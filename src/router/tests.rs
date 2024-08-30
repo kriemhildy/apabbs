@@ -62,6 +62,15 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
     (post, user)
 }
 
+async fn mark_as_admin(tx: &mut PgConnection, account_id: i32) {
+    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
+        .bind(true)
+        .bind(account_id)
+        .execute(&mut *tx)
+        .await
+        .expect("set account as admin");
+}
+
 async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, Account) {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
@@ -74,12 +83,7 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, Account) {
     let mut cocoon = Cocoon::new(secret_key.as_bytes());
     cocoon.dump(data, &mut file).expect("dump cocoon to file");
     let admin_account = test_credentials().register(&mut tx, LOCAL_IP).await;
-    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
-        .bind(true)
-        .bind(admin_account.id)
-        .execute(&mut *tx)
-        .await
-        .expect("set account as admin");
+    mark_as_admin(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);
     (post, cocoon_path, admin_account)
 }
