@@ -278,7 +278,7 @@ async fn test_review_post() {
         account: None,
         anon_token: Uuid::new_v4().hyphenated().to_string(),
     };
-    let post_submission = PostSubmission {
+    let post = PostSubmission {
         body: String::from("test body"),
         anon: Some(String::from("on")),
         media_file_name: Some(String::from("image.jpeg")),
@@ -286,9 +286,9 @@ async fn test_review_post() {
     }
     .insert(&mut tx, &post_user, LOCAL_IP)
     .await;
-    let cocoon_file_name = post_submission.media_file_name.unwrap().clone() + ".cocoon";
+    let cocoon_file_name = post.media_file_name.unwrap().clone() + ".cocoon";
     let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-        .join(&post_submission.uuid)
+        .join(&post.uuid)
         .join(&cocoon_file_name);
     let cocoon_uuid_dir = cocoon_path.parent().unwrap();
     std::fs::create_dir(cocoon_uuid_dir).expect("create uuid dir");
@@ -311,7 +311,7 @@ async fn test_review_post() {
         .expect("set account as admin");
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        uuid: post_submission.uuid.clone(),
+        uuid: post.uuid.clone(),
         status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
@@ -328,7 +328,7 @@ async fn test_review_post() {
     let response = router.oneshot(request).await.unwrap();
     assert!(!cocoon_uuid_dir.exists());
     let media_path = std::path::Path::new(MEDIA_DIR)
-        .join(&post_submission.uuid)
+        .join(&post.uuid)
         .join("image.jpeg");
     assert!(media_path.exists());
     std::fs::remove_file(&media_path).expect("remove media file");
