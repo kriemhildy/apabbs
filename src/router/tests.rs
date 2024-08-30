@@ -100,9 +100,9 @@ fn cocoon_path(post: &Post) -> PathBuf {
     let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
     Path::new(UPLOADS_DIR)
         .join(&post.uuid)
-        .join(&cocoon_file_name).to_path_buf()
+        .join(&cocoon_file_name)
+        .to_path_buf()
 }
-
 
 #[tokio::test]
 async fn test_not_found() {
