@@ -62,7 +62,7 @@ async fn test_submit_post() {
     let anon_token = Uuid::new_v4().hyphenated().to_string();
     let mut form = FormData::new(Vec::new());
     form.write_field("body", &post_submission.body).unwrap();
-    form.write_path("media", "test/image.jpeg", "image/jpeg")
+    form.write_path("media", "tests/media/image.jpeg", "image/jpeg")
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
@@ -293,7 +293,7 @@ async fn test_review_post() {
     let cocoon_uuid_dir = cocoon_path.parent().unwrap();
     std::fs::create_dir(cocoon_uuid_dir).expect("create uuid dir");
     let mut file = File::create(&cocoon_path).expect("create file");
-    let data = std::fs::read("test/image.jpeg").expect("read test/image.jpeg");
+    let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let mut cocoon = Cocoon::new(secret_key.as_bytes());
     cocoon.dump(data, &mut file).expect("dump cocoon to file");
