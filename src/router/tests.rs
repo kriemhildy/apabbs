@@ -67,7 +67,7 @@ async fn test_submit_post() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
@@ -197,7 +197,7 @@ async fn test_logout() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/logout")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -216,7 +216,7 @@ async fn test_new_hash() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hash")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, anon_token))
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -257,13 +257,13 @@ async fn test_hide_rejected_post() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hide-rejected-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_hiding_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     sqlx::query("DELETE FROM posts WHERE anon_token = $1")
-        .bind(user.anon_token)
+        .bind(&user.anon_token)
         .execute(&state.db)
         .await
         .expect("delete test post");
@@ -303,9 +303,9 @@ async fn test_review_post() {
     }
     .register(&mut tx, LOCAL_IP)
     .await;
-    sqlx::query("UPDATE accounts SET admin = $1 WHERE username = $2")
+    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
         .bind(true)
-        .bind(&admin_account.username)
+        .bind(admin_account.id)
         .execute(&mut *tx)
         .await
         .expect("set account as admin");
@@ -320,7 +320,7 @@ async fn test_review_post() {
         .uri("/admin/review-post")
         .header(
             COOKIE,
-            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+            format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
@@ -334,17 +334,80 @@ async fn test_review_post() {
     std::fs::remove_file(&media_path).expect("remove media file");
     let media_uuid_dir = media_path.parent().unwrap();
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
-    let mut tx = state.db.begin().await.expect(BEGIN);
     sqlx::query("DELETE FROM posts WHERE anon_token = $1")
         .bind(&post_user.anon_token)
-        .execute(&mut *tx)
+        .execute(&state.db)
         .await
         .expect("delete test post");
-    sqlx::query("DELETE FROM accounts WHERE username = $1")
-        .bind(&admin_account.username)
-        .execute(&mut *tx)
+    sqlx::query("DELETE FROM accounts WHERE id = $1")
+        .bind(&admin_account.id)
+        .execute(&state.db)
         .await
         .expect("delete test admin account");
-    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
+}
+
+#[tokio::test]
+async fn test_decrypt_media() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post_user = User {
+        account: None,
+        anon_token: Uuid::new_v4().hyphenated().to_string(),
+    };
+    let post = PostSubmission {
+        body: String::from("test body"),
+        anon: Some(String::from("on")),
+        media_file_name: Some(String::from("image.jpeg")),
+        uuid: Uuid::new_v4().hyphenated().to_string(),
+    }
+    .insert(&mut tx, &post_user, LOCAL_IP)
+    .await;
+    let cocoon_file_name = post.media_file_name.unwrap().clone() + ".cocoon";
+    let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+        .join(&post.uuid)
+        .join(&cocoon_file_name);
+    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
+    std::fs::create_dir(cocoon_uuid_dir).expect("create uuid dir");
+    let mut file = File::create(&cocoon_path).expect("create file");
+    let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
+    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+    let mut cocoon = Cocoon::new(secret_key.as_bytes());
+    cocoon.dump(data, &mut file).expect("dump cocoon to file");
+    let admin_account = Credentials {
+        username: String::from("test5"),
+        password: String::from("test_password"),
+    }
+    .register(&mut tx, LOCAL_IP)
+    .await;
+    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
+        .bind(true)
+        .bind(admin_account.id)
+        .execute(&mut *tx)
+        .await
+        .expect("set account as admin");
+    tx.commit().await.expect(COMMIT);
+    let uri = format!("/admin/decrypt-media/{}", &post.uuid);
+    let request = Request::builder()
+        .uri(&uri)
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
+        )
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    sqlx::query("DELETE FROM posts WHERE id = $1")
+        .bind(post.id)
+        .execute(&state.db)
+        .await
+        .expect("delete test post");
+    sqlx::query("DELETE FROM accounts WHERE id = $1")
+        .bind(admin_account.id)
+        .execute(&state.db)
+        .await
+        .expect("delete test admin account");
+    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+    std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
 }
