@@ -309,11 +309,12 @@ async fn web_socket(
     ) {
         use PostStatus::*;
         while let Ok(msg) = receiver.recv().await {
-            let should_send = match msg.post.status {
-                Pending => user.admin(),
-                Rejected | Banned => user.admin() || msg.post.authored_by(&user),
-                Approved => true,
-            };
+            let should_send = user.admin()
+                || match msg.post.status {
+                    Pending => false,
+                    Rejected | Banned => msg.post.authored_by(&user),
+                    Approved => true,
+                };
             if !should_send {
                 continue;
             }
