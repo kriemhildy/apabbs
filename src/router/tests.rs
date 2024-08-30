@@ -41,20 +41,25 @@ async fn delete_account(tx: &mut PgConnection, account_id: i32) {
         .expect("delete test account");
 }
 
-async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Account) {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let post_user = User {
+async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<String>) -> (Post, User) {
+    let user = User {
         account: None,
         anon_token: Uuid::new_v4().hyphenated().to_string(),
     };
     let post = PostSubmission {
         body: String::from("test body"),
         anon: Some(String::from("on")),
-        media_file_name: Some(String::from("image.jpeg")),
+        media_file_name: media_file_name,
         uuid: Uuid::new_v4().hyphenated().to_string(),
     }
-    .insert(&mut tx, &post_user, LOCAL_IP)
+    .insert(tx, &user, LOCAL_IP)
     .await;
+    (post, user)
+}
+
+async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Account) {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (post, _user) = create_test_post(&mut tx, Some(String::from("image.jpeg"))).await;
     let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
     let cocoon_path = Path::new(UPLOADS_DIR)
         .join(&post.uuid)
@@ -262,18 +267,7 @@ async fn test_new_hash() {
 async fn test_hide_rejected_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = User {
-        account: None,
-        anon_token: Uuid::new_v4().hyphenated().to_string(),
-    };
-    let post = PostSubmission {
-        body: String::from("test body"),
-        anon: Some(String::from("on")),
-        media_file_name: None,
-        uuid: Uuid::new_v4().hyphenated().to_string(),
-    }
-    .insert(&mut tx, &user, LOCAL_IP)
-    .await;
+    let (post, user) = create_test_post(&mut tx, None).await;
     PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Rejected,
