@@ -11,7 +11,7 @@ use axum::{
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
 use sqlx::PgConnection;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
 const LOCAL_IP: &'static str = "::1";
@@ -38,9 +38,8 @@ async fn delete_account(tx: &mut PgConnection, account_id: i32) {
         .expect("delete test account");
 }
 
-macro_rules! create_test_cocoon {
-    ($state:expr) => {{
-        let mut tx = $state.db.begin().await.expect(BEGIN);
+async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Account) {
+        let mut tx = state.db.begin().await.expect(BEGIN);
         let post_user = User {
             account: None,
             anon_token: Uuid::new_v4().hyphenated().to_string(),
@@ -78,7 +77,6 @@ macro_rules! create_test_cocoon {
             .expect("set account as admin");
         tx.commit().await.expect(COMMIT);
         (post, cocoon_path.clone(), cocoon_uuid_dir, admin_account)
-    }};
 }
 
 #[tokio::test]
@@ -325,7 +323,7 @@ async fn test_hide_rejected_post() {
 #[tokio::test]
 async fn test_review_post() {
     let (router, state) = init_test().await;
-    let (post, _cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon!(state);
+    let (post, _cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon(&state).await;
     let post_review = PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Approved,
@@ -358,7 +356,7 @@ async fn test_review_post() {
 #[tokio::test]
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
-    let (post, cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon!(state);
+    let (post, cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon(&state).await;
     let uri = format!("/admin/decrypt-media/{}", &post.uuid);
     let request = Request::builder()
         .uri(&uri)
