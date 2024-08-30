@@ -64,10 +64,7 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
 async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, Account) {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
-    let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
-    let cocoon_path = Path::new(UPLOADS_DIR)
-        .join(&post.uuid)
-        .join(&cocoon_file_name);
+    let cocoon_path = cocoon_path(&post);
     let cocoon_uuid_dir = cocoon_path.parent().unwrap().to_path_buf();
     std::fs::create_dir(&cocoon_uuid_dir).expect("create uuid dir");
     let mut file = File::create(&cocoon_path).expect("create file");
@@ -98,6 +95,14 @@ fn remove_cocoon(cocoon_path: &Path) {
     std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
     std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
 }
+
+fn cocoon_path(post: &Post) -> PathBuf {
+    let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
+    Path::new(UPLOADS_DIR)
+        .join(&post.uuid)
+        .join(&cocoon_file_name).to_path_buf()
+}
+
 
 #[tokio::test]
 async fn test_not_found() {
@@ -147,10 +152,7 @@ async fn test_submit_post() {
             .await
             .expect("select post");
     post.delete(&mut tx).await;
-    let cocoon_file_name = "image.jpeg.cocoon";
-    let cocoon_path = Path::new(UPLOADS_DIR)
-        .join(&post.uuid)
-        .join(&cocoon_file_name);
+    let cocoon_path = cocoon_path(&post);
     remove_cocoon(&cocoon_path);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "&lt;test body");
