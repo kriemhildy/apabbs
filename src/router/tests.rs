@@ -39,44 +39,44 @@ async fn delete_account(tx: &mut PgConnection, account_id: i32) {
 }
 
 async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Account) {
-        let mut tx = state.db.begin().await.expect(BEGIN);
-        let post_user = User {
-            account: None,
-            anon_token: Uuid::new_v4().hyphenated().to_string(),
-        };
-        let post = PostSubmission {
-            body: String::from("test body"),
-            anon: Some(String::from("on")),
-            media_file_name: Some(String::from("image.jpeg")),
-            uuid: Uuid::new_v4().hyphenated().to_string(),
-        }
-        .insert(&mut tx, &post_user, LOCAL_IP)
-        .await;
-        let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
-        let cocoon_path = Path::new(UPLOADS_DIR)
-            .join(&post.uuid)
-            .join(&cocoon_file_name);
-        let cocoon_uuid_dir = cocoon_path.parent().unwrap().to_path_buf();
-        std::fs::create_dir(&cocoon_uuid_dir).expect("create uuid dir");
-        let mut file = File::create(&cocoon_path).expect("create file");
-        let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
-        let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-        let mut cocoon = Cocoon::new(secret_key.as_bytes());
-        cocoon.dump(data, &mut file).expect("dump cocoon to file");
-        let admin_account = Credentials {
-            username: test_username(),
-            password: String::from("test_password"),
-        }
-        .register(&mut tx, LOCAL_IP)
-        .await;
-        sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
-            .bind(true)
-            .bind(admin_account.id)
-            .execute(&mut *tx)
-            .await
-            .expect("set account as admin");
-        tx.commit().await.expect(COMMIT);
-        (post, cocoon_path.clone(), cocoon_uuid_dir, admin_account)
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post_user = User {
+        account: None,
+        anon_token: Uuid::new_v4().hyphenated().to_string(),
+    };
+    let post = PostSubmission {
+        body: String::from("test body"),
+        anon: Some(String::from("on")),
+        media_file_name: Some(String::from("image.jpeg")),
+        uuid: Uuid::new_v4().hyphenated().to_string(),
+    }
+    .insert(&mut tx, &post_user, LOCAL_IP)
+    .await;
+    let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
+    let cocoon_path = Path::new(UPLOADS_DIR)
+        .join(&post.uuid)
+        .join(&cocoon_file_name);
+    let cocoon_uuid_dir = cocoon_path.parent().unwrap().to_path_buf();
+    std::fs::create_dir(&cocoon_uuid_dir).expect("create uuid dir");
+    let mut file = File::create(&cocoon_path).expect("create file");
+    let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
+    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+    let mut cocoon = Cocoon::new(secret_key.as_bytes());
+    cocoon.dump(data, &mut file).expect("dump cocoon to file");
+    let admin_account = Credentials {
+        username: test_username(),
+        password: String::from("test_password"),
+    }
+    .register(&mut tx, LOCAL_IP)
+    .await;
+    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
+        .bind(true)
+        .bind(admin_account.id)
+        .execute(&mut *tx)
+        .await
+        .expect("set account as admin");
+    tx.commit().await.expect(COMMIT);
+    (post, cocoon_path.clone(), cocoon_uuid_dir, admin_account)
 }
 
 #[tokio::test]
