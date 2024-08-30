@@ -5,6 +5,8 @@ if ! [ "$DEV" == 1 ]; then
     nice rustup upgrade
     nice cargo build --release
 else
+    git diff --quiet
+    git diff --cached --quiet
     cargo test
     git push
     ssh $SSH_APP_USER "cd schiz && script/deploy.sh"
