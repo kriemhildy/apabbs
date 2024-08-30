@@ -116,10 +116,7 @@ async fn test_index() {
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert!(response
-        .headers()
-        .get(SET_COOKIE)
-        .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
+    assert!(response_has_cookie(&response, ANON_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(&site_name()));
