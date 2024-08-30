@@ -9,7 +9,10 @@ use crate::{
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
-    extract::{Multipart, Path, Query, State, WebSocketUpgrade},
+    extract::{
+        ws::{Message, WebSocket},
+        DefaultBodyLimit, Multipart, Path, Query, State, WebSocketUpgrade,
+    },
     http::header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -17,6 +20,7 @@ use axum_extra::extract::cookie::CookieJar;
 use cocoon::Cocoon;
 use helpers::*;
 use std::fs::File;
+use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
@@ -32,10 +36,7 @@ const PER_PAGE: i32 = 1_000;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn router(state: AppState, trace: bool) -> axum::Router {
-    use axum::{
-        extract::DefaultBodyLimit,
-        routing::{get, post},
-    };
+    use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
         .route("/post", post(submit_post))
@@ -301,8 +302,6 @@ async fn web_socket(
     jar: CookieJar,
     upgrade: WebSocketUpgrade,
 ) -> Response {
-    use axum::extract::ws::{Message, WebSocket};
-    use tokio::sync::broadcast::Receiver;
     async fn watch_receiver(
         mut socket: WebSocket,
         mut receiver: Receiver<PostMessage>,
