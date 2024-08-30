@@ -4,7 +4,7 @@ use axum::{
     body::Body,
     http::{
         header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
-        Method, Request, StatusCode,
+        Method, Request, StatusCode, Response,
     },
     Router,
 };
@@ -66,8 +66,7 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Accoun
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let mut cocoon = Cocoon::new(secret_key.as_bytes());
     cocoon.dump(data, &mut file).expect("dump cocoon to file");
-    let admin_account = test_credentials().register(&mut tx, LOCAL_IP)
-    .await;
+    let admin_account = test_credentials().register(&mut tx, LOCAL_IP).await;
     sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
         .bind(true)
         .bind(admin_account.id)
@@ -76,6 +75,13 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Accoun
         .expect("set account as admin");
     tx.commit().await.expect(COMMIT);
     (post, cocoon_path, cocoon_uuid_dir, admin_account)
+}
+
+fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
+    response
+        .headers()
+        .get(SET_COOKIE)
+        .is_some_and(|c| c.to_str().unwrap().contains(cookie))
 }
 
 #[tokio::test]
@@ -176,10 +182,7 @@ async fn test_authenticate() {
     delete_account(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response
-        .headers()
-        .get(SET_COOKIE)
-        .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
 }
 
 #[tokio::test]
@@ -218,10 +221,7 @@ async fn test_create_account() {
     delete_account(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response
-        .headers()
-        .get(SET_COOKIE)
-        .is_some_and(|c| c.to_str().unwrap().contains(ACCOUNT_COOKIE)));
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
 }
 
 #[tokio::test]
@@ -255,10 +255,7 @@ async fn test_new_hash() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response
-        .headers()
-        .get(SET_COOKIE)
-        .is_some_and(|c| c.to_str().unwrap().contains(ANON_COOKIE)));
+    assert!(response_has_cookie(&response, ANON_COOKIE));
 }
 
 #[tokio::test]
