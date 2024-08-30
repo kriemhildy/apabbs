@@ -1,6 +1,18 @@
 {% extends "layout.jinja" %}
 {% block body %}
 <h3>Registration</h3>
+<ul>
+    <li>Registering an account is completely optional.</li>
+    <li>Registering will enable you to optionally post with a username.</li>
+    <li>You can still post anonymously while logged in to an account.</li>
+    <li>Anonymous posts which are made while logged in will not be associated with your account.</li>
+    <li>
+        An encrypted hash of your IP address will be stored in the database for up to 48 hours.
+        This is to prevent malicious flooding.
+        The hash will then be automatically deleted.
+    </li>
+    <li>Registering is necessary for moderators.</li>
+</ul>
 <form action="/register" method="post">
     <label for="username">username:</label>
     <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
