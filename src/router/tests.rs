@@ -41,7 +41,11 @@ async fn delete_account(tx: &mut PgConnection, account_id: i32) {
         .expect("delete test account");
 }
 
-async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<String>) -> (Post, User) {
+async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) -> (Post, User) {
+    let media_file_name = match media_file_name {
+        Some(name) => Some(String::from(name)),
+        None => None,
+    };
     let user = User {
         account: None,
         anon_token: Uuid::new_v4().hyphenated().to_string(),
@@ -59,7 +63,7 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<String>
 
 async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Account) {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user) = create_test_post(&mut tx, Some(String::from("image.jpeg"))).await;
+    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
     let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
     let cocoon_path = Path::new(UPLOADS_DIR)
         .join(&post.uuid)
