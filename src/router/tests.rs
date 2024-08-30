@@ -30,9 +30,9 @@ fn test_username() -> String {
     String::from(&Uuid::new_v4().simple().to_string()[..16])
 }
 
-async fn delete_account(tx: &mut PgConnection, account: &Account) {
+async fn delete_account(tx: &mut PgConnection, account_id: i32) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
-        .bind(account.id)
+        .bind(account_id)
         .execute(&mut *tx)
         .await
         .expect("delete test account");
@@ -185,7 +185,7 @@ async fn test_authenticate() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    delete_account(&mut tx, &account).await;
+    delete_account(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response
@@ -231,7 +231,7 @@ async fn test_create_account() {
         .fetch_one(&mut *tx)
         .await
         .expect("select account");
-    delete_account(&mut tx, &account).await;
+    delete_account(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response
@@ -258,7 +258,7 @@ async fn test_logout() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    delete_account(&mut tx, &account).await;
+    delete_account(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -350,7 +350,7 @@ async fn test_review_post() {
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
-    delete_account(&mut tx, &admin_account).await;
+    delete_account(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -376,7 +376,7 @@ async fn test_decrypt_media() {
     assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
-    delete_account(&mut tx, &admin_account).await;
+    delete_account(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);
     std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
     std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
