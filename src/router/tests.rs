@@ -107,15 +107,9 @@ async fn test_index() {
 #[tokio::test]
 async fn test_submit_post() {
     let (router, state) = init_test().await;
-    let post_submission = PostSubmission {
-        body: String::from("<test body"),
-        anon: Some(String::from("on")),
-        media_file_name: None,
-        uuid: Uuid::new_v4().hyphenated().to_string(),
-    };
     let anon_token = Uuid::new_v4().hyphenated().to_string();
     let mut form = FormData::new(Vec::new());
-    form.write_field("body", &post_submission.body).unwrap();
+    form.write_field("body", "<test body").unwrap();
     form.write_path("media", "tests/media/image.jpeg", "image/jpeg")
         .unwrap();
     let request = Request::builder()
