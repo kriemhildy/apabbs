@@ -168,6 +168,7 @@ async fn test_submit_post() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = select_latest_post_by_token(&mut tx, &anon_token).await;
     post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
     let cocoon_path = cocoon_path(&post);
     remove_cocoon(&cocoon_path);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
