@@ -31,8 +31,9 @@ async fn init_test() -> (Router, AppState) {
 }
 
 fn test_credentials() -> Credentials {
+    let uuid = Uuid::new_v4().simple().to_string();
     Credentials {
-        username: String::from(&Uuid::new_v4().simple().to_string()[..16]),
+        username: String::from(&uuid[..16]),
         password: String::from("test_password"),
     }
 }
