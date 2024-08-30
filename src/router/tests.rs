@@ -4,7 +4,7 @@ use axum::{
     body::Body,
     http::{
         header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
-        Method, Request, StatusCode, Response,
+        Method, Request, Response, StatusCode,
     },
     Router,
 };
