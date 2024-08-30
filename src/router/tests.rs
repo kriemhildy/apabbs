@@ -10,6 +10,7 @@ use axum::{
 };
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
+use sqlx::PgConnection;
 use std::path::Path;
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
@@ -27,6 +28,14 @@ async fn init_test() -> (Router, AppState) {
 
 fn test_username() -> String {
     String::from(&Uuid::new_v4().simple().to_string()[..16])
+}
+
+async fn delete_account(tx: &mut PgConnection, account: &Account) {
+    sqlx::query("DELETE FROM accounts WHERE id = $1")
+        .bind(account.id)
+        .execute(&mut *tx)
+        .await
+        .expect("delete test account");
 }
 
 macro_rules! create_test_cocoon {
@@ -121,17 +130,14 @@ async fn test_submit_post() {
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
     let post: Post =
         sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
             .bind(&anon_token)
-            .fetch_one(&state.db)
+            .fetch_one(&mut *tx)
             .await
             .expect("select post");
-    sqlx::query("DELETE FROM posts WHERE id = $1")
-        .bind(post.id)
-        .execute(&state.db)
-        .await
-        .expect("delete test post");
+    post.delete(&mut tx).await;
     let cocoon_file_name = "image.jpeg.cocoon";
     let cocoon_path = Path::new(UPLOADS_DIR)
         .join(&post.uuid)
@@ -168,7 +174,7 @@ async fn test_authenticate() {
         username: test_username(),
         password: String::from("test_password"),
     };
-    credentials.register(&mut tx, LOCAL_IP).await;
+    let account = credentials.register(&mut tx, LOCAL_IP).await;
     tx.commit().await.expect(COMMIT);
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
@@ -178,11 +184,9 @@ async fn test_authenticate() {
         .body(Body::from(creds_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    sqlx::query("DELETE FROM accounts WHERE username = $1")
-        .bind("test1")
-        .execute(&state.db)
-        .await
-        .expect("delete test account");
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    delete_account(&mut tx, &account).await;
+    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response
         .headers()
@@ -207,8 +211,9 @@ async fn test_registration_form() {
 #[tokio::test]
 async fn test_create_account() {
     let (router, state) = init_test().await;
+    let username = test_username();
     let credentials = Credentials {
-        username: test_username(),
+        username: username.clone(),
         password: String::from("test_password"),
     };
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
@@ -220,11 +225,14 @@ async fn test_create_account() {
         .body(Body::from(creds_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    sqlx::query("DELETE FROM accounts WHERE username = $1")
-        .bind("test2")
-        .execute(&state.db)
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account: Account = sqlx::query_as("SELECT * FROM accounts WHERE username = $1")
+        .bind(&username)
+        .fetch_one(&mut *tx)
         .await
-        .expect("delete test account");
+        .expect("select account");
+    delete_account(&mut tx, &account).await;
+    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response
         .headers()
@@ -249,11 +257,9 @@ async fn test_logout() {
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    sqlx::query("DELETE FROM accounts WHERE username = $1")
-        .bind("test3")
-        .execute(&state.db)
-        .await
-        .expect("delete test account");
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    delete_account(&mut tx, &account).await;
+    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
@@ -310,11 +316,9 @@ async fn test_hide_rejected_post() {
         .body(Body::from(post_hiding_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    sqlx::query("DELETE FROM posts WHERE anon_token = $1")
-        .bind(&user.anon_token)
-        .execute(&state.db)
-        .await
-        .expect("delete test post");
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
@@ -344,16 +348,10 @@ async fn test_review_post() {
     std::fs::remove_file(&media_path).expect("remove media file");
     let media_uuid_dir = media_path.parent().unwrap();
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
-    sqlx::query("DELETE FROM posts WHERE id = $1")
-        .bind(post.id)
-        .execute(&state.db)
-        .await
-        .expect("delete test post");
-    sqlx::query("DELETE FROM accounts WHERE id = $1")
-        .bind(&admin_account.id)
-        .execute(&state.db)
-        .await
-        .expect("delete test admin account");
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    post.delete(&mut tx).await;
+    delete_account(&mut tx, &admin_account).await;
+    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
@@ -376,16 +374,10 @@ async fn test_decrypt_media() {
     assert_eq!(content_type, "image/jpeg");
     let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
     assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
-    sqlx::query("DELETE FROM posts WHERE id = $1")
-        .bind(post.id)
-        .execute(&state.db)
-        .await
-        .expect("delete test post");
-    sqlx::query("DELETE FROM accounts WHERE id = $1")
-        .bind(admin_account.id)
-        .execute(&state.db)
-        .await
-        .expect("delete test admin account");
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    post.delete(&mut tx).await;
+    delete_account(&mut tx, &admin_account).await;
+    tx.commit().await.expect(COMMIT);
     std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
     std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
 }
