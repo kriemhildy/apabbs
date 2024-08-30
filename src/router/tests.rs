@@ -61,7 +61,7 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
     (post, user)
 }
 
-async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Account) {
+async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, Account) {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
     let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
@@ -83,7 +83,7 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Accoun
         .await
         .expect("set account as admin");
     tx.commit().await.expect(COMMIT);
-    (post, cocoon_path, cocoon_uuid_dir, admin_account)
+    (post, cocoon_path, admin_account)
 }
 
 fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
@@ -91,6 +91,12 @@ fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
         .headers()
         .get(SET_COOKIE)
         .is_some_and(|c| c.to_str().unwrap().contains(cookie))
+}
+
+fn remove_cocoon(cocoon_path: &Path) {
+    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
+    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+    std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
 }
 
 #[tokio::test]
@@ -148,9 +154,7 @@ async fn test_submit_post() {
     let cocoon_path = Path::new(UPLOADS_DIR)
         .join(&post.uuid)
         .join(&cocoon_file_name);
-    let uploads_uuid_dir = cocoon_path.parent().unwrap();
-    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
-    std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
+    remove_cocoon(&cocoon_path);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "&lt;test body");
     assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
@@ -300,7 +304,7 @@ async fn test_hide_rejected_post() {
 #[tokio::test]
 async fn test_review_post() {
     let (router, state) = init_test().await;
-    let (post, _cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon(&state).await;
+    let (post, cocoon_path, admin_account) = create_test_cocoon(&state).await;
     let post_review = PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Approved,
@@ -317,6 +321,7 @@ async fn test_review_post() {
         .body(Body::from(post_review_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
     assert!(!cocoon_uuid_dir.exists());
     let media_path = Path::new(MEDIA_DIR).join(&post.uuid).join("image.jpeg");
     assert!(media_path.exists());
@@ -333,7 +338,7 @@ async fn test_review_post() {
 #[tokio::test]
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
-    let (post, cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon(&state).await;
+    let (post, cocoon_path, admin_account) = create_test_cocoon(&state).await;
     let uri = format!("/admin/decrypt-media/{}", &post.uuid);
     let request = Request::builder()
         .uri(&uri)
@@ -353,6 +358,5 @@ async fn test_decrypt_media() {
     post.delete(&mut tx).await;
     delete_account(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);
-    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
-    std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
+    remove_cocoon(&cocoon_path);
 }
