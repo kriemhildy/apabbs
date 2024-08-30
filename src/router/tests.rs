@@ -109,6 +109,14 @@ fn cocoon_path(post: &Post) -> PathBuf {
         .to_path_buf()
 }
 
+async fn select_latest_post_by_token(tx: &mut PgConnection, anon_token: &str) -> Post {
+    sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
+        .bind(anon_token)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("select post")
+}
+
 #[tokio::test]
 async fn test_not_found() {
     let (router, _state) = init_test().await;
@@ -150,12 +158,7 @@ async fn test_submit_post() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post: Post =
-        sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
-            .bind(&anon_token)
-            .fetch_one(&mut *tx)
-            .await
-            .expect("select post");
+    let post = select_latest_post_by_token(&mut tx, &anon_token).await;
     post.delete(&mut tx).await;
     let cocoon_path = cocoon_path(&post);
     remove_cocoon(&cocoon_path);
