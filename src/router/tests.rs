@@ -397,7 +397,11 @@ async fn test_decrypt_media() {
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.status().is_success());
+    let content_type = response.headers().get(CONTENT_TYPE).unwrap();
+    assert_eq!(content_type, "image/jpeg");
+    let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
+    assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
     sqlx::query("DELETE FROM posts WHERE id = $1")
         .bind(post.id)
         .execute(&state.db)
