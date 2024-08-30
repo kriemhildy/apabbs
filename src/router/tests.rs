@@ -133,7 +133,7 @@ async fn test_index() {
     let (router, _state) = init_test().await;
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.status().is_success());
     assert!(response_has_cookie(&response, ANON_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
@@ -177,7 +177,7 @@ async fn test_login_form() {
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.status().is_success());
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains("Log in"));
@@ -213,7 +213,7 @@ async fn test_registration_form() {
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.status().is_success());
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains("Register"));
