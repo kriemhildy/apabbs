@@ -80,7 +80,7 @@ function initWebSocket() {
 
 const url = new URL(window.location.href);
 
-if (url.pathname == "/" && !url.searchParams.has('until')) {
+if (url.pathname == "/" && !url.searchParams.has("until")) {
     for (fn of [initDomElements, initUnseenPosts, initWebSocket]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
