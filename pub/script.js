@@ -69,7 +69,7 @@ function initWebSocket() {
         const json = JSON.parse(event.data);
         updatePost(json.uuid, json.html);
     });
-    webSocket.addEventListener("close", function() {
+    webSocket.addEventListener("close", function () {
         setTimeout(initWebSocket, 3_000);
     });
 }
