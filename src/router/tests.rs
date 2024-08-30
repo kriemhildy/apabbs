@@ -26,8 +26,11 @@ async fn init_test() -> (Router, AppState) {
     (router, state)
 }
 
-fn test_username() -> String {
-    String::from(&Uuid::new_v4().simple().to_string()[..16])
+fn test_credentials() -> Credentials {
+    Credentials {
+        username: String::from(&Uuid::new_v4().simple().to_string()[..16]),
+        password: String::from("test_password"),
+    }
 }
 
 async fn delete_account(tx: &mut PgConnection, account_id: i32) {
@@ -63,11 +66,7 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Accoun
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let mut cocoon = Cocoon::new(secret_key.as_bytes());
     cocoon.dump(data, &mut file).expect("dump cocoon to file");
-    let admin_account = Credentials {
-        username: test_username(),
-        password: String::from("test_password"),
-    }
-    .register(&mut tx, LOCAL_IP)
+    let admin_account = test_credentials().register(&mut tx, LOCAL_IP)
     .await;
     sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
         .bind(true)
@@ -168,10 +167,7 @@ async fn test_login_form() {
 async fn test_authenticate() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let credentials = Credentials {
-        username: test_username(),
-        password: String::from("test_password"),
-    };
+    let credentials = test_credentials();
     let account = credentials.register(&mut tx, LOCAL_IP).await;
     tx.commit().await.expect(COMMIT);
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
@@ -209,11 +205,7 @@ async fn test_registration_form() {
 #[tokio::test]
 async fn test_create_account() {
     let (router, state) = init_test().await;
-    let username = test_username();
-    let credentials = Credentials {
-        username: username.clone(),
-        password: String::from("test_password"),
-    };
+    let credentials = test_credentials();
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
         .method(Method::POST)
@@ -225,7 +217,7 @@ async fn test_create_account() {
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
     let account: Account = sqlx::query_as("SELECT * FROM accounts WHERE username = $1")
-        .bind(&username)
+        .bind(&credentials.username)
         .fetch_one(&mut *tx)
         .await
         .expect("select account");
@@ -242,11 +234,7 @@ async fn test_create_account() {
 async fn test_logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let credentials = Credentials {
-        username: test_username(),
-        password: String::from("test_password"),
-    };
-    let account = credentials.register(&mut tx, LOCAL_IP).await;
+    let account = test_credentials().register(&mut tx, LOCAL_IP).await;
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .method(Method::POST)
