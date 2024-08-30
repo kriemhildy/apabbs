@@ -11,7 +11,6 @@ use axum::{
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
 use sqlx::PgConnection;
-use std::fs::{remove_dir, remove_file};
 use std::path::{Path, PathBuf};
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
@@ -101,8 +100,8 @@ fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
 
 fn remove_cocoon(cocoon_path: &Path) {
     let cocoon_uuid_dir = cocoon_path.parent().unwrap();
-    remove_file(&cocoon_path).expect("remove cocoon file");
-    remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
+    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+    std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
 }
 
 fn cocoon_path(post: &Post) -> PathBuf {
@@ -340,9 +339,9 @@ async fn test_review_post() {
     assert!(!cocoon_uuid_dir.exists());
     let media_path = Path::new(MEDIA_DIR).join(&post.uuid).join("image.jpeg");
     assert!(media_path.exists());
-    remove_file(&media_path).expect("remove media file");
+    std::fs::remove_file(&media_path).expect("remove media file");
     let media_uuid_dir = media_path.parent().unwrap();
-    remove_dir(&media_uuid_dir).expect("remove media uuid dir");
+    std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
     delete_account(&mut tx, admin_account.id).await;
