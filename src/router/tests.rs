@@ -76,7 +76,7 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, PathBuf, Accoun
         .await
         .expect("set account as admin");
     tx.commit().await.expect(COMMIT);
-    (post, cocoon_path.clone(), cocoon_uuid_dir, admin_account)
+    (post, cocoon_path, cocoon_uuid_dir, admin_account)
 }
 
 #[tokio::test]
