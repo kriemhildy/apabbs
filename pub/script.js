@@ -4,11 +4,11 @@
 
 function styleScrollbar() {
     if (!navigator.userAgent.includes("Macintosh") && navigator.userAgent.includes("WebKit")) {
-        const mainLink = document.querySelector("link[rel=stylesheet]");
+        const primaryLink = document.querySelector("link[rel=stylesheet]");
         const scrollbarLink = document.createElement("link");
         scrollbarLink.rel = "stylesheet";
         scrollbarLink.href = "/scrollbar.css";
-        mainLink.after(scrollbarLink);
+        primaryLink.after(scrollbarLink);
     }
 }
 
@@ -45,11 +45,11 @@ function initUnseenPosts() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
-let webSocket, template, main;
+let webSocket, template, postsSection;
 
-function initTemplateAndMain() {
+function initDomElements() {
     template = document.createElement("template");
-    main = document.querySelector("main");
+    postsSection = document.querySelector("section#posts");
 }
 
 function updatePost(uuid, html) {
@@ -58,7 +58,7 @@ function updatePost(uuid, html) {
     if (post) {
         post.replaceWith(template.content);
     } else {
-        main.prepend(template.content);
+        postsSection.prepend(template.content);
         incrementUnseenPosts();
     }
 }
@@ -81,7 +81,7 @@ function initWebSocket() {
 const url = new URL(window.location.href);
 
 if (url.pathname == "/" && !url.searchParams.has('until')) {
-    for (fn of [initTemplateAndMain, initUnseenPosts, initWebSocket]) {
+    for (fn of [initDomElements, initUnseenPosts, initWebSocket]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
