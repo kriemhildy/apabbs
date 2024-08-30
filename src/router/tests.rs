@@ -10,6 +10,7 @@ use axum::{
 };
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
+use std::path::Path;
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
 const LOCAL_IP: &'static str = "::1";
@@ -22,6 +23,53 @@ async fn init_test() -> (Router, AppState) {
     let state = init::app_state().await;
     let router = router(state.clone(), false);
     (router, state)
+}
+
+fn test_username() -> String {
+    String::from(&Uuid::new_v4().simple().to_string()[..16])
+}
+
+macro_rules! create_test_cocoon {
+    ($state:expr) => {{
+        let mut tx = $state.db.begin().await.expect(BEGIN);
+        let post_user = User {
+            account: None,
+            anon_token: Uuid::new_v4().hyphenated().to_string(),
+        };
+        let post = PostSubmission {
+            body: String::from("test body"),
+            anon: Some(String::from("on")),
+            media_file_name: Some(String::from("image.jpeg")),
+            uuid: Uuid::new_v4().hyphenated().to_string(),
+        }
+        .insert(&mut tx, &post_user, LOCAL_IP)
+        .await;
+        let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
+        let cocoon_path = Path::new(UPLOADS_DIR)
+            .join(&post.uuid)
+            .join(&cocoon_file_name);
+        let cocoon_uuid_dir = cocoon_path.parent().unwrap().to_path_buf();
+        std::fs::create_dir(&cocoon_uuid_dir).expect("create uuid dir");
+        let mut file = File::create(&cocoon_path).expect("create file");
+        let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
+        let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+        let mut cocoon = Cocoon::new(secret_key.as_bytes());
+        cocoon.dump(data, &mut file).expect("dump cocoon to file");
+        let admin_account = Credentials {
+            username: test_username(),
+            password: String::from("test_password"),
+        }
+        .register(&mut tx, LOCAL_IP)
+        .await;
+        sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
+            .bind(true)
+            .bind(admin_account.id)
+            .execute(&mut *tx)
+            .await
+            .expect("set account as admin");
+        tx.commit().await.expect(COMMIT);
+        (post, cocoon_path.clone(), cocoon_uuid_dir, admin_account)
+    }};
 }
 
 #[tokio::test]
@@ -85,7 +133,7 @@ async fn test_submit_post() {
         .await
         .expect("delete test post");
     let cocoon_file_name = "image.jpeg.cocoon";
-    let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+    let cocoon_path = Path::new(UPLOADS_DIR)
         .join(&post.uuid)
         .join(&cocoon_file_name);
     let uploads_uuid_dir = cocoon_path.parent().unwrap();
@@ -117,7 +165,7 @@ async fn test_authenticate() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let credentials = Credentials {
-        username: String::from("test1"),
+        username: test_username(),
         password: String::from("test_password"),
     };
     credentials.register(&mut tx, LOCAL_IP).await;
@@ -160,7 +208,7 @@ async fn test_registration_form() {
 async fn test_create_account() {
     let (router, state) = init_test().await;
     let credentials = Credentials {
-        username: String::from("test2"),
+        username: test_username(),
         password: String::from("test_password"),
     };
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
@@ -189,7 +237,7 @@ async fn test_logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let credentials = Credentials {
-        username: String::from("test3"),
+        username: test_username(),
         password: String::from("test_password"),
     };
     let account = credentials.register(&mut tx, LOCAL_IP).await;
@@ -273,43 +321,7 @@ async fn test_hide_rejected_post() {
 #[tokio::test]
 async fn test_review_post() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let post_user = User {
-        account: None,
-        anon_token: Uuid::new_v4().hyphenated().to_string(),
-    };
-    let post = PostSubmission {
-        body: String::from("test body"),
-        anon: Some(String::from("on")),
-        media_file_name: Some(String::from("image.jpeg")),
-        uuid: Uuid::new_v4().hyphenated().to_string(),
-    }
-    .insert(&mut tx, &post_user, LOCAL_IP)
-    .await;
-    let cocoon_file_name = post.media_file_name.unwrap().clone() + ".cocoon";
-    let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-        .join(&post.uuid)
-        .join(&cocoon_file_name);
-    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
-    std::fs::create_dir(cocoon_uuid_dir).expect("create uuid dir");
-    let mut file = File::create(&cocoon_path).expect("create file");
-    let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
-    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    let mut cocoon = Cocoon::new(secret_key.as_bytes());
-    cocoon.dump(data, &mut file).expect("dump cocoon to file");
-    let admin_account = Credentials {
-        username: String::from("test4"),
-        password: String::from("test_password"),
-    }
-    .register(&mut tx, LOCAL_IP)
-    .await;
-    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
-        .bind(true)
-        .bind(admin_account.id)
-        .execute(&mut *tx)
-        .await
-        .expect("set account as admin");
-    tx.commit().await.expect(COMMIT);
+    let (post, _cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon!(state);
     let post_review = PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Approved,
@@ -327,15 +339,13 @@ async fn test_review_post() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(!cocoon_uuid_dir.exists());
-    let media_path = std::path::Path::new(MEDIA_DIR)
-        .join(&post.uuid)
-        .join("image.jpeg");
+    let media_path = Path::new(MEDIA_DIR).join(&post.uuid).join("image.jpeg");
     assert!(media_path.exists());
     std::fs::remove_file(&media_path).expect("remove media file");
     let media_uuid_dir = media_path.parent().unwrap();
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
-    sqlx::query("DELETE FROM posts WHERE anon_token = $1")
-        .bind(&post_user.anon_token)
+    sqlx::query("DELETE FROM posts WHERE id = $1")
+        .bind(post.id)
         .execute(&state.db)
         .await
         .expect("delete test post");
@@ -350,43 +360,7 @@ async fn test_review_post() {
 #[tokio::test]
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let post_user = User {
-        account: None,
-        anon_token: Uuid::new_v4().hyphenated().to_string(),
-    };
-    let post = PostSubmission {
-        body: String::from("test body"),
-        anon: Some(String::from("on")),
-        media_file_name: Some(String::from("image.jpeg")),
-        uuid: Uuid::new_v4().hyphenated().to_string(),
-    }
-    .insert(&mut tx, &post_user, LOCAL_IP)
-    .await;
-    let cocoon_file_name = post.media_file_name.unwrap().clone() + ".cocoon";
-    let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-        .join(&post.uuid)
-        .join(&cocoon_file_name);
-    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
-    std::fs::create_dir(cocoon_uuid_dir).expect("create uuid dir");
-    let mut file = File::create(&cocoon_path).expect("create file");
-    let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
-    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    let mut cocoon = Cocoon::new(secret_key.as_bytes());
-    cocoon.dump(data, &mut file).expect("dump cocoon to file");
-    let admin_account = Credentials {
-        username: String::from("test5"),
-        password: String::from("test_password"),
-    }
-    .register(&mut tx, LOCAL_IP)
-    .await;
-    sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
-        .bind(true)
-        .bind(admin_account.id)
-        .execute(&mut *tx)
-        .await
-        .expect("set account as admin");
-    tx.commit().await.expect(COMMIT);
+    let (post, cocoon_path, cocoon_uuid_dir, admin_account) = create_test_cocoon!(state);
     let uri = format!("/admin/decrypt-media/{}", &post.uuid);
     let request = Request::builder()
         .uri(&uri)
