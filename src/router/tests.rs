@@ -109,7 +109,7 @@ async fn test_login_form() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(body_str.contains("Login"));
+    assert!(body_str.contains("Log in"));
 }
 
 #[tokio::test]
