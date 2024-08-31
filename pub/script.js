@@ -45,7 +45,8 @@ function initUnseenPosts() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
-let webSocket, template, postsSection;
+let webSocket, template, postsSection, reconnectInterval;
+let webSocketOpen = false;
 
 function initDomElements() {
     template = document.createElement("template");
@@ -64,13 +65,25 @@ function updatePost(uuid, html) {
 }
 
 function initWebSocket() {
+    console.log("attempting to connect to websocket");
     webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
     webSocket.addEventListener("message", function (event) {
+        // message is going to have to activate admin review JS
         const json = JSON.parse(event.data);
+        console.log("websocket message received for post uuid: ", json.uuid);
         updatePost(json.uuid, json.html);
     });
     webSocket.addEventListener("close", function () {
-        setTimeout(initWebSocket, 3_000);
+        if (webSocketOpen) {
+            webSocketOpen = false;
+            console.log("websocket closed, attempting to reconnect every second");
+            reconnectInterval = setInterval(initWebSocket, 1_000);
+        }
+    });
+    webSocket.addEventListener("open", function () {
+        webSocketOpen = true;
+        clearInterval(reconnectInterval);
+        console.log("websocket successfully connected");
     });
 }
 
@@ -85,3 +98,29 @@ if (url.pathname == "/" && !url.searchParams.has("until")) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// add fetch to forms
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+function addReviewFetch() {
+    const reviewUrl = "/admin/review-post";
+    const reviewForms = document.querySelectorAll(`form[action='${reviewUrl}']`);
+    for (const reviewForm of reviewForms) {
+        console.log("adding fetch to form: ", reviewForm);
+        reviewForm.addEventListener("submit", function (event) {
+            console.log("review form submit pressed");
+            event.preventDefault();
+            const formData = new FormData(reviewForm);
+            const urlSearchParams = new URLSearchParams(formData);
+            fetch(reviewUrl, {
+                method: "POST",
+                body: urlSearchParams
+            }).then((response) => {
+                console.log("response.status", response.status);
+            });
+        });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", addReviewFetch);
