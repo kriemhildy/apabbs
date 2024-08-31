@@ -62,6 +62,7 @@ function updatePost(uuid, html) {
         postsSection.prepend(template.content);
         incrementUnseenPosts();
     }
+    addFetchToForms();
 }
 
 function initWebSocket() {
@@ -88,39 +89,46 @@ function initWebSocket() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// add fetch to forms
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+function submitListener(event) {
+    event.preventDefault();
+    const formData = new FormData(this);
+    let fetchBody;
+    if (this.enctype == "multipart/form-data") {
+        fetchBody = formData;
+    } else {
+        fetchBody = new URLSearchParams(formData);
+    }
+    fetch(this.action, {
+        method: "POST",
+        body: fetchBody
+    }).then((response) => {
+        console.log("response.status", response.status);
+    });
+}
+
+function addFetchToForms() {
+    const forms = document.querySelectorAll("form");
+    for (const form of forms) {
+        if (form.dataset.fetch) {
+            continue;
+        }
+        console.log("adding fetch to form: ", form);
+        form.addEventListener("submit", submitListener);
+        form.dataset.fetch = "true";
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // routing
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const url = new URL(window.location.href);
 
 if (url.pathname == "/" && !url.searchParams.has("until")) {
-    for (fn of [initDomElements, initUnseenPosts, initWebSocket]) {
+    for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// add fetch to forms
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-function addReviewFetch() {
-    const reviewUrl = "/admin/review-post";
-    const reviewForms = document.querySelectorAll(`form[action='${reviewUrl}']`);
-    for (const reviewForm of reviewForms) {
-        console.log("adding fetch to form: ", reviewForm);
-        reviewForm.addEventListener("submit", function (event) {
-            console.log("review form submit pressed");
-            event.preventDefault();
-            const formData = new FormData(reviewForm);
-            const urlSearchParams = new URLSearchParams(formData);
-            fetch(reviewUrl, {
-                method: "POST",
-                body: urlSearchParams
-            }).then((response) => {
-                console.log("response.status", response.status);
-            });
-        });
-    }
-}
-
-document.addEventListener("DOMContentLoaded", addReviewFetch);
