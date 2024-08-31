@@ -116,17 +116,15 @@ function handleFormSubmit(event) {
         console.log("response.status", response.status);
         let actionUrl = new URL(this.action);
         console.log("actionUrl.pathname: ", actionUrl.pathname);
-        switch (actionUrl.pathname) {
-            case "/post":
-                if (response.status == 200) {
+        if (response.status == 200) {
+            switch (actionUrl.pathname) {
+                case "/post":
                     this.reset();
-                }
-                break;
-            case "/hide-rejected-post":
-                if (response.status == 200) {
-                    updatePost(formData.get("uuid"), "");
-                }
-                break;
+                    break;
+                case "/hide-rejected-post":
+                    this.parentElement.remove();
+                    break;
+            }
         }
     });
 }
