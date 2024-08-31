@@ -28,23 +28,23 @@
     {% endif %}
     {% if admin and post.status == "pending" %}
     <br>
-    <form action="/admin/review-post" method="post" class="approve">
+    <form action="/admin/review-post" method="post" class="approve" data-fetch>
         <input type="hidden" name="uuid" value="{{ post.uuid }}">
         <input type="hidden" name="status" value="approved">
         <input type="submit" value="Approve">
     </form>
-    <form action="/admin/review-post" method="post" class="reject">
+    <form action="/admin/review-post" method="post" class="reject" data-fetch>
         <input type="hidden" name="uuid" value="{{ post.uuid }}">
         <input type="hidden" name="status" value="rejected">
         <input type="submit" value="Reject">
     </form>
-    <form action="/admin/review-post" method="post" class="ban">
+    <form action="/admin/review-post" method="post" class="ban" data-fetch>
         <input type="hidden" name="uuid" value="{{ post.uuid }}">
         <input type="hidden" name="status" value="banned">
         <input type="submit" value="Ban">
     </form>
     {% elif post.status == "rejected" %}
-    <form action="/hide-rejected-post" method="post">
+    <form action="/hide-rejected-post" method="post" data-fetch>
         <span class="post-info">Post rejected.</span>
         <input type="hidden" name="uuid" value="{{ post.uuid }}">
         <input type="submit" value="Hide">

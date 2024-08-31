@@ -56,43 +56,50 @@ function initDomElements() {
 function updatePost(uuid, html) {
     const post = document.querySelector(`article#post-${uuid}`);
     template.innerHTML = html;
+    console.log("post: ", post);
+    addFetchToForms(null, template.content);
     if (post) {
         post.replaceWith(template.content);
     } else {
         postsSection.prepend(template.content);
         incrementUnseenPosts();
     }
-    addFetchToForms();
 }
+
+function handleWebSocketMessage(event) {
+    const json = JSON.parse(event.data);
+    console.log("websocket message received for post uuid: ", json.uuid);
+    updatePost(json.uuid, json.html);
+}
+
+function handleWebSocketClosed() {
+    if (webSocketOpen) {
+        webSocketOpen = false;
+        console.log("websocket closed, attempting to reconnect every second");
+        reconnectInterval = setInterval(initWebSocket, 1_000);
+    }
+}
+
+function handleWebSocketOpened() {
+    webSocketOpen = true;
+    clearInterval(reconnectInterval);
+    console.log("websocket successfully connected");
+}
+
 
 function initWebSocket() {
     console.log("attempting to connect to websocket");
     webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
-    webSocket.addEventListener("message", function (event) {
-        // message is going to have to activate admin review JS
-        const json = JSON.parse(event.data);
-        console.log("websocket message received for post uuid: ", json.uuid);
-        updatePost(json.uuid, json.html);
-    });
-    webSocket.addEventListener("close", function () {
-        if (webSocketOpen) {
-            webSocketOpen = false;
-            console.log("websocket closed, attempting to reconnect every second");
-            reconnectInterval = setInterval(initWebSocket, 1_000);
-        }
-    });
-    webSocket.addEventListener("open", function () {
-        webSocketOpen = true;
-        clearInterval(reconnectInterval);
-        console.log("websocket successfully connected");
-    });
+    webSocket.addEventListener("message", handleWebSocketMessage);
+    webSocket.addEventListener("close", handleWebSocketClosed);
+    webSocket.addEventListener("open", handleWebSocketOpened);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // add fetch to forms
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-function submitListener(event) {
+function handleFormSubmit(event) {
     event.preventDefault();
     const formData = new FormData(this);
     let fetchBody;
@@ -103,21 +110,33 @@ function submitListener(event) {
     }
     fetch(this.action, {
         method: "POST",
-        body: fetchBody
+        body: fetchBody,
+        cache: 'no-store',
     }).then((response) => {
         console.log("response.status", response.status);
+        let actionUrl = new URL(this.action);
+        console.log("actionUrl.pathname: ", actionUrl.pathname);
+        switch (actionUrl.pathname) {
+            case "/post":
+                if (response.status == 200) {
+                    this.reset();
+                }
+                break;
+            case "/hide-rejected-post":
+                if (response.status == 200) {
+                    updatePost(formData.get("uuid"), "");
+                }
+                break;
+        }
     });
 }
 
-function addFetchToForms() {
-    const forms = document.querySelectorAll("form");
+function addFetchToForms(_event, element = document) {
+    console.log("element: ", element);
+    const forms = element.querySelectorAll("form[data-fetch]");
     for (const form of forms) {
-        if (form.dataset.fetch) {
-            continue;
-        }
         console.log("adding fetch to form: ", form);
-        form.addEventListener("submit", submitListener);
-        form.dataset.fetch = "true";
+        form.addEventListener("submit", handleFormSubmit);
     }
 }
 
