@@ -106,6 +106,7 @@ async fn index(
             anon => user.anon(),
             until_post => until_post,
             next_page_post => next_page_post,
+            body_class => "index",
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
@@ -187,7 +188,7 @@ async fn login_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         state.jinja,
         "login.jinja",
-        minijinja::context!(title => site_name()),
+        minijinja::context!(title => site_name(), body_class => "login"),
     ))
 }
 
@@ -219,7 +220,7 @@ async fn registration_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         state.jinja,
         "register.jinja",
-        minijinja::context!(title => site_name()),
+        minijinja::context!(title => site_name(), body_class => "register"),
     ))
 }
 

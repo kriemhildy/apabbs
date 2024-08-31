@@ -37,10 +37,13 @@
 
 body {
     overflow-wrap: break-word;
-    margin-top: 0;
     margin-bottom: 20px;
     margin-left: 2%;
     margin-right: 2%;
+}
+
+body.index {
+    margin-top: 0;
     columns: 400px auto;
     column-gap: 2%;
 }
