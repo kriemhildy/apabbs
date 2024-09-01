@@ -1,4 +1,5 @@
 use crate::crypto;
+use regex::Regex;
 use sqlx::PgConnection;
 
 pub struct User {
@@ -91,7 +92,7 @@ impl Credentials {
 
     pub fn validate(&self) -> Vec<&str> {
         let mut errors: Vec<&str> = Vec::new();
-        let pattern = regex::Regex::new(r"^\w{4,16}$").expect("build regex pattern");
+        let pattern = Regex::new(r"^\w{4,16}$").expect("build regex pattern");
         if !pattern.is_match(&self.username) {
             errors.push("username must be 4 to 16 word characters");
         }

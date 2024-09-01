@@ -1,4 +1,5 @@
 use crate::user::User;
+use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
@@ -157,10 +158,10 @@ impl PostSubmission {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("  ", " &nbsp;");
-        let url_pattern = regex::Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
+        let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1" target="_blank">$1</a>"#;
         let html = url_pattern.replace_all(&html, anchor_tag);
-        let youtube_link_pattern = regex::Regex::new(concat!(
+        let youtube_link_pattern = Regex::new(concat!(
             r#"<a href=""#,
             r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
             r#" target="_blank">\S+</a>"#,
