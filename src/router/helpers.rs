@@ -58,7 +58,7 @@ pub fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
 }
 
 pub fn render(
-    lock: Arc<RwLock<Environment<'_>>>,
+    lock: &Arc<RwLock<Environment<'_>>>,
     name: &str,
     ctx: minijinja::value::Value,
 ) -> String {

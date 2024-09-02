@@ -94,7 +94,7 @@ async fn index(
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
-        state.jinja,
+        &state.jinja,
         "index.jinja",
         minijinja::context!(
             title => site_name(),
@@ -175,18 +175,25 @@ async fn submit_post(
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
     let html = render(
-        state.jinja,
+        &state.jinja,
         "post.jinja",
         minijinja::context!(post, admin => true),
     );
-    let msg = PostMessage { post, html };
+    let msg = PostMessage { post: post.clone(), html, admin: true };
+    state.sender.send(msg).ok();
+    let html = render(
+        &state.jinja,
+        "post.jinja",
+        minijinja::context!(post, admin => false),
+    );
+    let msg = PostMessage { post, html, admin: false };
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
 }
 
 async fn login_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
-        state.jinja,
+        &state.jinja,
         "login.jinja",
         minijinja::context!(title => site_name(), body_class => "login"),
     ))
@@ -218,7 +225,7 @@ async fn authenticate(
 
 async fn registration_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
-        state.jinja,
+        &state.jinja,
         "register.jinja",
         minijinja::context!(title => site_name(), body_class => "register"),
     ))
@@ -310,12 +317,13 @@ async fn web_socket(
     ) {
         use PostStatus::*;
         while let Ok(msg) = receiver.recv().await {
-            let should_send = user.admin()
-                || match msg.post.status {
-                    Pending => false,
-                    Rejected | Banned => msg.post.authored_by(&user),
+            let should_send = match msg.admin {
+                true => user.admin(),
+                false => !user.admin() && match msg.post.status {
+                    Pending | Rejected | Banned => msg.post.authored_by(&user),
                     Approved => true,
-                };
+                }
+            };
             if !should_send {
                 continue;
             }
@@ -384,11 +392,18 @@ async fn review_post(
     }
     tx.commit().await.expect(COMMIT);
     let html = render(
-        state.jinja,
+        &state.jinja,
         "post.jinja",
         minijinja::context!(post, admin => false),
     );
-    let msg = PostMessage { post, html };
+    let msg = PostMessage { post: post.clone(), html, admin: false };
+    state.sender.send(msg).ok();
+    let html = render(
+        &state.jinja,
+        "post.jinja",
+        minijinja::context!(post, admin => true),
+    );
+    let msg = PostMessage { post, html, admin: true };
     state.sender.send(msg).ok();
     Redirect::to(ROOT).into_response()
 }

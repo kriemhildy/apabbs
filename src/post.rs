@@ -270,4 +270,5 @@ impl PostHiding {
 pub struct PostMessage {
     pub post: Post,
     pub html: String,
+    pub admin: bool,
 }
