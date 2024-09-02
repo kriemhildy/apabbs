@@ -111,7 +111,6 @@ function handleFormSubmit(event) {
     fetch(this.action, {
         method: "POST",
         body: fetchBody,
-        cache: 'no-store',
     }).then((response) => {
         console.log("response.status", response.status);
         let actionUrl = new URL(this.action);
@@ -130,7 +129,6 @@ function handleFormSubmit(event) {
 }
 
 function addFetchToForms(_event, element = document) {
-    console.log("element: ", element);
     const forms = element.querySelectorAll("form[data-fetch]");
     for (const form of forms) {
         console.log("adding fetch to form: ", form);

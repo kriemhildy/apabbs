@@ -375,7 +375,6 @@ async fn review_post(
         .await
         .expect("select post");
     if post.status == PostStatus::Banned {
-        // delete post and ban ip
         let ip_hash = post.ip_hash.as_ref().expect("read ip_hash");
         ban::insert(&mut tx, ip_hash).await;
         post.delete(&mut tx).await;
