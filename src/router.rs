@@ -174,7 +174,7 @@ async fn submit_post(
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
-    send_post_to_websocket(&state.jinja, &state.sender, post);
+    send_post_to_websocket(&state, post);
     Redirect::to(ROOT).into_response()
 }
 
@@ -381,7 +381,7 @@ async fn review_post(
         post.delete(&mut tx).await;
     }
     tx.commit().await.expect(COMMIT);
-    send_post_to_websocket(&state.jinja, &state.sender, post);
+    send_post_to_websocket(&state, post);
     Redirect::to(ROOT).into_response()
 }
 
