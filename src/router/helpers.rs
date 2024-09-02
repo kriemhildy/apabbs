@@ -2,8 +2,7 @@
 // router helper functions and macros
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-use super::{HeaderMap, IntoResponse, Post, PostMessage, Response, AppState};
-use crate::{Arc, Environment, RwLock};
+use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 
@@ -57,26 +56,19 @@ pub fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
         .build()
 }
 
-pub fn render(
-    lock: &Arc<RwLock<Environment<'_>>>,
-    name: &str,
-    ctx: minijinja::value::Value,
-) -> String {
+pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
     if dev() {
-        let mut env = lock.write().expect("write jinja env");
+        let mut env = state.jinja.write().expect("write jinja env");
         env.clear_templates();
     }
-    let env = lock.read().expect("read jinja env");
+    let env = state.jinja.read().expect("read jinja env");
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
 }
 
-pub fn send_post_to_websocket(
-    state: &AppState,
-    post: Post,
-) {
+pub fn send_post_to_web_socket(state: &AppState, post: Post) {
     for admin in [true, false] {
-        let html = render(&state.jinja, "post.jinja", minijinja::context!(post, admin));
+        let html = render(state, "post.jinja", minijinja::context!(post, admin));
         let msg = PostMessage {
             post: post.clone(),
             html,

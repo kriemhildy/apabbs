@@ -94,7 +94,7 @@ async fn index(
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
-        &state.jinja,
+        &state,
         "index.jinja",
         minijinja::context!(
             title => site_name(),
@@ -174,13 +174,13 @@ async fn submit_post(
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
-    send_post_to_websocket(&state, post);
+    send_post_to_web_socket(&state, post);
     Redirect::to(ROOT).into_response()
 }
 
 async fn login_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
-        &state.jinja,
+        &state,
         "login.jinja",
         minijinja::context!(title => site_name(), body_class => "login"),
     ))
@@ -212,7 +212,7 @@ async fn authenticate(
 
 async fn registration_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
-        &state.jinja,
+        &state,
         "register.jinja",
         minijinja::context!(title => site_name(), body_class => "register"),
     ))
@@ -381,7 +381,7 @@ async fn review_post(
         post.delete(&mut tx).await;
     }
     tx.commit().await.expect(COMMIT);
-    send_post_to_websocket(&state, post);
+    send_post_to_web_socket(&state, post);
     Redirect::to(ROOT).into_response()
 }
 
