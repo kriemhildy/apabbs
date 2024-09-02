@@ -2,8 +2,8 @@
 // router helper functions and macros
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-use super::{HeaderMap, IntoResponse, Response};
-use crate::{Arc, Environment, RwLock};
+use super::{HeaderMap, IntoResponse, Post, PostMessage, Response};
+use crate::{Arc, Environment, RwLock, Sender};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 
@@ -69,6 +69,22 @@ pub fn render(
     let env = lock.read().expect("read jinja env");
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
+}
+
+pub fn send_post_to_websocket(
+    jinja: &Arc<RwLock<Environment<'_>>>,
+    sender: &Arc<Sender<PostMessage>>,
+    post: Post,
+) {
+    for admin in [true, false] {
+        let html = render(jinja, "post.jinja", minijinja::context!(post, admin));
+        let msg = PostMessage {
+            post: post.clone(),
+            html,
+            admin,
+        };
+        sender.send(msg).ok();
+    }
 }
 
 macro_rules! user {

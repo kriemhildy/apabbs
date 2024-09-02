@@ -174,20 +174,7 @@ async fn submit_post(
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
-    let html = render(
-        &state.jinja,
-        "post.jinja",
-        minijinja::context!(post, admin => true),
-    );
-    let msg = PostMessage { post: post.clone(), html, admin: true };
-    state.sender.send(msg).ok();
-    let html = render(
-        &state.jinja,
-        "post.jinja",
-        minijinja::context!(post, admin => false),
-    );
-    let msg = PostMessage { post, html, admin: false };
-    state.sender.send(msg).ok();
+    send_post_to_websocket(&state.jinja, &state.sender, post);
     Redirect::to(ROOT).into_response()
 }
 
@@ -319,9 +306,12 @@ async fn web_socket(
         while let Ok(msg) = receiver.recv().await {
             let should_send = match msg.admin {
                 true => user.admin(),
-                false => !user.admin() && match msg.post.status {
-                    Pending | Rejected | Banned => msg.post.authored_by(&user),
-                    Approved => true,
+                false => {
+                    !user.admin()
+                        && match msg.post.status {
+                            Pending | Rejected | Banned => msg.post.authored_by(&user),
+                            Approved => true,
+                        }
                 }
             };
             if !should_send {
@@ -391,20 +381,7 @@ async fn review_post(
         post.delete(&mut tx).await;
     }
     tx.commit().await.expect(COMMIT);
-    let html = render(
-        &state.jinja,
-        "post.jinja",
-        minijinja::context!(post, admin => false),
-    );
-    let msg = PostMessage { post: post.clone(), html, admin: false };
-    state.sender.send(msg).ok();
-    let html = render(
-        &state.jinja,
-        "post.jinja",
-        minijinja::context!(post, admin => true),
-    );
-    let msg = PostMessage { post, html, admin: true };
-    state.sender.send(msg).ok();
+    send_post_to_websocket(&state.jinja, &state.sender, post);
     Redirect::to(ROOT).into_response()
 }
 
