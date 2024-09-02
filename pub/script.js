@@ -75,8 +75,8 @@ function handleWebSocketMessage(event) {
 function handleWebSocketClosed() {
     if (webSocketOpen) {
         webSocketOpen = false;
-        console.log("websocket closed, attempting to reconnect every second");
-        reconnectInterval = setInterval(initWebSocket, 1_000);
+        console.log("websocket closed, attempting to reconnect every ten seconds");
+        reconnectInterval = setInterval(initWebSocket, 10_000);
     }
 }
 
