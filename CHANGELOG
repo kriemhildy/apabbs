@@ -1,3 +1,9 @@
+0.10.0
+
+Add JavaScript fetch support to post and review forms.
+Attempt reconnection to websocket.
+Use multi-column display on wider browsers.
+
 0.9.1
 
 Increase maximum media height to 2000px.
