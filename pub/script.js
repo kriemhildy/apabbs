@@ -54,8 +54,8 @@ function initDomElements() {
     postsDiv = document.querySelector("div#posts");
 }
 
-function updatePost(uuid, html) {
-    const post = document.querySelector(`div#post-${uuid}`);
+function updatePost(pub_id, html) {
+    const post = document.querySelector(`div#post-${pub_id}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -68,8 +68,8 @@ function updatePost(uuid, html) {
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
-    console.log("updating websocket post: ", json.uuid);
-    updatePost(json.uuid, json.html);
+    console.log("updating websocket post: ", json.pub_id);
+    updatePost(json.pub_id, json.html);
 }
 
 function handleWebSocketClosed() {
@@ -100,7 +100,7 @@ function initWebSocket() {
 // update after sleep
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-function mostRecentUuid() {
+function mostRecentPubId() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
         return post.id.replace("post-", "");
@@ -110,14 +110,14 @@ function mostRecentUuid() {
 }
 
 function checkInterim() {
-    const uuid = mostRecentUuid();
-    console.log(`fetching interim post data from ${uuid}`);
-    fetch(`/interim/${uuid}`).then((response) => {
+    const pub_id = mostRecentPubId();
+    console.log(`fetching interim post data from ${pub_id}`);
+    fetch(`/interim/${pub_id}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
-                    console.log("updating interim post: ", post.uuid);
-                    updatePost(post.uuid, post.html);
+                    console.log("updating interim post: ", post.pub_id);
+                    updatePost(post.pub_id, post.html);
                 }
             });
         }

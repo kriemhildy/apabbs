@@ -39,8 +39,8 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
-        .route("/page/{uuid}", get(index))
-        .route("/post/{uuid}", get(index))
+        .route("/page/{pub_id}", get(index))
+        .route("/post/{pub_id}", get(index))
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
@@ -50,7 +50,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
             post(hide_rejected_post).patch(hide_rejected_post),
         )
         .route("/web-socket", get(web_socket))
-        .route("/interim/{uuid}", get(interim))
+        .route("/interim/{pub_id}", get(interim))
         .route("/user/{username}", get(user_profile))
         .route("/update-time-zone", post(update_time_zone))
         .route("/update-password", post(update_password))
@@ -58,7 +58,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
             "/admin/review-post",
             post(review_post).patch(review_post).delete(review_post),
         )
-        .route("/admin/decrypt-media/{uuid}", get(decrypt_media))
+        .route("/admin/decrypt-media/{pub_id}", get(decrypt_media))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
         router.layer(init::trace_layer())
@@ -76,15 +76,15 @@ async fn index(
     State(state): State<AppState>,
     mut jar: CookieJar,
     uri: Uri,
-    Path(params): Path<HashMap<String, Uuid>>,
+    Path(params): Path<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     set_session_time_zone(&mut tx, user.time_zone()).await;
-    let query_post = match params.get("uuid") {
-        Some(uuid) => {
+    let query_post = match params.get("pub_id") {
+        Some(pub_id) => {
             set_session_time_zone(&mut tx, user.time_zone()).await;
-            match Post::select_by_uuid(&mut tx, &uuid).await {
+            match Post::select_by_pub_id(&mut tx, &pub_id).await {
                 Some(post) => Some(post),
                 None => return not_found("post does not exist"),
             }
@@ -151,8 +151,8 @@ async fn submit_post(
         body: String::default(),
         anon: None,
         media_file_name: None,
-        uuid: Uuid::new_v4(),
         media_bytes: None,
+        pub_id: PostSubmission::generate_alphanumeric_id(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
@@ -293,7 +293,7 @@ async fn hide_rejected_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let post = match Post::select_by_uuid(&mut tx, &post_hiding.uuid).await {
+    let post = match Post::select_by_pub_id(&mut tx, &post_hiding.pub_id).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
@@ -340,7 +340,7 @@ async fn web_socket(
                 continue;
             }
             let json_utf8 = Utf8Bytes::from(
-                serde_json::json!({"uuid": msg.post.uuid, "html": msg.html}).to_string(),
+                serde_json::json!({"pub_id": msg.post.pub_id, "html": msg.html}).to_string(),
             );
             if socket.send(Message::Text(json_utf8)).await.is_err() {
                 break; // client disconnect
@@ -357,12 +357,12 @@ async fn web_socket(
 async fn interim(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path(uuid): Path<Uuid>,
+    Path(pub_id): Path<String>,
 ) -> Response {
-    println!("interim uuid: {}", uuid);
+    println!("interim pub_id: {}", pub_id);
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let from_post = match Post::select_by_uuid(&mut tx, &uuid).await {
+    let from_post = match Post::select_by_pub_id(&mut tx, &pub_id).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
@@ -377,7 +377,7 @@ async fn interim(
             minijinja::context!(post, admin => user.admin()),
         );
         json_posts.push(serde_json::json!({
-            "uuid": post.uuid,
+            "pub_id": post.pub_id,
             "html": html
         }));
     }
@@ -480,7 +480,7 @@ async fn review_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = match Post::select_by_uuid(&mut tx, &post_review.uuid).await {
+    let post = match Post::select_by_pub_id(&mut tx, &post_review.pub_id).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
@@ -494,8 +494,8 @@ async fn review_post(
                 if post_review.status == PostStatus::Approved {
                     let media_bytes = post.decrypt_media_file().await;
                     let published_media_path = post.published_media_path();
-                    let media_uuid_dir = published_media_path.parent().unwrap();
-                    std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
+                    let media_pub_id_dir = published_media_path.parent().unwrap();
+                    std::fs::create_dir(media_pub_id_dir).expect("create media pub_id dir");
                     std::fs::write(&published_media_path, media_bytes).expect("write media file");
                     let media_path_str = published_media_path.to_str().expect("media path to str");
 
@@ -519,16 +519,16 @@ async fn review_post(
                         }
                     }
                 }
-                let uploads_uuid_dir = encrypted_media_path.parent().unwrap();
+                let uploads_pub_id_dir = encrypted_media_path.parent().unwrap();
                 std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
-                std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
+                std::fs::remove_dir(&uploads_pub_id_dir).expect("remove uploads pub_id dir");
             }
         }
         PostStatus::Approved => (),
         _ => return bad_request("post must be pending or approved"),
     }
     post_review.update_status(&mut tx).await;
-    let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
+    let post = Post::select_by_pub_id(&mut tx, &post_review.pub_id)
         .await
         .expect("select post");
     if post.status == PostStatus::Banned {
@@ -552,11 +552,11 @@ async fn review_post(
 async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path(uuid): Path<Uuid>,
+    Path(pub_id): Path<String>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = match Post::select_by_uuid(&mut tx, &uuid).await {
+    let post = match Post::select_by_pub_id(&mut tx, &pub_id).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };

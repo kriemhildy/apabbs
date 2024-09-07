@@ -130,16 +130,6 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
         .expect("set time zone");
 }
 
-pub fn random_alphanumeric_id() -> String {
-    use rand::distributions::Alphanumeric;
-    use rand::Rng;
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(12)
-        .map(char::from)
-        .collect()
-}
-
 macro_rules! user {
     ($jar:expr, $tx:expr) => {{
         let account = match $jar.get(ACCOUNT_COOKIE) {

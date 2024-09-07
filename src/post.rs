@@ -36,7 +36,7 @@ pub struct Post {
     pub username: Option<String>, // cache
     pub anon_token: Option<Uuid>,
     pub status: PostStatus,
-    pub uuid: Uuid,
+    pub pub_id: String,
     pub media_file_name: Option<String>,
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
@@ -98,17 +98,17 @@ impl Post {
                 .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
-    pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &Uuid) -> Option<Self> {
+    pub async fn select_by_pub_id(tx: &mut PgConnection, pub_id: &str) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, ",
             "to_char(created_at, $1) AS created_at_str ",
-            "FROM posts WHERE uuid = $2"
+            "FROM posts WHERE pub_id = $2"
         ))
         .bind(POSTGRES_TIMESTAMP_FORMAT)
-        .bind(uuid)
+        .bind(pub_id)
         .fetch_optional(&mut *tx)
         .await
-        .expect("select post by uuid")
+        .expect("select post by pub_id")
     }
 
     pub async fn delete(&self, tx: &mut PgConnection) {
@@ -132,19 +132,19 @@ impl Post {
     pub fn encrypted_media_path(&self) -> PathBuf {
         let encrypted_file_name = self.media_file_name.as_ref().unwrap().to_owned() + ".gpg";
         std::path::Path::new(UPLOADS_DIR)
-            .join(&self.uuid.to_string())
+            .join(&self.pub_id)
             .join(encrypted_file_name)
     }
 
     pub fn published_media_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
-            .join(&self.uuid.to_string())
+            .join(&self.pub_id)
             .join(&self.media_file_name.as_ref().unwrap())
     }
 
     pub fn thumbnail_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
-            .join(&self.uuid.to_string())
+            .join(&self.pub_id)
             .join(&self.thumbnail_file_name.as_ref().unwrap())
     }
 }
@@ -153,8 +153,8 @@ pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,
     pub media_file_name: Option<String>,
-    pub uuid: Uuid,
     pub media_bytes: Option<Vec<u8>>,
+    pub pub_id: String,
 }
 
 impl PostSubmission {
@@ -168,7 +168,7 @@ impl PostSubmission {
             (None, Some(account.id), Some(&account.username))
         };
         sqlx::query_as(concat!(
-            "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, uuid, ",
+            "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, pub_id, ",
             "media_file_name, media_category, media_mime_type) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
         ))
@@ -177,7 +177,7 @@ impl PostSubmission {
         .bind(username)
         .bind(&self.body_as_html())
         .bind(ip_hash)
-        .bind(&self.uuid)
+        .bind(&self.pub_id)
         .bind(self.media_file_name.as_deref())
         .bind(media_category)
         .bind(media_mime_type.as_deref())
@@ -272,10 +272,10 @@ impl PostSubmission {
         }
         let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
         let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-            .join(&self.uuid.to_string())
+            .join(&self.pub_id)
             .join(&encrypted_file_name);
-        let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
-        std::fs::create_dir(uploads_uuid_dir).expect("create uploads uuid dir");
+        let uploads_pub_id_dir = encrypted_file_path.parent().unwrap();
+        std::fs::create_dir(uploads_pub_id_dir).expect("create uploads pub_id dir");
         let mut child = tokio::process::Command::new("gpg")
             .args([
                 "--batch",
@@ -304,23 +304,33 @@ impl PostSubmission {
             );
             Ok(())
         } else {
-            std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
+            std::fs::remove_dir(uploads_pub_id_dir).expect("remove uploads pub_id dir");
             Err(String::from("gpg failed to encrypt media file"))
         }
+    }
+
+    pub fn generate_alphanumeric_id() -> String {
+        use rand::distributions::Alphanumeric;
+        use rand::Rng;
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(10)
+            .map(char::from)
+            .collect()
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
-    pub uuid: Uuid,
+    pub pub_id: String,
     pub status: PostStatus,
 }
 
 impl PostReview {
     pub async fn update_status(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET status = $1 WHERE uuid = $2")
+        sqlx::query("UPDATE posts SET status = $1 WHERE pub_id = $2")
             .bind(&self.status)
-            .bind(&self.uuid)
+            .bind(&self.pub_id)
             .execute(&mut *tx)
             .await
             .expect("update post status");
@@ -333,16 +343,16 @@ impl PostReview {
 
     pub fn thumbnail_path(&self, media_file_name: &str) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
-            .join(&self.uuid.to_string())
+            .join(&self.pub_id)
             .join(Self::thumbnail_file_name(media_file_name))
     }
 
     pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
         let thumbnail_file_name = Self::thumbnail_file_name(media_file_name);
         println!("thumbnail_file_name: {}", thumbnail_file_name);
-        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE uuid = $2")
+        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE pub_id = $2")
             .bind(thumbnail_file_name)
-            .bind(&self.uuid)
+            .bind(&self.pub_id)
             .execute(&mut *tx)
             .await
             .expect("update post thumbnail");
@@ -370,13 +380,13 @@ impl PostReview {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
-    pub uuid: Uuid,
+    pub pub_id: String,
 }
 
 impl PostHiding {
     pub async fn hide_post(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET hidden = true WHERE uuid = $1")
-            .bind(&self.uuid)
+        sqlx::query("UPDATE posts SET hidden = true WHERE pub_id = $1")
+            .bind(&self.pub_id)
             .execute(&mut *tx)
             .await
             .expect("set hidden flag to true");
@@ -400,7 +410,7 @@ mod tests {
             body: "<&test body".to_owned(),
             anon: None,
             media_file_name: None,
-            uuid: Uuid::new_v4(),
+            pub_id: PostSubmission::generate_alphanumeric_id(),
             media_bytes: None,
         };
         assert_eq!(submission.body_as_html(), "&lt;&amp;test body");
