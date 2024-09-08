@@ -44,14 +44,11 @@ body {
 
 body.index {
     margin-top: 0;
-    columns: 415px auto;
-    column-gap: 2%;
 }
 
-body.index.early-posts {
-    columns: unset;
-    column-gap: unset;
-    max-width: 830px;
+body.columns {
+    columns: 415px auto;
+    column-gap: 2%;
 }
 
 body,

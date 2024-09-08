@@ -47,6 +47,20 @@ pub fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
 }
 
+pub fn column_cutoff() -> usize {
+    match std::env::var("COLUMN_CUTOFF") {
+        Ok(cutoff) => cutoff.parse().expect("parse COLUMN_CUTOFF env"),
+        Err(_) => 100,
+    }
+}
+
+pub fn per_page() -> i32 {
+    match std::env::var("PER_PAGE") {
+        Ok(per_page) => per_page.parse().expect("parse PER_PAGE env"),
+        Err(_) => 1_000,
+    }
+}
+
 pub fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
     Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!dev())

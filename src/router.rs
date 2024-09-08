@@ -29,8 +29,6 @@ const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
-const PER_PAGE: i32 = 1_000;
-const EARLY_POSTS_CUTOFF: usize = 117;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -84,7 +82,7 @@ async fn index(
         Some(post) => Some(post.id),
         None => None,
     };
-    let posts = Post::select_latest(&mut tx, &user, until_id, PER_PAGE).await;
+    let posts = Post::select_latest(&mut tx, &user, until_id, per_page()).await;
     let posts_before_last = match posts.last() {
         Some(last_post) => {
             let post_id_before_last = last_post.id - 1;
@@ -94,10 +92,10 @@ async fn index(
     };
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
-    let body_class = if posts.len() <= EARLY_POSTS_CUTOFF {
-        "index early-posts"
-    } else {
+    let body_class = if posts.len() <= column_cutoff() {
         "index"
+    } else {
+        "index columns"
     };
     let html = Html(render(
         &state,
