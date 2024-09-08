@@ -37,16 +37,16 @@
 
 body {
     overflow-wrap: break-word;
-    margin-bottom: 20px;
+    margin-top: 0;
+    margin-bottom: 50px;
     margin-left: 2%;
     margin-right: 2%;
-}
+    max-width: 830px;
 
-body.index {
-    margin-top: 0;
 }
 
 body.columns {
+    max-width: unset;
     columns: 415px auto;
     column-gap: 2%;
 }
