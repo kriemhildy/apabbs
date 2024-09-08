@@ -48,6 +48,12 @@ body.index {
     column-gap: 2%;
 }
 
+body.index.early-posts {
+    columns: unset;
+    column-gap: unset;
+    max-width: 830px;
+}
+
 body,
 textarea,
 input,
@@ -110,6 +116,7 @@ article {
     overflow: hidden;
     border-radius: 5px;
     margin-top: 15px;
+    break-inside: avoid;
 }
 
 article.pending,

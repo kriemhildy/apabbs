@@ -30,6 +30,7 @@ const ROOT: &'static str = "/";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
 const PER_PAGE: i32 = 1_000;
+const EARLY_POSTS_CUTOFF: usize = 117;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -93,6 +94,11 @@ async fn index(
     };
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
+    let body_class = if posts.len() <= EARLY_POSTS_CUTOFF {
+        "index early-posts"
+    } else {
+        "index"
+    };
     let html = Html(render(
         &state,
         "index.jinja",
@@ -106,7 +112,7 @@ async fn index(
             anon => user.anon(),
             until_post => until_post,
             next_page_post => next_page_post,
-            body_class => "index",
+            body_class,
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
