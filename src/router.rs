@@ -92,11 +92,11 @@ async fn index(
     };
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
-    let body_class = if posts.len() <= column_cutoff() {
-        "index"
-    } else {
-        "index columns"
-    };
+    // let body_class = if posts.len() <= column_cutoff() {
+    //     "index"
+    // } else {
+    //     "index columns"
+    // };
     let html = Html(render(
         &state,
         "index.jinja",
@@ -110,7 +110,7 @@ async fn index(
             anon => user.anon(),
             until_post => until_post,
             next_page_post => next_page_post,
-            body_class,
+            body_class => "index",
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
