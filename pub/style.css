@@ -45,12 +45,6 @@ body {
 
 }
 
-body.columns {
-    max-width: unset;
-    columns: 415px auto;
-    column-gap: 2%;
-}
-
 body,
 textarea,
 input,

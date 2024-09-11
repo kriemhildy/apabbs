@@ -92,11 +92,6 @@ async fn index(
     };
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
-    // let body_class = if posts.len() <= column_cutoff() {
-    //     "index"
-    // } else {
-    //     "index columns"
-    // };
     let html = Html(render(
         &state,
         "index.jinja",
@@ -110,7 +105,6 @@ async fn index(
             anon => user.anon(),
             until_post => until_post,
             next_page_post => next_page_post,
-            body_class => "index",
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
@@ -186,7 +180,7 @@ async fn login_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => site_name(), body_class => "login"),
+        minijinja::context!(title => site_name()),
     ))
 }
 
@@ -218,7 +212,7 @@ async fn registration_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => site_name(), body_class => "register"),
+        minijinja::context!(title => site_name()),
     ))
 }
 
