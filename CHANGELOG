@@ -1,3 +1,7 @@
+0.10.1
+
+Remove columns and add a 1200px maximum width.
+
 0.10.0
 
 Add JavaScript fetch support to post and review forms.
