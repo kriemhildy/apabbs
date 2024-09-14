@@ -163,7 +163,7 @@ impl PostSubmission {
         let html = url_pattern.replace_all(&html, anchor_tag);
         let youtube_link_pattern = Regex::new(concat!(
             r#"<a href=""#,
-            r#"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^"&\s]+)|youtu.be/([^"&\s]+))\S*"#,
+            r#"https?://(?:(?:www|m).youtube.com/(?:watch?(?:\S*)v=|shorts/)([^"&\s]+)|youtu.be/([^"&\s]+))\S*"#,
             r#" target="_blank">\S+</a>"#,
         ))
         .expect("build regex pattern");
@@ -276,27 +276,40 @@ pub struct PostMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_body_as_html() {
         let mut submission = PostSubmission {
-            body: "Hello, world!".to_owned(),
+            body: "test body".to_owned(),
             anon: None,
             media_file_name: None,
-            uuid: "00000000-0000-0000-0000-000000000000".to_owned(),
+            uuid: Uuid::new_v4().to_string(),
         };
-        assert_eq!(submission.body_as_html(), "Hello, world!");
-        submission.body = "Hello, world!\n\nhttps://example.com".to_owned();
+        assert_eq!(submission.body_as_html(), "test body");
+        submission.body = "test body\n\nhttps://example.com".to_owned();
         assert_eq!(
             submission.body_as_html(),
-            "Hello, world!<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
+            "test body<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
         );
-        submission.body = "Hello, world!\n\nhttps://www.youtube.com/watch?v=1234567890".to_owned();
+        submission.body = "test body\n\nhttps://www.youtube.com/watch?v=12345678ab".to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
-                "Hello, world!<br><br>",
-                r#"<iframe src="https://www.youtube.com/embed/1234567890" "#,
+                "test body<br><br>",
+                r#"<iframe src="https://www.youtube.com/embed/12345678ab" "#,
+                r#"loading="lazy" title="YouTube video player" frameborder="0" "#,
+                r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
+                r#"gyroscope; picture-in-picture; web-share" "#,
+                r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#,
+            )
+        );
+        submission.body = "test body\n\nhttps://www.youtube.com/shorts/12345678ab".to_owned();
+        assert_eq!(
+            submission.body_as_html(),
+            concat!(
+                "test body<br><br>",
+                r#"<iframe src="https://www.youtube.com/embed/12345678ab" "#,
                 r#"loading="lazy" title="YouTube video player" frameborder="0" "#,
                 r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
                 r#"gyroscope; picture-in-picture; web-share" "#,
