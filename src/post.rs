@@ -272,3 +272,36 @@ pub struct PostMessage {
     pub html: String,
     pub admin: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_body_as_html() {
+        let mut submission = PostSubmission {
+            body: "Hello, world!".to_owned(),
+            anon: None,
+            media_file_name: None,
+            uuid: "00000000-0000-0000-0000-000000000000".to_owned(),
+        };
+        assert_eq!(submission.body_as_html(), "Hello, world!");
+        submission.body = "Hello, world!\n\nhttps://example.com".to_owned();
+        assert_eq!(
+            submission.body_as_html(),
+            "Hello, world!<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
+        );
+        submission.body = "Hello, world!\n\nhttps://www.youtube.com/watch?v=1234567890".to_owned();
+        assert_eq!(
+            submission.body_as_html(),
+            concat!(
+                "Hello, world!<br><br>",
+                r#"<iframe src="https://www.youtube.com/embed/1234567890" "#,
+                r#"loading="lazy" title="YouTube video player" frameborder="0" "#,
+                r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
+                r#"gyroscope; picture-in-picture; web-share" "#,
+                r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#,
+            )
+        );
+    }
+}
