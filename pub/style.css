@@ -42,7 +42,6 @@ body {
     margin-left: 2%;
     margin-right: 2%;
     max-width: 1200px;
-
 }
 
 body,
@@ -146,6 +145,11 @@ video {
 iframe {
     width: 100%;
     aspect-ratio: 16 / 9;
+}
+
+iframe.short {
+    width: min(100%, 477px);
+    aspect-ratio: 9 / 16;
 }
 
 a.author {

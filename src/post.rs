@@ -161,12 +161,12 @@ impl PostSubmission {
         let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1" target="_blank">$1</a>"#;
         let html = url_pattern.replace_all(&html, anchor_tag);
-        let youtube_link_pattern = Regex::new(concat!(
+        let youtube_link_pattern = concat!(
             r#"<a href=""#,
-            r#"https?://(?:(?:www|m).youtube.com/(?:watch?(?:\S*)v=|shorts/)([^"&\s]+)|youtu.be/([^"&\s]+))\S*"#,
-            r#" target="_blank">\S+</a>"#,
-        ))
-        .expect("build regex pattern");
+            r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+            r#"" target="_blank">\S+</a>"#,
+        );
+        let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         let youtube_iframe = concat!(
             r#"<iframe src="https://www.youtube.com/embed/$1$2" "#,
             r#"loading="lazy" title="YouTube video player" frameborder="0" "#,
@@ -174,7 +174,15 @@ impl PostSubmission {
             r#"gyroscope; picture-in-picture; web-share" "#,
             r#"referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"#,
         );
-        let html = youtube_link_pattern.replace_all(&html, youtube_iframe);
+        let html = youtube_link_regex.replace_all(&html, youtube_iframe);
+        let youtube_short_pattern = concat!(
+            r#"<a href=""#,
+            r"https?://(?:www|m).youtube.com/shorts/([^&\s]+)",
+            r#"" target="_blank">\S+</a>"#,
+        );
+        let youtube_short_regex = Regex::new(youtube_short_pattern).expect("build regex pattern");
+        let youtube_short_iframe = youtube_iframe.replace("<iframe ", r#"<iframe class="short" "#);
+        let html = youtube_short_regex.replace_all(&html, youtube_short_iframe);
         html.replace("\n", "<br>")
     }
 
@@ -309,7 +317,7 @@ mod tests {
             submission.body_as_html(),
             concat!(
                 "test body<br><br>",
-                r#"<iframe src="https://www.youtube.com/embed/12345678ab" "#,
+                r#"<iframe class="short" src="https://www.youtube.com/embed/12345678ab" "#,
                 r#"loading="lazy" title="YouTube video player" frameborder="0" "#,
                 r#"allow="accelerometer; autoplay; clipboard-write; encrypted-media; "#,
                 r#"gyroscope; picture-in-picture; web-share" "#,
