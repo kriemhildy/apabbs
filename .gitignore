@@ -1,5 +1,5 @@
 target
-.envrc
+.env
 .vscode
 .DS_Store
 uploads/*
