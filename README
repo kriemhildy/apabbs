@@ -19,9 +19,8 @@ Installation
 5. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
 6. create a role with CREATEDB and LOGIN in postgresql.
-7. install direnv and set it up to load .env files in your shell:
-   https://dev.to/charlesloder/tidbit-get-direnv-to-use-env-5fkn
-8. copy .env.example to .env and set the variables as needed.
+7. install direnv
+8. copy .envrc.example to .envrc and set the variables as needed.
 9. run "sqlx database create" to create the database.
 10. run "sqlx migrate run" to update the database schema to the current point.
 11. configure a web server (e.g. nginx) to proxy to the app server.
