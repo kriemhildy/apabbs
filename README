@@ -19,7 +19,7 @@ Installation
 5. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
 6. create a role with CREATEDB and LOGIN in postgresql.
-7. install direnv
+7. install direnv and run "direnv allow".
 8. copy .env.example to .env and set the variables as needed.
 9. run "sqlx database create" to create the database.
 10. run "sqlx migrate run" to update the database schema to the current point.
