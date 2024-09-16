@@ -3,6 +3,9 @@ name = "apabbs"
 version = "0.10.1"
 edition = "2021"
 
+[profile.release]
+opt-level = "z" # Optimize for size
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.sqlx]
