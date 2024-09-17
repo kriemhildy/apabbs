@@ -26,7 +26,6 @@ Installation
 11. configure a web server (e.g. nginx) to proxy to the app server.
     this is necessary for receiving assets (css and js). this server will also
     need to enable web socket upgrades and X-Real-IP forwarding.
-12. run "cargo run" to start the app server on port 7878. alternatively set a
-    "PORT" env var to run on a different port.
+12. run "cargo run" to start the app server in debug mode.
 13. access the app via "localhost" in a browser.
 14. DO NOT post on your own forum as the admin. ever.
