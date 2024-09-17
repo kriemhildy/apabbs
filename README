@@ -18,7 +18,7 @@ Installation
 4. install rsync.
 5. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
-6. create a role with CREATEDB and LOGIN in postgresql.
+6. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
 7. copy .env.example to .env and set the variables as needed.
 8. install direnv and run "direnv allow".
 9. run "sqlx database setup" to create and migrate the database.
