@@ -23,8 +23,9 @@ Installation
 8. install direnv and run "direnv allow".
 9. run "sqlx database setup" to create and migrate the database.
 10. configure a web server (e.g. nginx) to proxy to the app server.
-    this is necessary for receiving assets (css, js, media). this server will
-    also need to enable web socket upgrades and X-Real-IP forwarding.
+    this is necessary for receiving assets (css, js, media). it is also
+    necessary for SSL encryption via certbot. this server will need to enable
+    web socket upgrades and X-Real-IP forwarding.
 11. run "cargo run" to start the app server in debug mode.
 12. access the app via "localhost" in a browser.
 13. DO NOT post on your own forum as the admin. ever.
