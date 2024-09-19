@@ -73,4 +73,3 @@ Add rsync of production images to reload script.
 
 Add support for image uploads. The images are encrypted upon upload. Only the
 admin(s) can view them.
-
