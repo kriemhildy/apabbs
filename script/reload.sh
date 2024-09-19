@@ -7,7 +7,7 @@ ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/snap.sh"
 scp $SSH_APP_USER:$SSH_APP_PATH/apabbs.sql.gz .
 ssh $SSH_APP_USER "rm $SSH_APP_PATH/apabbs.sql.gz"
 gunzip --force apabbs.sql.gz
-sqlx database drop
+sqlx database drop -y
 sqlx database create
 psql $DATABASE_URL < apabbs.sql
 rm apabbs.sql
