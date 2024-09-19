@@ -1,6 +1,7 @@
 use crate::user::User;
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use uuid::Uuid;
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 
@@ -29,10 +30,10 @@ pub struct Post {
     pub body: String,
     pub account_id: Option<i32>,
     pub username: Option<String>, // cache
-    pub anon_token: Option<String>,
+    pub anon_token: Option<Uuid>,
     pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
-    pub uuid: String,
+    pub uuid: Uuid,
     pub media_file_name: Option<String>,
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
@@ -82,7 +83,7 @@ impl Post {
                 .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
-    pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &str) -> Option<Self> {
+    pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &Uuid) -> Option<Self> {
         sqlx::query_as("SELECT * FROM posts WHERE uuid = $1")
             .bind(uuid)
             .fetch_optional(&mut *tx)
@@ -103,7 +104,7 @@ pub struct PostSubmission {
     pub body: String,
     pub anon: Option<String>,
     pub media_file_name: Option<String>,
-    pub uuid: String,
+    pub uuid: Uuid,
 }
 
 impl PostSubmission {
@@ -244,7 +245,7 @@ impl PostSubmission {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub status: PostStatus,
 }
 
@@ -261,7 +262,7 @@ impl PostReview {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
-    pub uuid: String,
+    pub uuid: Uuid,
 }
 
 impl PostHiding {
@@ -284,7 +285,6 @@ pub struct PostMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_body_as_html() {
@@ -292,7 +292,7 @@ mod tests {
             body: "test body".to_owned(),
             anon: None,
             media_file_name: None,
-            uuid: Uuid::new_v4().to_string(),
+            uuid: Uuid::new_v4(),
         };
         assert_eq!(submission.body_as_html(), "test body");
         submission.body = "test body\n\nhttps://example.com".to_owned();

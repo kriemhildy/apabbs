@@ -53,13 +53,13 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
     };
     let user = User {
         account: None,
-        anon_token: Uuid::new_v4().hyphenated().to_string(),
+        anon_token: Uuid::new_v4(),
     };
     let post = PostSubmission {
         body: String::from("test body"),
         anon: Some(String::from("on")),
         media_file_name: media_file_name,
-        uuid: Uuid::new_v4().hyphenated().to_string(),
+        uuid: Uuid::new_v4(),
     }
     .insert(tx, &user, LOCAL_IP)
     .await;
@@ -108,12 +108,12 @@ fn remove_cocoon(cocoon_path: &Path) {
 fn cocoon_path(post: &Post) -> PathBuf {
     let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
     Path::new(UPLOADS_DIR)
-        .join(&post.uuid)
+        .join(&post.uuid.to_string())
         .join(&cocoon_file_name)
         .to_path_buf()
 }
 
-async fn select_latest_post_by_token(tx: &mut PgConnection, anon_token: &str) -> Post {
+async fn select_latest_post_by_token(tx: &mut PgConnection, anon_token: &Uuid) -> Post {
     sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
         .bind(anon_token)
         .fetch_one(&mut *tx)
@@ -151,7 +151,7 @@ async fn test_index() {
 #[tokio::test]
 async fn test_submit_post() {
     let (router, state) = init_test().await;
-    let anon_token = Uuid::new_v4().hyphenated().to_string();
+    let anon_token = Uuid::new_v4();
     let mut form = FormData::new(Vec::new());
     form.write_field("body", "<test body").unwrap();
     form.write_path("media", "tests/media/image.jpeg", "image/jpeg")
@@ -339,7 +339,9 @@ async fn test_review_post() {
     let response = router.oneshot(request).await.unwrap();
     let cocoon_uuid_dir = cocoon_path.parent().unwrap();
     assert!(!cocoon_uuid_dir.exists());
-    let media_path = Path::new(MEDIA_DIR).join(&post.uuid).join("image.jpeg");
+    let media_path = Path::new(MEDIA_DIR)
+        .join(&post.uuid.to_string())
+        .join("image.jpeg");
     assert!(media_path.exists());
     std::fs::remove_file(&media_path).expect("remove media file");
     let media_uuid_dir = media_path.parent().unwrap();

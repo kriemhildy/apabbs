@@ -10,7 +10,7 @@ opt-level = "z" # Optimize for size
 
 [dependencies.sqlx]
 version = "*"
-features = ["postgres", "runtime-tokio-rustls", "time"]
+features = ["postgres", "runtime-tokio-rustls", "time", "uuid"]
 
 [dependencies]
 tokio = { version = "*", features = ["full"] }
@@ -26,7 +26,7 @@ serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 argon2 = "*"
 regex = "*"
-uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
 sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }

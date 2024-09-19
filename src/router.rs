@@ -61,7 +61,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 
 #[derive(serde::Deserialize)]
 struct IndexQuery {
-    until: Option<String>,
+    until: Option<Uuid>,
 }
 
 async fn index(
@@ -71,8 +71,8 @@ async fn index(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let until_post = match query.until.as_deref() {
-        Some(until) => Some(match Post::select_by_uuid(&mut tx, until).await {
+    let until_post = match query.until {
+        Some(until) => Some(match Post::select_by_uuid(&mut tx, &until).await {
             Some(post) => post,
             None => return bad_request("until post does not exist"),
         }),
@@ -108,7 +108,7 @@ async fn index(
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &user.anon_token);
+        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string());
         jar = jar.add(cookie);
     }
     (jar, html).into_response()
@@ -128,7 +128,7 @@ async fn submit_post(
         body: String::default(),
         anon: None,
         media_file_name: None,
-        uuid: Uuid::new_v4().hyphenated().to_string(),
+        uuid: Uuid::new_v4(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
@@ -148,7 +148,7 @@ async fn submit_post(
                 }
                 let cocoon_file_name = file_name.clone() + ".cocoon";
                 let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-                    .join(&post_submission.uuid)
+                    .join(&post_submission.uuid.to_string())
                     .join(&cocoon_file_name);
                 let cocoon_uuid_dir = cocoon_path.parent().unwrap();
                 std::fs::create_dir(cocoon_uuid_dir).expect("create cocoon uuid dir");
@@ -198,7 +198,7 @@ async fn authenticate(
     }
     match credentials.authenticate(&mut tx).await {
         Some(account) => {
-            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
+            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string());
             jar = jar.add(cookie);
         }
         None => return bad_request("password is wrong"),
@@ -236,7 +236,7 @@ async fn create_account(
             let ip_hash = ip_hash(&headers);
             check_for_ban!(tx, &ip_hash);
             let account = credentials.register(&mut tx, &ip_hash).await;
-            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token);
+            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string());
             jar = jar.add(cookie);
         }
     }
@@ -248,10 +248,16 @@ async fn create_account(
 async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     match jar.get(ACCOUNT_COOKIE) {
-        Some(cookie) => match Account::select_by_token(&mut tx, cookie.value()).await {
-            Some(_account) => jar = jar.remove(ACCOUNT_COOKIE),
-            None => return bad_request(ACCOUNT_NOT_FOUND),
-        },
+        Some(cookie) => {
+            let token = match Uuid::try_parse(cookie.value()) {
+                Ok(uuid) => uuid,
+                Err(_) => return bad_request("invalid account token"),
+            };
+            match Account::select_by_token(&mut tx, &token).await {
+                Some(_account) => jar = jar.remove(ACCOUNT_COOKIE),
+                None => return bad_request(ACCOUNT_NOT_FOUND),
+            }
+        }
         None => return bad_request("cookie not found"),
     };
     tx.commit().await.expect(COMMIT);
@@ -346,8 +352,9 @@ async fn review_post(
     }
     if let Some(media_file_name) = post.media_file_name {
         let cocoon_file_name = media_file_name.clone() + ".cocoon";
+        let uuid_string = post_review.uuid.to_string();
         let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-            .join(&post_review.uuid)
+            .join(&uuid_string)
             .join(&cocoon_file_name);
         if !cocoon_path.exists() {
             return bad_request("cocoon file does not exist");
@@ -358,7 +365,7 @@ async fn review_post(
             let cocoon = Cocoon::new(secret_key.as_bytes());
             let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
             let media_path = std::path::Path::new(MEDIA_DIR)
-                .join(&post_review.uuid)
+                .join(&uuid_string)
                 .join(&media_file_name);
             let media_uuid_dir = media_path.parent().unwrap();
             std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
@@ -385,7 +392,7 @@ async fn review_post(
 async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path(uuid): Path<String>,
+    Path(uuid): Path<Uuid>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
@@ -395,7 +402,7 @@ async fn decrypt_media(
     let media_file_name = post.media_file_name.expect("read media file_name");
     let cocoon_file_name = media_file_name.clone() + ".cocoon";
     let path = std::path::Path::new(UPLOADS_DIR)
-        .join(&uuid)
+        .join(&uuid.to_string())
         .join(&cocoon_file_name);
     let mut cocoon_file = match File::open(&path) {
         Ok(file) => file,

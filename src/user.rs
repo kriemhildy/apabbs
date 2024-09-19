@@ -1,10 +1,11 @@
 use crate::crypto;
 use regex::Regex;
 use sqlx::PgConnection;
+use uuid::Uuid;
 
 pub struct User {
     pub account: Option<Account>,
-    pub anon_token: String,
+    pub anon_token: Uuid,
 }
 
 impl User {
@@ -13,7 +14,7 @@ impl User {
     }
 
     pub fn anon_hash(&self) -> String {
-        sha256::digest(&self.anon_token)[..8].to_owned()
+        sha256::digest(&self.anon_token.to_string())[..8].to_owned()
     }
 
     pub fn username(&self) -> Option<&str> {
@@ -49,7 +50,7 @@ impl User {
 pub struct Account {
     pub id: i32,
     pub username: String,
-    pub token: String,
+    pub token: Uuid,
     pub password_hash: String,
     pub password_salt: String,
     pub admin: bool,
@@ -57,7 +58,7 @@ pub struct Account {
 }
 
 impl Account {
-    pub async fn select_by_token(tx: &mut PgConnection, token: &str) -> Option<Self> {
+    pub async fn select_by_token(tx: &mut PgConnection, token: &Uuid) -> Option<Self> {
         sqlx::query_as("SELECT * FROM accounts WHERE token = $1")
             .bind(token)
             .fetch_optional(&mut *tx)

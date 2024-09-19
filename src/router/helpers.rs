@@ -88,18 +88,24 @@ pub fn send_post_to_web_socket(state: &AppState, post: Post) {
 macro_rules! user {
     ($jar:expr, $tx:expr) => {{
         let account = match $jar.get(ACCOUNT_COOKIE) {
-            Some(cookie) => match Account::select_by_token(&mut $tx, cookie.value()).await {
-                Some(account) => Some(account),
-                None => return bad_request(ACCOUNT_NOT_FOUND),
-            },
+            Some(cookie) => {
+                let token = match Uuid::try_parse(cookie.value()) {
+                    Ok(uuid) => uuid,
+                    Err(_) => return bad_request("invalid account token"),
+                };
+                match Account::select_by_token(&mut $tx, &token).await {
+                    Some(account) => Some(account),
+                    None => return bad_request(ACCOUNT_NOT_FOUND),
+                }
+            }
             None => None,
         };
         let anon_token = match $jar.get(ANON_COOKIE) {
             Some(cookie) => match Uuid::try_parse(cookie.value()) {
-                Ok(uuid) => uuid.hyphenated().to_string(),
-                Err(_) => return bad_request("invalid anon UUID"),
+                Ok(uuid) => uuid,
+                Err(_) => return bad_request("invalid anon token"),
             },
-            None => Uuid::new_v4().hyphenated().to_string(),
+            None => Uuid::new_v4(),
         };
         User {
             account,
