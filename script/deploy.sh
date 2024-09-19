@@ -9,9 +9,9 @@ else
     git diff --cached --quiet
     cargo test
     git push
-    ssh $SSH_APP_USER "cd schiz && script/deploy.sh"
-    ssh $SSH_SUDO_USER "sudo systemctl stop apabbs"
-    ssh $SSH_APP_USER "cd schiz && ~/.cargo/bin/sqlx migrate run"
-    ssh $SSH_SUDO_USER "sudo systemctl start apabbs"
+    ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/deploy.sh"
+    ssh $SSH_SUDO_USER "sudo systemctl stop $SSH_SERVICE"
+    ssh $SSH_APP_USER "cd $SSH_APP_PATH && ~/.cargo/bin/sqlx migrate run"
+    ssh $SSH_SUDO_USER "sudo systemctl start $SSH_SERVICE"
     git push github
 fi
