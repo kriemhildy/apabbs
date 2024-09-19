@@ -103,8 +103,8 @@ async fn index(
             anon_hash => user.anon_hash(),
             admin => user.admin(),
             anon => user.anon(),
-            until_post => until_post,
-            next_page_post => next_page_post,
+            until_post,
+            next_page_post,
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
