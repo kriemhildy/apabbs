@@ -1,6 +1,6 @@
 set -x
 if ! [ "$DEV" == 1 ]; then
-    echo "do not run reload on production"
+    echo "do not run sync in production"
     exit 1
 fi
 ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/snap.sh"
