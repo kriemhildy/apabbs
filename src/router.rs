@@ -61,7 +61,8 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 
 #[derive(serde::Deserialize)]
 struct IndexQuery {
-    until: Option<Uuid>,
+    uuid: Option<Uuid>,
+    alone: Option<String>,
 }
 
 async fn index(
@@ -71,24 +72,29 @@ async fn index(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let until_post = match query.until {
-        Some(until) => Some(match Post::select_by_uuid(&mut tx, &until).await {
+    let query_post = match query.uuid {
+        Some(uuid) => Some(match Post::select_by_uuid(&mut tx, &uuid).await {
             Some(post) => post,
-            None => return bad_request("until post does not exist"),
+            None => return bad_request("post does not exist"),
         }),
         None => None,
     };
-    let until_id = match &until_post {
+    let query_post_id = match &query_post {
         Some(post) => Some(post.id),
         None => None,
     };
-    let posts = Post::select_latest(&mut tx, &user, until_id, per_page()).await;
-    let posts_before_last = match posts.last() {
-        Some(last_post) => {
+    let alone = query.alone.as_ref().is_some_and(|a| a == "1");
+    let posts = match alone {
+        true => vec![query_post.clone().unwrap()],
+        false => Post::select_latest(&mut tx, &user, query_post_id, per_page() as i32).await,
+    };
+    let posts_before_last = match posts.len() < per_page() {
+        true => Vec::new(),
+        false => {
+            let last_post = posts.last().expect("read last post");
             let post_id_before_last = last_post.id - 1;
             Post::select_latest(&mut tx, &user, Some(post_id_before_last), 1).await
         }
-        None => Vec::new(),
     };
     let next_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
@@ -103,8 +109,9 @@ async fn index(
             anon_hash => user.anon_hash(),
             admin => user.admin(),
             anon => user.anon(),
-            until_post,
+            query_post,
             next_page_post,
+            alone,
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {

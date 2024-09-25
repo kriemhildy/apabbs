@@ -38,8 +38,12 @@
     </form>
 </details>
 {% endif %}
-{% if until_post %}
-<p class="system">Posts until {{ until_post.uuid }}</p>
+{% if query_post %}
+{% if alone %}
+<p class="system">Post {{ query_post.uuid }}</p>
+{% else %}
+<p class="system">Posts until {{ query_post.uuid }}</p>
+{% endif %}
 {% endif %}
 <section id="posts">
     {% for post in posts %}
@@ -47,6 +51,6 @@
     {% endfor %}
 </section>
 {% if next_page_post %}
-<p><a href="/?until={{ next_page_post.uuid }}" class="system">Next page</a></p>
+<p><a href="/?uuid={{ next_page_post.uuid }}" class="system">Next page</a></p>
 {% endif %}
 {% endblock %}
