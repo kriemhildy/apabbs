@@ -142,7 +142,7 @@ function addFetchToForms(_event, element = document) {
 
 const url = new URL(window.location.href);
 
-if (url.pathname == "/" && !url.searchParams.has("until")) {
+if (url.pathname == "/" && !url.searchParams.has("uuid")) {
     for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
