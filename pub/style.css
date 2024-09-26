@@ -138,8 +138,8 @@ input#post-button {
 
 article img,
 video {
-    max-width: 100%;
-    max-height: 2000px;
+    max-width: 500px;
+    max-height: 500px;
 }
 
 a.author {
