@@ -96,7 +96,7 @@ async fn index(
             Post::select_latest(&mut tx, &user, Some(post_id_before_last), 1).await
         }
     };
-    let next_page_post = posts_before_last.first();
+    let prior_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         &state,
@@ -110,7 +110,7 @@ async fn index(
             admin => user.admin(),
             anon => user.anon(),
             query_post,
-            next_page_post,
+            prior_page_post,
             alone,
         ),
     ));
