@@ -164,7 +164,8 @@ impl PostSubmission {
         let html = url_pattern.replace_all(&html, anchor_tag);
         let youtube_link_pattern = concat!(
             r#"<a href=""#,
-            r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+            r"https?://(?:(?:www|m).youtube.com/(?:watch?(?:\S*)v=|shorts/)([^&\s]+)|",
+            r"youtu.be/([^&\s]+))\S*",
             r#"" target="_blank">\S+</a>"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
