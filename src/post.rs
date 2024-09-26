@@ -162,6 +162,18 @@ impl PostSubmission {
         let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1" target="_blank">$1</a>"#;
         let html = url_pattern.replace_all(&html, anchor_tag);
+        let youtube_link_pattern = concat!(
+            r#"<a href=""#,
+            r"https?://(?:(?:www|m).youtube.com/watch?(?:\S*)v=([^&\s]+)|youtu.be/([^&\s]+))\S*",
+            r#"" target="_blank">\S+</a>"#,
+        );
+        let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
+        let youtube_thumbnail_link = concat!(
+            r#"<a href="https://www.youtube.com/watch?v=$1$2" target="_blank">"#,
+            r#"<img src="https://img.youtube.com/vi/$1$2/mqdefault.jpg" "#,
+            r#"width="320" height="180" loading="lazy"></a>"#,
+        );
+        let html = youtube_link_regex.replace_all(&html, youtube_thumbnail_link);
         html.replace("\n", "<br>")
     }
 
@@ -277,6 +289,16 @@ mod tests {
         assert_eq!(
             submission.body_as_html(),
             "test body<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
+        );
+        submission.body = "test body\n\nhttps://www.youtube.com/watch?v=12345678ab".to_owned();
+        assert_eq!(
+            submission.body_as_html(),
+            concat!(
+                "test body<br><br>",
+                r#"<a href="https://www.youtube.com/watch?v=12345678ab" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/12345678ab/mqdefault.jpg" "#,
+                r#"width="320" height="180" loading="lazy"></a>"#,
+            )
         );
     }
 }
