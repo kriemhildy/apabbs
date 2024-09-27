@@ -85,7 +85,10 @@ async fn index(
     };
     let alone = query.alone.as_ref().is_some_and(|a| a == "1");
     let posts = match alone {
-        true => vec![query_post.clone().unwrap()],
+        true => match &query_post {
+            Some(post) => vec![post.clone()],
+            None => return bad_request("no post to show alone"),
+        },
         false => Post::select_latest(&mut tx, &user, query_post_id, per_page() as i32).await,
     };
     let posts_before_last = match posts.len() < per_page() {
