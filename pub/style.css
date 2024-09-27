@@ -11,6 +11,13 @@
         --banned: rgb(105, 10, 10);
         --track: #222;
     }
+
+    img,
+    video,
+    audio,
+    iframe {
+        filter: brightness(80%);
+    }
 }
 
 @media (prefers-color-scheme: light) {
