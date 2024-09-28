@@ -45,6 +45,7 @@ impl Post {
         tx: &mut PgConnection,
         user: &User,
         until_id: Option<i32>,
+        from_id: Option<i32>,
         limit: i32,
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
@@ -63,6 +64,10 @@ impl Post {
         if let Some(until_id) = until_id {
             query_builder.push("AND id <= ");
             query_builder.push_bind(until_id);
+        }
+        if let Some(from_id) = from_id {
+            query_builder.push("AND id > ");
+            query_builder.push_bind(from_id);
         }
         query_builder.push(" ORDER BY id DESC LIMIT ");
         query_builder.push_bind(limit);

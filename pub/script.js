@@ -115,9 +115,9 @@ function checkInterim() {
         if (response.status == 200) {
             response.json().then((json) => {
                 console.log("interim json: ", json);
-                // for (const post of json.posts) {
-                //     updatePost(post.uuid, post.html);
-                // }
+                for (const post of json.posts) {
+                    updatePost(post.uuid, post.html);
+                }
             });
         }
     });

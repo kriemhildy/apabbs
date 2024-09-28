@@ -90,14 +90,14 @@ async fn index(
             Some(post) => vec![post.clone()],
             None => return bad_request("no post to show alone"),
         },
-        false => Post::select_latest(&mut tx, &user, query_post_id, per_page() as i32).await,
+        false => Post::select_latest(&mut tx, &user, query_post_id, None, per_page() as i32).await,
     };
     let posts_before_last = match posts.len() < per_page() {
         true => Vec::new(),
         false => {
             let last_post = posts.last().expect("read last post");
             let post_id_before_last = last_post.id - 1;
-            Post::select_latest(&mut tx, &user, Some(post_id_before_last), 1).await
+            Post::select_latest(&mut tx, &user, Some(post_id_before_last), None, 1).await
         }
     };
     let prior_page_post = posts_before_last.first();
@@ -345,21 +345,36 @@ async fn web_socket(
     upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
 }
 
-async fn interim(State(_state): State<AppState>, Path(uuid): Path<Uuid>) -> String {
+async fn interim(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(uuid): Path<Uuid>,
+) -> Response {
     println!("interim uuid: {}", uuid);
-    serde_json::json!({
-        "posts": [
-            {
-                "uuid": Uuid::new_v4(),
-                "html": "test"
-            },
-            {
-                "uuid": Uuid::new_v4(),
-                "html": "test 2"
-            }
-        ]
-    })
-    .to_string()
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    let from_post = match Post::select_by_uuid(&mut tx, &uuid).await {
+        Some(post) => post,
+        None => return bad_request("post does not exist"),
+    };
+    let new_posts =
+        Post::select_latest(&mut tx, &user, None, Some(from_post.id), per_page() as i32).await;
+    tx.commit().await.expect(COMMIT);
+    let mut json_posts: Vec<serde_json::Value> = Vec::new();
+    for post in new_posts {
+        let html = render(
+            &state,
+            "post.jinja",
+            minijinja::context!(post, admin => user.admin()),
+        );
+        json_posts.push(serde_json::json!({
+            "uuid": post.uuid,
+            "html": html
+        }));
+    }
+    serde_json::json!({"posts": json_posts})
+        .to_string()
+        .into_response()
 }
 
 // admin handlers
@@ -424,9 +439,10 @@ async fn decrypt_media(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = Post::select_by_uuid(&mut tx, &uuid)
-        .await
-        .expect("select post");
+    let post = match Post::select_by_uuid(&mut tx, &uuid).await {
+        Some(post) => post,
+        None => return bad_request("post does not exist"),
+    };
     let media_file_name = post.media_file_name.expect("read media file_name");
     let cocoon_file_name = media_file_name.clone() + ".cocoon";
     let path = std::path::Path::new(UPLOADS_DIR)
