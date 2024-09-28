@@ -45,6 +45,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hash", post(new_hash))
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
+        .route("/interim/:uuid", get(interim))
         .route("/admin/review-post", post(review_post))
         .route("/admin/decrypt-media/:uuid", get(decrypt_media))
         .layer(DefaultBodyLimit::max(20_000_000));
@@ -342,6 +343,23 @@ async fn web_socket(
     tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
     upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
+}
+
+async fn interim(State(_state): State<AppState>, Path(uuid): Path<Uuid>) -> String {
+    println!("interim uuid: {}", uuid);
+    serde_json::json!({
+        "posts": [
+            {
+                "uuid": Uuid::new_v4(),
+                "html": "test"
+            },
+            {
+                "uuid": Uuid::new_v4(),
+                "html": "test 2"
+            }
+        ]
+    })
+    .to_string()
 }
 
 // admin handlers

@@ -84,6 +84,7 @@ function handleWebSocketOpened() {
     webSocketOpen = true;
     clearInterval(reconnectInterval);
     console.log("websocket successfully connected");
+    checkInterim();
 }
 
 
@@ -93,6 +94,33 @@ function initWebSocket() {
     webSocket.addEventListener("message", handleWebSocketMessage);
     webSocket.addEventListener("close", handleWebSocketClosed);
     webSocket.addEventListener("open", handleWebSocketOpened);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// update after sleep
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+function mostRecentUuid() {
+    const posts = document.querySelectorAll("article");
+    if (posts.length > 0) {
+        return posts[0].id.replace("post-", "");
+    } else {
+        return null;
+    }
+}
+
+function checkInterim() {
+    const uuid = mostRecentUuid();
+    fetch(`/interim/${uuid}`).then((response) => {
+        if (response.status == 200) {
+            response.json().then((json) => {
+                console.log("interim json: ", json);
+                // for (const post of json.posts) {
+                //     updatePost(post.uuid, post.html);
+                // }
+            });
+        }
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
