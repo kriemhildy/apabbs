@@ -56,7 +56,6 @@ function initDomElements() {
 function updatePost(uuid, html) {
     const post = document.querySelector(`article#post-${uuid}`);
     template.innerHTML = html;
-    console.log("post: ", post);
     addFetchToForms(null, template.content);
     if (post) {
         post.replaceWith(template.content);
@@ -68,7 +67,7 @@ function updatePost(uuid, html) {
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
-    console.log("websocket message received for post uuid: ", json.uuid);
+    console.log("updating websocket post: ", json.uuid);
     updatePost(json.uuid, json.html);
 }
 
@@ -110,12 +109,13 @@ function mostRecentUuid() {
 }
 
 function checkInterim() {
+    console.log("fetching interim post data");
     const uuid = mostRecentUuid();
     fetch(`/interim/${uuid}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
-                console.log("interim json: ", json);
                 for (const post of json.posts) {
+                    console.log("updating interim post: ", post.uuid);
                     updatePost(post.uuid, post.html);
                 }
             });
