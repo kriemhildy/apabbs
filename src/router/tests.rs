@@ -318,6 +318,41 @@ async fn test_hide_rejected_post() {
 }
 
 #[tokio::test]
+async fn test_interim() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (post1, _user) = create_test_post(&mut tx, None).await;
+    PostReview {
+        uuid: post1.uuid.clone(),
+        status: PostStatus::Approved,
+    }
+    .update_status(&mut tx)
+    .await;
+    let (post2, _user) = create_test_post(&mut tx, None).await;
+    PostReview {
+        uuid: post2.uuid.clone(),
+        status: PostStatus::Approved,
+    }
+    .update_status(&mut tx)
+    .await;
+    tx.commit().await.expect(COMMIT);
+    let request = Request::builder()
+        .uri(&format!("/interim/{}", &post1.uuid))
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    post1.delete(&mut tx).await;
+    post2.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    assert!(response.status().is_success());
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    assert!(!body_str.contains(&post1.uuid.to_string()));
+    assert!(body_str.contains(&post2.uuid.to_string()));
+}
+
+#[tokio::test]
 async fn test_review_post() {
     let (router, state) = init_test().await;
     let (post, cocoon_path, admin_account) = create_test_cocoon(&state).await;
