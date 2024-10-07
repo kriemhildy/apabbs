@@ -50,7 +50,7 @@ pub fn dev() -> bool {
 pub fn per_page() -> usize {
     match std::env::var("PER_PAGE") {
         Ok(per_page) => per_page.parse().expect("parse PER_PAGE env"),
-        Err(_) => 50,
+        Err(_) => 30,
     }
 }
 
