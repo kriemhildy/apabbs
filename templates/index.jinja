@@ -50,7 +50,7 @@
     {% include "post.jinja" %}
     {% endfor %}
 </section>
-{% if prior_page_post %}
+{% if prior_page_post and logged_in %}
 <p><a href="/?uuid={{ prior_page_post.uuid }}" class="system">Prior page</a></p>
 {% endif %}
 {% endblock %}
