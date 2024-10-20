@@ -1,42 +1,39 @@
 {% extends "layout.jinja" %}
 {% block main %}
 {% if query_post is none %}
-<details>
-    <summary>Add post</summary>
-    <ul class="system">
-        {% if not logged_in %}
-        <li>you can <a href="/login">log in</a> for a username</li>
-        {% else %}
-        <li>
-            <form action="/logout" method="post">
-                logged in as: <strong>{{ username }}</strong>
-                {% if admin %}
-                (admin)
-                {% endif %}
-                <input type="submit" value="Log out">
-            </form>
-        </li>
-        {% endif %}
-        <li>
-            <form action="/hash" method="post">
-                your anon hash: <strong>{{ anon_hash }}</strong>
-                <input type="submit" value="New hash">
-            </form>
-        </li>
-    </ul>
-    <form action="/post" method="post" enctype="multipart/form-data" data-fetch>
-        <textarea name="body"></textarea>
-        <br>
-        <label for="media">Media:</label>
-        <input type="file" name="media" id="media">
-        <br>
-        <input type="submit" value="Post" id="post-button">
-        {% if logged_in %}
-        <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
-        <label for="anon">Post anonymously</label>
-        {% endif %}
-    </form>
-</details>
+<ul class="system">
+    {% if not logged_in %}
+    <li>you can <a href="/login">log in</a> for a username</li>
+    {% else %}
+    <li>
+        <form action="/logout" method="post">
+            logged in as: <strong>{{ username }}</strong>
+            {% if admin %}
+            (admin)
+            {% endif %}
+            <input type="submit" value="Log out">
+        </form>
+    </li>
+    {% endif %}
+    <li>
+        <form action="/hash" method="post">
+            your anon hash: <strong>{{ anon_hash }}</strong>
+            <input type="submit" value="New hash">
+        </form>
+    </li>
+</ul>
+<form action="/post" method="post" enctype="multipart/form-data" data-fetch>
+    <textarea name="body"></textarea>
+    <br>
+    <label for="media">Media:</label>
+    <input type="file" name="media" id="media">
+    <br>
+    <input type="submit" value="Post" id="post-button">
+    {% if logged_in %}
+    <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
+    <label for="anon">Post anonymously</label>
+    {% endif %}
+</form>
 {% endif %}
 {% if query_post %}
 {% if alone %}
