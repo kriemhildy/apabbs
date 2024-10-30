@@ -13,5 +13,4 @@ else
     ssh $SSH_SUDO_USER "sudo systemctl stop $SSH_SERVICE"
     ssh $SSH_APP_USER "cd $SSH_APP_PATH && ~/.cargo/bin/sqlx migrate run"
     ssh $SSH_SUDO_USER "sudo systemctl start $SSH_SERVICE"
-    git push github
 fi
