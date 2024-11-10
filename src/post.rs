@@ -69,7 +69,7 @@ impl Post {
             query_builder.push("AND id > ");
             query_builder.push_bind(from_id);
         }
-        query_builder.push(" AND created_at > now() - interval '1 day'");
+        query_builder.push(" AND created_at > now() - interval '1 week'");
         query_builder.push(" ORDER BY id DESC LIMIT ");
         query_builder.push_bind(limit);
         query_builder
