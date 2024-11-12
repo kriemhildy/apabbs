@@ -38,6 +38,11 @@ fn test_credentials() -> Credentials {
     }
 }
 
+fn local_ip_hash() -> String {
+    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+    sha256::digest(secret_key + LOCAL_IP)
+}
+
 async fn delete_account(tx: &mut PgConnection, account_id: i32) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account_id)
@@ -61,7 +66,7 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
         media_file_name: media_file_name,
         uuid: Uuid::new_v4(),
     }
-    .insert(tx, &user, LOCAL_IP)
+    .insert(tx, &user, &local_ip_hash())
     .await;
     (post, user)
 }
@@ -86,7 +91,7 @@ async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, Account) {
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
     let mut cocoon = Cocoon::new(secret_key.as_bytes());
     cocoon.dump(data, &mut file).expect("dump cocoon to file");
-    let admin_account = test_credentials().register(&mut tx, LOCAL_IP).await;
+    let admin_account = test_credentials().register(&mut tx, &local_ip_hash()).await;
     mark_as_admin(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);
     (post, cocoon_path, admin_account)
@@ -197,7 +202,7 @@ async fn test_authenticate() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let credentials = test_credentials();
-    let account = credentials.register(&mut tx, LOCAL_IP).await;
+    let account = credentials.register(&mut tx, &local_ip_hash()).await;
     tx.commit().await.expect(COMMIT);
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
@@ -257,7 +262,7 @@ async fn test_create_account() {
 async fn test_logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = test_credentials().register(&mut tx, LOCAL_IP).await;
+    let account = test_credentials().register(&mut tx, &local_ip_hash()).await;
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .method(Method::POST)
