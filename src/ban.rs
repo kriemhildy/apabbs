@@ -70,6 +70,7 @@ pub async fn scrub(tx: &mut PgConnection) {
     .expect("scrub ip_hash data from users");
     sqlx::query(concat!(
         "UPDATE posts SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
+        "AND status <> 'pending' ",
         "AND created_at < now() - interval '1 day'"
     ))
     .execute(&mut *tx)
