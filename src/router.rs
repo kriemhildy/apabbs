@@ -390,41 +390,45 @@ async fn review_post(
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
-    if post.status != PostStatus::Pending {
-        return bad_request("cannot update non-pending post");
-    }
-    if let Some(media_file_name) = post.media_file_name {
-        let cocoon_file_name = media_file_name.clone() + ".cocoon";
-        let uuid_string = post_review.uuid.to_string();
-        let cocoon_path = std::path::Path::new(UPLOADS_DIR)
-            .join(&uuid_string)
-            .join(&cocoon_file_name);
-        if !cocoon_path.exists() {
-            return bad_request("cocoon file does not exist");
+    match post.status {
+        PostStatus::Pending => {
+            if let Some(media_file_name) = post.media_file_name {
+                let cocoon_file_name = media_file_name.clone() + ".cocoon";
+                let uuid_string = post_review.uuid.to_string();
+                let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+                    .join(&uuid_string)
+                    .join(&cocoon_file_name);
+                if !cocoon_path.exists() {
+                    return bad_request("cocoon file does not exist");
+                }
+                if post_review.status == PostStatus::Approved {
+                    let mut file = File::open(&cocoon_path).expect("open file");
+                    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+                    let cocoon = Cocoon::new(secret_key.as_bytes());
+                    let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
+                    let media_path = std::path::Path::new(MEDIA_DIR)
+                        .join(&uuid_string)
+                        .join(&media_file_name);
+                    let media_uuid_dir = media_path.parent().unwrap();
+                    std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
+                    std::fs::write(&media_path, data).expect("write media file");
+                }
+                let uploads_uuid_dir = cocoon_path.parent().unwrap();
+                std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+                std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
+            }
         }
-        if post_review.status == PostStatus::Approved {
-            let mut file = File::open(&cocoon_path).expect("open file");
-            let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-            let cocoon = Cocoon::new(secret_key.as_bytes());
-            let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
-            let media_path = std::path::Path::new(MEDIA_DIR)
-                .join(&uuid_string)
-                .join(&media_file_name);
-            let media_uuid_dir = media_path.parent().unwrap();
-            std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
-            std::fs::write(&media_path, data).expect("write media file");
-        }
-        let uploads_uuid_dir = cocoon_path.parent().unwrap();
-        std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
-        std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
+        PostStatus::Approved => (),
+        _ => return bad_request("post must be pending or approved"),
     }
     post_review.update_status(&mut tx).await;
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
         .expect("select post");
     if post.status == PostStatus::Banned {
-        let ip_hash = post.ip_hash.as_ref().expect("read ip_hash");
-        ban::insert(&mut tx, ip_hash).await;
+        if let Some(ip_hash) = post.ip_hash.as_ref() {
+            ban::insert(&mut tx, ip_hash).await;
+        }
         post.delete(&mut tx).await;
     }
     tx.commit().await.expect(COMMIT);

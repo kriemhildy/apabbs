@@ -10,6 +10,7 @@
         --rejected: rgb(37, 4, 4);
         --banned: rgb(105, 10, 10);
         --track: #222;
+        --disabled: #444;
     }
 
     img,
@@ -32,6 +33,7 @@
         --rejected: rgb(250, 226, 226);
         --banned: rgb(231, 63, 63);
         --track: #eee;
+        --disabled: #ccc;
     }
 }
 
@@ -52,6 +54,10 @@ input,
     font-size: 12px;
     color: var(--fore);
     background: var(--back);
+}
+
+input:disabled {
+    color: var(--disabled);
 }
 
 textarea {

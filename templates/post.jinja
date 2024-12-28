@@ -26,23 +26,27 @@
     {% endif %}
     {% endif %}
     {% endif %}
-    {% if admin and post.status == "pending" %}
+    {% if admin and (post.status == "pending" or alone) %}
     <br>
-    <form action="/admin/review-post" method="post" class="approve" data-fetch>
-        <input type="hidden" name="uuid" value="{{ post.uuid }}">
-        <input type="hidden" name="status" value="approved">
-        <input type="submit" value="Approve">
-    </form>
-    <form action="/admin/review-post" method="post" class="reject" data-fetch>
-        <input type="hidden" name="uuid" value="{{ post.uuid }}">
-        <input type="hidden" name="status" value="rejected">
-        <input type="submit" value="Reject">
-    </form>
-    <form action="/admin/review-post" method="post" class="ban" data-fetch>
-        <input type="hidden" name="uuid" value="{{ post.uuid }}">
-        <input type="hidden" name="status" value="banned">
-        <input type="submit" value="Ban">
-    </form>
+    <br>
+    <details>
+        <summary>Mod</summary>
+        <form action="/admin/review-post" method="post" class="approve" data-fetch>
+            <input type="hidden" name="uuid" value="{{ post.uuid }}">
+            <input type="hidden" name="status" value="approved">
+            <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }}>
+        </form>
+        <form action="/admin/review-post" method="post" class="reject" data-fetch>
+            <input type="hidden" name="uuid" value="{{ post.uuid }}">
+            <input type="hidden" name="status" value="rejected">
+            <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }}>
+        </form>
+        <form action="/admin/review-post" method="post" class="ban" data-fetch>
+            <input type="hidden" name="uuid" value="{{ post.uuid }}">
+            <input type="hidden" name="status" value="banned">
+            <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }}>
+        </form>
+    </details>
     {% elif post.status == "rejected" %}
     <form action="/hide-rejected-post" method="post" data-fetch>
         <span class="post-info">Post rejected.</span>
