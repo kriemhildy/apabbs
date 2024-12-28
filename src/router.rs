@@ -11,15 +11,18 @@ use crate::{
 use axum::{
     extract::{
         ws::{Message, WebSocket},
-        DefaultBodyLimit, Multipart, Path, Query, State, WebSocketUpgrade,
+        DefaultBodyLimit, Multipart, Path, State, WebSocketUpgrade,
     },
-    http::header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
+    http::{
+        header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
+        Uri,
+    },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
 use cocoon::Cocoon;
 use helpers::*;
-use std::fs::File;
+use std::{collections::HashMap, fs::File};
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
@@ -38,7 +41,9 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
-        .route("/post", post(submit_post))
+        .route("/page/:uuid", get(index))
+        .route("/post/:uuid", get(index))
+        .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
         .route("/logout", post(logout))
@@ -60,20 +65,16 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 // route handlers
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(serde::Deserialize)]
-struct IndexQuery {
-    uuid: Option<Uuid>,
-    alone: Option<String>,
-}
-
 async fn index(
     State(state): State<AppState>,
     mut jar: CookieJar,
-    query: Query<IndexQuery>,
+    uri: Uri,
+    Path(params): Path<HashMap<String, Uuid>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let query_post = match query.uuid {
+
+    let query_post = match params.get("uuid") {
         Some(uuid) => Some(match Post::select_by_uuid(&mut tx, &uuid).await {
             Some(post) => post,
             None => return bad_request("post does not exist"),
@@ -84,7 +85,7 @@ async fn index(
         Some(post) => Some(post.id),
         None => None,
     };
-    let alone = query.alone.as_ref().is_some_and(|a| a == "1");
+    let alone = uri.path().contains("/post/");
     let posts = match alone {
         true => match &query_post {
             Some(post) => vec![post.clone()],

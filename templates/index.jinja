@@ -22,7 +22,7 @@
         </form>
     </li>
 </ul>
-<form action="/post" method="post" enctype="multipart/form-data" data-fetch>
+<form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
     <textarea name="body"></textarea>
     <br>
     <label for="media">Media:</label>
@@ -39,7 +39,7 @@
 {% if alone %}
 <p class="system">Post {{ query_post.uuid }}</p>
 {% else %}
-<p class="system">Posts until {{ query_post.uuid }}</p>
+<p class="system">Page beginning at {{ query_post.uuid }}</p>
 {% endif %}
 {% endif %}
 <section id="posts">
@@ -48,6 +48,6 @@
     {% endfor %}
 </section>
 {% if prior_page_post %}
-<p><a href="/?uuid={{ prior_page_post.uuid }}" class="system">Prior page</a></p>
+<p><a href="/page/{{ prior_page_post.uuid }}" class="system">Prior page</a></p>
 {% endif %}
 {% endblock %}

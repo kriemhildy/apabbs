@@ -163,7 +163,7 @@ async fn test_submit_post() {
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/post")
+        .uri("/submit-post")
         .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
