@@ -314,7 +314,7 @@ impl PostSubmission {
         use rand::Rng;
         rand::thread_rng()
             .sample_iter(&Alphanumeric)
-            .take(10)
+            .take(16)
             .map(char::from)
             .collect()
     }
