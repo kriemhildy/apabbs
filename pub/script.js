@@ -8,6 +8,7 @@ function styleScrollbar() {
         const scrollbarLink = document.createElement("link");
         scrollbarLink.rel = "stylesheet";
         scrollbarLink.href = "/scrollbar.css";
+        console.log("scrollbar");
         primaryLink.after(scrollbarLink);
     }
 }
