@@ -148,7 +148,7 @@ video {
     max-height: 500px;
 }
 
-a.author {
+a.uuid {
     text-decoration: none;
     color: var(--post-info);
 }
