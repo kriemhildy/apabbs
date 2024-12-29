@@ -40,7 +40,11 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
 }
 
 pub fn site_name() -> String {
-    std::env::var("SITE_NAME").expect("read SITE_NAME env")
+    format!(
+        "{}{}",
+        if dev() { "[dev] " } else { "" },
+        std::env::var("SITE_NAME").expect("read SITE_NAME env")
+    )
 }
 
 pub fn dev() -> bool {
