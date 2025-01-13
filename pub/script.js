@@ -101,17 +101,17 @@ function initWebSocket() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function mostRecentUuid() {
-    const posts = document.querySelectorAll("article");
-    if (posts.length > 0) {
-        return posts[0].id.replace("post-", "");
+    const post = document.querySelector("article:not(.banned)");
+    if (post !== null) {
+        return post.id.replace("post-", "");
     } else {
         return null;
     }
 }
 
 function checkInterim() {
-    console.log("fetching interim post data");
     const uuid = mostRecentUuid();
+    console.log(`fetching interim post data from ${uuid}`);
     fetch(`/interim/${uuid}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
