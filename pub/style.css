@@ -144,7 +144,6 @@ input#post-button {
 
 article img,
 video {
-    max-width: min(100%, 500px);
     max-height: 500px;
 }
 
