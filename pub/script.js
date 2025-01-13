@@ -47,7 +47,7 @@ function initUnseenPosts() {
 
 const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
 let webSocket, template, postsSection, reconnectInterval;
-let webSocketOpen = false;
+let webSocketOpen = false; // apparently necessary to avoid duplicate reconnects
 
 function initDomElements() {
     template = document.createElement("template");
