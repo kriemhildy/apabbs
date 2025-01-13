@@ -1,5 +1,5 @@
 <article class="{{ post.status }}" id="post-{{ post.uuid }}">
-    {% set poster = post.username if post.username else post.anon_hash + " (anon)" %}
+    {% set poster = post.username if post.username else "anon (" + post.anon_hash + ")" %}
     {% if post.body|length > 0 and post.status != "banned" %}
     <span class="body">{{ post.body }}</span>
     {% if post.media_file_name %}
