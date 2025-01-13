@@ -10,7 +10,7 @@ use crate::{
 };
 use axum::{
     extract::{
-        ws::{Message, WebSocket},
+        ws::{Message, Utf8Bytes, WebSocket},
         DefaultBodyLimit, Multipart, Path, State, WebSocketUpgrade,
     },
     http::{
@@ -41,8 +41,8 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
-        .route("/page/:uuid", get(index))
-        .route("/post/:uuid", get(index))
+        .route("/page/{uuid}", get(index))
+        .route("/post/{uuid}", get(index))
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
@@ -50,9 +50,9 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hash", post(new_hash))
         .route("/hide-rejected-post", post(hide_rejected_post))
         .route("/web-socket", get(web_socket))
-        .route("/interim/:uuid", get(interim))
+        .route("/interim/{uuid}", get(interim))
         .route("/admin/review-post", post(review_post))
-        .route("/admin/decrypt-media/:uuid", get(decrypt_media))
+        .route("/admin/decrypt-media/{uuid}", get(decrypt_media))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = match trace {
         true => router.layer(init::trace_layer()),
@@ -333,8 +333,10 @@ async fn web_socket(
             if !should_send {
                 continue;
             }
-            let json = serde_json::json!({"uuid": msg.post.uuid, "html": msg.html}).to_string();
-            if socket.send(Message::Text(json)).await.is_err() {
+            let json_utf8 = Utf8Bytes::from(
+                serde_json::json!({"uuid": msg.post.uuid, "html": msg.html}).to_string(),
+            );
+            if socket.send(Message::Text(json_utf8)).await.is_err() {
                 break; // client disconnect
             }
         }
