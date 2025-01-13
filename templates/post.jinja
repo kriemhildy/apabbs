@@ -28,6 +28,11 @@
     <br>
     {% endif %}
     <a href="/post/{{ post.uuid }}" class="uuid">{{ post.uuid }}</a>
+    {% if alone %}
+    <br>
+    <br>
+    Author: {{ author }}
+    {% endif %}
     {% if admin and (post.status == "pending" or alone) %}
     <br>
     <br>
