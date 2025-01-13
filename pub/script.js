@@ -153,6 +153,10 @@ function handleFormSubmit(event) {
                     this.parentElement.remove();
                     break;
             }
+        } else {
+            response.text().then((text) => {
+                alert(text);
+            });
         }
     });
 }
