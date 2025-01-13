@@ -78,7 +78,7 @@ impl Post {
             .expect("select latest posts")
     }
 
-    pub fn authored_by(&self, user: &User) -> bool {
+    pub fn posted_by(&self, user: &User) -> bool {
         self.anon_token
             .as_ref()
             .is_some_and(|uuid| uuid == &user.anon_token)

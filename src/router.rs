@@ -294,7 +294,7 @@ async fn hide_rejected_post(
         Some(post) => post,
         None => return bad_request("post does not exist"),
     };
-    if !post.authored_by(&user) {
+    if !post.posted_by(&user) {
         if user.admin() {
             return Redirect::to(ROOT).into_response();
         }
@@ -325,7 +325,7 @@ async fn web_socket(
                 false => {
                     !user.admin()
                         && match msg.post.status {
-                            Pending | Rejected | Banned => msg.post.authored_by(&user),
+                            Pending | Rejected | Banned => msg.post.posted_by(&user),
                             Approved => true,
                         }
                 }

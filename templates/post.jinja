@@ -1,5 +1,5 @@
 <article class="{{ post.status }}" id="post-{{ post.uuid }}">
-    {% set author = post.username if post.username else post.anon_hash + " (anon)" %}
+    {% set poster = post.username if post.username else post.anon_hash + " (anon)" %}
     {% if post.body|length > 0 and post.status != "banned" %}
     <span class="body">{{ post.body }}</span>
     {% if post.media_file_name %}
@@ -31,7 +31,7 @@
     {% if alone %}
     <br>
     <br>
-    Author: {{ author }}
+    Poster: {{ poster }}
     {% endif %}
     {% if admin and (post.status == "pending" or alone) %}
     <br>
