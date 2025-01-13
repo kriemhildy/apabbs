@@ -1,3 +1,9 @@
+0.14.1
+
+Clean up messaging when a post is banned.
+Fix interim fetching when a displayed post has been banned.
+Display alert message if fetch fails.
+
 0.14.0
 
 Add more aesthetic routes.
