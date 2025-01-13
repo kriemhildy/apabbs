@@ -43,7 +43,7 @@ fn local_ip_hash() -> String {
     sha256::digest(secret_key + LOCAL_IP)
 }
 
-async fn delete_account(tx: &mut PgConnection, account: Account) {
+async fn delete_test_account(tx: &mut PgConnection, account: Account) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account.id)
         .execute(&mut *tx)
@@ -213,7 +213,7 @@ async fn test_authenticate() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    delete_account(&mut tx, account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
@@ -252,7 +252,7 @@ async fn test_create_account() {
         .fetch_one(&mut *tx)
         .await
         .expect("select account");
-    delete_account(&mut tx, account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
@@ -272,7 +272,7 @@ async fn test_logout() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    delete_account(&mut tx, account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -388,7 +388,7 @@ async fn test_review_post() {
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
-    delete_account(&mut tx, admin_account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -414,7 +414,7 @@ async fn test_decrypt_media() {
     assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
-    delete_account(&mut tx, admin_account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
     remove_cocoon(&cocoon_path);
 }
