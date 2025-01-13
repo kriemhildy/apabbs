@@ -24,7 +24,9 @@
     {% endif %}
     {% endif %}
     {% endif %}
+    {% if post.status != "banned" %}
     <br>
+    {% endif %}
     <a href="/post/{{ post.uuid }}" class="uuid">{{ post.uuid }}</a>
     {% if admin and (post.status == "pending" or alone) %}
     <br>
@@ -54,6 +56,8 @@
         <input type="submit" value="Hide">
     </form>
     {% elif post.status == "banned" %}
+    <br>
+    <br>
     <span class="post-info">This post has been deleted and its IP has been banned for a month.</span>
     {% endif %}
 </article>
