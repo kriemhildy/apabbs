@@ -49,11 +49,14 @@
 body {
     overflow-wrap: break-word;
     margin: 0 auto;
-    padding-top: 0;
-    padding-bottom: 50px;
     padding-left: 40px;
     padding-right: 40px;
     max-width: max(600px, 70%);
+    min-height: 100vh;
+}
+
+main {
+    padding-bottom: 50px;
 }
 
 body,
