@@ -85,11 +85,11 @@ async fn index(
         Some(post) => Some(post.id),
         None => None,
     };
-    let alone = uri.path().contains("/post/");
-    let posts = match alone {
+    let solo = uri.path().contains("/post/");
+    let posts = match solo {
         true => match &query_post {
             Some(post) => vec![post.clone()],
-            None => return bad_request("no post to show alone"),
+            None => return bad_request("no post to show solo"),
         },
         false => Post::select_latest(&mut tx, &user, query_post_id, None, per_page() as i32).await,
     };
@@ -116,7 +116,7 @@ async fn index(
             anon => user.anon(),
             query_post,
             prior_page_post,
-            alone,
+            solo,
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {

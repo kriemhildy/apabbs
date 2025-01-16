@@ -28,12 +28,12 @@
     <br>
     {% endif %}
     <a href="/post/{{ post.uuid }}" class="uuid">{{ post.uuid }}</a>
-    {% if alone %}
+    {% if solo %}
     <br>
     <br>
     Poster: {{ poster }}
     {% endif %}
-    {% if admin and (post.status == "pending" or alone) %}
+    {% if admin and (post.status == "pending" or solo) %}
     <br>
     <br>
     <details>
