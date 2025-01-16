@@ -37,13 +37,18 @@
     }
 }
 
+html {
+    background: url("black-bg.jpg");
+}
+
 body {
     overflow-wrap: break-word;
-    margin-top: 0;
-    margin-bottom: 50px;
-    margin-left: 7%;
-    margin-right: 7%;
-    max-width: 700px;
+    margin: 0 auto;
+    padding-top: 0;
+    padding-bottom: 50px;
+    padding-left: 40px;
+    padding-right: 40px;
+    max-width: 70%;
 }
 
 body,
@@ -87,6 +92,11 @@ a {
 fieldset {
     border-color: var(--back);
     border-radius: 5px;
+}
+
+header h3 {
+    margin-top: 0;
+    padding-top: 1em;
 }
 
 header h3 a {
@@ -144,7 +154,7 @@ input#post-button {
 
 article img,
 video {
-    max-height: 500px;
+    max-height: 60vh;
 }
 
 a.uuid {

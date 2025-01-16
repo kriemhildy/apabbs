@@ -1,7 +1,7 @@
 /* Only applied on non-Mac operating systems to WebKit browsers */
 
 body::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
 }
 
 body::-webkit-scrollbar-track {
