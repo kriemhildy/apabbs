@@ -49,10 +49,12 @@
 body {
     overflow-wrap: break-word;
     margin: 0 auto;
-    padding-left: 40px;
-    padding-right: 40px;
+    padding-left: max(10px, 3%);
+    padding-right: max(10px, 3%);
     max-width: max(600px, 70%);
-    min-height: 100vh;
+    display: flex;
+    flex-flow: column;
+    align-items: stretch;
 }
 
 main {
