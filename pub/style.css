@@ -30,7 +30,6 @@
         background: url("white-bg.jpg");
     }
 
-
     body {
         --back: white;
         --fore: black;
@@ -52,9 +51,8 @@ body {
     padding-left: max(10px, 3%);
     padding-right: max(10px, 3%);
     max-width: max(600px, 70%);
-    display: flex;
-    flex-flow: column;
-    align-items: stretch;
+    min-height: 100vh;
+    object-fit: scale-down;
 }
 
 main {
