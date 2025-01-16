@@ -162,7 +162,7 @@ input#post-button {
 
 article img,
 video {
-    max-height: 60vh;
+    max-height: 500px;
 }
 
 a.uuid {
