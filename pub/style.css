@@ -1,4 +1,8 @@
 @media (prefers-color-scheme: dark) {
+    html {
+        background: url("black-bg.jpg");
+    }
+
     body {
         --back: black;
         --fore: #e3e3e3;
@@ -22,6 +26,11 @@
 }
 
 @media (prefers-color-scheme: light) {
+    html {
+        background: url("white-bg.jpg");
+    }
+
+
     body {
         --back: white;
         --fore: black;
@@ -37,10 +46,6 @@
     }
 }
 
-html {
-    background: url("black-bg.jpg");
-}
-
 body {
     overflow-wrap: break-word;
     margin: 0 auto;
@@ -48,7 +53,7 @@ body {
     padding-bottom: 50px;
     padding-left: 40px;
     padding-right: 40px;
-    max-width: 70%;
+    max-width: max(600px, 70%);
 }
 
 body,
