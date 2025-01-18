@@ -34,6 +34,12 @@
     Poster: {{ poster }}
     <br>
     At: {{ post.created_at }}
+    {% if post.media_file_name %}
+    <br>
+    Filename: {{ post.media_file_name }}
+    {% endif %}
+    {% if post.ip %}
+    {% endif %}
     {% endif %}
     {% if post.status == "approved" %}
     {% endif %}
