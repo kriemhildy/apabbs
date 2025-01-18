@@ -25,7 +25,7 @@ pub enum PostMediaCategory {
     Audio,
 }
 
-#[derive(Clone, Debug, serde::Serialize, sqlx::Type)]
+#[derive(sqlx::Type, serde::Serialize, Clone, Debug)]
 pub struct TimeString(String);
 impl From<OffsetDateTime> for TimeString {
     fn from(value: OffsetDateTime) -> Self {
