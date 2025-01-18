@@ -1,6 +1,7 @@
 use crate::user::User;
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use time::{format_description::well_known::Rfc2822, OffsetDateTime};
 use uuid::Uuid;
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
@@ -24,6 +25,14 @@ pub enum PostMediaCategory {
     Audio,
 }
 
+#[derive(Clone, Debug, serde::Serialize, sqlx::Type)]
+pub struct TimeString(String);
+impl From<OffsetDateTime> for TimeString {
+    fn from(value: OffsetDateTime) -> Self {
+        TimeString(value.format(&Rfc2822).unwrap())
+    }
+}
+
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
 pub struct Post {
     pub id: i32,
@@ -38,6 +47,8 @@ pub struct Post {
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
     pub ip_hash: Option<String>,
+    #[sqlx(try_from = "OffsetDateTime")]
+    pub created_at: TimeString,
 }
 
 impl Post {

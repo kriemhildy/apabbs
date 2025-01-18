@@ -32,6 +32,10 @@
     <br>
     <br>
     Poster: {{ poster }}
+    <br>
+    At: {{ post.created_at }}
+    {% endif %}
+    {% if post.status == "approved" %}
     {% endif %}
     {% if admin and (post.status == "pending" or solo) %}
     <br>

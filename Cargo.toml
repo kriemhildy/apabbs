@@ -26,11 +26,17 @@ serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 argon2 = "*"
 regex = "*"
-uuid = { version = "*", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
+uuid = { version = "*", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+    "serde",
+] }
 sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
 cocoon = "*"
+time = { version = "*", features = ["serde", "formatting"] }
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
