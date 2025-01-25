@@ -112,7 +112,13 @@ form.ban {
     display: inline;
 }
 
+section#posts {
+    display: flex;
+    flex-wrap: wrap;
+}
+
 article {
+    flex: 500px;
     overflow: hidden;
     border-radius: 5px;
     margin-top: 15px;
