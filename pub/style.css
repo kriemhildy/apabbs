@@ -1,8 +1,4 @@
 @media (prefers-color-scheme: dark) {
-    html {
-        background: url("black-bg.jpg");
-    }
-
     body {
         --back: black;
         --fore: #e3e3e3;
@@ -26,10 +22,6 @@
 }
 
 @media (prefers-color-scheme: light) {
-    html {
-        background: url("white-bg.jpg");
-    }
-
     body {
         --back: white;
         --fore: black;
@@ -47,12 +39,6 @@
 
 body {
     overflow-wrap: break-word;
-    margin: 0 auto;
-    padding-left: max(10px, 3%);
-    padding-right: max(10px, 3%);
-    max-width: max(600px, 70%);
-    min-height: 100vh;
-    object-fit: scale-down;
 }
 
 main {
