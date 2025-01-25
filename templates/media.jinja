@@ -1,5 +1,9 @@
 {% if post.media_category == "image" %}
-<img src="{{ media_path }}" loading="lazy">
+{% if solo %}
+<img src="{{ media_path }}">
+{% else %}
+<a href="/post/{{ post.uuid }}"><img src="{{ media_path }}"></a>
+{% endif %}
 {% elif post.media_category == "video" %}
 <video controls>
     <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
