@@ -118,10 +118,10 @@ section#posts {
 }
 
 article {
-    flex: 500px;
+    flex: 300px;
     overflow: hidden;
     border-radius: 5px;
-    margin-top: 15px;
+    margin: 15px;
     break-inside: avoid;
 }
 
