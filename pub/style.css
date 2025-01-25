@@ -121,7 +121,7 @@ article {
     flex: 300px;
     overflow: hidden;
     border-radius: 5px;
-    margin: 15px;
+    margin: 10px;
     break-inside: avoid;
 }
 
