@@ -145,10 +145,7 @@ article.banned {
 }
 
 input#post-button {
-    padding-top: 5px;
-    padding-left: 20px;
-    padding-right: 20px;
-    padding-bottom: 5px;
+    padding: 5px 20px;
     font-weight: bold;
     font-size: 1.1em;
 }
