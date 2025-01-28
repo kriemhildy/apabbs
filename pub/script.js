@@ -110,14 +110,14 @@ function mostRecentPubId() {
 }
 
 function checkInterim() {
-    const pub_id = mostRecentPubId();
-    console.log(`fetching interim post data from ${pub_id}`);
-    fetch(`/interim/${pub_id}`).then((response) => {
+    const pubId = mostRecentPubId();
+    console.log(`fetching interim post data from ${pubId}`);
+    fetch(`/interim/${pubId}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
-                    console.log("updating interim post: ", post.pub_id);
-                    updatePost(post.pub_id, post.html);
+                    console.log("updating interim post: ", post.pubId);
+                    updatePost(post.pubId, post.html);
                 }
             });
         }

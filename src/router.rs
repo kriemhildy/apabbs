@@ -340,7 +340,7 @@ async fn web_socket(
                 continue;
             }
             let json_utf8 = Utf8Bytes::from(
-                serde_json::json!({"pub_id": msg.post.pub_id, "html": msg.html}).to_string(),
+                serde_json::json!({"pubId": msg.post.pub_id, "html": msg.html}).to_string(),
             );
             if socket.send(Message::Text(json_utf8)).await.is_err() {
                 break; // client disconnect
