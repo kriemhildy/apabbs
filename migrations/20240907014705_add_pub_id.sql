@@ -18,7 +18,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-ALTER TABLE posts DROP COLUMN uuid;
+-- ALTER TABLE posts DROP COLUMN uuid;
 
 ALTER TABLE posts ADD COLUMN pub_id text DEFAULT alphanumeric(16) UNIQUE NOT NULL;
 
