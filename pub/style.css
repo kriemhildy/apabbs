@@ -118,7 +118,7 @@ section#posts {
 }
 
 article {
-    flex: 300px;
+    flex: 325px;
     overflow: hidden;
     border-radius: 5px;
     margin: 6px;
