@@ -5,8 +5,14 @@ if ! [ "$DEV" == 1 ]; then
     nice rustup upgrade
     nice cargo build --release
 else
-    git diff --quiet
-    git diff --cached --quiet
+    if [ `git branch --show-current` != "main" ]; then
+        echo "Not on main branch"
+        exit 1
+    fi
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        echo "Uncommitted changes"
+        exit 1
+    fi
     cargo test
     git push
     ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/deploy.sh"
