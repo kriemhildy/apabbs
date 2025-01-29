@@ -28,5 +28,13 @@ Installation
     this is necessary for serving assets (css, js, media). it is also
     necessary for SSL encryption via certbot. this server will need to enable
     web socket upgrades and X-Real-IP forwarding.
+<<<<<<< HEAD
 13. run "cargo run" to start the app server in debug mode.
 14. access the app via "localhost" in a browser.
+=======
+13. run "cargo run" to start the app server in debug mode.
+14. access the app via "localhost" in a browser.
+
+apt install postgresql-plpython3-15
+create extension plpython3u
+>>>>>>> c6d4379 (pgpython3u attempt, requires superuser)
