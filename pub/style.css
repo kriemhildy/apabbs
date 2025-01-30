@@ -57,6 +57,7 @@ input:disabled {
 textarea {
     width: min(95%, 600px);
     height: 3em;
+    padding: 5px;
 }
 
 input[type="submit"] {
@@ -68,11 +69,6 @@ textarea,
 ::file-selector-button {
     border-radius: 5px;
     border-color: var(--border);
-}
-
-textarea {
-    padding: 5px;
-    max-width: 1000px;
 }
 
 a {
@@ -155,7 +151,7 @@ video {
 }
 
 article.solo {
-    max-width: 1000px;
+    max-width: 800px;
 }
 
 article.solo img,
