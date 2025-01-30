@@ -112,34 +112,34 @@ form.ban {
     display: inline;
 }
 
-section#posts {
+div#posts {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 12px;
 }
 
-article {
+div.post {
     flex: 325px;
     overflow: hidden;
     break-inside: avoid;
 }
 
-article.pending,
-article.rejected,
-article.banned {
+div.post.pending,
+div.post.rejected,
+div.post.banned {
     padding: 10px;
 }
 
-article.pending {
+div.post.pending {
     background: var(--pending);
 }
 
-article.rejected {
+div.post.rejected {
     background: var(--rejected);
 }
 
-article.banned {
+div.post.banned {
     background: var(--banned);
 }
 
@@ -149,26 +149,26 @@ input#post-button {
     font-size: 1.1em;
 }
 
-article img,
+div.post img,
 video {
     max-width: 100%;
     max-height: 500px;
 }
 
-article section.body {
+div.post div.body {
     max-height: 450px;
     overflow: hidden;
 }
 
-article.solo {
+div.post.solo {
     max-width: 800px;
 }
 
-article.solo section.body {
+div.post.solo div.body {
     max-height: unset;
 }
 
-article.solo img,
+div.post.solo img,
 video {
     max-width: 100%;
     max-height: 700px;

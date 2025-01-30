@@ -51,11 +51,11 @@ let webSocketOpen = false; // apparently necessary to avoid duplicate reconnects
 
 function initDomElements() {
     template = document.createElement("template");
-    postsSection = document.querySelector("section#posts");
+    postsSection = document.querySelector("div#posts");
 }
 
 function updatePost(uuid, html) {
-    const post = document.querySelector(`article#post-${uuid}`);
+    const post = document.querySelector(`div#post-${uuid}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -101,7 +101,7 @@ function initWebSocket() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function mostRecentUuid() {
-    const post = document.querySelector("article:not(.banned)");
+    const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
         return post.id.replace("post-", "");
     } else {
