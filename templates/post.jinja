@@ -7,7 +7,7 @@
     {% endif %}
     {% if post.media_file_name %}
     {% if post.status == "approved" %}
-    {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
+    {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name|urlencode %}
     <div class="media">
         {% include "media.jinja" %}
     </div>
