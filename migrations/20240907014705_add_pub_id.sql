@@ -69,11 +69,11 @@ ALTER TABLE posts ADD CHECK (length(pub_id) = 16);
 --     print("Moved media dir from {} to {}".format(uuid, pub_id))
 -- $$ LANGUAGE plpython3u;
 
-SELECT move_media_dir(p) FROM posts p;
+-- SELECT move_media_dir(p) FROM posts p;
 
 -- cleanup
 
-ALTER TABLE posts DROP COLUMN uuid;
+-- ALTER TABLE posts DROP COLUMN uuid;
 
 -- can only be done by superuser
 -- DROP FUNCTION move_media_dir;
