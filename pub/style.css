@@ -50,6 +50,11 @@ input,
     accent-color: var(--system);
 }
 
+::selection {
+    background: var(--system);
+    color: var(--back);
+}
+
 input:disabled {
     color: var(--disabled);
 }
