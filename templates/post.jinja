@@ -29,7 +29,6 @@
         <a href="/post/{{ post.uuid }}" class="uuid">{{ post.uuid }}</a>
     </div>
     {% if solo %}
-    <br>
     <div class="info">
         Poster: {{ poster }}
         <br>
@@ -43,7 +42,6 @@
     {% if post.status == "approved" %}
     {% endif %}
     {% if admin and (post.status == "pending" or solo) %}
-    <br>
     <div class="mod">
         <details {{ "open" if post.status=="pending" }}>
             <summary>Mod</summary>

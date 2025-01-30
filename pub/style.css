@@ -178,3 +178,8 @@ a.uuid {
     text-decoration: none;
     color: var(--post-info);
 }
+
+div.post div.info,
+div.post div.mod {
+    margin-top: 1em;
+}
