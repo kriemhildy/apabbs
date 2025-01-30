@@ -174,12 +174,11 @@ video {
     max-height: 700px;
 }
 
-a.uuid {
+div.post div.uuid a {
     text-decoration: none;
     color: var(--post-info);
 }
 
-div.post div.info,
-div.post div.mod {
+div.post details.mod {
     margin-top: 1em;
 }
