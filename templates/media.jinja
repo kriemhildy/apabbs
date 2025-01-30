@@ -1,8 +1,8 @@
 {% if post.media_category == "image" %}
 {% if solo %}
-<img src="{{ media_path }}" alt="{{ post.media_file_name }}">
+<img src="{{ media_path }}" alt="{{ post.media_file_name|e }}">
 {% else %}
-<a href="/post/{{ post.uuid }}"><img src="{{ media_path }}" alt="{{ post.media_file_name }}" loading="lazy"></a>
+<a href="/post/{{ post.uuid }}"><img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy"></a>
 {% endif %}
 {% elif post.media_category == "video" %}
 <video controls>
