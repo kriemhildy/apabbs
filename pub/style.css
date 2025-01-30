@@ -155,8 +155,17 @@ video {
     max-height: 500px;
 }
 
+article section.body {
+    max-height: 450px;
+    overflow: hidden;
+}
+
 article.solo {
     max-width: 800px;
+}
+
+article.solo section.body {
+    max-height: unset;
 }
 
 article.solo img,

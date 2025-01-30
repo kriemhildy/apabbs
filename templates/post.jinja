@@ -1,15 +1,16 @@
-<article class="{{ post.status }} {{ "solo" if solo }}" id="post-{{ post.uuid }}">
+<article class="{{ post.status }}{{ " solo" if solo }}" id="post-{{ post.uuid }}">
     {% set poster = post.username if post.username else "anon (" + post.anon_hash + ")" %}
     {% if post.body|length > 0 and post.status != "banned" %}
-    <span class="body">{{ post.body }}</span>
+    <section class="body">{{ post.body }}</section>
     {% if post.media_file_name %}
-    <br>
     {% endif %}
     {% endif %}
     {% if post.media_file_name %}
     {% if post.status == "approved" %}
     {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name %}
-    {% include "media.jinja" %}
+    <section class="media">
+        {% include "media.jinja" %}
+    </section>
     {% elif post.status == "rejected" %}
     <span class="post-info">File "{{ post.media_file_name }}" deleted.</span>
     {% elif post.status == "pending" %}
@@ -24,55 +25,54 @@
     {% endif %}
     {% endif %}
     {% endif %}
-    {% if post.status != "banned" %}
-    <br>
-    {% endif %}
-    <a href="/post/{{ post.uuid }}" class="uuid">{{ post.uuid }}</a>
+    <section class="uuid">
+        <a href="/post/{{ post.uuid }}" class="uuid">{{ post.uuid }}</a>
+    </section>
     {% if solo %}
     <br>
-    <br>
-    Poster: {{ poster }}
-    <br>
-    At: {{ post.created_at }}
-    {% if post.media_file_name %}
-    <br>
-    Filename: {{ post.media_file_name }}
-    {% endif %}
-    {% if post.ip %}
-    {% endif %}
+    <section class="info">
+        Poster: {{ poster }}
+        <br>
+        At: {{ post.created_at }}
+        {% if post.media_file_name %}
+        <br>
+        Filename: {{ post.media_file_name }}
+        {% endif %}
+    </section>
     {% endif %}
     {% if post.status == "approved" %}
     {% endif %}
     {% if admin and (post.status == "pending" or solo) %}
     <br>
-    <br>
-    <details {{ "open" if post.status=="pending" }}>
-        <summary>Mod</summary>
-        <form action="/admin/review-post" method="post" class="approve" data-fetch>
+    <section class="mod">
+        <details {{ "open" if post.status=="pending" }}>
+            <summary>Mod</summary>
+            <form action="/admin/review-post" method="post" class="approve" data-fetch>
+                <input type="hidden" name="uuid" value="{{ post.uuid }}">
+                <input type="hidden" name="status" value="approved">
+                <input type="submit" value="Approve" {{ "disabled" if post.status=="approved" }}>
+            </form>
+            <form action="/admin/review-post" method="post" class="reject" data-fetch>
+                <input type="hidden" name="uuid" value="{{ post.uuid }}">
+                <input type="hidden" name="status" value="rejected">
+                <input type="submit" value="Reject" {{ "disabled" if post.status=="rejected" }}>
+            </form>
+            <form action="/admin/review-post" method="post" class="ban" data-fetch>
+                <input type="hidden" name="uuid" value="{{ post.uuid }}">
+                <input type="hidden" name="status" value="banned">
+                <input type="submit" value="Ban" {{ "disabled" if post.status=="banned" }}>
+            </form>
+        </details>
+        {% elif post.status == "rejected" %}
+        <form action="/hide-rejected-post" method="post" data-fetch>
+            <span class="post-info">Post rejected.</span>
             <input type="hidden" name="uuid" value="{{ post.uuid }}">
-            <input type="hidden" name="status" value="approved">
-            <input type="submit" value="Approve" {{ "disabled" if post.status=="approved" }}>
+            <input type="submit" value="Hide">
         </form>
-        <form action="/admin/review-post" method="post" class="reject" data-fetch>
-            <input type="hidden" name="uuid" value="{{ post.uuid }}">
-            <input type="hidden" name="status" value="rejected">
-            <input type="submit" value="Reject" {{ "disabled" if post.status=="rejected" }}>
-        </form>
-        <form action="/admin/review-post" method="post" class="ban" data-fetch>
-            <input type="hidden" name="uuid" value="{{ post.uuid }}">
-            <input type="hidden" name="status" value="banned">
-            <input type="submit" value="Ban" {{ "disabled" if post.status=="banned" }}>
-        </form>
-    </details>
-    {% elif post.status == "rejected" %}
-    <form action="/hide-rejected-post" method="post" data-fetch>
-        <span class="post-info">Post rejected.</span>
-        <input type="hidden" name="uuid" value="{{ post.uuid }}">
-        <input type="submit" value="Hide">
-    </form>
-    {% elif post.status == "banned" %}
-    <br>
-    <br>
-    <span class="post-info">This post has been deleted and its IP has been banned for a month.</span>
+        {% elif post.status == "banned" %}
+        <br>
+        <br>
+        <span class="post-info">This post has been deleted and its IP has been banned for a month.</span>
+    </section>
     {% endif %}
 </article>
