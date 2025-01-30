@@ -1,36 +1,32 @@
 <div class="post {{ post.status }}{{ " solo" if solo }}" id="post-{{ post.uuid }}">
-    {% set poster = post.username if post.username else "anon (" + post.anon_hash + ")" %}
-    {% if post.body|length > 0 and post.status != "banned" %}
-    <div class="body">
-        {{ post.body }}
-    </div>
-    {% endif %}
-    {% if post.media_file_name %}
-    {% if post.status == "approved" %}
-    {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name|urlencode %}
-    <div class="media">
+    <div class="content">
+        {% if post.body|length > 0 and post.status != "banned" %}
+        <div class="body">
+            {{ post.body }}
+        </div>
+        {% endif %}
+        {% if post.media_file_name %}
+        {% if post.status == "approved" %}
+        {% set media_path = "/media/" + post.uuid + "/" + post.media_file_name|urlencode %}
+        <div class="media">
+            {% include "media.jinja" %}
+        </div>
+        {% elif post.status == "rejected" %}
+        <p class="review">File "{{ post.media_file_name|e }}" deleted.</p>
+        {% elif post.status == "pending" %}
+        {% if admin %}
+        {% set media_path = "/admin/decrypt-media/" + post.uuid %}
         {% include "media.jinja" %}
-    </div>
-    {% elif post.status == "rejected" %}
-    <span class="post-info">File "{{ post.media_file_name|e }}" deleted.</span>
-    {% elif post.status == "pending" %}
-    {% if admin %}
-    {% set media_path = "/admin/decrypt-media/" + post.uuid %}
-    {% include "media.jinja" %}
-    <br>
-    <span class="post-info">File: {{ post.media_file_name|e }}</span>
-    {% else %}
-    <br>
-    <span class="post-info">File "{{ post.media_file_name|e }}" pending review.</span>
-    {% endif %}
-    {% endif %}
-    {% endif %}
-    <div class="uuid">
-        <a href="/post/{{ post.uuid }}">{{ post.uuid }}</a>
+        <p class="review">File: {{ post.media_file_name|e }}</p>
+        {% else %}
+        <p class="review">File "{{ post.media_file_name|e }}" pending review.</p>
+        {% endif %}
+        {% endif %}
+        {% endif %}
     </div>
     {% if solo %}
     <p class="info">
-        Poster: {{ poster }}
+        Poster: {{ post.username if post.username else "anon (" + post.anon_hash + ")" }}
         <br>
         At: {{ post.created_at }}
         {% if post.media_file_name %}
@@ -62,12 +58,14 @@
     </details>
     {% elif post.status == "rejected" %}
     <form action="/hide-rejected-post" method="post" data-fetch>
-        <span class="post-info">Post rejected.</span>
+        <span class="review">Post rejected.</span>
         <input type="hidden" name="uuid" value="{{ post.uuid }}">
         <input type="submit" value="Hide">
     </form>
     {% elif post.status == "banned" %}
-    <br>
-    <span class="post-info">This post has been deleted and its IP has been banned for a month.</span>
+    <p class="review">This post has been deleted and its IP has been banned for a month.</p>
     {% endif %}
+    <div class="uuid">
+        <a href="/post/{{ post.uuid }}">{{ post.uuid }}</a>
+    </div>
 </div>
