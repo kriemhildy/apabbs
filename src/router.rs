@@ -405,6 +405,7 @@ async fn review_post(
                     return bad_request("cocoon file does not exist");
                 }
                 if post_review.status == PostStatus::Approved {
+                    // decrypt cocoon
                     let mut file = File::open(&cocoon_path).expect("open file");
                     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
                     let cocoon = Cocoon::new(secret_key.as_bytes());
@@ -415,6 +416,25 @@ async fn review_post(
                     let media_uuid_dir = media_path.parent().unwrap();
                     std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
                     std::fs::write(&media_path, data).expect("write media file");
+
+                    // generate optimized jpg thumbnail for normal image types
+                    match post.media_mime_type.expect("mime type exists").as_str() {
+                        "image/jpeg" | "image/png" | "image/webp" | "image/bmp" | "image/avif"
+                        | "image/tiff" => {
+                            // assumes libvips-tools installed at 8.14.1 (current debian stable)
+                            std::process::Command::new("vipsthumbnail")
+                                .arg("--size")
+                                .arg(r#""1400x1600>""#)
+                                .arg("--eprofile=srgb")
+                                .arg("-o")
+                                .arg("tn_%s.jpg[optimize_coding,strip]")
+                                .arg(media_path)
+                                .output()
+                                .expect("generate thumbnail");
+                            // save thumbnail path as a post column
+                        }
+                        _ => (),
+                    }
                 }
                 let uploads_uuid_dir = cocoon_path.parent().unwrap();
                 std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
