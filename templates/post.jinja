@@ -40,7 +40,7 @@
                 {% if post.status == "approved" %}
                 {% endif %}
                 {% if admin and (post.status == "pending" or solo) %}
-                <details class="mod"{{ " open" if post.status=="pending" }}>
+                <details class="mod"{{ " open" if post.status == "pending" }}>
                     <summary>Mod</summary>
                     <form action="/admin/review-post" method="post" class="approve" data-fetch>
                         <input type="hidden" name="uuid" value="{{ post.uuid }}">
