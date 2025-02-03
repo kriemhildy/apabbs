@@ -1,4 +1,4 @@
-            <div class="post {{ post.status }}{{ " solo" if solo }}" id="post-{{ post.uuid }}">
+            <div class="post {{ post.status }}{{ " solo" if solo }}" id="{{ post.uuid }}">
                 <div class="content">
                     {% if post.body|length > 0 and post.status != "banned" %}
                     <div class="body">

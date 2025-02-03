@@ -55,7 +55,7 @@ function initDomElements() {
 }
 
 function updatePost(uuid, html) {
-    const post = document.querySelector(`div#post-${uuid}`);
+    const post = document.querySelector(`div#${uuid}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -103,7 +103,7 @@ function initWebSocket() {
 function mostRecentUuid() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
-        return post.id.replace("post-", "");
+        return post.id;
     } else {
         return null;
     }
