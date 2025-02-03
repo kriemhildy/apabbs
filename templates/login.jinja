@@ -1,14 +1,14 @@
-{% extends "layout.jinja" %}
-{% block main %}
-<h3>Log in</h3>
-<form action="/login" method="post">
-    <label for="username">username:</label>
-    <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
-    <br>
-    <label for="password">password:</label>
-    <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
-    <br>
-    <input type="submit" value="Log in">
-</form>
-<p>If you don't have an account, you can <a href="/register">register</a> one.</p>
-{% endblock %}
+        {% extends "layout.jinja" %}
+        {% block main %}
+        <h3>Log in</h3>
+        <form action="/login" method="post">
+            <label for="username">username:</label>
+            <input type="text" name="username" id="username" maxlength="16" autocomplete="username">
+            <br>
+            <label for="password">password:</label>
+            <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
+            <br>
+            <input type="submit" value="Log in">
+        </form>
+        <p>If you don't have an account, you can <a href="/register">register</a> one.</p>
+        {% endblock %}

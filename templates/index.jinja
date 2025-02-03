@@ -1,46 +1,46 @@
-{% extends "layout.jinja" %}
-{% block main %}
-{% if query_post is none %}
-<ul class="system">
-    {% if not logged_in %}
-    <li>you can <a href="/login">log in</a> for a username</li>
-    {% else %}
-    <li>
-        <form action="/logout" method="post">
-            logged in as: <strong>{{ username }}</strong>
-            {% if admin %}
-            (admin)
+        {% extends "layout.jinja" %}
+        {% block main %}
+        {% if query_post is none %}
+        <ul class="system">
+            {% if not logged_in %}
+            <li>you can <a href="/login">log in</a> for a username</li>
+            {% else %}
+            <li>
+                <form action="/logout" method="post">
+                    logged in as: <strong>{{ username }}</strong>
+                    {% if admin %}
+                    (admin)
+                    {% endif %}
+                    <input type="submit" value="Log out">
+                </form>
+            </li>
             {% endif %}
-            <input type="submit" value="Log out">
+            <li>
+                <form action="/hash" method="post">
+                    your anon hash: <strong>{{ anon_hash }}</strong>
+                    <input type="submit" value="New hash">
+                </form>
+            </li>
+        </ul>
+        <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
+            <textarea name="body"></textarea>
+            <br>
+            <label for="media">Media:</label>
+            <input type="file" name="media" id="media">
+            <br>
+            <input type="submit" value="Post" id="post-button">
+            {% if logged_in %}
+            <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
+            <label for="anon">Post anonymously</label>
+            {% endif %}
         </form>
-    </li>
-    {% endif %}
-    <li>
-        <form action="/hash" method="post">
-            your anon hash: <strong>{{ anon_hash }}</strong>
-            <input type="submit" value="New hash">
-        </form>
-    </li>
-</ul>
-<form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
-    <textarea name="body"></textarea>
-    <br>
-    <label for="media">Media:</label>
-    <input type="file" name="media" id="media">
-    <br>
-    <input type="submit" value="Post" id="post-button">
-    {% if logged_in %}
-    <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
-    <label for="anon">Post anonymously</label>
-    {% endif %}
-</form>
-{% endif %}
-<div id="posts">
-    {% for post in posts %}
-    {% include "post.jinja" %}
-    {% endfor %}
-</div>
-{% if prior_page_post %}
-<p><a href="/page/{{ prior_page_post.uuid }}" class="system">Prior page</a></p>
-{% endif %}
-{% endblock %}
+        {% endif %}
+        <div id="posts">
+            {% for post in posts %}
+            {% include "post.jinja" %}
+            {% endfor %}
+        </div>
+        {% if prior_page_post %}
+        <p><a href="/page/{{ prior_page_post.uuid }}" class="system">Prior page</a></p>
+        {% endif %}
+        {% endblock %}
