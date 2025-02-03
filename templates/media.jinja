@@ -1,8 +1,12 @@
                         {% if post.media_category == "image" %}
                         {% if solo %}
-                        <a href="{{ media_path }}"><img src="{{ media_path }}" alt="{{ post.media_file_name|e }}"></a>
+                        <a href="{{ media_path }}">
+                            <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}">
+                        </a>
                         {% else %}
-                        <a href="/post/{{ post.uuid }}"><img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy"></a>
+                        <a href="/post/{{ post.uuid }}">
+                            <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy">
+                        </a>
                         {% endif %}
                         {% elif post.media_category == "video" %}
                         <video controls>
