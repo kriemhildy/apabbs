@@ -1,3 +1,4 @@
+                    <div class="media">
                         {% if post.media_category == "image" %}
                         {% if solo %}
                         <a href="{{ media_path }}">
@@ -17,3 +18,4 @@
                             <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
                         </audio>
                         {% endif %}
+                    </div>
