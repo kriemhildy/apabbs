@@ -416,21 +416,24 @@ async fn review_post(
                     let media_uuid_dir = media_path.parent().unwrap();
                     std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
                     std::fs::write(&media_path, data).expect("write media file");
+                    let media_path_str = media_path.to_str().expect("media path to str");
 
                     // generate optimized jpg thumbnail for normal image types
                     match post.media_mime_type.expect("mime type exists").as_str() {
                         "image/jpeg" | "image/png" | "image/webp" | "image/bmp" | "image/avif"
                         | "image/tiff" => {
-                            // assumes libvips-tools installed at 8.14.1 (current debian stable)
-                            std::process::Command::new("vipsthumbnail")
+                            println!("generating thumbnail for {media_path_str}");
+                            // assumes libvips-tools installed
+                            let output = std::process::Command::new("vipsthumbnail")
                                 .arg("--size")
-                                .arg(r#""1400x1600>""#)
+                                .arg("1400x1600>")
                                 .arg("--eprofile=srgb")
                                 .arg("-o")
                                 .arg("tn_%s.jpg[optimize_coding,strip]")
-                                .arg(media_path)
+                                .arg(media_path_str)
                                 .output()
                                 .expect("generate thumbnail");
+                            println!("vipsthumbnail output: {:?}", output);
                             // save thumbnail path as a post column
                         }
                         _ => (),
