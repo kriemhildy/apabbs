@@ -1,6 +1,6 @@
 {% if post.media_category == "image" %}
 {% if solo %}
-<img src="{{ media_path }}" alt="{{ post.media_file_name|e }}">
+<a href="{{ media_path }}"><img src="{{ media_path }}" alt="{{ post.media_file_name|e }}"></a>
 {% else %}
 <a href="/post/{{ post.uuid }}"><img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy"></a>
 {% endif %}
