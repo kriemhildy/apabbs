@@ -2,7 +2,7 @@ set -xe
 if ! [ "$DEV" == 1 ]; then
     PATH="$HOME/.cargo/bin:$PATH"
     git pull
-    nice rustup upgrade
+    nice rustup update
     nice cargo build --release
 else
     if [ `git branch --show-current` != "main" ]; then
@@ -13,7 +13,7 @@ else
         echo "Uncommitted changes"
         exit 1
     fi
-    nice rustup upgrade
+    nice rustup update
     nice cargo test
     git push
     ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/deploy.sh"
