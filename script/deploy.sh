@@ -13,7 +13,8 @@ else
         echo "Uncommitted changes"
         exit 1
     fi
-    cargo test
+    nice rustup upgrade
+    nice cargo test
     git push
     ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/deploy.sh"
     ssh $SSH_SUDO_USER "sudo systemctl stop $SSH_SERVICE"
