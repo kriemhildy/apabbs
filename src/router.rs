@@ -419,12 +419,15 @@ async fn review_post(
                     let media_path_str = media_path.to_str().expect("media path to str");
 
                     // generate optimized jpg thumbnail for normal image types
-                    match post.media_mime_type.expect("mime type exists").as_str() {
-                        "image/jpeg" | "image/png" | "image/webp" | "image/bmp" | "image/avif"
-                        | "image/tiff" => {
+                    match post
+                        .media_mime_type
+                        .expect("mime type exists")
+                        .replace("image/", "")
+                        .as_str()
+                    {
+                        "jpeg" | "png" | "webp" | "bmp" | "avif" | "tiff" => {
                             println!("generating thumbnail for {media_path_str}");
-                            // assumes libvips-tools installed
-                            let output = std::process::Command::new("vipsthumbnail")
+                            let command_output = std::process::Command::new("vipsthumbnail")
                                 .arg("--size")
                                 .arg("1400x1600>")
                                 .arg("--eprofile=srgb")
@@ -433,11 +436,11 @@ async fn review_post(
                                 .arg(media_path_str)
                                 .output()
                                 .expect("generate thumbnail");
-                            println!("vipsthumbnail output: {:?}", output);
-                            // save thumbnail path as a post column
+                            println!("vipsthumbnail output: {:?}", command_output);
                         }
                         _ => (),
                     }
+                    post_review.update_thumbnail(&mut tx, &media_file_name).await;
                 }
                 let uploads_uuid_dir = cocoon_path.parent().unwrap();
                 std::fs::remove_file(&cocoon_path).expect("remove cocoon file");

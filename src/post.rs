@@ -49,6 +49,7 @@ pub struct Post {
     pub ip_hash: Option<String>,
     #[sqlx(try_from = "OffsetDateTime")]
     pub created_at: TimeString,
+    pub thumbnail_file_name: Option<String>,
 }
 
 impl Post {
@@ -264,6 +265,19 @@ impl PostReview {
             .execute(&mut *tx)
             .await
             .expect("update post status");
+    }
+
+    pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
+        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
+        let thumbnail_file_name =
+            String::from("tn_") + &extension_pattern.replace(media_file_name, ".jpg");
+        println!("thumbnail_file_name: {}", thumbnail_file_name);
+        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE uuid = $2")
+            .bind(thumbnail_file_name)
+            .bind(&self.uuid)
+            .execute(&mut *tx)
+            .await
+            .expect("update post thumbnail");
     }
 }
 
