@@ -167,8 +167,10 @@ async fn submit_post(
                 let mut file = File::create(&cocoon_path).expect("create file");
                 let data = field.bytes().await.unwrap().to_vec();
                 let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                let mut cocoon = Cocoon::new(secret_key.as_bytes());
-                cocoon.dump(data, &mut file).expect("dump cocoon to file");
+                {
+                    let mut cocoon = Cocoon::new(secret_key.as_bytes());
+                    cocoon.dump(data, &mut file).expect("dump cocoon to file");
+                }
                 post_submission.media_file_name = Some(file_name);
                 println!(
                     "file uploaded and encrypted as: {}",
@@ -408,8 +410,10 @@ async fn review_post(
                     // decrypt cocoon
                     let mut file = File::open(&cocoon_path).expect("open file");
                     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                    let cocoon = Cocoon::new(secret_key.as_bytes());
-                    let data = cocoon.parse(&mut file).expect("decrypt cocoon file");
+                    let data = {
+                        let cocoon = Cocoon::new(secret_key.as_bytes());
+                        cocoon.parse(&mut file).expect("decrypt cocoon file")
+                    };
                     let media_path = std::path::Path::new(MEDIA_DIR)
                         .join(&uuid_string)
                         .join(&media_file_name);
@@ -486,8 +490,10 @@ async fn decrypt_media(
         Err(_) => return not_found(),
     };
     let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    let cocoon = Cocoon::new(secret_key.as_bytes());
-    let data = cocoon.parse(&mut cocoon_file).expect("decrypt cocoon file");
+    let data = {
+        let cocoon = Cocoon::new(secret_key.as_bytes());
+        cocoon.parse(&mut cocoon_file).expect("decrypt cocoon file")
+    };
     let content_type = post.media_mime_type.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
