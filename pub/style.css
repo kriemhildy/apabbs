@@ -122,7 +122,7 @@ div#posts {
 }
 
 div.post {
-    flex: 300px;
+    flex: 400px;
     break-inside: avoid;
 }
 
@@ -161,8 +161,8 @@ div.post div.body {
 
 div.post img,
 video {
-    max-width: 100%;
-    max-height: 100%;
+    max-width: min(100%, 800px);
+    max-height: 700px;
 }
 
 div.post.solo div.content {
@@ -173,12 +173,6 @@ div.post.solo div.content {
 div.post.solo div.body {
     max-height: unset;
     overflow: unset;
-}
-
-div.post.solo img,
-video {
-    max-width: 100%;
-    max-height: 700px;
 }
 
 div.post div.uuid a {
