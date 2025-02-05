@@ -123,7 +123,6 @@ div#posts {
 
 div.post {
     flex: 300px;
-    overflow: hidden;
     break-inside: avoid;
 }
 
@@ -152,8 +151,7 @@ input#post-button {
 }
 
 div.post div.content {
-    max-height: 400px;
-    overflow: hidden;
+    flex-shrink: 0;
 }
 
 div.post div.body {
@@ -163,14 +161,13 @@ div.post div.body {
 
 div.post img,
 video {
-    max-width: 450px;
-    max-height: 450px;
+    max-width: 100%;
+    max-height: 100%;
 }
 
 div.post.solo div.content {
     max-width: 800px;
     max-height: unset;
-    overflow: unset;
 }
 
 div.post.solo div.body {
