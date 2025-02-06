@@ -313,7 +313,7 @@ async fn hide_rejected_post(
     post_hiding.hide_post(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     if is_fetch_request(&headers) {
-        StatusCode::OK.into_response()
+        StatusCode::NO_CONTENT.into_response()
     } else {
         Redirect::to(ROOT).into_response()
     }
@@ -479,7 +479,7 @@ async fn review_post(
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
     if is_fetch_request(&headers) {
-        StatusCode::OK.into_response()
+        StatusCode::NO_CONTENT.into_response()
     } else {
         Redirect::to(ROOT).into_response()
     }
