@@ -82,11 +82,6 @@ a {
     color: var(--link);
 }
 
-fieldset {
-    border-color: var(--back);
-    border-radius: 5px;
-}
-
 header h1 a {
     text-decoration: none;
     color: var(--fore);
