@@ -130,6 +130,7 @@ function checkInterim() {
 
 function handleFormSubmit(event) {
     event.preventDefault();
+    disableSubmitButtons();
     const formData = new FormData(this);
     let fetchBody;
     if (this.enctype == "multipart/form-data") {
@@ -137,9 +138,6 @@ function handleFormSubmit(event) {
     } else {
         fetchBody = new URLSearchParams(formData);
     }
-    document.querySelectorAll("input[type=submit]").forEach((input) => {
-        input.disabled = true;
-    });
     fetch(this.action, {
         method: "POST",
         body: fetchBody,
@@ -156,14 +154,12 @@ function handleFormSubmit(event) {
                     this.parentElement.remove();
                     break;
             }
-            document.querySelectorAll("input[type=submit]").forEach((input) => {
-                input.disabled = false;
-            });
         } else {
             response.text().then((text) => {
                 alert(text);
             });
         }
+        restoreSubmitButtons();
     });
 }
 
@@ -173,6 +169,30 @@ function addFetchToForms(_event, element = document) {
         console.log("adding fetch to form: ", form);
         form.addEventListener("submit", handleFormSubmit);
     }
+}
+
+let priorDisabledStatuses = {};
+
+function disableSubmitButtons() {
+    console.log("disabling submit buttons");
+    document.querySelectorAll("input[type=submit]").forEach((input) => {
+        if (!input.id) {
+            alert("submit button is missing id");
+        }
+        priorDisabledStatuses[input.id] = input.disabled;
+        input.disabled = true;
+    });
+}
+
+function restoreSubmitButtons() {
+    console.log("restoring submit buttons to previous state");
+    for (const id of Object.keys(priorDisabledStatuses)) {
+        let input = document.querySelector(`input#${id}`);
+        if (input !== null) {
+            input.disabled = priorDisabledStatuses[id];
+        }
+    }
+    priorDisabledStatuses = {};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -11,14 +11,14 @@
                     {% if admin %}
                     (admin)
                     {% endif %}
-                    <input type="submit" value="Log out">
+                    <input type="submit" value="Log out" id="log-out-submit">
                 </form>
             </li>
             {% endif %}
             <li>
                 <form action="/hash" method="post">
                     your anon hash: <strong>{{ anon_hash }}</strong>
-                    <input type="submit" value="New hash">
+                    <input type="submit" value="New hash" id="new-hash-submit">
                 </form>
             </li>
         </ul>
@@ -28,7 +28,7 @@
             <label for="media">Media:</label>
             <input type="file" name="media" id="media">
             <br>
-            <input type="submit" value="Post" id="post-button">
+            <input type="submit" value="Post" id="post-submit">
             {% if logged_in %}
             <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
             <label for="anon">Post anonymously</label>
