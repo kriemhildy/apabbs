@@ -41,24 +41,24 @@
                 {% if admin and (post.status == "pending" or solo) %}
                 <details class="mod"{{ " open" if post.status == "pending" }}>
                     <summary>Mod</summary>
-                    <form action="/admin/review-post" method="post" class="approve" data-fetch>
+                    <form action="/admin/review-post" method="post" class="approve" data-fetch="PATCH">
                         <input type="hidden" name="uuid" value="{{ post.uuid }}">
                         <input type="hidden" name="status" value="approved">
                         <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.uuid }}-submit">
                     </form>
-                    <form action="/admin/review-post" method="post" class="reject" data-fetch>
+                    <form action="/admin/review-post" method="post" class="reject" data-fetch="PATCH">
                         <input type="hidden" name="uuid" value="{{ post.uuid }}">
                         <input type="hidden" name="status" value="rejected">
                         <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.uuid }}-submit">
                     </form>
-                    <form action="/admin/review-post" method="post" class="ban" data-fetch>
+                    <form action="/admin/review-post" method="post" class="ban" data-fetch="DELETE">
                         <input type="hidden" name="uuid" value="{{ post.uuid }}">
                         <input type="hidden" name="status" value="banned">
                         <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }} id="ban-{{ post.uuid }}-submit">
                     </form>
                 </details>
                 {% elif post.status == "rejected" %}
-                <form action="/hide-rejected-post" method="post" data-fetch>
+                <form action="/hide-rejected-post" method="post" data-fetch="PATCH">
                     <span class="review">Post rejected.</span>
                     <input type="hidden" name="uuid" value="{{ post.uuid }}">
                     <input type="submit" value="Hide" id="hide-{{ post.uuid }}-submit">

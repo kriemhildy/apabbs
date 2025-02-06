@@ -131,6 +131,7 @@ function checkInterim() {
 function handleFormSubmit(event) {
     event.preventDefault();
     disableSubmitButtons();
+    console.log("this: ", this);
     const formData = new FormData(this);
     let fetchBody;
     if (this.enctype == "multipart/form-data") {
@@ -139,7 +140,7 @@ function handleFormSubmit(event) {
         fetchBody = new URLSearchParams(formData);
     }
     fetch(this.action, {
-        method: "POST",
+        method: this.dataset.fetch || "POST",
         body: fetchBody,
     }).then((response) => {
         console.log("response.status", response.status);

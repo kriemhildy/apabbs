@@ -48,10 +48,16 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/register", get(registration_form).post(create_account))
         .route("/logout", post(logout))
         .route("/hash", post(new_hash))
-        .route("/hide-rejected-post", post(hide_rejected_post))
+        .route(
+            "/hide-rejected-post",
+            post(hide_rejected_post).patch(hide_rejected_post),
+        )
         .route("/web-socket", get(web_socket))
         .route("/interim/{uuid}", get(interim))
-        .route("/admin/review-post", post(review_post))
+        .route(
+            "/admin/review-post",
+            post(review_post).patch(review_post).delete(review_post),
+        )
         .route("/admin/decrypt-media/{uuid}", get(decrypt_media))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = match trace {
