@@ -137,6 +137,9 @@ function handleFormSubmit(event) {
     } else {
         fetchBody = new URLSearchParams(formData);
     }
+    document.querySelectorAll("input[type=submit]").forEach((input) => {
+        input.disabled = true;
+    });
     fetch(this.action, {
         method: "POST",
         body: fetchBody,
@@ -153,6 +156,9 @@ function handleFormSubmit(event) {
                     this.parentElement.remove();
                     break;
             }
+            document.querySelectorAll("input[type=submit]").forEach((input) => {
+                input.disabled = false;
+            });
         } else {
             response.text().then((text) => {
                 alert(text);
