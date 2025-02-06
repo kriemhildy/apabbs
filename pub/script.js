@@ -145,9 +145,9 @@ function handleFormSubmit(event) {
         console.log("response.status", response.status);
         let actionUrl = new URL(this.action);
         console.log("actionUrl.pathname: ", actionUrl.pathname);
-        if (response.status == 200) {
+        if ([200, 201].includes(response.status)) {
             switch (actionUrl.pathname) {
-                case "/post":
+                case "/submit-post":
                     this.reset();
                     break;
                 case "/hide-rejected-post":

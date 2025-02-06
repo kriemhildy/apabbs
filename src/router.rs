@@ -15,7 +15,7 @@ use axum::{
     },
     http::{
         header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
-        Uri,
+        StatusCode, Uri,
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -187,7 +187,11 @@ async fn submit_post(
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
-    Redirect::to(ROOT).into_response()
+    if is_fetch_request(&headers) {
+        StatusCode::CREATED.into_response()
+    } else {
+        Redirect::to(ROOT).into_response()
+    }
 }
 
 async fn login_form(State(state): State<AppState>) -> Html<String> {
@@ -288,6 +292,7 @@ async fn new_hash(mut jar: CookieJar) -> Response {
 async fn hide_rejected_post(
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -307,7 +312,11 @@ async fn hide_rejected_post(
     }
     post_hiding.hide_post(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    Redirect::to(ROOT).into_response()
+    if is_fetch_request(&headers) {
+        StatusCode::OK.into_response()
+    } else {
+        Redirect::to(ROOT).into_response()
+    }
 }
 
 async fn web_socket(
@@ -387,6 +396,7 @@ async fn interim(
 async fn review_post(
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(post_review): Form<PostReview>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -444,7 +454,9 @@ async fn review_post(
                         }
                         _ => (),
                     }
-                    post_review.update_thumbnail(&mut tx, &media_file_name).await;
+                    post_review
+                        .update_thumbnail(&mut tx, &media_file_name)
+                        .await;
                 }
                 let uploads_uuid_dir = cocoon_path.parent().unwrap();
                 std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
@@ -466,7 +478,11 @@ async fn review_post(
     }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
-    Redirect::to(ROOT).into_response()
+    if is_fetch_request(&headers) {
+        StatusCode::OK.into_response()
+    } else {
+        Redirect::to(ROOT).into_response()
+    }
 }
 
 async fn decrypt_media(

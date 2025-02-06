@@ -39,6 +39,13 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
     sha256::digest(secret_key + ip)
 }
 
+pub fn is_fetch_request(headers: &HeaderMap) -> bool {
+    headers
+        .get("Sec-Fetch-Mode")
+        .map(|v| v.to_str().expect("convert header to str"))
+        .is_some_and(|v| v != "navigate")
+}
+
 pub fn site_name() -> String {
     format!(
         "{}{}",
