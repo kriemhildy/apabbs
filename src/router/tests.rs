@@ -383,7 +383,12 @@ async fn test_review_post() {
         .join(&post.uuid.to_string())
         .join("image.jpeg");
     assert!(media_path.exists());
+    let thumbnail_path = Path::new(MEDIA_DIR)
+        .join(&post.uuid.to_string())
+        .join("tn_image.jpg");
+    assert!(thumbnail_path.exists());
     std::fs::remove_file(&media_path).expect("remove media file");
+    std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
     let media_uuid_dir = media_path.parent().unwrap();
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
     let mut tx = state.db.begin().await.expect(BEGIN);
