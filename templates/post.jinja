@@ -63,7 +63,9 @@
                 {% elif post.status == "banned" %}
                 <p class="review">This post has been deleted and its IP has been banned for a month.</p>
                 {% endif %}
+                {% if not post.status == "approved" or solo or not post.media_category == "image" %}
                 <div class="uuid">
                     <a href="/post/{{ post.uuid }}">{{ post.uuid }}</a>
                 </div>
+                {% endif %}
             </div>
