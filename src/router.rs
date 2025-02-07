@@ -79,7 +79,6 @@ async fn index(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-
     let query_post = match params.get("uuid") {
         Some(uuid) => Some(match Post::select_by_uuid(&mut tx, &uuid).await {
             Some(post) => post,
