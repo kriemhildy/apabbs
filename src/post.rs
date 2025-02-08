@@ -1,7 +1,6 @@
 use crate::user::User;
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
-use time::{format_description::well_known::Rfc2822, OffsetDateTime};
 use uuid::Uuid;
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
@@ -25,14 +24,6 @@ pub enum PostMediaCategory {
     Audio,
 }
 
-#[derive(sqlx::Type, serde::Serialize, Clone, Debug)]
-pub struct TimeString(String);
-impl From<OffsetDateTime> for TimeString {
-    fn from(value: OffsetDateTime) -> Self {
-        TimeString(value.format(&Rfc2822).unwrap())
-    }
-}
-
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
 pub struct Post {
     pub id: i32,
@@ -47,8 +38,8 @@ pub struct Post {
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
     pub ip_hash: Option<String>,
-    #[sqlx(try_from = "OffsetDateTime")]
-    pub created_at: TimeString,
+    #[sqlx(default)]
+    pub created_at_str: Option<String>,
     pub thumbnail_file_name: Option<String>,
 }
 
@@ -101,11 +92,15 @@ impl Post {
     }
 
     pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &Uuid) -> Option<Self> {
-        sqlx::query_as("SELECT * FROM posts WHERE uuid = $1")
-            .bind(uuid)
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("select post by uuid")
+        sqlx::query_as(concat!(
+            "SELECT *, ",
+            "to_char(created_at, 'Dy, DD Mon YYYY HH:MI:SS TZHTZM') AS created_at_str ",
+            "FROM posts WHERE uuid = $1"
+        ))
+        .bind(uuid)
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("select post by uuid")
     }
 
     pub async fn delete(&self, tx: &mut PgConnection) {

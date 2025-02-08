@@ -29,7 +29,7 @@
                 <p class="info">
                     Poster: {{ post.username if post.username else "anon (" + post.anon_hash + ")" }}
                     <br>
-                    At: {{ post.created_at }}
+                    At: {{ post.created_at_str }}
                     {% if post.media_file_name %}
                     <br>
                     Filename: {{ post.media_file_name|e }}

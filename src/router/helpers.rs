@@ -118,10 +118,12 @@ macro_rules! user {
             },
             None => Uuid::new_v4(),
         };
-        User {
+        let user = User {
             account,
             anon_token,
-        }
+        };
+        user.set_session_time_zone(&mut $tx).await;
+        user
     }};
 }
 pub(super) use user;

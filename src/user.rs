@@ -31,6 +31,13 @@ impl User {
         }
     }
 
+    pub fn time_zone(&self) -> &str {
+        match &self.account {
+            Some(account) => &account.time_zone,
+            None => "UTC",
+        }
+    }
+
     pub async fn update_anon(mut self, tx: &mut PgConnection, anon: bool) -> Self {
         self.account = match self.account {
             Some(mut account) => {
@@ -44,6 +51,14 @@ impl User {
         };
         self
     }
+
+    pub async fn set_session_time_zone(&self, tx: &mut PgConnection) {
+        // cannot pass $1 variables to this command, but the value should be safe
+        sqlx::query(&format!("SET TIME ZONE '{}'", self.time_zone()))
+            .execute(&mut *tx)
+            .await
+            .expect("set time zone");
+    }
 }
 
 #[derive(sqlx::FromRow, serde::Serialize)]
@@ -55,6 +70,7 @@ pub struct Account {
     pub password_salt: String,
     pub admin: bool,
     pub anon: bool,
+    pub time_zone: String,
 }
 
 impl Account {
