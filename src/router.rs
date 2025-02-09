@@ -456,12 +456,12 @@ async fn review_post(
                                 .output()
                                 .expect("generate thumbnail");
                             println!("vipsthumbnail output: {:?}", command_output);
+                            post_review
+                                .update_thumbnail(&mut tx, &media_file_name)
+                                .await;
                         }
                         _ => (),
                     }
-                    post_review
-                        .update_thumbnail(&mut tx, &media_file_name)
-                        .await;
                 }
                 let uploads_uuid_dir = cocoon_path.parent().unwrap();
                 std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
