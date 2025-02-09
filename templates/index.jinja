@@ -1,27 +1,6 @@
         {% extends "layout.jinja" %}
         {% block main %}
         {% if query_post is none %}
-        <ul class="system">
-            {% if not logged_in %}
-            <li>you can <a href="/login">log in</a> for a username</li>
-            {% else %}
-            <li>
-                <form action="/logout" method="post">
-                    logged in as: <strong>{{ username }}</strong>
-                    {% if admin %}
-                    (admin)
-                    {% endif %}
-                    <input type="submit" value="Log out" id="log-out-submit">
-                </form>
-            </li>
-            {% endif %}
-            <li>
-                <form action="/hash" method="post">
-                    your anon hash: <strong>{{ anon_hash }}</strong>
-                    <input type="submit" value="New hash" id="new-hash-submit">
-                </form>
-            </li>
-        </ul>
         <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
             <textarea name="body"></textarea>
             <br>

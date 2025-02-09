@@ -278,21 +278,6 @@ async fn test_logout() {
 }
 
 #[tokio::test]
-async fn test_new_hash() {
-    let (router, _state) = init_test().await;
-    let anon_token = Uuid::new_v4().hyphenated().to_string();
-    let request = Request::builder()
-        .method(Method::POST)
-        .uri("/hash")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
-        .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response_has_cookie(&response, ANON_COOKIE));
-}
-
-#[tokio::test]
 async fn test_hide_rejected_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);

@@ -10,6 +10,21 @@
 </head>
 
 <body>
+    {% if nav %}
+    <nav class="system">
+        {% if not logged_in %}
+        <a href="/login">log in</a>
+        {% else %}
+        <form action="/logout" method="post">
+            <strong>{{ username }}</strong>
+            {% if admin %}
+            (admin)
+            {% endif %}
+            <input type="submit" value="Log out" id="log-out-submit">
+        </form>
+        {% endif %}
+    </nav>
+    {% endif %}
     <header>
         <h1><a href="/">{{ title }}</a></h1>
     </header>

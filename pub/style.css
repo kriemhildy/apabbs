@@ -37,10 +37,6 @@ body {
     margin: 12px;
 }
 
-main {
-    padding-bottom: 50px;
-}
-
 body,
 textarea,
 input,
@@ -63,7 +59,7 @@ input:disabled {
 
 textarea {
     width: min(95%, 600px);
-    height: 3em;
+    height: 4em;
     padding: 5px;
 }
 
@@ -80,6 +76,15 @@ textarea,
 
 a {
     color: var(--link);
+}
+
+nav {
+    padding-top: 0;
+    float: right;
+}
+
+nav input#log-out-submit {
+    margin-top: 0;
 }
 
 header h1 a {

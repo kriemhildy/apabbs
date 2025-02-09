@@ -47,7 +47,6 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
         .route("/logout", post(logout))
-        .route("/hash", post(new_hash))
         .route(
             "/hide-rejected-post",
             post(hide_rejected_post).patch(hide_rejected_post),
@@ -117,6 +116,7 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => site_name(),
+            nav => true,
             posts,
             logged_in => user.account.is_some(),
             username => user.username(),
@@ -290,12 +290,6 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
         None => return bad_request("cookie not found"),
     };
     tx.commit().await.expect(COMMIT);
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
-async fn new_hash(mut jar: CookieJar) -> Response {
-    jar = jar.remove(ANON_COOKIE);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
