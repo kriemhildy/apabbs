@@ -4,7 +4,7 @@ use sqlx::PgConnection;
 pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
     sqlx::query_scalar(concat!(
         "INSERT INTO bans (ip_hash) VALUES ($1) ",
-        "RETURNING to_char(expires_at, $2) AS expires_at_str"
+        "RETURNING to_char(expires_at, $2)"
     ))
     .bind(ip_hash)
     .bind(POSTGRES_TIMESTAMP_FORMAT)
@@ -14,10 +14,9 @@ pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
 }
 
 pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
-    sqlx::query_scalar(concat!(
-        "SELECT to_char(expires_at, $1) AS expires_at_str ",
-        "FROM bans WHERE ip_hash = $2 AND expires_at > now()"
-    ))
+    sqlx::query_scalar(
+        "SELECT to_char(expires_at, $1) FROM bans WHERE ip_hash = $2 AND expires_at > now()",
+    )
     .bind(POSTGRES_TIMESTAMP_FORMAT)
     .bind(ip_hash)
     .fetch_optional(&mut *tx)

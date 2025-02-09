@@ -79,11 +79,15 @@ async fn index(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
+    set_session_time_zone(&mut tx, user.time_zone()).await;
     let query_post = match params.get("uuid") {
-        Some(uuid) => Some(match Post::select_by_uuid(&mut tx, &uuid).await {
-            Some(post) => post,
-            None => return bad_request("post does not exist"),
-        }),
+        Some(uuid) => {
+            set_session_time_zone(&mut tx, user.time_zone()).await;
+            match Post::select_by_uuid(&mut tx, &uuid).await {
+                Some(post) => Some(post),
+                None => return bad_request("post does not exist"),
+            }
+        }
         None => None,
     };
     let query_post_id = match &query_post {
@@ -140,6 +144,7 @@ async fn submit_post(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     let ip_hash = ip_hash(&headers);
+    set_session_time_zone(&mut tx, user.time_zone()).await;
     check_for_ban!(tx, &ip_hash);
     let mut post_submission = PostSubmission {
         body: String::default(),
@@ -257,6 +262,7 @@ async fn create_account(
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
             let ip_hash = ip_hash(&headers);
+            set_session_time_zone(&mut tx, "UTC").await;
             check_for_ban!(tx, &ip_hash);
             let account = credentials.register(&mut tx, &ip_hash).await;
             let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string());

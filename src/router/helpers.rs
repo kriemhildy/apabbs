@@ -5,6 +5,7 @@
 use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
+use sqlx::PgConnection;
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
 
@@ -96,6 +97,14 @@ pub fn send_post_to_web_socket(state: &AppState, post: Post) {
     }
 }
 
+pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
+    // cannot pass $1 variables to this command, but the value should be safe
+    sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
+        .execute(&mut *tx)
+        .await
+        .expect("set time zone");
+}
+
 macro_rules! user {
     ($jar:expr, $tx:expr) => {{
         let account = match $jar.get(ACCOUNT_COOKIE) {
@@ -118,26 +127,24 @@ macro_rules! user {
             },
             None => Uuid::new_v4(),
         };
-        let user = User {
+        User {
             account,
             anon_token,
-        };
-        user.set_session_time_zone(&mut $tx).await;
-        user
+        }
     }};
 }
 pub(super) use user;
 
 macro_rules! check_for_ban {
     ($tx:expr, $ip_hash:expr) => {
-        if let Some(expires_at) = ban::exists(&mut $tx, $ip_hash).await {
-            return ban_message(&expires_at);
+        if let Some(expires_at_str) = ban::exists(&mut $tx, $ip_hash).await {
+            return ban_message(&expires_at_str);
         }
         if ban::flooding(&mut $tx, $ip_hash).await {
-            let expires_at = ban::insert(&mut $tx, $ip_hash).await;
+            let expires_at_str = ban::insert(&mut $tx, $ip_hash).await;
             ban::prune(&mut $tx, $ip_hash).await;
             $tx.commit().await.expect(COMMIT);
-            return ban_message(&expires_at);
+            return ban_message(&expires_at_str);
         }
     };
 }
