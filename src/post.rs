@@ -1,4 +1,4 @@
-use crate::user::User;
+use crate::{user::User, POSTGRES_TIMESTAMP_FORMAT};
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
@@ -94,9 +94,10 @@ impl Post {
     pub async fn select_by_uuid(tx: &mut PgConnection, uuid: &Uuid) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, ",
-            "to_char(created_at, 'Dy, DD Mon YYYY HH:MI:SS TZHTZM') AS created_at_str ",
-            "FROM posts WHERE uuid = $1"
+            "to_char(created_at, $1) AS created_at_str ",
+            "FROM posts WHERE uuid = $2"
         ))
+        .bind(POSTGRES_TIMESTAMP_FORMAT)
         .bind(uuid)
         .fetch_optional(&mut *tx)
         .await

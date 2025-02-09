@@ -38,7 +38,6 @@ sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
 cocoon = "*"
-time = { version = "*", features = ["serde", "formatting"] }
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }

@@ -1,26 +1,28 @@
-use sqlx::{types::time::OffsetDateTime, PgConnection};
+use crate::POSTGRES_TIMESTAMP_FORMAT;
+use sqlx::PgConnection;
 
 pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
-    let expires_at: OffsetDateTime =
-        sqlx::query_scalar("INSERT INTO bans (ip_hash) VALUES ($1) RETURNING expires_at")
-            .bind(ip_hash)
-            .fetch_one(&mut *tx)
-            .await
-            .expect("insert ip ban");
-    expires_at.to_string()
+    sqlx::query_scalar(concat!(
+        "INSERT INTO bans (ip_hash) VALUES ($1) ",
+        "RETURNING to_char(expires_at, $2) AS expires_at_str"
+    ))
+    .bind(ip_hash)
+    .bind(POSTGRES_TIMESTAMP_FORMAT)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("insert ip ban")
 }
 
 pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
-    let expires_at: Option<OffsetDateTime> =
-        sqlx::query_scalar("SELECT expires_at FROM bans WHERE ip_hash = $1 AND expires_at > now()")
-            .bind(ip_hash)
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("return expiration if ip ban exists");
-    match expires_at {
-        Some(expires_at) => Some(expires_at.to_string()),
-        None => None,
-    }
+    sqlx::query_scalar(concat!(
+        "SELECT to_char(expires_at, $1) AS expires_at_str ",
+        "FROM bans WHERE ip_hash = $2 AND expires_at > now()"
+    ))
+    .bind(POSTGRES_TIMESTAMP_FORMAT)
+    .bind(ip_hash)
+    .fetch_optional(&mut *tx)
+    .await
+    .expect("return expiration if ip ban exists")
 }
 
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
