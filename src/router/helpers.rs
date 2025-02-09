@@ -25,8 +25,8 @@ pub fn not_found() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
 }
 
-pub fn ban_message(expires_at: &str) -> Response {
-    let msg = format!("IP has been banned until {expires_at}");
+pub fn ban_message(expires_at_str: &str) -> Response {
+    let msg = format!("IP has been banned until {expires_at_str}");
     forbidden(&msg)
 }
 

@@ -2,15 +2,12 @@ use crate::POSTGRES_TIMESTAMP_FORMAT;
 use sqlx::PgConnection;
 
 pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
-    sqlx::query_scalar(concat!(
-        "INSERT INTO bans (ip_hash) VALUES ($1) ",
-        "RETURNING to_char(expires_at, $2)"
-    ))
-    .bind(ip_hash)
-    .bind(POSTGRES_TIMESTAMP_FORMAT)
-    .fetch_one(&mut *tx)
-    .await
-    .expect("insert ip ban")
+    sqlx::query_scalar("INSERT INTO bans (ip_hash) VALUES ($1) RETURNING to_char(expires_at, $2)")
+        .bind(ip_hash)
+        .bind(POSTGRES_TIMESTAMP_FORMAT)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert ip ban")
 }
 
 pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
@@ -46,8 +43,7 @@ pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
 
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query(concat!(
-        "DELETE FROM accounts WHERE ip_hash = $1 ",
-        "AND NOT ",
+        "DELETE FROM accounts WHERE ip_hash = $1 AND NOT ",
         "EXISTS(SELECT 1 FROM posts WHERE account_id = accounts.id AND status <> 'pending')"
     ))
     .bind(ip_hash)
