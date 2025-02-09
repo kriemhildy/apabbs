@@ -38,6 +38,11 @@
                 {% endif %}
                 {% if post.status == "approved" %}
                 {% endif %}
+                {% if not solo and (not post.status == "approved" or not post.media_category == "image") %}
+                <div class="uuid">
+                    <a href="/post/{{ post.uuid }}">&rarr;</a>
+                </div>
+                {% endif %}
                 {% if admin and (post.status == "pending" or solo) %}
                 <details class="mod"{{ " open" if post.status == "pending" }}>
                     <summary>Mod</summary>
@@ -65,10 +70,5 @@
                 </form>
                 {% elif post.status == "banned" %}
                 <div class="review">This post has been deleted and its IP has been banned for a month.</div>
-                {% endif %}
-                {% if not solo and (not post.status == "approved" or not post.media_category == "image") %}
-                <div class="uuid">
-                    <a href="/post/{{ post.uuid }}">&rarr;</a>
-                </div>
                 {% endif %}
             </div>
