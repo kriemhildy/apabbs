@@ -108,7 +108,7 @@ impl TimeZoneUpdate {
     pub async fn select_time_zones(tx: &mut PgConnection) -> Vec<String> {
         sqlx::query_scalar(concat!(
             "SELECT name FROM pg_timezone_names ",
-            "WHERE name !~ '^(posix|Etc)' AND (name LIKE '%/%' OR name == 'UTC') ",
+            "WHERE name !~ '^(posix|Etc)' AND (name LIKE '%/%' OR name = 'UTC') ",
             "ORDER BY name"
         ))
         .fetch_all(&mut *tx)
