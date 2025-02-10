@@ -570,19 +570,30 @@ async fn decrypt_media(
         None => return bad_request("post does not exist"),
     };
     let media_file_name = post.media_file_name.expect("read media file_name");
-    let cocoon_file_name = media_file_name.clone() + ".cocoon";
-    let path = std::path::Path::new(UPLOADS_DIR)
+    let encrypted_file_name = media_file_name.clone() + ".gpg";
+    let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
         .join(&uuid.to_string())
-        .join(&cocoon_file_name);
-    let mut cocoon_file = match File::open(&path) {
-        Ok(file) => file,
-        Err(_) => return not_found(),
-    };
-    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    let data = {
-        let cocoon = Cocoon::new(secret_key.as_bytes());
-        cocoon.parse(&mut cocoon_file).expect("decrypt cocoon file")
-    };
+        .join(&encrypted_file_name);
+    let command_output = tokio::process::Command::new("gpg")
+        .args([
+            "--batch",
+            "--decrypt",
+            "--passphrase-file",
+            "gpg.key",
+        ])
+        .arg(&encrypted_file_path)
+        .output()
+        .await
+        .expect("decrypt media file");
+    // let mut cocoon_file = match File::open(&encrypted_file_path) {
+    //     Ok(file) => file,
+    //     Err(_) => return not_found(),
+    // };
+    // let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+    // let data = {
+    //     let cocoon = Cocoon::new(secret_key.as_bytes());
+    //     cocoon.parse(&mut cocoon_file).expect("decrypt cocoon file")
+    // };
     let content_type = post.media_mime_type.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
@@ -591,5 +602,5 @@ async fn decrypt_media(
             &format!(r#"inline; file_name="{}""#, &media_file_name),
         ),
     ];
-    (headers, data).into_response()
+    (headers, command_output.stdout).into_response()
 }
