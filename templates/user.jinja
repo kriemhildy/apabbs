@@ -6,10 +6,19 @@
         <p>This user is an admin.</p>
         {% endif %}
         {% if logged_in and username == account.username %}
-        <p></p>
         <form action="/logout" method="post">
-            You are logged in as this user.<br>
+            You are logged in as this user.
             <input type="submit" value="Log out" id="log-out-submit">
+        </form>
+        <br>
+        <form action="/set-time-zone" method="post">
+            Time zone: {{ account.time_zone }}<br>
+            <select name="time_zone" id="time_zone">
+                {% for tz in time_zones %}
+                <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
+                {% endfor %}
+            </select>
+            <input type="submit" value="Change" id="change-time-zone-submit">
         </form>
         {% endif %}
         {% endblock %}

@@ -40,6 +40,7 @@ body {
 body,
 textarea,
 input,
+select,
 ::file-selector-button {
     font-family: Consolas, monospace;
     font-size: 12px;

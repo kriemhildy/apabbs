@@ -409,6 +409,7 @@ async fn user_profile(
         Some(account) => account,
         None => return bad_request("account does not exist"),
     };
+    let time_zones = Account::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     Html(render(
         &state,
@@ -420,6 +421,7 @@ async fn user_profile(
             logged_in => user.account.is_some(),
             username => user.username(),
             admin => user.admin(),
+            time_zones,
         ),
     ))
     .into_response()
