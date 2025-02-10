@@ -88,33 +88,16 @@ async fn mark_as_admin(tx: &mut PgConnection, account_id: i32) {
 async fn create_test_encrypted_file(state: &AppState) -> (Post, PathBuf, Account) {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
-    let encrypted_file_path = encrypted_file_path(&post);
-    let uploads_uuid_dir = encrypted_file_path.parent().unwrap().to_path_buf();
-    std::fs::create_dir(&uploads_uuid_dir).expect("create uploads uuid dir");
     let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
-    let mut child = tokio::process::Command::new("gpg")
-        .args([
-            "--batch",
-            "--symmetric",
-            "--passphrase-file",
-            "gpg.key",
-            "--output",
-        ])
-        .arg(&encrypted_file_path)
-        .stdin(std::process::Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-        .expect("spawn gpg to encrypt media file");
-    let mut stdin = child.stdin.take().expect("open stdin");
-    tokio::spawn(async move {
-        stdin.write_all(&data).await.expect("write data to stdin");
-    });
-    let child_status = child.wait().await.expect("wait for gpg to finish");
-    if !child_status.success() {
-        std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
-        eprintln!("gpg failed to encrypt media file");
-        std::process::exit(1)
-    }
+    let encrypted_file_path =
+        match encrypt_uploaded_file(&post.uuid, post.media_file_name.as_ref().unwrap(), data).await
+        {
+            Ok(encrypted_file_path) => encrypted_file_path,
+            Err(msg) => {
+                eprintln!("{}", msg);
+                std::process::exit(1);
+            }
+        };
     let admin_account = test_credentials().register(&mut tx, &local_ip_hash()).await;
     mark_as_admin(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);

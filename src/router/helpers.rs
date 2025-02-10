@@ -2,10 +2,11 @@
 // router helper functions and macros
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response};
+use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response, UPLOADS_DIR};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
+use std::path::PathBuf;
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
 
@@ -102,6 +103,43 @@ pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> Str
     tmpl.render(ctx).expect("render template")
 }
 
+pub async fn encrypt_uploaded_file(
+    uuid: &Uuid,
+    file_name: &str,
+    data: Vec<u8>,
+) -> Result<PathBuf, String> {
+    let encrypted_file_name = file_name.to_owned() + ".gpg";
+    let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
+        .join(&uuid.to_string())
+        .join(&encrypted_file_name);
+    let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+    std::fs::create_dir(uploads_uuid_dir).expect("create uploads uuid dir");
+    let mut child = tokio::process::Command::new("gpg")
+        .args([
+            "--batch",
+            "--symmetric",
+            "--passphrase-file",
+            "gpg.key",
+            "--output",
+        ])
+        .arg(&encrypted_file_path)
+        .stdin(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .expect("spawn gpg to encrypt media file");
+    let mut stdin = child.stdin.take().expect("open stdin");
+    tokio::spawn(async move {
+        stdin.write_all(&data).await.expect("write data to stdin");
+    });
+    let child_status = child.wait().await.expect("wait for gpg to finish");
+    if child_status.success() {
+        Ok(encrypted_file_path)
+    } else {
+        std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
+        Err(String::from("gpg failed to encrypt media file"))
+    }
+}
+
 pub fn send_post_to_web_socket(state: &AppState, post: Post) {
     for admin in [true, false] {
         let html = render(state, "post.jinja", minijinja::context!(post, admin));
@@ -150,6 +188,7 @@ macro_rules! user {
         }
     }};
 }
+use tokio::io::AsyncWriteExt;
 pub(super) use user;
 
 macro_rules! check_for_ban {
@@ -176,3 +215,4 @@ macro_rules! require_admin {
     };
 }
 pub(super) use require_admin;
+use uuid::Uuid;

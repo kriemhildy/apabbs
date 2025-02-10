@@ -22,7 +22,7 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::collections::HashMap;
-use tokio::{io::AsyncWriteExt, sync::broadcast::Receiver};
+use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
@@ -169,35 +169,12 @@ async fn submit_post(
                 if file_name.is_empty() {
                     continue;
                 }
-                let encrypted_file_name = file_name.clone() + ".gpg";
-                let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-                    .join(&post_submission.uuid.to_string())
-                    .join(&encrypted_file_name);
-                let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
-                std::fs::create_dir(uploads_uuid_dir).expect("create uploads uuid dir");
                 let data = field.bytes().await.unwrap().to_vec();
-                let mut child = tokio::process::Command::new("gpg")
-                    .args([
-                        "--batch",
-                        "--symmetric",
-                        "--passphrase-file",
-                        "gpg.key",
-                        "--output",
-                    ])
-                    .arg(&encrypted_file_path)
-                    .stdin(std::process::Stdio::piped())
-                    .kill_on_drop(true)
-                    .spawn()
-                    .expect("spawn gpg to encrypt media file");
-                let mut stdin = child.stdin.take().expect("open stdin");
-                tokio::spawn(async move {
-                    stdin.write_all(&data).await.expect("write data to stdin");
-                });
-                let child_status = child.wait().await.expect("wait for gpg to finish");
-                if !child_status.success() {
-                    std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
-                    return internal_server_error("gpg failed to encrypt media file");
-                }
+                let encrypted_file_path =
+                    match encrypt_uploaded_file(&post_submission.uuid, &file_name, data).await {
+                        Ok(encrypted_file_path) => encrypted_file_path,
+                        Err(msg) => return internal_server_error(&msg),
+                    };
                 post_submission.media_file_name = Some(file_name);
                 println!(
                     "file uploaded and encrypted as: {}",
