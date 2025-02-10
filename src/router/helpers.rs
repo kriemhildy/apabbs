@@ -9,32 +9,37 @@ use sqlx::PgConnection;
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
 
+fn http_status(status: StatusCode, msg: &str) -> Response {
+    (
+        status,
+        format!(
+            "{} {}\n\n{}",
+            status.as_str(),
+            status.canonical_reason().expect("status reason"),
+            msg
+        ),
+    )
+        .into_response()
+}
+
 pub fn bad_request(msg: &str) -> Response {
-    (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
+    http_status(StatusCode::BAD_REQUEST, msg)
 }
 
 pub fn unauthorized(msg: &str) -> Response {
-    (
-        StatusCode::UNAUTHORIZED,
-        format!("401 Unauthorized\n\n{msg}"),
-    )
-        .into_response()
+    http_status(StatusCode::UNAUTHORIZED, msg)
 }
 
 pub fn forbidden(msg: &str) -> Response {
-    (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")).into_response()
+    http_status(StatusCode::FORBIDDEN, msg)
 }
 
 pub fn not_found(msg: &str) -> Response {
-    (StatusCode::NOT_FOUND, format!("404 Not Found\n\n{msg}")).into_response()
+    http_status(StatusCode::NOT_FOUND, msg)
 }
 
 pub fn internal_server_error(msg: &str) -> Response {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        format!("500 Internal Server Error\n\n{msg}"),
-    )
-        .into_response()
+    http_status(StatusCode::INTERNAL_SERVER_ERROR, msg)
 }
 
 pub fn ban_message(expires_at_str: &str) -> Response {
