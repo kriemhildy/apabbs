@@ -13,16 +13,16 @@ pub fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")).into_response()
 }
 
-pub fn unauthorized() -> Response {
-    (StatusCode::UNAUTHORIZED, "401 Unauthorized").into_response()
+pub fn unauthorized(msg: &str) -> Response {
+    (StatusCode::UNAUTHORIZED, format!("401 Unauthorized\n\n{msg}")).into_response()
 }
 
 pub fn forbidden(msg: &str) -> Response {
     (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")).into_response()
 }
 
-pub fn not_found() -> Response {
-    (StatusCode::NOT_FOUND, "404 Not Found").into_response()
+pub fn not_found(msg: &str) -> Response {
+    (StatusCode::NOT_FOUND, format!("404 Not Found\n\n{msg}")).into_response()
 }
 
 pub fn internal_server_error(msg: &str) -> Response {
@@ -158,7 +158,7 @@ macro_rules! require_admin {
     ($jar:expr, $tx:expr) => {
         let user = user!($jar, $tx);
         if !user.admin() {
-            return unauthorized();
+            return unauthorized("not an admin");
         }
     };
 }

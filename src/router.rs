@@ -86,7 +86,7 @@ async fn index(
             set_session_time_zone(&mut tx, user.time_zone()).await;
             match Post::select_by_uuid(&mut tx, &uuid).await {
                 Some(post) => Some(post),
-                None => return bad_request("post does not exist"),
+                None => return not_found("post does not exist"),
             }
         }
         None => None,
@@ -240,7 +240,7 @@ async fn authenticate(
         return bad_request("already logged in");
     }
     if !credentials.username_exists(&mut tx).await {
-        return bad_request("username does not exist");
+        return not_found("username does not exist");
     }
     match credentials.authenticate(&mut tx).await {
         Some(account) => {
@@ -322,13 +322,13 @@ async fn hide_rejected_post(
     let user = user!(jar, tx);
     let post = match Post::select_by_uuid(&mut tx, &post_hiding.uuid).await {
         Some(post) => post,
-        None => return bad_request("post does not exist"),
+        None => return not_found("post does not exist"),
     };
     if !post.posted_by(&user) {
         if user.admin() {
             return Redirect::to(ROOT).into_response();
         }
-        return bad_request("not post author");
+        return unauthorized("not post author");
     }
     if post.status != PostStatus::Rejected {
         return bad_request("post is not rejected");
@@ -392,7 +392,7 @@ async fn interim(
     let user = user!(jar, tx);
     let from_post = match Post::select_by_uuid(&mut tx, &uuid).await {
         Some(post) => post,
-        None => return bad_request("post does not exist"),
+        None => return not_found("post does not exist"),
     };
     let new_posts =
         Post::select_latest(&mut tx, &user, None, Some(from_post.id), per_page() as i32).await;
@@ -424,7 +424,7 @@ async fn user_profile(
     set_session_time_zone(&mut tx, user.time_zone()).await;
     let account = match Account::select_by_username(&mut tx, &username).await {
         Some(account) => account,
-        None => return bad_request("account does not exist"),
+        None => return not_found("account does not exist"),
     };
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
@@ -451,7 +451,7 @@ async fn update_time_zone(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     if user.username() != Some(&time_zone_update.username) {
-        return forbidden("not your account");
+        return unauthorized("not your account");
     }
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     if !time_zones.contains(&time_zone_update.time_zone) {
@@ -475,7 +475,7 @@ async fn review_post(
     require_admin!(jar, tx);
     let post = match Post::select_by_uuid(&mut tx, &post_review.uuid).await {
         Some(post) => post,
-        None => return bad_request("post does not exist"),
+        None => return not_found("post does not exist"),
     };
     match post.status {
         PostStatus::Pending => {
@@ -567,13 +567,16 @@ async fn decrypt_media(
     require_admin!(jar, tx);
     let post = match Post::select_by_uuid(&mut tx, &uuid).await {
         Some(post) => post,
-        None => return bad_request("post does not exist"),
+        None => return not_found("post does not exist"),
     };
     let media_file_name = post.media_file_name.expect("read media file_name");
     let encrypted_file_name = media_file_name.clone() + ".gpg";
     let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
         .join(&uuid.to_string())
         .join(&encrypted_file_name);
+    if !encrypted_file_path.exists() {
+        return not_found("encrypted media file does not exist");
+    }
     let command_output = tokio::process::Command::new("gpg")
         .args([
             "--batch",
@@ -585,15 +588,6 @@ async fn decrypt_media(
         .output()
         .await
         .expect("decrypt media file");
-    // let mut cocoon_file = match File::open(&encrypted_file_path) {
-    //     Ok(file) => file,
-    //     Err(_) => return not_found(),
-    // };
-    // let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    // let data = {
-    //     let cocoon = Cocoon::new(secret_key.as_bytes());
-    //     cocoon.parse(&mut cocoon_file).expect("decrypt cocoon file")
-    // };
     let content_type = post.media_mime_type.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
