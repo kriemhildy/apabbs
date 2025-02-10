@@ -5,7 +5,7 @@ mod tests;
 use crate::{
     ban, init,
     post::{Post, PostHiding, PostReview, PostStatus, PostSubmission},
-    user::{Account, Credentials, User},
+    user::{Account, Credentials, TimeZoneUpdate, User},
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
@@ -54,6 +54,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/web-socket", get(web_socket))
         .route("/interim/{uuid}", get(interim))
         .route("/user/{username}", get(user_profile))
+        .route("/update-time-zone", post(update_time_zone))
         .route(
             "/admin/review-post",
             post(review_post).patch(review_post).delete(review_post),
@@ -409,7 +410,7 @@ async fn user_profile(
         Some(account) => account,
         None => return bad_request("account does not exist"),
     };
-    let time_zones = Account::select_time_zones(&mut tx).await;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     Html(render(
         &state,
@@ -425,6 +426,27 @@ async fn user_profile(
         ),
     ))
     .into_response()
+}
+
+async fn update_time_zone(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(time_zone_update): Form<TimeZoneUpdate>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    if user.username() != Some(&time_zone_update.username) {
+        return forbidden("not your account");
+    }
+    // validate time zone is in the list
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
+    if !time_zones.iter().any(|tz| tz == &time_zone_update.time_zone) {
+        return bad_request("invalid time zone");
+    }
+    time_zone_update.update(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let user_profile_path = format!("/user/{}", &time_zone_update.username);
+    Redirect::to(&user_profile_path).into_response()
 }
 
 // admin handlers

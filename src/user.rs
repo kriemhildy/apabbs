@@ -96,7 +96,15 @@ impl Account {
             .await
             .expect("update anon bool");
     }
+}
 
+#[derive(serde::Deserialize)]
+pub struct TimeZoneUpdate {
+    pub username: String,
+    pub time_zone: String,
+}
+
+impl TimeZoneUpdate {
     pub async fn select_time_zones(tx: &mut PgConnection) -> Vec<String> {
         sqlx::query_scalar(concat!(
             "SELECT name FROM pg_timezone_names ",
@@ -106,6 +114,15 @@ impl Account {
         .fetch_all(&mut *tx)
         .await
         .expect("select distinct time zones")
+    }
+
+    pub async fn update(&self, tx: &mut PgConnection) {
+        sqlx::query("UPDATE accounts SET time_zone = $1 WHERE username = $2")
+            .bind(&self.time_zone)
+            .bind(&self.username)
+            .execute(&mut *tx)
+            .await
+            .expect("update time zone");
     }
 }
 

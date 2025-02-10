@@ -11,14 +11,15 @@
             <input type="submit" value="Log out" id="log-out-submit">
         </form>
         <br>
-        <form action="/set-time-zone" method="post">
+        <form action="/update-time-zone" method="post">
+            <input type="hidden" name="username" value="{{ account.username }}">
             Time zone: {{ account.time_zone }}<br>
             <select name="time_zone" id="time_zone">
                 {% for tz in time_zones %}
                 <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
                 {% endfor %}
             </select>
-            <input type="submit" value="Change" id="change-time-zone-submit">
+            <input type="submit" value="Update" id="update-time-zone-submit">
         </form>
         {% endif %}
         {% endblock %}
