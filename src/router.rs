@@ -196,8 +196,8 @@ async fn submit_post(
                 });
                 let child_status = child.wait().await.expect("wait for gpg to finish");
                 if !child_status.success() {
+                    std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
                     return internal_server_error("gpg failed to encrypt media file");
-                    // clean up dirs etc
                 }
                 post_submission.media_file_name = Some(file_name);
                 println!(
