@@ -181,15 +181,9 @@ async fn submit_post(
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
-    let encrypted_file_path =
-        match encrypt_uploaded_file(&post_submission.uuid, &file_name, data).await {
-            Ok(encrypted_file_path) => encrypted_file_path,
-            Err(msg) => return internal_server_error(&msg),
-        };
-    println!(
-        "file uploaded and encrypted as: {}",
-        encrypted_file_path.to_str().unwrap()
-    );
+    if post_submission.save_encrypted_media_file().await.is_err() {
+        return internal_server_error("gpg failed to encrypt media file");
+    }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
     if is_fetch_request(&headers) {

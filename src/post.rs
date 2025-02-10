@@ -252,7 +252,7 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    pub async fn save_encrypted_media_file(&self) -> Result<PathBuf, String> {
+    pub async fn save_encrypted_media_file(self) -> Result<(), ()> {
         let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
         let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
             .join(&self.uuid.to_string())
@@ -273,16 +273,22 @@ impl PostSubmission {
             .spawn()
             .expect("spawn gpg to encrypt media file");
         let mut stdin = child.stdin.take().expect("open stdin");
-        let bytes = self.media_bytes.unwrap();
         tokio::spawn(async move {
-            stdin.write_all(&bytes).await.expect("write data to stdin");
+            stdin
+                .write_all(&self.media_bytes.unwrap())
+                .await
+                .expect("write data to stdin");
         });
         let child_status = child.wait().await.expect("wait for gpg to finish");
         if child_status.success() {
-            Ok(encrypted_file_path)
+            println!(
+                "file uploaded and encrypted as: {}",
+                encrypted_file_path.to_str().unwrap()
+            );
+            Ok(())
         } else {
             std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
-            Err(String::from("gpg failed to encrypt media file"))
+            Err(())
         }
     }
 }
