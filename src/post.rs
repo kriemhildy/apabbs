@@ -1,9 +1,14 @@
+use std::path::PathBuf;
+
 use crate::{user::User, POSTGRES_TIMESTAMP_FORMAT};
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
+const UPLOADS_DIR: &'static str = "uploads";
+const MEDIA_DIR: &'static str = "pub/media";
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -118,6 +123,7 @@ pub struct PostSubmission {
     pub anon: Option<String>,
     pub media_file_name: Option<String>,
     pub uuid: Uuid,
+    pub media_bytes: Option<Vec<u8>>,
 }
 
 impl PostSubmission {
@@ -244,6 +250,40 @@ impl PostSubmission {
             None => (None, APPLICATION_OCTET_STREAM),
         };
         (media_category, Some(media_mime_type_str.to_owned()))
+    }
+
+    pub async fn save_encrypted_media_file(&self) -> Result<PathBuf, String> {
+        let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
+        let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
+            .join(&self.uuid.to_string())
+            .join(&encrypted_file_name);
+        let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+        std::fs::create_dir(uploads_uuid_dir).expect("create uploads uuid dir");
+        let mut child = tokio::process::Command::new("gpg")
+            .args([
+                "--batch",
+                "--symmetric",
+                "--passphrase-file",
+                "gpg.key",
+                "--output",
+            ])
+            .arg(&encrypted_file_path)
+            .stdin(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .expect("spawn gpg to encrypt media file");
+        let mut stdin = child.stdin.take().expect("open stdin");
+        let bytes = self.media_bytes.unwrap();
+        tokio::spawn(async move {
+            stdin.write_all(&bytes).await.expect("write data to stdin");
+        });
+        let child_status = child.wait().await.expect("wait for gpg to finish");
+        if child_status.success() {
+            Ok(encrypted_file_path)
+        } else {
+            std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
+            Err(String::from("gpg failed to encrypt media file"))
+        }
     }
 }
 
