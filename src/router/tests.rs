@@ -43,6 +43,11 @@ fn local_ip_hash() -> String {
     sha256::digest(secret_key + LOCAL_IP)
 }
 
+async fn create_test_account(tx: &mut PgConnection) -> Account {
+    let credentials = test_credentials();
+    credentials.register(tx, &local_ip_hash()).await
+}
+
 async fn delete_test_account(tx: &mut PgConnection, account: Account) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account.id)
@@ -172,15 +177,15 @@ async fn test_submit_post() {
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = select_latest_post_by_token(&mut tx, &anon_token).await;
-    post.delete(&mut tx).await;
-    tx.commit().await.expect(COMMIT);
-    let cocoon_path = cocoon_path(&post);
-    remove_cocoon(&cocoon_path);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "&lt;test body");
     assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(PostMediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let cocoon_path = cocoon_path(&post);
+    remove_cocoon(&cocoon_path);
 }
 
 #[tokio::test]
@@ -212,11 +217,11 @@ async fn test_authenticate() {
         .body(Body::from(creds_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
     let mut tx = state.db.begin().await.expect(BEGIN);
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
 }
 
 #[tokio::test]
@@ -246,16 +251,12 @@ async fn test_create_account() {
         .body(Body::from(creds_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let account: Account = sqlx::query_as("SELECT * FROM accounts WHERE username = $1")
-        .bind(&credentials.username)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("select account");
-    delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = Account::select_by_username(&mut tx, &credentials.username).await.unwrap();
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
 }
 
 #[tokio::test]
@@ -271,10 +272,10 @@ async fn test_logout() {
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
     let mut tx = state.db.begin().await.expect(BEGIN);
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
 #[tokio::test]
@@ -301,10 +302,10 @@ async fn test_hide_rejected_post() {
         .body(Body::from(post_hiding_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
 #[tokio::test]
@@ -331,15 +332,35 @@ async fn test_interim() {
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    post1.delete(&mut tx).await;
-    post2.delete(&mut tx).await;
-    tx.commit().await.expect(COMMIT);
     assert!(response.status().is_success());
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(!body_str.contains(&post1.uuid.to_string()));
     assert!(body_str.contains(&post2.uuid.to_string()));
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    post1.delete(&mut tx).await;
+    post2.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
+async fn test_user_profile() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = create_test_account(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let request = Request::builder()
+        .uri(&format!("/user/{}", &account.username))
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert!(response.status().is_success());
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    assert!(body_str.contains(&account.username));
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
 }
 
 #[tokio::test]
