@@ -149,10 +149,6 @@ input#post-button {
     font-size: 1.1em;
 }
 
-div.post div.content {
-    flex-shrink: 0;
-}
-
 div.post div.body {
     max-height: 300px;
     overflow: hidden;
@@ -160,7 +156,7 @@ div.post div.body {
 
 div.post img,
 video {
-    max-width: min(100%, 1000px);
+    max-width: 100%;
     max-height: 600px;
 }
 
@@ -169,12 +165,8 @@ video {
     max-height: 800px;
 }
 
-div.post.solo div.content {
-    max-width: 1000px;
-    max-height: unset;
-}
-
 div.post.solo div.body {
+    max-width: 1000px;
     max-height: unset;
     overflow: unset;
 }

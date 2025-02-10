@@ -1,21 +1,21 @@
-                    <div class="media">
-                        {% if post.media_category == "image" %}
-                        {% if solo %}
-                        <a href="{{ media_path }}">
-                            <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}">
-                        </a>
-                        {% else %}
-                        <a href="/post/{{ post.uuid }}">
-                            <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy">
-                        </a>
-                        {% endif %}
-                        {% elif post.media_category == "video" %}
-                        <video controls>
-                            <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
-                        </video>
-                        {% elif post.media_category == "audio" %}
-                        <audio controls>
-                            <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
-                        </audio>
-                        {% endif %}
-                    </div>
+                <div class="media">
+                    {% if post.media_category == "image" %}
+                    {% if solo %}
+                    <a href="{{ media_path }}">
+                        <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}">
+                    </a>
+                    {% else %}
+                    <a href="/post/{{ post.uuid }}">
+                        <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy">
+                    </a>
+                    {% endif %}
+                    {% elif post.media_category == "video" %}
+                    <video controls>
+                        <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
+                    </video>
+                    {% elif post.media_category == "audio" %}
+                    <audio controls>
+                        <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
+                    </audio>
+                    {% endif %}
+                </div>

@@ -1,30 +1,28 @@
             <div class="post {{ post.status }}{{ " solo" if solo }}" id="post-{{ post.uuid }}">
-                <div class="content">
-                    {% if post.body|length > 0 and post.status != "banned" %}
-                    <div class="body">
-                        {{ post.body }}
-                    </div>
-                    {% endif %}
-                    {% if post.media_file_name %}
-                    {% if post.status == "approved" %}
-                    {% set optimal_file_name =
-                        post.thumbnail_file_name if not solo and post.thumbnail_file_name
-                        else post.media_file_name %}
-                    {% set media_path = "/media/" + post.uuid + "/" + optimal_file_name|urlencode %}
-                    {% include "media.jinja" %}
-                    {% elif post.status == "rejected" %}
-                    <p class="review">File "{{ post.media_file_name|e }}" deleted.</p>
-                    {% elif post.status == "pending" %}
-                    {% if admin %}
-                    {% set media_path = "/admin/decrypt-media/" + post.uuid %}
-                    {% include "media.jinja" %}
-                    <p class="review">File: {{ post.media_file_name|e }}</p>
-                    {% else %}
-                    <p class="review">File "{{ post.media_file_name|e }}" pending review.</p>
-                    {% endif %}
-                    {% endif %}
-                    {% endif %}
+                {% if post.body|length > 0 and post.status != "banned" %}
+                <div class="body">
+                    {{ post.body }}
                 </div>
+                {% endif %}
+                {% if post.media_file_name %}
+                {% if post.status == "approved" %}
+                {% set optimal_file_name =
+                    post.thumbnail_file_name if not solo and post.thumbnail_file_name
+                    else post.media_file_name %}
+                {% set media_path = "/media/" + post.uuid + "/" + optimal_file_name|urlencode %}
+                {% include "media.jinja" %}
+                {% elif post.status == "rejected" %}
+                <p class="review">File "{{ post.media_file_name|e }}" deleted.</p>
+                {% elif post.status == "pending" %}
+                {% if admin %}
+                {% set media_path = "/admin/decrypt-media/" + post.uuid %}
+                {% include "media.jinja" %}
+                <p class="review">File: {{ post.media_file_name|e }}</p>
+                {% else %}
+                <p class="review">File "{{ post.media_file_name|e }}" pending review.</p>
+                {% endif %}
+                {% endif %}
+                {% endif %}
                 {% if solo %}
                 <p class="info">
                     Poster:
