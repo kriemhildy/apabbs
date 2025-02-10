@@ -5,3 +5,4 @@ target
 uploads/*
 pub/media/*
 pub/favicon.ico
+gpg.key
