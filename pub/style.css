@@ -2,7 +2,6 @@
     body {
         --back: black;
         --fore: #e3e3e3;
-        --link: rgb(89, 131, 209);
         --border: #777;
         --system: #9cdcda;
         --review: #bebebe;
@@ -19,7 +18,6 @@
     body {
         --back: white;
         --fore: black;
-        --link: blue;
         --border: #ccc;
         --system: black;
         --review: rgb(63, 63, 63);
@@ -76,7 +74,7 @@ textarea,
 }
 
 a {
-    color: var(--link);
+    color: var(--system);
 }
 
 nav {
