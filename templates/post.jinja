@@ -27,7 +27,12 @@
                 </div>
                 {% if solo %}
                 <p class="info">
-                    Poster: {{ post.username if post.username else "anon (" + post.anon_hash + ")" }}
+                    Poster:
+                    {% if post.username %}
+                    <a href="/user/{{ post.username }}">{{ post.username }}</a>
+                    {% else %}
+                    anon ({{ post.anon_hash }})
+                    {% endif %}
                     <br>
                     At: {{ post.created_at_str }}
                     {% if post.media_file_name %}

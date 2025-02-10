@@ -1,0 +1,15 @@
+        {% extends "layout.jinja" %}
+        {% block main %}
+        <h2>{{ account.username }}</h2>
+        <p>Created: {{ account.created_at_str }}</p>
+        {% if account.admin %}
+        <p>This user is an admin.</p>
+        {% endif %}
+        {% if logged_in and username == account.username %}
+        <p></p>
+        <form action="/logout" method="post">
+            You are logged in as this user.<br>
+            <input type="submit" value="Log out" id="log-out-submit">
+        </form>
+        {% endif %}
+        {% endblock %}

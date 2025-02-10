@@ -79,12 +79,12 @@ a {
 }
 
 nav {
-    padding-top: 0;
     float: right;
 }
 
-nav input#log-out-submit {
-    margin-top: 0;
+nav a {
+    text-decoration: none;
+    color: var(--system);
 }
 
 header h1 a {
@@ -182,4 +182,9 @@ div.post div.uuid a {
 
 div.post details.mod {
     margin: 1em;
+}
+
+div.post p.info a {
+    text-decoration: none;
+    color: var(--system);
 }

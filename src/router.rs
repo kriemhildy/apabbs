@@ -53,6 +53,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         )
         .route("/web-socket", get(web_socket))
         .route("/interim/{uuid}", get(interim))
+        .route("/user/{username}", get(user_profile))
         .route(
             "/admin/review-post",
             post(review_post).patch(review_post).delete(review_post),
@@ -394,6 +395,34 @@ async fn interim(
     serde_json::json!({"posts": json_posts})
         .to_string()
         .into_response()
+}
+
+async fn user_profile(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(username): Path<String>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    set_session_time_zone(&mut tx, user.time_zone()).await;
+    let account = match Account::select_by_username(&mut tx, &username).await {
+        Some(account) => account,
+        None => return bad_request("account does not exist"),
+    };
+    tx.commit().await.expect(COMMIT);
+    Html(render(
+        &state,
+        "user.jinja",
+        minijinja::context!(
+            title => site_name(),
+            nav => true,
+            account,
+            logged_in => user.account.is_some(),
+            username => user.username(),
+            admin => user.admin(),
+        ),
+    ))
+    .into_response()
 }
 
 // admin handlers

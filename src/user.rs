@@ -1,4 +1,4 @@
-use crate::crypto;
+use crate::{crypto, POSTGRES_TIMESTAMP_FORMAT};
 use regex::Regex;
 use sqlx::PgConnection;
 use uuid::Uuid;
@@ -63,6 +63,8 @@ pub struct Account {
     pub admin: bool,
     pub anon: bool,
     pub time_zone: String,
+    #[sqlx(default)]
+    pub created_at_str: Option<String>,
 }
 
 impl Account {
@@ -72,6 +74,18 @@ impl Account {
             .fetch_optional(&mut *tx)
             .await
             .expect("select account by token")
+    }
+
+    pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
+        sqlx::query_as(concat!(
+            "SELECT *, to_char(created_at, $1) AS created_at_str ",
+            "FROM accounts WHERE username = $2",
+        ))
+        .bind(POSTGRES_TIMESTAMP_FORMAT)
+        .bind(username)
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("select account by username")
     }
 
     pub async fn update_anon(&self, tx: &mut PgConnection, anon: bool) {
