@@ -371,12 +371,11 @@ async fn test_update_time_zone() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let account = create_test_account(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let time_zone = "America/New_York";
-    let time_zone_update_str = serde_urlencoded::to_string(&TimeZoneUpdate {
+    let time_zone_update = TimeZoneUpdate {
         username: account.username.clone(),
-        time_zone: time_zone.to_string(),
-    })
-    .unwrap();
+        time_zone: String::from("America/New_York"),
+    };
+    let time_zone_update_str = serde_urlencoded::to_string(&time_zone_update).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/update-time-zone")
@@ -390,7 +389,7 @@ async fn test_update_time_zone() {
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
         .unwrap();
-    assert_eq!(updated_account.time_zone, time_zone);
+    assert_eq!(updated_account.time_zone, time_zone_update.time_zone);
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
