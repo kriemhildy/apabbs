@@ -8,11 +8,9 @@ use axum::{
     },
     Router,
 };
-use cocoon::Cocoon;
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
 use sqlx::PgConnection;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
@@ -87,21 +85,40 @@ async fn mark_as_admin(tx: &mut PgConnection, account_id: i32) {
         .expect("set account as admin");
 }
 
-async fn create_test_cocoon(state: &AppState) -> (Post, PathBuf, Account) {
+async fn create_test_encrypted_file(state: &AppState) -> (Post, PathBuf, Account) {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
-    let cocoon_path = cocoon_path(&post);
-    let cocoon_uuid_dir = cocoon_path.parent().unwrap().to_path_buf();
-    std::fs::create_dir(&cocoon_uuid_dir).expect("create uuid dir");
-    let mut file = File::create(&cocoon_path).expect("create file");
+    let encrypted_file_path = encrypted_file_path(&post);
+    let uploads_uuid_dir = encrypted_file_path.parent().unwrap().to_path_buf();
+    std::fs::create_dir(&uploads_uuid_dir).expect("create uploads uuid dir");
     let data = std::fs::read("tests/media/image.jpeg").expect("read tests/media/image.jpeg");
-    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    let mut cocoon = Cocoon::new(secret_key.as_bytes());
-    cocoon.dump(data, &mut file).expect("dump cocoon to file");
+    let mut child = tokio::process::Command::new("gpg")
+        .args([
+            "--batch",
+            "--symmetric",
+            "--passphrase-file",
+            "gpg.key",
+            "--output",
+        ])
+        .arg(&encrypted_file_path)
+        .stdin(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .expect("spawn gpg to encrypt media file");
+    let mut stdin = child.stdin.take().expect("open stdin");
+    tokio::spawn(async move {
+        stdin.write_all(&data).await.expect("write data to stdin");
+    });
+    let child_status = child.wait().await.expect("wait for gpg to finish");
+    if !child_status.success() {
+        std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
+        eprintln!("gpg failed to encrypt media file");
+        std::process::exit(1)
+    }
     let admin_account = test_credentials().register(&mut tx, &local_ip_hash()).await;
     mark_as_admin(&mut tx, admin_account.id).await;
     tx.commit().await.expect(COMMIT);
-    (post, cocoon_path, admin_account)
+    (post, encrypted_file_path, admin_account)
 }
 
 fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
@@ -111,17 +128,17 @@ fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
         .is_some_and(|c| c.to_str().unwrap().contains(cookie))
 }
 
-fn remove_cocoon(cocoon_path: &Path) {
-    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
-    std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
-    std::fs::remove_dir(&cocoon_uuid_dir).expect("remove uploads uuid dir");
+fn remove_encrypted_file(encrypted_file_path: &Path) {
+    let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+    std::fs::remove_file(&encrypted_file_path).expect("remove encrypted file");
+    std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
 }
 
-fn cocoon_path(post: &Post) -> PathBuf {
-    let cocoon_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".cocoon";
+fn encrypted_file_path(post: &Post) -> PathBuf {
+    let encrypted_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".gpg";
     Path::new(UPLOADS_DIR)
         .join(&post.uuid.to_string())
-        .join(&cocoon_file_name)
+        .join(&encrypted_file_name)
         .to_path_buf()
 }
 
@@ -186,8 +203,8 @@ async fn test_submit_post() {
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let cocoon_path = cocoon_path(&post);
-    remove_cocoon(&cocoon_path);
+    let encrypted_file_path = encrypted_file_path(&post);
+    remove_encrypted_file(&encrypted_file_path);
 }
 
 #[tokio::test]
@@ -399,7 +416,7 @@ async fn test_update_time_zone() {
 #[tokio::test]
 async fn test_review_post() {
     let (router, state) = init_test().await;
-    let (post, cocoon_path, admin_account) = create_test_cocoon(&state).await;
+    let (post, encrypted_file_path, admin_account) = create_test_encrypted_file(&state).await;
     let post_review = PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Approved,
@@ -416,8 +433,8 @@ async fn test_review_post() {
         .body(Body::from(post_review_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
-    let cocoon_uuid_dir = cocoon_path.parent().unwrap();
-    assert!(!cocoon_uuid_dir.exists());
+    let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+    assert!(!uploads_uuid_dir.exists());
     let media_path = Path::new(MEDIA_DIR)
         .join(&post.uuid.to_string())
         .join("image.jpeg");
@@ -440,7 +457,7 @@ async fn test_review_post() {
 #[tokio::test]
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
-    let (post, cocoon_path, admin_account) = create_test_cocoon(&state).await;
+    let (post, encrypted_file_path, admin_account) = create_test_encrypted_file(&state).await;
     let uri = format!("/admin/decrypt-media/{}", &post.uuid);
     let request = Request::builder()
         .uri(&uri)
@@ -460,5 +477,5 @@ async fn test_decrypt_media() {
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
-    remove_cocoon(&cocoon_path);
+    remove_encrypted_file(&encrypted_file_path);
 }
