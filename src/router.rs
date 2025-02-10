@@ -23,7 +23,7 @@ use axum_extra::extract::cookie::CookieJar;
 use cocoon::Cocoon;
 use helpers::*;
 use std::{collections::HashMap, fs::File};
-use tokio::sync::broadcast::Receiver;
+use tokio::{io::AsyncWriteExt, sync::broadcast::Receiver};
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
@@ -170,23 +170,41 @@ async fn submit_post(
                 if file_name.is_empty() {
                     continue;
                 }
-                let cocoon_file_name = file_name.clone() + ".cocoon";
-                let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+                let encrypted_file_name = file_name.clone() + ".gpg";
+                let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
                     .join(&post_submission.uuid.to_string())
-                    .join(&cocoon_file_name);
-                let cocoon_uuid_dir = cocoon_path.parent().unwrap();
-                std::fs::create_dir(cocoon_uuid_dir).expect("create cocoon uuid dir");
-                let mut file = File::create(&cocoon_path).expect("create file");
+                    .join(&encrypted_file_name);
+                let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+                std::fs::create_dir(uploads_uuid_dir).expect("create uploads uuid dir");
                 let data = field.bytes().await.unwrap().to_vec();
-                let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                {
-                    let mut cocoon = Cocoon::new(secret_key.as_bytes());
-                    cocoon.dump(data, &mut file).expect("dump cocoon to file");
-                }
+                let mut child = tokio::process::Command::new("gpg")
+                    .args([
+                        "--batch",
+                        "--symmetric",
+                        "--passphrase-file",
+                        "gpg.key",
+                        "--output",
+                    ])
+                    .arg(&encrypted_file_path)
+                    .stdin(std::process::Stdio::piped())
+                    .spawn()
+                    .expect("spawn gpg to encrypt media file");
+                let mut stdin = child.stdin.take().expect("open stdin");
+                tokio::spawn(async move {
+                    stdin.write_all(&data).await.expect("write data to stdin");
+                });
+                let child_status = child.wait().await.expect("wait for gpg to finish");
+                assert!(child_status.success());
+                // let mut file = File::create(&gpg_path).expect("create file");
+                // let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
+                // {
+                //     let mut cocoon = Cocoon::new(secret_key.as_bytes());
+                //     cocoon.dump(data, &mut file).expect("dump cocoon to file");
+                // }
                 post_submission.media_file_name = Some(file_name);
                 println!(
                     "file uploaded and encrypted as: {}",
-                    cocoon_path.to_str().unwrap()
+                    encrypted_file_path.to_str().unwrap()
                 );
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
@@ -497,14 +515,15 @@ async fn review_post(
                     {
                         "jpeg" | "png" | "webp" | "bmp" | "avif" | "tiff" => {
                             println!("generating thumbnail for {media_path_str}");
-                            let command_output = std::process::Command::new("vipsthumbnail")
-                                .arg("--size")
-                                .arg("1400x1600>")
-                                .arg("--eprofile=srgb")
-                                .arg("-o")
-                                .arg("tn_%s.jpg[optimize_coding,strip]")
+                            let command_output = tokio::process::Command::new("vipsthumbnail")
+                                .args([
+                                    "--size=1400x1600>",
+                                    "--eprofile=srgb",
+                                    "--output=tn_%s.jpg[optimize_coding,strip]",
+                                ])
                                 .arg(media_path_str)
                                 .output()
+                                .await
                                 .expect("generate thumbnail");
                             println!("vipsthumbnail output: {:?}", command_output);
                             post_review
