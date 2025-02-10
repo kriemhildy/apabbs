@@ -194,13 +194,10 @@ async fn submit_post(
                     stdin.write_all(&data).await.expect("write data to stdin");
                 });
                 let child_status = child.wait().await.expect("wait for gpg to finish");
-                assert!(child_status.success());
-                // let mut file = File::create(&gpg_path).expect("create file");
-                // let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                // {
-                //     let mut cocoon = Cocoon::new(secret_key.as_bytes());
-                //     cocoon.dump(data, &mut file).expect("dump cocoon to file");
-                // }
+                if !child_status.success() {
+                    return internal_server_error("gpg failed to encrypt media file");
+                    // clean up dirs etc
+                }
                 post_submission.media_file_name = Some(file_name);
                 println!(
                     "file uploaded and encrypted as: {}",

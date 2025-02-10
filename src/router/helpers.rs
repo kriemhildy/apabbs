@@ -25,6 +25,10 @@ pub fn not_found() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
 }
 
+pub fn internal_server_error(msg: &str) -> Response {
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("500 Internal Server Error\n\n{msg}")).into_response()
+}
+
 pub fn ban_message(expires_at_str: &str) -> Response {
     let msg = format!("IP has been banned until {expires_at_str}");
     forbidden(&msg)
