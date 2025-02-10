@@ -187,6 +187,7 @@ async fn submit_post(
                     ])
                     .arg(&encrypted_file_path)
                     .stdin(std::process::Stdio::piped())
+                    .kill_on_drop(true)
                     .spawn()
                     .expect("spawn gpg to encrypt media file");
                 let mut stdin = child.stdin.take().expect("open stdin");
