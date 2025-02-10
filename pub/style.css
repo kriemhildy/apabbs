@@ -164,6 +164,11 @@ video {
     max-height: 600px;
 }
 
+div.post.solo img,
+video {
+    max-height: 800px;
+}
+
 div.post.solo div.content {
     max-width: 800px;
     max-height: unset;
