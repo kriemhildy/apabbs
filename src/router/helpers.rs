@@ -140,6 +140,16 @@ pub async fn encrypt_uploaded_file(
     }
 }
 
+pub async fn decrypt_media_file(encrypted_file_path: &PathBuf) -> Vec<u8> {
+    let output = tokio::process::Command::new("gpg")
+        .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
+        .arg(&encrypted_file_path)
+        .output()
+        .await
+        .expect("decrypt media file");
+    output.stdout
+}
+
 pub fn send_post_to_web_socket(state: &AppState, post: Post) {
     for admin in [true, false] {
         let html = render(state, "post.jinja", minijinja::context!(post, admin));

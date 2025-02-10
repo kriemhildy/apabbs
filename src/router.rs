@@ -465,18 +465,13 @@ async fn review_post(
                     return not_found("encrypted media file does not exist");
                 }
                 if post_review.status == PostStatus::Approved {
-                    let command_output = tokio::process::Command::new("gpg")
-                        .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
-                        .arg(&encrypted_file_path)
-                        .output()
-                        .await
-                        .expect("decrypt media file");
+                    let data = decrypt_media_file(&encrypted_file_path).await;
                     let media_path = std::path::Path::new(MEDIA_DIR)
                         .join(&uuid_string)
                         .join(&media_file_name);
                     let media_uuid_dir = media_path.parent().unwrap();
                     std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
-                    std::fs::write(&media_path, command_output.stdout).expect("write media file");
+                    std::fs::write(&media_path, data).expect("write media file");
                     let media_path_str = media_path.to_str().expect("media path to str");
 
                     // generate optimized jpg thumbnail for normal image types
@@ -552,12 +547,7 @@ async fn decrypt_media(
     if !encrypted_file_path.exists() {
         return not_found("encrypted media file does not exist");
     }
-    let command_output = tokio::process::Command::new("gpg")
-        .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
-        .arg(&encrypted_file_path)
-        .output()
-        .await
-        .expect("decrypt media file");
+    let data = decrypt_media_file(&encrypted_file_path).await;
     let content_type = post.media_mime_type.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
@@ -566,5 +556,5 @@ async fn decrypt_media(
             &format!(r#"inline; file_name="{}""#, &media_file_name),
         ),
     ];
-    (headers, command_output.stdout).into_response()
+    (headers, data).into_response()
 }
