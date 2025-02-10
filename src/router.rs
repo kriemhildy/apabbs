@@ -437,9 +437,8 @@ async fn update_time_zone(
     if user.username() != Some(&time_zone_update.username) {
         return forbidden("not your account");
     }
-    // validate time zone is in the list
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    if !time_zones.iter().any(|tz| tz == &time_zone_update.time_zone) {
+    if !time_zones.contains(&time_zone_update.time_zone) {
         return bad_request("invalid time zone");
     }
     time_zone_update.update(&mut tx).await;
