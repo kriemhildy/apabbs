@@ -417,7 +417,6 @@ async fn user_profile(
         "user.jinja",
         minijinja::context!(
             title => site_name(),
-            nav => true,
             account,
             logged_in => user.account.is_some(),
             username => user.username(),
