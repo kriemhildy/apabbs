@@ -14,7 +14,11 @@ pub fn bad_request(msg: &str) -> Response {
 }
 
 pub fn unauthorized(msg: &str) -> Response {
-    (StatusCode::UNAUTHORIZED, format!("401 Unauthorized\n\n{msg}")).into_response()
+    (
+        StatusCode::UNAUTHORIZED,
+        format!("401 Unauthorized\n\n{msg}"),
+    )
+        .into_response()
 }
 
 pub fn forbidden(msg: &str) -> Response {
@@ -26,7 +30,11 @@ pub fn not_found(msg: &str) -> Response {
 }
 
 pub fn internal_server_error(msg: &str) -> Response {
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("500 Internal Server Error\n\n{msg}")).into_response()
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("500 Internal Server Error\n\n{msg}"),
+    )
+        .into_response()
 }
 
 pub fn ban_message(expires_at_str: &str) -> Response {

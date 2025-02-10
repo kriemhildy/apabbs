@@ -20,9 +20,8 @@ use axum::{
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
-use cocoon::Cocoon;
 use helpers::*;
-use std::{collections::HashMap, fs::File};
+use std::collections::HashMap;
 use tokio::{io::AsyncWriteExt, sync::broadcast::Receiver};
 use uuid::Uuid;
 
@@ -480,28 +479,27 @@ async fn review_post(
     match post.status {
         PostStatus::Pending => {
             if let Some(media_file_name) = post.media_file_name {
-                let cocoon_file_name = media_file_name.clone() + ".cocoon";
+                let encrypted_file_name = media_file_name.clone() + ".gpg";
                 let uuid_string = post_review.uuid.to_string();
-                let cocoon_path = std::path::Path::new(UPLOADS_DIR)
+                let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
                     .join(&uuid_string)
-                    .join(&cocoon_file_name);
-                if !cocoon_path.exists() {
-                    return bad_request("cocoon file does not exist");
+                    .join(&encrypted_file_name);
+                if !encrypted_file_path.exists() {
+                    return not_found("encrypted media file does not exist");
                 }
                 if post_review.status == PostStatus::Approved {
-                    // decrypt cocoon
-                    let mut file = File::open(&cocoon_path).expect("open file");
-                    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-                    let data = {
-                        let cocoon = Cocoon::new(secret_key.as_bytes());
-                        cocoon.parse(&mut file).expect("decrypt cocoon file")
-                    };
+                    let command_output = tokio::process::Command::new("gpg")
+                        .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
+                        .arg(&encrypted_file_path)
+                        .output()
+                        .await
+                        .expect("decrypt media file");
                     let media_path = std::path::Path::new(MEDIA_DIR)
                         .join(&uuid_string)
                         .join(&media_file_name);
                     let media_uuid_dir = media_path.parent().unwrap();
                     std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
-                    std::fs::write(&media_path, data).expect("write media file");
+                    std::fs::write(&media_path, command_output.stdout).expect("write media file");
                     let media_path_str = media_path.to_str().expect("media path to str");
 
                     // generate optimized jpg thumbnail for normal image types
@@ -531,8 +529,8 @@ async fn review_post(
                         _ => (),
                     }
                 }
-                let uploads_uuid_dir = cocoon_path.parent().unwrap();
-                std::fs::remove_file(&cocoon_path).expect("remove cocoon file");
+                let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+                std::fs::remove_file(&encrypted_file_path).expect("remove encrypted media file");
                 std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
             }
         }
@@ -578,12 +576,7 @@ async fn decrypt_media(
         return not_found("encrypted media file does not exist");
     }
     let command_output = tokio::process::Command::new("gpg")
-        .args([
-            "--batch",
-            "--decrypt",
-            "--passphrase-file",
-            "gpg.key",
-        ])
+        .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
         .arg(&encrypted_file_path)
         .output()
         .await
