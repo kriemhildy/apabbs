@@ -98,7 +98,7 @@ impl Account {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct TimeZoneUpdate {
     pub username: String,
     pub time_zone: String,

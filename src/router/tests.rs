@@ -254,7 +254,9 @@ async fn test_create_account() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = Account::select_by_username(&mut tx, &credentials.username).await.unwrap();
+    let account = Account::select_by_username(&mut tx, &credentials.username)
+        .await
+        .unwrap();
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
@@ -359,6 +361,36 @@ async fn test_user_profile() {
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(&account.username));
     let mut tx = state.db.begin().await.expect(BEGIN);
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
+async fn test_update_time_zone() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = create_test_account(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let time_zone = "America/New_York";
+    let time_zone_update_str = serde_urlencoded::to_string(&TimeZoneUpdate {
+        username: account.username.clone(),
+        time_zone: time_zone.to_string(),
+    })
+    .unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/update-time-zone")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .body(Body::from(time_zone_update_str))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let updated_account = Account::select_by_username(&mut tx, &account.username)
+        .await
+        .unwrap();
+    assert_eq!(updated_account.time_zone, time_zone);
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
