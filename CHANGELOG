@@ -1,3 +1,7 @@
+0.18.0
+
+Use GnuPG for upload encryption instead of Cocoon.
+
 0.17.0
 
 Allow setting a preferred time zone.
