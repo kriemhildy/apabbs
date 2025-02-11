@@ -29,8 +29,6 @@ const ACCOUNT_COOKIE: &'static str = "account";
 const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const ROOT: &'static str = "/";
-const UPLOADS_DIR: &'static str = "uploads";
-const MEDIA_DIR: &'static str = "pub/media";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// URL path router
@@ -183,7 +181,7 @@ async fn submit_post(
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     match post_submission.save_encrypted_media_file().await {
         Ok(_encrypted_file_path) => (),
-        Err(msg) => return internal_server_error(&msg)
+        Err(msg) => return internal_server_error(&msg),
     };
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
@@ -451,28 +449,23 @@ async fn review_post(
     };
     match post.status {
         PostStatus::Pending => {
-            if let Some(media_file_name) = post.media_file_name {
-                let encrypted_file_name = media_file_name.clone() + ".gpg";
-                let uuid_string = post_review.uuid.to_string();
-                let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-                    .join(&uuid_string)
-                    .join(&encrypted_file_name);
-                if !encrypted_file_path.exists() {
+            if let Some(media_file_name) = post.media_file_name.as_ref() {
+                let encrypted_media_path = post.encrypted_media_path();
+                if !encrypted_media_path.exists() {
                     return not_found("encrypted media file does not exist");
                 }
                 if post_review.status == PostStatus::Approved {
-                    let data = decrypt_media_file(&encrypted_file_path).await;
-                    let media_path = std::path::Path::new(MEDIA_DIR)
-                        .join(&uuid_string)
-                        .join(&media_file_name);
-                    let media_uuid_dir = media_path.parent().unwrap();
+                    let media_bytes = post.decrypt_media_file().await;
+                    let published_media_path = post.published_media_path();
+                    let media_uuid_dir = published_media_path.parent().unwrap();
                     std::fs::create_dir(media_uuid_dir).expect("create media uuid dir");
-                    std::fs::write(&media_path, data).expect("write media file");
-                    let media_path_str = media_path.to_str().expect("media path to str");
+                    std::fs::write(&published_media_path, media_bytes).expect("write media file");
+                    let media_path_str = published_media_path.to_str().expect("media path to str");
 
                     // generate optimized jpg thumbnail for normal image types
                     match post
                         .media_mime_type
+                        .as_ref()
                         .expect("mime type exists")
                         .replace("image/", "")
                         .as_str()
@@ -490,15 +483,13 @@ async fn review_post(
                                 .await
                                 .expect("generate thumbnail");
                             println!("vipsthumbnail output: {:?}", command_output);
-                            post_review
-                                .update_thumbnail(&mut tx, &media_file_name)
-                                .await;
+                            post_review.update_thumbnail(&mut tx, media_file_name).await;
                         }
                         _ => (),
                     }
                 }
-                let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
-                std::fs::remove_file(&encrypted_file_path).expect("remove encrypted media file");
+                let uploads_uuid_dir = encrypted_media_path.parent().unwrap();
+                std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
                 std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
             }
         }
@@ -535,22 +526,18 @@ async fn decrypt_media(
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
-    let media_file_name = post.media_file_name.expect("read media file_name");
-    let encrypted_file_name = media_file_name.clone() + ".gpg";
-    let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-        .join(&uuid.to_string())
-        .join(&encrypted_file_name);
-    if !encrypted_file_path.exists() {
+    if !post.encrypted_media_path().exists() {
         return not_found("encrypted media file does not exist");
     }
-    let data = decrypt_media_file(&encrypted_file_path).await;
+    let media_file_name = post.media_file_name.as_ref().expect("read media file_name");
+    let media_bytes = post.decrypt_media_file().await;
     let content_type = post.media_mime_type.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; file_name="{}""#, &media_file_name),
+            &format!(r#"inline; file_name="{}""#, media_file_name),
         ),
     ];
-    (headers, data).into_response()
+    (headers, media_bytes).into_response()
 }

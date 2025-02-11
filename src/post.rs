@@ -115,6 +115,35 @@ impl Post {
             .await
             .expect("delete post");
     }
+
+    pub async fn decrypt_media_file(&self) -> Vec<u8> {
+        let output = tokio::process::Command::new("gpg")
+            .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
+            .arg(&self.encrypted_media_path())
+            .output()
+            .await
+            .expect("decrypt media file");
+        output.stdout
+    }
+
+    pub fn encrypted_media_path(&self) -> PathBuf {
+        let encrypted_file_name = self.media_file_name.as_ref().unwrap().to_owned() + ".gpg";
+        std::path::Path::new(UPLOADS_DIR)
+            .join(&self.uuid.to_string())
+            .join(encrypted_file_name)
+    }
+
+    pub fn published_media_path(&self) -> PathBuf {
+        std::path::Path::new(MEDIA_DIR)
+            .join(&self.uuid.to_string())
+            .join(&self.media_file_name.as_ref().unwrap())
+    }
+
+    pub fn thumbnail_path(&self) -> PathBuf {
+        std::path::Path::new(MEDIA_DIR)
+            .join(&self.uuid.to_string())
+            .join(&self.thumbnail_file_name.as_ref().unwrap())
+    }
 }
 
 pub struct PostSubmission {

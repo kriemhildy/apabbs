@@ -2,11 +2,10 @@
 // router helper functions and macros
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response, UPLOADS_DIR};
+use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
-use std::path::PathBuf;
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
 
@@ -101,16 +100,6 @@ pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> Str
     let env = state.jinja.read().expect("read jinja env");
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
-}
-
-pub async fn decrypt_media_file(encrypted_file_path: &PathBuf) -> Vec<u8> {
-    let output = tokio::process::Command::new("gpg")
-        .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
-        .arg(&encrypted_file_path)
-        .output()
-        .await
-        .expect("decrypt media file");
-    output.stdout
 }
 
 pub fn send_post_to_web_socket(state: &AppState, post: Post) {

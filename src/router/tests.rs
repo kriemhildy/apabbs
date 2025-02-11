@@ -114,17 +114,10 @@ fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
 }
 
 fn remove_encrypted_file(encrypted_file_path: &Path) {
+    println!("removing encrypted file: {:?}", encrypted_file_path);
     let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
     std::fs::remove_file(&encrypted_file_path).expect("remove encrypted file");
     std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
-}
-
-fn encrypted_file_path(post: &Post) -> PathBuf {
-    let encrypted_file_name = String::from(post.media_file_name.as_ref().unwrap()) + ".gpg";
-    Path::new(UPLOADS_DIR)
-        .join(&post.uuid.to_string())
-        .join(&encrypted_file_name)
-        .to_path_buf()
 }
 
 async fn select_latest_post_by_token(tx: &mut PgConnection, anon_token: &Uuid) -> Post {
@@ -188,7 +181,7 @@ async fn test_submit_post() {
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let encrypted_file_path = encrypted_file_path(&post);
+    let encrypted_file_path = post.encrypted_media_path();
     remove_encrypted_file(&encrypted_file_path);
 }
 
@@ -422,21 +415,20 @@ async fn test_review_post() {
         .body(Body::from(post_review_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = Post::select_by_uuid(&mut tx, &post.uuid)
+        .await
+        .expect("select post");
     let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
     assert!(!uploads_uuid_dir.exists());
-    let media_path = Path::new(MEDIA_DIR)
-        .join(&post.uuid.to_string())
-        .join("image.jpeg");
-    assert!(media_path.exists());
-    let thumbnail_path = Path::new(MEDIA_DIR)
-        .join(&post.uuid.to_string())
-        .join("tn_image.jpg");
+    let published_media_path = post.published_media_path();
+    assert!(published_media_path.exists());
+    let thumbnail_path = post.thumbnail_path();
     assert!(thumbnail_path.exists());
-    std::fs::remove_file(&media_path).expect("remove media file");
+    std::fs::remove_file(&published_media_path).expect("remove media file");
     std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
-    let media_uuid_dir = media_path.parent().unwrap();
+    let media_uuid_dir = published_media_path.parent().unwrap();
     std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
-    let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
