@@ -161,7 +161,6 @@ macro_rules! user {
         }
     }};
 }
-use tokio::io::AsyncWriteExt;
 pub(super) use user;
 
 macro_rules! check_for_ban {
@@ -188,4 +187,3 @@ macro_rules! require_admin {
     };
 }
 pub(super) use require_admin;
-use uuid::Uuid;

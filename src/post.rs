@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-
 use crate::{user::User, POSTGRES_TIMESTAMP_FORMAT};
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
@@ -252,7 +251,10 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    pub async fn save_encrypted_media_file(self) -> Result<(), ()> {
+    pub async fn save_encrypted_media_file(self) -> Result<PathBuf, String> {
+        if self.media_bytes.is_none() {
+            return Err(String::from("no media bytes"));
+        }
         let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
         let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
             .join(&self.uuid.to_string())
@@ -285,10 +287,10 @@ impl PostSubmission {
                 "file uploaded and encrypted as: {}",
                 encrypted_file_path.to_str().unwrap()
             );
-            Ok(())
+            Ok(encrypted_file_path)
         } else {
             std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
-            Err(())
+            Err(String::from("gpg failed to encrypt media file"))
         }
     }
 }
@@ -356,6 +358,7 @@ mod tests {
             anon: None,
             media_file_name: None,
             uuid: Uuid::new_v4(),
+            media_bytes: None,
         };
         assert_eq!(submission.body_as_html(), "test body");
         submission.body = "test body\n\nhttps://example.com".to_owned();
