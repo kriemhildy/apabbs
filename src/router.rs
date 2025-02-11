@@ -500,6 +500,9 @@ async fn review_post(
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
         .expect("select post");
+    if post.thumbnail_file_name.is_some() && !post.thumbnail_path().exists() {
+        return internal_server_error("thumbnail not created successfully");
+    }
     if post.status == PostStatus::Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
             ban::insert(&mut tx, ip_hash).await;
