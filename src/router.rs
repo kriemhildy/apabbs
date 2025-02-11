@@ -472,17 +472,7 @@ async fn review_post(
                     {
                         "jpeg" | "png" | "webp" | "bmp" | "avif" | "tiff" => {
                             println!("generating thumbnail for {media_path_str}");
-                            let command_output = tokio::process::Command::new("vipsthumbnail")
-                                .args([
-                                    "--size=1400x1600>",
-                                    "--eprofile=srgb",
-                                    "--output=tn_%s.jpg[optimize_coding,strip]",
-                                ])
-                                .arg(media_path_str)
-                                .output()
-                                .await
-                                .expect("generate thumbnail");
-                            println!("vipsthumbnail output: {:?}", command_output);
+                            PostReview::generate_thumbnail(media_path_str).await;
                             post_review.update_thumbnail(&mut tx, media_file_name).await;
                         }
                         _ => (),

@@ -352,6 +352,20 @@ impl PostReview {
             .await
             .expect("update post thumbnail");
     }
+
+    pub async fn generate_thumbnail(media_path_str: &str) {
+        let command_output = tokio::process::Command::new("vipsthumbnail")
+            .args([
+                "--size=1400x1600>",
+                "--eprofile=srgb",
+                "--output=tn_%s.jpg[optimize_coding,strip]",
+            ])
+            .arg(media_path_str)
+            .output()
+            .await
+            .expect("generate thumbnail");
+        println!("vipsthumbnail output: {:?}", command_output);
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
