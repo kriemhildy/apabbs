@@ -280,7 +280,7 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    pub async fn save_encrypted_media_file(self) -> Result<PathBuf, String> {
+    pub async fn save_encrypted_media_file(self) -> Result<(), String> {
         if self.media_bytes.is_none() {
             return Err(String::from("no media bytes"));
         }
@@ -316,7 +316,7 @@ impl PostSubmission {
                 "file uploaded and encrypted as: {}",
                 encrypted_file_path.to_str().unwrap()
             );
-            Ok(encrypted_file_path)
+            Ok(())
         } else {
             std::fs::remove_dir(uploads_uuid_dir).expect("remove uploads uuid dir");
             Err(String::from("gpg failed to encrypt media file"))

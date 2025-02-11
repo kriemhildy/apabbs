@@ -180,7 +180,7 @@ async fn submit_post(
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     match post_submission.save_encrypted_media_file().await {
-        Ok(_encrypted_file_path) => (),
+        Ok(()) => (),
         Err(msg) => return internal_server_error(&msg),
     };
     tx.commit().await.expect(COMMIT);

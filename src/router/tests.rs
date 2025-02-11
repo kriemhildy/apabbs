@@ -11,7 +11,7 @@ use axum::{
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
 use sqlx::PgConnection;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
 const LOCAL_IP: &'static str = "::1";
@@ -70,7 +70,7 @@ async fn delete_test_account(tx: &mut PgConnection, account: Account) {
         .expect("delete test account");
 }
 
-async fn create_test_post(tx: &mut PgConnection, with_test_image: bool) -> (Post, User, Option<PathBuf>) {
+async fn create_test_post(tx: &mut PgConnection, with_test_image: bool) -> (Post, User) {
     let (media_file_name, media_bytes) = if with_test_image {
         let path = Path::new(TEST_IMAGE_PATH_STR);
         (
@@ -92,18 +92,16 @@ async fn create_test_post(tx: &mut PgConnection, with_test_image: bool) -> (Post
         media_bytes: media_bytes,
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
-    let encrypted_file_path_opt = if with_test_image {
+    if with_test_image {
         match post_submission.save_encrypted_media_file().await {
-            Ok(encrypted_file_path) => Some(encrypted_file_path),
+            Ok(()) => (),
             Err(msg) => {
                 eprintln!("{msg}");
                 std::process::exit(1);
             }
         }
-    } else {
-        None
-    };
-    (post, user, encrypted_file_path_opt)
+    }
+    (post, user)
 }
 
 fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
@@ -281,7 +279,7 @@ async fn test_logout() {
 async fn test_hide_rejected_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, user, _encrypted_file_path_opt) = create_test_post(&mut tx, false).await;
+    let (post, user) = create_test_post(&mut tx, false).await;
     PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Rejected,
@@ -311,14 +309,14 @@ async fn test_hide_rejected_post() {
 async fn test_interim() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post1, _user, _encrypted_file_path_opt) = create_test_post(&mut tx, false).await;
+    let (post1, _user) = create_test_post(&mut tx, false).await;
     PostReview {
         uuid: post1.uuid.clone(),
         status: PostStatus::Approved,
     }
     .update_status(&mut tx)
     .await;
-    let (post2, _user, _encrypted_file_path_opt) = create_test_post(&mut tx, false).await;
+    let (post2, _user) = create_test_post(&mut tx, false).await;
     PostReview {
         uuid: post2.uuid.clone(),
         status: PostStatus::Approved,
@@ -395,8 +393,8 @@ async fn test_update_time_zone() {
 async fn test_review_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user, encrypted_file_path_opt) = create_test_post(&mut tx, true).await;
-    let encrypted_file_path = encrypted_file_path_opt.unwrap();
+    let (post, _user) = create_test_post(&mut tx, true).await;
+    let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
@@ -419,7 +417,7 @@ async fn test_review_post() {
     let post = Post::select_by_uuid(&mut tx, &post.uuid)
         .await
         .expect("select post");
-    let uploads_uuid_dir = encrypted_file_path.parent().unwrap();
+    let uploads_uuid_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_uuid_dir.exists());
     let published_media_path = post.published_media_path();
     assert!(published_media_path.exists());
@@ -439,8 +437,8 @@ async fn test_review_post() {
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user, encrypted_file_path_opt) = create_test_post(&mut tx, true).await;
-    let encrypted_file_path = encrypted_file_path_opt.unwrap();
+    let (post, _user) = create_test_post(&mut tx, true).await;
+    let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
     let uri = format!("/admin/decrypt-media/{}", &post.uuid);
@@ -462,5 +460,5 @@ async fn test_decrypt_media() {
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
-    remove_encrypted_file(&encrypted_file_path);
+    remove_encrypted_file(&encrypted_media_path);
 }
