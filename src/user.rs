@@ -155,10 +155,13 @@ impl Credentials {
         if lowercase_password.contains(&lowercase_username) {
             errors.push("password cannot contain username");
         }
-        if let Some(confirm_password) = &self.confirm_password {
-            if self.password != *confirm_password {
-                errors.push("passwords do not match");
+        match &self.confirm_password {
+            Some(confirm_password) => {
+                if &self.password != confirm_password {
+                    errors.push("passwords do not match");
+                }
             }
+            None => errors.push("password confirmation is required"),
         }
         errors
     }
@@ -185,7 +188,7 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
-        .expect("select account by username")
+        .expect("select account by username and password")
     }
 
     pub async fn update_password(&self, tx: &mut PgConnection) {
