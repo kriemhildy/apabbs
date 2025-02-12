@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "apabbs"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "axum",
  "axum-extra",

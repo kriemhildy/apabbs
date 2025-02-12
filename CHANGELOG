@@ -1,3 +1,8 @@
+0.19.0
+
+Use pgcrypto for passwords instead of Argon2 library.
+Add the ability for a user to change his password.
+
 0.18.0
 
 Use GnuPG for upload encryption instead of Cocoon.
