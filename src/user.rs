@@ -181,4 +181,16 @@ impl Credentials {
         .await
         .expect("select account by username")
     }
+
+    pub async fn update_password(&self, tx: &mut PgConnection) {
+        sqlx::query(concat!(
+            "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', 10)) ",
+            "WHERE username = $2"
+        ))
+        .bind(&self.password)
+        .bind(&self.username)
+        .execute(&mut *tx)
+        .await
+        .expect("update password");
+    }
 }

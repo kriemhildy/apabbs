@@ -21,5 +21,13 @@
             </select>
             <input type="submit" value="Update" id="update-time-zone-submit">
         </form>
+        <br>
+        <form action="/update-password" method="post">
+            <input type="hidden" name="username" value="{{ account.username }}">
+            <label for="password">New password:</label>
+            <br>
+            <input type="password" name="password" id="password">
+            <input type="submit" value="Update" id="update-password-submit">
+        </form>
         {% endif %}
         {% endblock %}

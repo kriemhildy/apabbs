@@ -390,6 +390,38 @@ async fn test_update_time_zone() {
 }
 
 #[tokio::test]
+async fn test_update_password() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = create_test_account(&mut tx, false).await;
+    tx.commit().await.expect(COMMIT);
+    let credentials = Credentials {
+        username: account.username.clone(),
+        password: String::from("new_password"),
+    };
+    let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/update-password")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .body(Body::from(credentials_str))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let updated_account = Account::select_by_username(&mut tx, &account.username)
+        .await
+        .unwrap();
+    assert!(credentials
+        .authenticate(&mut tx)
+        .await
+        .is_some_and(|a| a.id == updated_account.id));
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
 async fn test_review_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);

@@ -52,6 +52,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/interim/{uuid}", get(interim))
         .route("/user/{username}", get(user_profile))
         .route("/update-time-zone", post(update_time_zone))
+        .route("/update-password", post(update_password))
         .route(
             "/admin/review-post",
             post(review_post).patch(review_post).delete(review_post),
@@ -430,6 +431,26 @@ async fn update_time_zone(
     time_zone_update.update(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let user_profile_path = format!("/user/{}", &time_zone_update.username);
+    Redirect::to(&user_profile_path).into_response()
+}
+
+async fn update_password(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(credentials): Form<Credentials>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    if user.username() != Some(&credentials.username) {
+        return unauthorized("not your account");
+    }
+    let errors = credentials.validate();
+    if !errors.is_empty() {
+        return bad_request(&errors.join("\n"));
+    }
+    credentials.update_password(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let user_profile_path = format!("/user/{}", &credentials.username);
     Redirect::to(&user_profile_path).into_response()
 }
 
