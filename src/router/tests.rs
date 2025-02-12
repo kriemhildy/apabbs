@@ -94,12 +94,9 @@ async fn create_test_post(tx: &mut PgConnection, with_test_image: bool) -> (Post
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
     if with_test_image {
-        match post_submission.save_encrypted_media_file().await {
-            Ok(()) => (),
-            Err(msg) => {
-                eprintln!("{msg}");
-                std::process::exit(1);
-            }
+        if let Err(msg) = post_submission.save_encrypted_media_file().await {
+            eprintln!("{msg}");
+            std::process::exit(1);
         }
     }
     (post, user)
