@@ -17,15 +17,16 @@ Installation
 3. install "pkg-config" via your package manager.
 4. install rsync.
 5. install libvips-tools.
-6. install sqlx-cli for postgres only:
+6. install gnupg.
+7. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
-7. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
-8. copy .env.example to .env and set the variables as needed.
-9. install direnv and run "direnv allow".
-10. run "sqlx database setup" to create and migrate the database.
-11. configure a web server (e.g. nginx) to proxy to the app server.
+8. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
+9. copy .env.example to .env and set the variables as needed.
+10. install direnv and run "direnv allow".
+11. run "sqlx database setup" to create and migrate the database.
+12. configure a web server (e.g. nginx) to proxy to the app server.
     this is necessary for serving assets (css, js, media). it is also
     necessary for SSL encryption via certbot. this server will need to enable
     web socket upgrades and X-Real-IP forwarding.
-12. run "cargo run" to start the app server in debug mode.
-13. access the app via "localhost" in a browser.
+13. run "cargo run" to start the app server in debug mode.
+14. access the app via "localhost" in a browser.
