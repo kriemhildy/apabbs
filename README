@@ -17,7 +17,7 @@ Installation
 3. install "pkg-config" via your package manager.
 4. install rsync.
 5. install libvips-tools.
-6. install gnupg.
+6. install gnupg and create a "gpg.key" file with a random string value.
 7. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
 8. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
