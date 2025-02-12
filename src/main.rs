@@ -1,5 +1,4 @@
 mod ban;
-mod crypto;
 mod jobs;
 mod post;
 mod router;

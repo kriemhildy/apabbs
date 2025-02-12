@@ -1,4 +1,4 @@
-use crate::{crypto, POSTGRES_TIMESTAMP_FORMAT};
+use crate::POSTGRES_TIMESTAMP_FORMAT;
 use regex::Regex;
 use sqlx::PgConnection;
 use uuid::Uuid;
@@ -158,14 +158,12 @@ impl Credentials {
     }
 
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
-        let phc_salt_string = crypto::generate_phc_salt_string();
-        let password_hash = crypto::hash_password(&self.password, &phc_salt_string);
         sqlx::query_as(concat!(
             "INSERT INTO accounts (username, password_hash, ip_hash) ",
-            "VALUES ($1, $2, $3) RETURNING *"
+            "VALUES ($1, crypt($2, gen_salt('bf', 10)), $3) RETURNING *"
         ))
         .bind(&self.username)
-        .bind(password_hash)
+        .bind(&self.password)
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
@@ -173,19 +171,14 @@ impl Credentials {
     }
 
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<Account> {
-        let account: Option<Account> = sqlx::query_as("SELECT * FROM accounts WHERE username = $1")
-            .bind(&self.username)
-            .fetch_optional(&mut *tx)
-            .await
-            .expect("select account by username");
-        let account = match account {
-            Some(account) => account,
-            None => return None,
-        };
-        if crypto::verify_password(&self.password, &account.password_hash) {
-            Some(account)
-        } else {
-            None
-        }
+        sqlx::query_as(concat!(
+            "SELECT * FROM accounts WHERE username = $1 ",
+            "AND crypt($2, password_hash) = password_hash"
+        ))
+        .bind(&self.username)
+        .bind(&self.password)
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("select account by username")
     }
 }
