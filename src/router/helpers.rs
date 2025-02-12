@@ -83,13 +83,17 @@ pub fn per_page() -> usize {
     }
 }
 
-pub fn build_cookie(name: &str, value: &str) -> Cookie<'static> {
-    Cookie::build((name.to_owned(), value.to_owned()))
+pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
+    let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!dev())
         .http_only(true)
+        .path("/")
         .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
-        .permanent()
-        .build()
+        .build();
+    if permanent {
+        cookie.make_permanent()
+    }
+    cookie
 }
 
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {

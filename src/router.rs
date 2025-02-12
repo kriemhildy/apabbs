@@ -19,7 +19,7 @@ use axum::{
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
-use axum_extra::extract::cookie::CookieJar;
+use axum_extra::extract::cookie::{Cookie, CookieJar};
 use helpers::*;
 use std::collections::HashMap;
 use tokio::sync::broadcast::Receiver;
@@ -28,6 +28,7 @@ use uuid::Uuid;
 const ACCOUNT_COOKIE: &'static str = "account";
 const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
+const NOTICE_COOKIE: &'static str = "notice";
 const ROOT: &'static str = "/";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +130,7 @@ async fn index(
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string());
+        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string(), false);
         jar = jar.add(cookie);
     }
     (jar, html).into_response()
@@ -215,7 +216,7 @@ async fn authenticate(
     }
     match credentials.authenticate(&mut tx).await {
         Some(account) => {
-            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string());
+            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string(), true);
             jar = jar.add(cookie);
         }
         None => return bad_request("password is wrong"),
@@ -254,7 +255,7 @@ async fn create_account(
             set_session_time_zone(&mut tx, "UTC").await;
             check_for_ban!(tx, &ip_hash);
             let account = credentials.register(&mut tx, &ip_hash).await;
-            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string());
+            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string(), true);
             jar = jar.add(cookie);
         }
     }
@@ -274,7 +275,7 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
             match Account::select_by_token(&mut tx, &token).await {
                 Some(_account) => jar = jar.remove(ACCOUNT_COOKIE),
                 None => return bad_request(ACCOUNT_NOT_FOUND),
-            }
+            };
         }
         None => return bad_request("cookie not found"),
     };
@@ -387,8 +388,8 @@ async fn interim(
 
 async fn user_profile(
     State(state): State<AppState>,
-    jar: CookieJar,
     Path(username): Path<String>,
+    mut jar: CookieJar,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
@@ -399,7 +400,16 @@ async fn user_profile(
     };
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    Html(render(
+    let notice = match jar.get(NOTICE_COOKIE).clone() {
+        Some(cookie) => {
+            let value = cookie.value().to_owned();
+            let removal_cookie = Cookie::build(NOTICE_COOKIE).path("/").build();
+            jar = jar.remove(removal_cookie);
+            Some(value)
+        }
+        None => None,
+    };
+    let html = Html(render(
         &state,
         "user.jinja",
         minijinja::context!(
@@ -409,14 +419,15 @@ async fn user_profile(
             username => user.username(),
             admin => user.admin(),
             time_zones,
+            notice,
         ),
-    ))
-    .into_response()
+    ));
+    (jar, html).into_response()
 }
 
 async fn update_time_zone(
     State(state): State<AppState>,
-    jar: CookieJar,
+    mut jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -430,13 +441,16 @@ async fn update_time_zone(
     }
     time_zone_update.update(&mut tx).await;
     tx.commit().await.expect(COMMIT);
+    let cookie = build_cookie(NOTICE_COOKIE, "Time zone updated.", false);
+    jar = jar.add(cookie);
     let user_profile_path = format!("/user/{}", &time_zone_update.username);
-    Redirect::to(&user_profile_path).into_response()
+    let redirect = Redirect::to(&user_profile_path).into_response();
+    (jar, redirect).into_response()
 }
 
 async fn update_password(
     State(state): State<AppState>,
-    jar: CookieJar,
+    mut jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -450,8 +464,11 @@ async fn update_password(
     }
     credentials.update_password(&mut tx).await;
     tx.commit().await.expect(COMMIT);
+    let cookie = build_cookie(NOTICE_COOKIE, "Password updated.", false);
+    jar = jar.add(cookie);
     let user_profile_path = format!("/user/{}", &credentials.username);
-    Redirect::to(&user_profile_path).into_response()
+    let redirect = Redirect::to(&user_profile_path).into_response();
+    (jar, redirect).into_response()
 }
 
 // admin handlers
