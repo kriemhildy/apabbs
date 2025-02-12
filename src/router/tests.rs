@@ -36,6 +36,7 @@ fn test_credentials() -> Credentials {
     Credentials {
         username: String::from(&uuid[..16]),
         password: String::from("test_password"),
+        confirm_password: Some(String::from("test_password")),
     }
 }
 
@@ -398,6 +399,7 @@ async fn test_update_password() {
     let credentials = Credentials {
         username: account.username.clone(),
         password: String::from("new_password"),
+        confirm_password: Some(String::from("new_password")),
     };
     let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()

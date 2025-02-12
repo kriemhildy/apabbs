@@ -129,6 +129,7 @@ impl TimeZoneUpdate {
 pub struct Credentials {
     pub username: String,
     pub password: String,
+    pub confirm_password: Option<String>,
 }
 
 impl Credentials {
@@ -153,6 +154,11 @@ impl Credentials {
         let lowercase_password = self.password.to_lowercase();
         if lowercase_password.contains(&lowercase_username) {
             errors.push("password cannot contain username");
+        }
+        if let Some(confirm_password) = &self.confirm_password {
+            if self.password != *confirm_password {
+                errors.push("passwords do not match");
+            }
         }
         errors
     }

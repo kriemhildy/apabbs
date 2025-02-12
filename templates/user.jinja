@@ -8,26 +8,32 @@
         {% if logged_in and username == account.username %}
         <form action="/logout" method="post">
             You are logged in as this user.
+            <br>
             <input type="submit" value="Log out" id="log-out-submit">
         </form>
-        <br>
+        <p>Time zone: {{ account.time_zone }}</p>
         <form action="/update-time-zone" method="post">
             <input type="hidden" name="username" value="{{ account.username }}">
-            Time zone: {{ account.time_zone }}<br>
             <select name="time_zone" id="time_zone">
                 {% for tz in time_zones %}
                 <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
                 {% endfor %}
             </select>
-            <input type="submit" value="Update" id="update-time-zone-submit">
+            <br>
+            <input type="submit" value="Update time zone" id="update-time-zone-submit">
         </form>
         <br>
         <form action="/update-password" method="post">
             <input type="hidden" name="username" value="{{ account.username }}">
-            <label for="password">New password:</label>
+            <label for="password">Password:</label>
             <br>
-            <input type="password" name="password" id="password">
-            <input type="submit" value="Update" id="update-password-submit">
+            <input type="password" name="password" id="password" maxlength="64" size="32" autocomplete="new-password">
+            <br>
+            <label for="confirm-password">Confirm password:</label>
+            <br>
+            <input type="password" name="confirm_password" id="confirm-password" maxlength="64" size="32" autocomplete="new-password">
+            <br>
+            <input type="submit" value="Update password" id="update-password-submit">
         </form>
         {% endif %}
         {% endblock %}
