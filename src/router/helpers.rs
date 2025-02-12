@@ -96,6 +96,10 @@ pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static>
     cookie
 }
 
+pub fn removal_cookie(name: &str) -> Cookie<'static> {
+    Cookie::build(name.to_owned()).path("/").build()
+}
+
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
     if dev() {
         let mut env = state.jinja.write().expect("write jinja env");

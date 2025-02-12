@@ -19,7 +19,7 @@ use axum::{
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar};
+use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::collections::HashMap;
 use tokio::sync::broadcast::Receiver;
@@ -273,7 +273,7 @@ async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
                 Err(_) => return bad_request("invalid account token"),
             };
             match Account::select_by_token(&mut tx, &token).await {
-                Some(_account) => jar = jar.remove(ACCOUNT_COOKIE),
+                Some(_account) => jar = jar.remove(removal_cookie(ACCOUNT_COOKIE)),
                 None => return bad_request(ACCOUNT_NOT_FOUND),
             };
         }
@@ -403,8 +403,7 @@ async fn user_profile(
     let notice = match jar.get(NOTICE_COOKIE).clone() {
         Some(cookie) => {
             let value = cookie.value().to_owned();
-            let removal_cookie = Cookie::build(NOTICE_COOKIE).path("/").build();
-            jar = jar.remove(removal_cookie);
+            jar = jar.remove(removal_cookie(NOTICE_COOKIE));
             Some(value)
         }
         None => None,
