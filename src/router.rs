@@ -60,9 +60,10 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         )
         .route("/admin/decrypt-media/{uuid}", get(decrypt_media))
         .layer(DefaultBodyLimit::max(20_000_000));
-    let router = match trace {
-        true => router.layer(init::trace_layer()),
-        false => router,
+    let router = if trace {
+        router.layer(init::trace_layer())
+    } else {
+        router
     };
     router.with_state(state)
 }
@@ -95,20 +96,20 @@ async fn index(
         None => None,
     };
     let solo = uri.path().contains("/post/");
-    let posts = match solo {
-        true => match &query_post {
+    let posts = if solo {
+        match &query_post {
             Some(post) => vec![post.clone()],
             None => return bad_request("no post to show solo"),
-        },
-        false => Post::select_latest(&mut tx, &user, query_post_id, None, per_page() as i32).await,
-    };
-    let posts_before_last = match posts.len() < per_page() {
-        true => Vec::new(),
-        false => {
-            let last_post = posts.last().expect("read last post");
-            let post_id_before_last = last_post.id - 1;
-            Post::select_latest(&mut tx, &user, Some(post_id_before_last), None, 1).await
         }
+    } else {
+        Post::select_latest(&mut tx, &user, query_post_id, None, per_page() as i32).await
+    };
+    let posts_before_last = if posts.len() < per_page() {
+        Vec::new()
+    } else {
+        let last_post = posts.last().expect("read last post");
+        let post_id_before_last = last_post.id - 1;
+        Post::select_latest(&mut tx, &user, Some(post_id_before_last), None, 1).await
     };
     let prior_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
@@ -326,15 +327,14 @@ async fn web_socket(
     ) {
         use PostStatus::*;
         while let Ok(msg) = receiver.recv().await {
-            let should_send = match msg.admin {
-                true => user.admin(),
-                false => {
-                    !user.admin()
-                        && match msg.post.status {
-                            Pending | Rejected | Banned => msg.post.posted_by(&user),
-                            Approved => true,
-                        }
-                }
+            let should_send = if msg.admin {
+                user.admin()
+            } else {
+                !user.admin()
+                    && match msg.post.status {
+                        Pending | Rejected | Banned => msg.post.posted_by(&user),
+                        Approved => true,
+                    }
             };
             if !should_send {
                 continue;

@@ -57,9 +57,10 @@ impl Post {
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
-        match user.admin() {
-            true => query_builder.push("status <> 'rejected' "),
-            false => query_builder.push("status = 'approved' "),
+        if user.admin() {
+            query_builder.push("status <> 'rejected' ")
+        } else {
+            query_builder.push("status = 'approved' ")
         };
         query_builder.push("OR anon_token = ");
         query_builder.push_bind(&user.anon_token);
@@ -159,24 +160,22 @@ impl PostSubmission {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
-        query_builder.push(match user.anon() {
-            true => "anon_token, anon_hash",
-            false => "account_id, username",
+        query_builder.push(if user.anon() {
+            "anon_token, anon_hash"
+        } else {
+            "account_id, username"
         });
         query_builder.push(
             ", body, ip_hash, uuid, media_file_name, media_category, media_mime_type) VALUES (",
         );
         let mut separated = query_builder.separated(", ");
-        match user.anon() {
-            true => {
-                separated.push_bind(&user.anon_token);
-                separated.push_bind(user.anon_hash());
-            }
-            false => {
-                let account = user.account.as_ref().unwrap();
-                separated.push_bind(account.id);
-                separated.push_bind(&account.username);
-            }
+        if user.anon() {
+            separated.push_bind(&user.anon_token);
+            separated.push_bind(user.anon_hash());
+        } else {
+            let account = user.account.as_ref().unwrap();
+            separated.push_bind(account.id);
+            separated.push_bind(&account.username);
         }
         query_builder.push(", $3, $4, $5, $6, $7, $8) RETURNING *");
         query_builder
