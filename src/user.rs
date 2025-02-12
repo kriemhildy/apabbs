@@ -59,7 +59,6 @@ pub struct Account {
     pub username: String,
     pub token: Uuid,
     pub password_hash: String,
-    pub password_salt: String,
     pub admin: bool,
     pub anon: bool,
     pub time_zone: String,
@@ -161,14 +160,12 @@ impl Credentials {
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         let phc_salt_string = crypto::generate_phc_salt_string();
         let password_hash = crypto::hash_password(&self.password, &phc_salt_string);
-        let password_salt = phc_salt_string.as_str();
         sqlx::query_as(concat!(
-            "INSERT INTO accounts (username, password_hash, password_salt, ip_hash) ",
-            "VALUES ($1, $2, $3, $4) RETURNING *"
+            "INSERT INTO accounts (username, password_hash, ip_hash) ",
+            "VALUES ($1, $2, $3) RETURNING *"
         ))
         .bind(&self.username)
         .bind(password_hash)
-        .bind(password_salt)
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
@@ -185,11 +182,10 @@ impl Credentials {
             Some(account) => account,
             None => return None,
         };
-        let phc_salt_string = crypto::convert_b64_salt(&account.password_salt);
-        let input_password_hash = crypto::hash_password(&self.password, &phc_salt_string);
-        match account.password_hash == input_password_hash {
-            true => Some(account),
-            false => None,
+        if crypto::verify_password(&self.password, &account.password_hash) {
+            Some(account)
+        } else {
+            None
         }
     }
 }
