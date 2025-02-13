@@ -26,7 +26,7 @@ psql $DATABASE_URL \
     psql $DATABASE_URL \
        --command="UPDATE posts SET thumbnail_file_name = '$thumbnail_file_name' WHERE uuid = '$uuid';"
     old_jpg_thumbnail="pub/media/$uuid/tn_$file_name_without_extension.jpg"
-    if [ -f $old_jpg_thumbnail ]; then
+    if [ -f "$old_jpg_thumbnail" ]; then
         echo "delete old jpg thumbnail $old_jpg_thumbnail"
         rm "$old_jpg_thumbnail"
     fi
