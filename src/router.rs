@@ -74,7 +74,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 
 async fn index(
     State(state): State<AppState>,
-    jar: CookieJar,
+    mut jar: CookieJar,
     uri: Uri,
     Path(params): Path<HashMap<String, Uuid>>,
 ) -> Response {
@@ -113,7 +113,7 @@ async fn index(
     };
     let prior_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
-    Html(render(
+    let html = Html(render(
         &state,
         "index.jinja",
         minijinja::context!(
@@ -129,13 +129,17 @@ async fn index(
             prior_page_post,
             solo,
         ),
-    ))
-    .into_response()
+    ));
+    if jar.get(ANON_COOKIE).is_none() {
+        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string(), true);
+        jar = jar.add(cookie);
+    }
+    (jar, html).into_response()
 }
 
 async fn submit_post(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Response {
@@ -178,10 +182,6 @@ async fn submit_post(
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
-    if post_submission.anon() && jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string(), true);
-        jar = jar.add(cookie);
-    }
     if post_submission.media_file_name.is_some() {
         if let Err(msg) = post_submission.save_encrypted_media_file().await {
             return internal_server_error(&msg);
@@ -189,12 +189,11 @@ async fn submit_post(
     }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
-    let response = if is_fetch_request(&headers) {
+    if is_fetch_request(&headers) {
         StatusCode::CREATED.into_response()
     } else {
         Redirect::to(ROOT).into_response()
-    };
-    (jar, response).into_response()
+    }
 }
 
 async fn login_form(State(state): State<AppState>) -> Html<String> {
