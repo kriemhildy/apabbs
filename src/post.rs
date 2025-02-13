@@ -345,11 +345,15 @@ impl PostReview {
     }
 
     pub async fn generate_thumbnail(media_path_str: &str) {
-        let extension = media_path_str.split('.').last().expect("get file extension");
-        let vips_input_file_path = match extension.to_lowercase().as_str() {
-            "gif" | "webp" => media_path_str.to_owned() + "[n=-1]", // animated image support
-            _ => media_path_str.to_owned(),
-        };
+        let extension = media_path_str
+            .split('.')
+            .last()
+            .expect("get file extension");
+        let vips_input_file_path = media_path_str.to_owned()
+            + match extension.to_lowercase().as_str() {
+                "gif" | "webp" => "[n=-1]", // animated image support
+                _ => "",
+            };
         let command_output = tokio::process::Command::new("vipsthumbnail")
             .args(["--size=1200x1600>", "--output=tn_%s.webp"])
             .arg(&vips_input_file_path)
