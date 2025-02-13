@@ -131,7 +131,7 @@ async fn index(
         ),
     ));
     if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string(), false);
+        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string(), true);
         jar = jar.add(cookie);
     }
     (jar, html).into_response()
