@@ -1,6 +1,6 @@
 set -xe
 if ! [ "$DEV" == 1 ]; then
-    PATH="$HOME/.cargo/bin:$PATH"
+    source $HOME/.cargo/env
     git pull
     nice rustup update
     nice cargo build --release
