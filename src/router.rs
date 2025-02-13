@@ -182,9 +182,11 @@ async fn submit_post(
     }
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
-    if let Err(msg) = post_submission.save_encrypted_media_file().await {
-        return internal_server_error(&msg);
-    };
+    if post_submission.media_file_name.is_some() {
+        if let Err(msg) = post_submission.save_encrypted_media_file().await {
+            return internal_server_error(&msg);
+        }
+    }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
     if is_fetch_request(&headers) {
