@@ -4,7 +4,7 @@ mod tests;
 
 use crate::{
     ban, init,
-    post::{Post, PostHiding, PostReview, PostStatus, PostSubmission},
+    post::{Post, PostHiding, PostMediaCategory, PostReview, PostStatus, PostSubmission},
     user::{Account, Credentials, TimeZoneUpdate, User},
     AppState, PostMessage, BEGIN, COMMIT,
 };
@@ -498,20 +498,14 @@ async fn review_post(
                     std::fs::write(&published_media_path, media_bytes).expect("write media file");
                     let media_path_str = published_media_path.to_str().expect("media path to str");
 
-                    // generate optimized jpg thumbnail for normal image types
-                    match post
-                        .media_mime_type
-                        .as_ref()
-                        .expect("mime type exists")
-                        .replace("image/", "")
-                        .as_str()
+                    // generate webp thumbnail for images
+                    if post
+                        .media_category
+                        .is_some_and(|c| c == PostMediaCategory::Image)
                     {
-                        "jpeg" | "png" | "webp" | "bmp" | "avif" | "tiff" => {
-                            println!("generating thumbnail for {media_path_str}");
-                            PostReview::generate_thumbnail(media_path_str).await;
-                            post_review.update_thumbnail(&mut tx, media_file_name).await;
-                        }
-                        _ => (),
+                        println!("generating thumbnail for {media_path_str}");
+                        PostReview::generate_thumbnail(media_path_str).await;
+                        post_review.update_thumbnail(&mut tx, media_file_name).await;
                     }
                 }
                 let uploads_uuid_dir = encrypted_media_path.parent().unwrap();

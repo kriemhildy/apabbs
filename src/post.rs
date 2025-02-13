@@ -232,48 +232,40 @@ impl PostSubmission {
         }
         let media_file_name = media_file_name.unwrap();
         use PostMediaCategory::*;
-        let path = std::path::Path::new(&media_file_name);
-        let (media_category, media_mime_type_str) = match path.extension() {
-            Some(ext_os_str) => {
-                let ext_os_string = ext_os_str.to_ascii_lowercase();
-                match ext_os_string.to_str() {
-                    Some(ext_str) => match ext_str {
-                        "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => {
-                            (Some(Image), "image/jpeg")
-                        }
-                        "gif" => (Some(Image), "image/gif"),
-                        "png" => (Some(Image), "image/png"),
-                        "webp" => (Some(Image), "image/webp"),
-                        "svg" => (Some(Image), "image/svg+xml"),
-                        "avif" => (Some(Image), "image/avif"),
-                        "ico" | "cur" => (Some(Image), "image/x-icon"),
-                        "apng" => (Some(Image), "image/apng"),
-                        "bmp" => (Some(Image), "image/bmp"),
-                        "tiff" | "tif" => (Some(Image), "image/tiff"),
-                        "avi" => (Some(Video), "video/x-msvideo"),
-                        "mpeg" | "mpg" | "mpe" => (Some(Video), "video/mpeg"),
-                        "mp4" | "m4v" => (Some(Video), "video/mp4"),
-                        "webm" => (Some(Video), "video/webm"),
-                        "ogv" => (Some(Video), "video/ogg"),
-                        "flv" => (Some(Video), "video/x-flv"),
-                        "mov" => (Some(Video), "video/quicktime"),
-                        "wmv" => (Some(Video), "video/x-ms-wmv"),
-                        "mp3" => (Some(Audio), "audio/mpeg"),
-                        "ogg" => (Some(Audio), "audio/ogg"),
-                        "wav" => (Some(Audio), "audio/wav"),
-                        "flac" => (Some(Audio), "audio/flac"),
-                        "opus" => (Some(Audio), "audio/opus"),
-                        "m4a" => (Some(Audio), "audio/mp4"),
-                        "aac" => (Some(Audio), "audio/aac"),
-                        "wma" => (Some(Audio), "audio/x-ms-wma"),
-                        "weba" => (Some(Audio), "audio/webm"),
-                        "3gp" => (Some(Audio), "audio/3gpp"),
-                        "3g2" => (Some(Audio), "audio/3gpp2"),
-                        _ => (None, APPLICATION_OCTET_STREAM),
-                    },
-                    None => (None, APPLICATION_OCTET_STREAM),
-                }
-            }
+        let extension = media_file_name.split('.').last();
+        let (media_category, media_mime_type_str) = match extension {
+            Some(extension) => match extension.to_lowercase().as_str() {
+                "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
+                "gif" => (Some(Image), "image/gif"),
+                "png" => (Some(Image), "image/png"),
+                "webp" => (Some(Image), "image/webp"),
+                "svg" => (Some(Image), "image/svg+xml"),
+                "avif" => (Some(Image), "image/avif"),
+                "ico" | "cur" => (Some(Image), "image/x-icon"),
+                "apng" => (Some(Image), "image/apng"),
+                "bmp" => (Some(Image), "image/bmp"),
+                "tiff" | "tif" => (Some(Image), "image/tiff"),
+                "avi" => (Some(Video), "video/x-msvideo"),
+                "mpeg" | "mpg" | "mpe" => (Some(Video), "video/mpeg"),
+                "mp4" | "m4v" => (Some(Video), "video/mp4"),
+                "webm" => (Some(Video), "video/webm"),
+                "ogv" => (Some(Video), "video/ogg"),
+                "flv" => (Some(Video), "video/x-flv"),
+                "mov" => (Some(Video), "video/quicktime"),
+                "wmv" => (Some(Video), "video/x-ms-wmv"),
+                "mp3" => (Some(Audio), "audio/mpeg"),
+                "ogg" => (Some(Audio), "audio/ogg"),
+                "wav" => (Some(Audio), "audio/wav"),
+                "flac" => (Some(Audio), "audio/flac"),
+                "opus" => (Some(Audio), "audio/opus"),
+                "m4a" => (Some(Audio), "audio/mp4"),
+                "aac" => (Some(Audio), "audio/aac"),
+                "wma" => (Some(Audio), "audio/x-ms-wma"),
+                "weba" => (Some(Audio), "audio/webm"),
+                "3gp" => (Some(Audio), "audio/3gpp"),
+                "3g2" => (Some(Audio), "audio/3gpp2"),
+                _ => (None, APPLICATION_OCTET_STREAM),
+            },
             None => (None, APPLICATION_OCTET_STREAM),
         };
         (media_category, Some(media_mime_type_str.to_owned()))
@@ -342,7 +334,7 @@ impl PostReview {
     pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
         let thumbnail_file_name =
-            String::from("tn_") + &extension_pattern.replace(media_file_name, ".jpg");
+            String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp");
         println!("thumbnail_file_name: {}", thumbnail_file_name);
         sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE uuid = $2")
             .bind(thumbnail_file_name)
@@ -353,13 +345,14 @@ impl PostReview {
     }
 
     pub async fn generate_thumbnail(media_path_str: &str) {
+        let extension = media_path_str.split('.').last().expect("get file extension");
+        let vips_input_file_path = match extension.to_lowercase().as_str() {
+            "gif" | "webp" => media_path_str.to_owned() + "[n=-1]", // animated image support
+            _ => media_path_str.to_owned(),
+        };
         let command_output = tokio::process::Command::new("vipsthumbnail")
-            .args([
-                "--size=1400x1600>",
-                "--eprofile=srgb",
-                "--output=tn_%s.jpg[optimize_coding,strip]",
-            ])
-            .arg(media_path_str)
+            .args(["--size=1200x1600>", "--output=tn_%s.webp"])
+            .arg(&vips_input_file_path)
             .output()
             .await
             .expect("generate thumbnail");
