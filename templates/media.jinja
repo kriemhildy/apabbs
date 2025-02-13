@@ -6,7 +6,7 @@
                     </a>
                     {% else %}
                     <a href="/post/{{ post.uuid }}">
-                        <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}" loading="lazy">
+                        <img src="{{ media_path }}" alt="{{ post.media_file_name|e }}">
                     </a>
                     {% endif %}
                     {% elif post.media_category == "video" %}
