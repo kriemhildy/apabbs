@@ -35,7 +35,6 @@ pub struct Post {
     pub account_id: Option<i32>,
     pub username: Option<String>, // cache
     pub anon_token: Option<Uuid>,
-    pub anon_hash: Option<String>, // cache
     pub status: PostStatus,
     pub uuid: Uuid,
     pub media_file_name: Option<String>,
@@ -159,36 +158,29 @@ impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
-        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new("INSERT INTO posts (");
-        query_builder.push(if user.anon() {
-            "anon_token, anon_hash"
+        let (anon_token, account_id, username) = if user.anon() {
+            (Some(&user.anon_token), None, None)
         } else {
-            "account_id, username"
-        });
-        query_builder.push(
-            ", body, ip_hash, uuid, media_file_name, media_category, media_mime_type) VALUES (",
-        );
-        let mut separated = query_builder.separated(", ");
-        if user.anon() {
-            separated.push_bind(&user.anon_token);
-            separated.push_bind(user.anon_hash());
-        } else {
-            let account = user.account.as_ref().unwrap();
-            separated.push_bind(account.id);
-            separated.push_bind(&account.username);
-        }
-        query_builder.push(", $3, $4, $5, $6, $7, $8) RETURNING *");
-        query_builder
-            .build_query_as()
-            .bind(&self.body_as_html())
-            .bind(ip_hash)
-            .bind(&self.uuid)
-            .bind(self.media_file_name.as_deref())
-            .bind(media_category)
-            .bind(media_mime_type.as_deref())
-            .fetch_one(&mut *tx)
-            .await
-            .expect("insert new post")
+            let account = user.account.as_ref().expect("get account");
+            (None, Some(account.id), Some(&account.username))
+        };
+        sqlx::query_as(concat!(
+            "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, uuid, ",
+            "media_file_name, media_category, media_mime_type) ",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+        ))
+        .bind(anon_token)
+        .bind(account_id)
+        .bind(username)
+        .bind(&self.body_as_html())
+        .bind(ip_hash)
+        .bind(&self.uuid)
+        .bind(self.media_file_name.as_deref())
+        .bind(media_category)
+        .bind(media_mime_type.as_deref())
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert new post")
     }
 
     pub fn anon(&self) -> bool {

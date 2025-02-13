@@ -13,10 +13,6 @@ impl User {
         self.account.as_ref().is_some_and(|a| a.admin)
     }
 
-    pub fn anon_hash(&self) -> String {
-        sha256::digest(&self.anon_token.to_string())[..8].to_owned()
-    }
-
     pub fn username(&self) -> Option<&str> {
         match &self.account {
             Some(account) => Some(&account.username),

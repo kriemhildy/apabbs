@@ -122,7 +122,6 @@ async fn index(
             posts,
             logged_in => user.account.is_some(),
             username => user.username(),
-            anon_hash => user.anon_hash(),
             admin => user.admin(),
             anon => user.anon(),
             query_post,

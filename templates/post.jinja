@@ -29,7 +29,7 @@
                     {% if post.username %}
                     <a href="/user/{{ post.username }}">{{ post.username }}</a>
                     {% else %}
-                    anon ({{ post.anon_hash }})
+                    anon
                     {% endif %}
                     <br>
                     At: {{ post.created_at_str }}
