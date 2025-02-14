@@ -260,6 +260,7 @@ async fn test_submit_post_with_account() {
     assert_eq!(post.anon_token, None);
     assert_eq!(post.status, PostStatus::Pending);
     post.delete(&mut tx).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
     remove_encrypted_file(&encrypted_file_path);
@@ -302,6 +303,7 @@ async fn test_submit_post_with_account_while_anon() {
     assert_eq!(post.account_id, None);
     assert_eq!(post.status, PostStatus::Pending);
     post.delete(&mut tx).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
     remove_encrypted_file(&encrypted_file_path);
