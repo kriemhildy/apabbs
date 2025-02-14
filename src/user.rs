@@ -3,6 +3,8 @@ use regex::Regex;
 use sqlx::PgConnection;
 use uuid::Uuid;
 
+const BLOWFISH_ITERATIONS: i32 = 10;
+
 pub struct User {
     pub account: Option<Account>,
     pub anon_token: Uuid,
@@ -165,10 +167,11 @@ impl Credentials {
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         sqlx::query_as(concat!(
             "INSERT INTO accounts (username, password_hash, ip_hash) ",
-            "VALUES ($1, crypt($2, gen_salt('bf', 10)), $3) RETURNING *"
+            "VALUES ($1, crypt($2, gen_salt('bf', $3)), $4) RETURNING *"
         ))
         .bind(&self.username)
         .bind(&self.password)
+        .bind(BLOWFISH_ITERATIONS)
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
@@ -189,10 +192,11 @@ impl Credentials {
 
     pub async fn update_password(&self, tx: &mut PgConnection) {
         sqlx::query(concat!(
-            "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', 10)) ",
-            "WHERE username = $2"
+            "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', $2)) ",
+            "WHERE username = $3"
         ))
         .bind(&self.password)
+        .bind(BLOWFISH_ITERATIONS)
         .bind(&self.username)
         .execute(&mut *tx)
         .await
