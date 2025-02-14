@@ -116,10 +116,18 @@ fn remove_encrypted_file(encrypted_file_path: &Path) {
     std::fs::remove_dir(&uploads_uuid_dir).expect("remove uploads uuid dir");
 }
 
-async fn select_latest_post_by_token(tx: &mut PgConnection, anon_token: &Uuid) -> Post {
+async fn select_latest_post_by_token(tx: &mut PgConnection, anon_token: &Uuid) -> Option<Post> {
     sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
         .bind(anon_token)
-        .fetch_one(&mut *tx)
+        .fetch_optional(&mut *tx)
+        .await
+        .expect("select post")
+}
+
+async fn select_latest_post_by_username(tx: &mut PgConnection, username: &str) -> Option<Post> {
+    sqlx::query_as("SELECT * FROM posts WHERE username = $1 ORDER BY id DESC LIMIT 1")
+        .bind(username)
+        .fetch_optional(&mut *tx)
         .await
         .expect("select post")
 }
@@ -152,11 +160,43 @@ async fn test_index() {
 }
 
 #[tokio::test]
-async fn test_submit_post() {
+async fn test_submit_post_anon_no_media() {
     let (router, state) = init_test().await;
     let anon_token = Uuid::new_v4();
     let mut form = FormData::new(Vec::new());
     form.write_field("body", "<test body").unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(form.finish().unwrap()))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = select_latest_post_by_token(&mut tx, &anon_token)
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(post.body, "&lt;test body");
+    assert_eq!(post.media_file_name, None);
+    assert_eq!(post.media_category, None);
+    assert_eq!(post.media_mime_type, None);
+    assert_eq!(post.anon_token, Some(anon_token));
+    assert_eq!(post.account_id, None);
+    assert_eq!(post.username, None);
+    assert_eq!(post.status, PostStatus::Pending);
+    post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
+async fn test_submit_post_anon_with_media() {
+    let (router, state) = init_test().await;
+    let anon_token = Uuid::new_v4();
+    let mut form = FormData::new(Vec::new());
+    form.write_field("body", "").unwrap();
     form.write_path("media", TEST_IMAGE_PATH_STR, "image/jpeg")
         .unwrap();
     let request = Request::builder()
@@ -169,12 +209,98 @@ async fn test_submit_post() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_token(&mut tx, &anon_token).await;
+    let post = select_latest_post_by_token(&mut tx, &anon_token)
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(post.body, "");
+    assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_category, Some(PostMediaCategory::Image));
+    assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert_eq!(post.account_id, None);
+    assert_eq!(post.username, None);
+    assert_eq!(post.status, PostStatus::Pending);
+    post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let encrypted_file_path = post.encrypted_media_path();
+    remove_encrypted_file(&encrypted_file_path);
+}
+
+#[tokio::test]
+async fn test_submit_post_with_account() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = create_test_account(&mut tx, false).await;
+    tx.commit().await.expect(COMMIT);
+    let anon_token = Uuid::new_v4();
+    let mut form = FormData::new(Vec::new());
+    form.write_field("body", "<test body").unwrap();
+    form.write_path("media", TEST_IMAGE_PATH_STR, "image/jpeg")
+        .unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(form.finish().unwrap()))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = select_latest_post_by_username(&mut tx, &account.username)
+        .await
+        .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "&lt;test body");
     assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(PostMediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert_eq!(post.account_id, Some(account.id));
+    assert_eq!(post.anon_token, None);
+    assert_eq!(post.status, PostStatus::Pending);
+    post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+    let encrypted_file_path = post.encrypted_media_path();
+    remove_encrypted_file(&encrypted_file_path);
+}
+
+#[tokio::test]
+async fn test_submit_post_with_account_while_anon() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = create_test_account(&mut tx, false).await;
+    tx.commit().await.expect(COMMIT);
+    let anon_token = Uuid::new_v4();
+    let mut form = FormData::new(Vec::new());
+    form.write_field("body", "<test body").unwrap();
+    form.write_path("media", TEST_IMAGE_PATH_STR, "image/jpeg")
+        .unwrap();
+    form.write_field("anon", "on").unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(form.finish().unwrap()))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = select_latest_post_by_token(&mut tx, &anon_token)
+        .await
+        .unwrap();
+    assert!(select_latest_post_by_username(&mut tx, &account.username)
+        .await
+        .is_none());
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(post.body, "&lt;test body");
+    assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_category, Some(PostMediaCategory::Image));
+    assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert_eq!(post.account_id, None);
+    assert_eq!(post.status, PostStatus::Pending);
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
