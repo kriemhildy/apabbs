@@ -506,7 +506,17 @@ async fn review_post(
                     {
                         println!("generating thumbnail for {media_path_str}");
                         PostReview::generate_thumbnail(media_path_str).await;
-                        post_review.update_thumbnail(&mut tx, media_file_name).await;
+                        let thumbnail_path = post_review.thumbnail_path(media_file_name);
+                        if !thumbnail_path.exists() {
+                            return internal_server_error("thumbnail not created successfully");
+                        }
+                        let thumbnail_len = thumbnail_path.metadata().unwrap().len();
+                        let media_file_len = published_media_path.metadata().unwrap().len();
+                        if thumbnail_len > media_file_len {
+                            std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+                        } else {
+                            post_review.update_thumbnail(&mut tx, media_file_name).await;
+                        }
                     }
                 }
                 let uploads_uuid_dir = encrypted_media_path.parent().unwrap();
@@ -521,14 +531,14 @@ async fn review_post(
     let post = Post::select_by_uuid(&mut tx, &post_review.uuid)
         .await
         .expect("select post");
-    if post.thumbnail_file_name.is_some() && !post.thumbnail_path().exists() {
-        return internal_server_error("thumbnail not created successfully");
-    }
     if post.status == PostStatus::Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
             ban::insert(&mut tx, ip_hash).await;
         }
         post.delete(&mut tx).await;
+    }
+    if post.thumbnail_file_name.is_some() && !post.thumbnail_path().exists() {
+        return internal_server_error("error setting post thumbnail");
     }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);

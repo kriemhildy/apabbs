@@ -323,10 +323,19 @@ impl PostReview {
             .expect("update post status");
     }
 
-    pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
+    pub fn thumbnail_file_name(media_file_name: &str) -> String {
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
-        let thumbnail_file_name =
-            String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp");
+        String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp")
+    }
+
+    pub fn thumbnail_path(&self, media_file_name: &str) -> PathBuf {
+        std::path::Path::new(MEDIA_DIR)
+            .join(&self.uuid.to_string())
+            .join(Self::thumbnail_file_name(media_file_name))
+    }
+
+    pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
+        let thumbnail_file_name = Self::thumbnail_file_name(media_file_name);
         println!("thumbnail_file_name: {}", thumbnail_file_name);
         sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE uuid = $2")
             .bind(thumbnail_file_name)
