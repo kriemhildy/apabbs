@@ -16,7 +16,7 @@ use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
 const LOCAL_IP: &'static str = "::1";
 const APPLICATION_WWW_FORM_URLENCODED: &'static str = "application/x-www-form-urlencoded";
-const TEST_IMAGE_PATH_STR: &'static str = "tests/media/image.jpeg";
+const TEST_MEDIA_DIR: &'static str = "tests/media";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// test helpers
@@ -71,15 +71,16 @@ async fn delete_test_account(tx: &mut PgConnection, account: Account) {
         .expect("delete test account");
 }
 
-async fn create_test_post(tx: &mut PgConnection, with_test_image: bool) -> (Post, User) {
-    let (media_file_name, media_bytes) = if with_test_image {
-        let path = Path::new(TEST_IMAGE_PATH_STR);
-        (
-            Some(path.file_name().unwrap().to_str().unwrap().to_owned()),
-            Some(std::fs::read(path).expect("read test image file")),
-        )
-    } else {
-        (None, None)
+async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) -> (Post, User) {
+    let (media_file_name, media_bytes) = match media_file_name {
+        Some(media_file_name) => {
+            let path = Path::new(TEST_MEDIA_DIR).join(media_file_name);
+            (
+                Some(path.file_name().unwrap().to_str().unwrap().to_owned()),
+                Some(std::fs::read(path).expect("read test image file")),
+            )
+        }
+        None => (None, None),
     };
     let user = User {
         account: None,
@@ -88,12 +89,12 @@ async fn create_test_post(tx: &mut PgConnection, with_test_image: bool) -> (Post
     let post_submission = PostSubmission {
         body: String::from("test body"),
         anon: None,
-        media_file_name: media_file_name,
+        media_file_name: media_file_name.clone(),
         uuid: Uuid::new_v4(),
         media_bytes: media_bytes,
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
-    if with_test_image {
+    if media_file_name.is_some() {
         if let Err(msg) = post_submission.save_encrypted_media_file().await {
             eprintln!("{msg}");
             std::process::exit(1);
@@ -199,8 +200,9 @@ async fn test_submit_post_with_media() {
     let (router, state) = init_test().await;
     let anon_token = Uuid::new_v4();
     let mut form = FormData::new(Vec::new());
+    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
     form.write_field("body", "").unwrap();
-    form.write_path("media", TEST_IMAGE_PATH_STR, "image/jpeg")
+    form.write_path("media", test_image_path, "image/jpeg")
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
@@ -388,7 +390,7 @@ async fn test_logout() {
 async fn test_hide_rejected_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, user) = create_test_post(&mut tx, false).await;
+    let (post, user) = create_test_post(&mut tx, Some("image.jpeg")).await;
     PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Rejected,
@@ -418,14 +420,14 @@ async fn test_hide_rejected_post() {
 async fn test_interim() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post1, _user) = create_test_post(&mut tx, false).await;
+    let (post1, _user) = create_test_post(&mut tx, None).await;
     PostReview {
         uuid: post1.uuid.clone(),
         status: PostStatus::Approved,
     }
     .update_status(&mut tx)
     .await;
-    let (post2, _user) = create_test_post(&mut tx, false).await;
+    let (post2, _user) = create_test_post(&mut tx, None).await;
     PostReview {
         uuid: post2.uuid.clone(),
         status: PostStatus::Approved,
@@ -535,7 +537,7 @@ async fn test_update_password() {
 async fn test_review_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user) = create_test_post(&mut tx, true).await;
+    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
@@ -576,10 +578,53 @@ async fn test_review_post() {
 }
 
 #[tokio::test]
+async fn test_review_post_with_small_media() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (post, _user) = create_test_post(&mut tx, Some("small.png")).await;
+    let encrypted_media_path = post.encrypted_media_path();
+    let admin_account = create_test_account(&mut tx, true).await;
+    tx.commit().await.expect(COMMIT);
+    let post_review = PostReview {
+        uuid: post.uuid.clone(),
+        status: PostStatus::Approved,
+    };
+    let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/admin/review-post")
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
+        )
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .body(Body::from(post_review_str))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = Post::select_by_uuid(&mut tx, &post.uuid)
+        .await
+        .expect("select post");
+    let uploads_uuid_dir = encrypted_media_path.parent().unwrap();
+    assert!(!uploads_uuid_dir.exists());
+    let published_media_path = post.published_media_path();
+    assert!(published_media_path.exists());
+    let thumbnail_path = post_review.thumbnail_path(post.media_file_name.as_ref().unwrap());
+    assert!(!thumbnail_path.exists());
+    std::fs::remove_file(&published_media_path).expect("remove media file");
+    let media_uuid_dir = published_media_path.parent().unwrap();
+    std::fs::remove_dir(&media_uuid_dir).expect("remove media uuid dir");
+    post.delete(&mut tx).await;
+    delete_test_account(&mut tx, admin_account).await;
+    tx.commit().await.expect(COMMIT);
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+}
+
+#[tokio::test]
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user) = create_test_post(&mut tx, true).await;
+    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
