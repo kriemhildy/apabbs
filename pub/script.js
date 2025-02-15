@@ -46,12 +46,12 @@ function initUnseenPosts() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
-let webSocket, template, postsSection, reconnectInterval;
+let webSocket, template, postsDiv, reconnectInterval;
 let webSocketOpen = false; // apparently necessary to avoid duplicate reconnects
 
 function initDomElements() {
     template = document.createElement("template");
-    postsSection = document.querySelector("div#posts");
+    postsDiv = document.querySelector("div#posts");
 }
 
 function updatePost(uuid, html) {
@@ -61,7 +61,7 @@ function updatePost(uuid, html) {
     if (post) {
         post.replaceWith(template.content);
     } else {
-        postsSection.prepend(template.content);
+        postsDiv.prepend(template.content);
         incrementUnseenPosts();
     }
 }
