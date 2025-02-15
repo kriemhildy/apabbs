@@ -77,6 +77,7 @@ impl Post {
             query_builder.push_bind(from_id);
         }
         query_builder.push(" ORDER BY id ");
+        // invert interim order
         query_builder.push(if from_id.is_some() { "ASC" } else { "DESC" });
         query_builder.push(" LIMIT ");
         query_builder.push_bind(limit);
