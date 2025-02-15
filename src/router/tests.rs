@@ -71,7 +71,11 @@ async fn delete_test_account(tx: &mut PgConnection, account: Account) {
         .expect("delete test account");
 }
 
-async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) -> (Post, User) {
+async fn create_test_post(
+    tx: &mut PgConnection,
+    media_file_name: Option<&str>,
+    status: PostStatus,
+) -> (Post, User) {
     let (media_file_name, media_bytes) = match media_file_name {
         Some(media_file_name) => {
             let path = Path::new(TEST_MEDIA_DIR).join(media_file_name);
@@ -86,11 +90,12 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
         account: None,
         anon_token: Uuid::new_v4(),
     };
+    let uuid = Uuid::new_v4();
     let post_submission = PostSubmission {
-        body: String::from("test body"),
+        body: format!("<&test body {}", uuid),
         anon: None,
         media_file_name: media_file_name.clone(),
-        uuid: Uuid::new_v4(),
+        uuid: uuid,
         media_bytes: media_bytes,
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
@@ -100,6 +105,20 @@ async fn create_test_post(tx: &mut PgConnection, media_file_name: Option<&str>) 
             std::process::exit(1);
         }
     }
+    let post = match status {
+        PostStatus::Pending => post,
+        _ => {
+            PostReview {
+                uuid: post.uuid.clone(),
+                status: status,
+            }
+            .update_status(tx)
+            .await;
+            Post::select_by_uuid(tx, &post.uuid)
+                .await
+                .expect("select post")
+        }
+    };
     (post, user)
 }
 
@@ -168,7 +187,7 @@ async fn test_submit_post() {
     let (router, state) = init_test().await;
     let anon_token = Uuid::new_v4();
     let mut form = FormData::new(Vec::new());
-    form.write_field("body", "<test body").unwrap();
+    form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
@@ -183,7 +202,7 @@ async fn test_submit_post() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert_eq!(post.body, "&lt;test body");
+    assert_eq!(post.body, "&lt;&amp;test body");
     assert_eq!(post.media_file_name, None);
     assert_eq!(post.media_category, None);
     assert_eq!(post.media_mime_type, None);
@@ -236,7 +255,7 @@ async fn test_submit_post_with_account() {
     tx.commit().await.expect(COMMIT);
     let anon_token = Uuid::new_v4();
     let mut form = FormData::new(Vec::new());
-    form.write_field("body", "<test body").unwrap();
+    form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
@@ -269,7 +288,7 @@ async fn test_submit_post_with_account_while_anon() {
     tx.commit().await.expect(COMMIT);
     let anon_token = Uuid::new_v4();
     let mut form = FormData::new(Vec::new());
-    form.write_field("body", "<test body").unwrap();
+    form.write_field("body", "<&test body").unwrap();
     form.write_field("anon", "on").unwrap();
     let request = Request::builder()
         .method(Method::POST)
@@ -390,7 +409,7 @@ async fn test_logout() {
 async fn test_hide_rejected_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, user) = create_test_post(&mut tx, Some("image.jpeg")).await;
+    let (post, user) = create_test_post(&mut tx, Some("image.jpeg"), PostStatus::Pending).await;
     PostReview {
         uuid: post.uuid.clone(),
         status: PostStatus::Rejected,
@@ -420,20 +439,9 @@ async fn test_hide_rejected_post() {
 async fn test_interim() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post1, _user) = create_test_post(&mut tx, None).await;
-    PostReview {
-        uuid: post1.uuid.clone(),
-        status: PostStatus::Approved,
-    }
-    .update_status(&mut tx)
-    .await;
-    let (post2, _user) = create_test_post(&mut tx, None).await;
-    PostReview {
-        uuid: post2.uuid.clone(),
-        status: PostStatus::Approved,
-    }
-    .update_status(&mut tx)
-    .await;
+    let (post1, _user) = create_test_post(&mut tx, None, PostStatus::Approved).await;
+    let (post2, _user) = create_test_post(&mut tx, None, PostStatus::Approved).await;
+    let (post3, _user) = create_test_post(&mut tx, None, PostStatus::Approved).await;
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .uri(&format!("/interim/{}", &post1.uuid))
@@ -445,6 +453,10 @@ async fn test_interim() {
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(!body_str.contains(&post1.uuid.to_string()));
     assert!(body_str.contains(&post2.uuid.to_string()));
+    assert!(body_str.contains(&post3.uuid.to_string()));
+    let post2_index = body_str.find(&post2.uuid.to_string()).unwrap();
+    let post3_index = body_str.find(&post3.uuid.to_string()).unwrap();
+    assert!(post2_index < post3_index);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post1.delete(&mut tx).await;
     post2.delete(&mut tx).await;
@@ -537,7 +549,7 @@ async fn test_update_password() {
 async fn test_review_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
+    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
@@ -581,7 +593,7 @@ async fn test_review_post() {
 async fn test_review_post_with_small_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user) = create_test_post(&mut tx, Some("small.png")).await;
+    let (post, _user) = create_test_post(&mut tx, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
@@ -624,7 +636,7 @@ async fn test_review_post_with_small_media() {
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg")).await;
+    let (post, _user) = create_test_post(&mut tx, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
