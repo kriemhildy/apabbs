@@ -122,7 +122,7 @@ div#posts {
 }
 
 div.post {
-    flex: 400px;
+    flex: 310px;
     break-inside: avoid;
 }
 
@@ -163,7 +163,7 @@ video {
 
 div.post.solo img,
 video {
-    max-height: calc(100vh - 16em);
+    max-height: 750px;
 }
 
 div.post.solo div.body {
