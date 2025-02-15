@@ -172,7 +172,7 @@ video {
     max-height: calc(100vh - 16em);
 }
 
-@media (orientation: landscape) and (max-width: 1000px) {
+@media (orientation: landscape) and (max-height: 750px) {
     div.post.solo img,
     video {
         max-height: 750px;
