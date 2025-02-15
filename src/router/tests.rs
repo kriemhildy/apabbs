@@ -99,8 +99,8 @@ async fn create_test_post(
         body: format!("<&test body {}", uuid),
         anon: None,
         media_file_name: media_file_name.clone(),
-        uuid: uuid,
-        media_bytes: media_bytes,
+        uuid,
+        media_bytes,
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
     if media_file_name.is_some() {
