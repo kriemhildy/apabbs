@@ -122,7 +122,7 @@ div#posts {
 }
 
 div.post {
-    flex: 310px;
+    flex: 315px;
     break-inside: avoid;
 }
 
