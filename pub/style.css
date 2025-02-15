@@ -163,7 +163,7 @@ video {
 
 div.post.solo img,
 video {
-    max-height: 800px;
+    max-height: calc(100vh - 16em);
 }
 
 div.post.solo div.body {
