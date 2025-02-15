@@ -396,23 +396,23 @@ mod tests {
     #[tokio::test]
     async fn test_body_as_html() {
         let mut submission = PostSubmission {
-            body: "test body".to_owned(),
+            body: "<&test body".to_owned(),
             anon: None,
             media_file_name: None,
             uuid: Uuid::new_v4(),
             media_bytes: None,
         };
-        assert_eq!(submission.body_as_html(), "test body");
-        submission.body = "test body\n\nhttps://example.com".to_owned();
+        assert_eq!(submission.body_as_html(), "&lt;&amp;test body");
+        submission.body = "<&test body\n\nhttps://example.com".to_owned();
         assert_eq!(
             submission.body_as_html(),
-            "test body<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
+            "&lt;&amp;test body<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
         );
-        submission.body = "test body\n\nhttps://www.youtube.com/watch?v=12345678ab".to_owned();
+        submission.body = "<&test body\n\nhttps://www.youtube.com/watch?v=12345678ab".to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
-                "test body<br><br>",
+                "&lt;&amp;test body<br><br>",
                 r#"<a href="https://www.youtube.com/watch?v=12345678ab" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/12345678ab/mqdefault.jpg" "#,
                 r#"width="320" height="180" loading="lazy"></a>"#,
