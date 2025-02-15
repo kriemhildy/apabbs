@@ -465,6 +465,7 @@ async fn test_interim() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     post1.delete(&mut tx).await;
     post2.delete(&mut tx).await;
+    post3.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
 }
 
