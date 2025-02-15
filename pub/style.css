@@ -126,6 +126,12 @@ div.post {
     break-inside: avoid;
 }
 
+@media (orientation: landscape) and (max-width: 1000px) {
+    div.post {
+        flex: 315px;
+    }
+}
+
 div.post.pending,
 div.post.rejected,
 div.post.banned {
