@@ -117,19 +117,13 @@ form.ban {
 div#posts {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    align-items: center;
     margin-top: 12px;
 }
 
 div.post {
-    flex: 400px;
+    flex: auto;
     break-inside: avoid;
-}
-
-@media (orientation: landscape) and (max-width: 1000px) {
-    div.post {
-        flex: 315px;
-    }
 }
 
 div.post.pending,
@@ -164,7 +158,21 @@ div.post div.body {
 div.post img,
 video {
     max-width: 100%;
-    max-height: 600px;
+    max-height: 375px;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    div.post img,
+    video {
+        max-height: 200px;
+    }
+}
+
+@media (orientation: portrait) and (max-width: 800px) {
+    div.post img,
+    video {
+        max-height: 600px;
+    }
 }
 
 div.post.solo img,
