@@ -159,7 +159,7 @@ div.post div.body {
 
 div.post img,
 video {
-    max-width: min(100%, 700px);
+    max-width: min(100%, 800px);
     max-height: min(100vh, 600px);
 }
 
