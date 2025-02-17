@@ -400,7 +400,7 @@ async fn user_profile(
     };
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let notice = match jar.get(NOTICE_COOKIE).clone() {
+    let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
             let value = cookie.value().to_owned();
             jar = jar.remove(removal_cookie(NOTICE_COOKIE));
