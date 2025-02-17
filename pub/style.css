@@ -123,7 +123,7 @@ div#posts {
 }
 
 div.post {
-    flex: 600px;
+    flex: min(90vh, 600px);
     break-inside: avoid;
 }
 
@@ -159,35 +159,12 @@ div.post div.body {
 div.post img,
 video {
     max-width: min(100%, 700px);
-    max-height: 600px;
+    max-height: min(100vh, 600px);
 }
 
 div#posts.solo img,
 video {
-    max-height: calc(100vh - 16em);
-}
-
-@media (max-width: 1000px) {
-    div.post img,
-    video {
-        max-height: min(90vh, 600px);
-    }
-}
-
-@media (orientation: landscape) and (max-height: 500px) {
-    div.post {
-        flex: 100vh;
-    }
-
-    div.post img,
-    video {
-        max-height: 100vh;
-    }
-
-    div#posts.solo img,
-    video {
-        max-height: 750px;
-    }
+    max-height: 750px;
 }
 
 div#posts.solo div.body {
