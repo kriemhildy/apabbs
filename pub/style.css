@@ -164,7 +164,7 @@ video {
 
 div#posts.solo img,
 video {
-    max-height: 750px;
+    max-height: min(100vh, 750px);
 }
 
 div#posts.solo div.body {
