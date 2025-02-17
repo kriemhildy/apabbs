@@ -14,7 +14,7 @@
             {% endif %}
         </form>
         {% endif %}
-        <div id="posts">
+        <div id="posts"{{ ' class="solo"' if solo }}>
             {% for post in posts %}
             {% include "post.jinja" %}
             {% endfor %}
