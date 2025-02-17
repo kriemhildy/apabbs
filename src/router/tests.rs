@@ -270,15 +270,15 @@ async fn test_submit_post_with_account() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_username(&mut tx, &account.username)
+    let account_post = select_latest_post_by_username(&mut tx, &account.username)
         .await
         .unwrap();
-    let anon_token_post_option = select_latest_post_by_anon_token(&mut tx, &anon_token).await;
-    assert!(anon_token_post_option.is_none());
+    let anon_post = select_latest_post_by_anon_token(&mut tx, &anon_token).await;
+    assert!(anon_post.is_none());
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert_eq!(post.account_id, Some(account.id));
-    assert_eq!(post.anon_token, None);
-    post.delete(&mut tx).await;
+    assert_eq!(account_post.account_id, Some(account.id));
+    assert_eq!(account_post.anon_token, None);
+    account_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
@@ -304,14 +304,14 @@ async fn test_submit_post_with_account_while_anon() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_anon_token(&mut tx, &anon_token)
+    let anon_post = select_latest_post_by_anon_token(&mut tx, &anon_token)
         .await
         .unwrap();
-    let username_post_option = select_latest_post_by_username(&mut tx, &account.username).await;
-    assert!(username_post_option.is_none());
+    let account_post = select_latest_post_by_username(&mut tx, &account.username).await;
+    assert!(account_post.is_none());
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert_eq!(post.account_id, None);
-    post.delete(&mut tx).await;
+    assert_eq!(anon_post.account_id, None);
+    anon_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
