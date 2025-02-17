@@ -152,7 +152,8 @@ input#post-button {
 }
 
 div.post div.body {
-    max-height: 300px;
+    max-width: 1000px;
+    max-height: min(80vh, 500px);
     overflow: hidden;
 }
 
@@ -168,7 +169,6 @@ video {
 }
 
 div#posts.solo div.body {
-    max-width: 1000px;
     max-height: unset;
     overflow: unset;
 }
