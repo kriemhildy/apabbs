@@ -12,10 +12,10 @@
 <body>
     {% if nav %}
     <nav class="system">
-        {% if not logged_in %}
-        <a href="/login">log in</a>
-        {% else %}
+        {% if logged_in %}
         <a href="/user/{{ username }}">{{ username }}</a>
+        {% else %}
+        <a href="/login">log in</a>
         {% endif %}
     </nav>
     {% endif %}
