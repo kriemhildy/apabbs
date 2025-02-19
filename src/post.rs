@@ -213,7 +213,7 @@ impl PostSubmission {
         let youtube_thumbnail_link = concat!(
             r#"<a href="https://www.youtube.com/watch?v=$1$2" target="_blank">"#,
             r#"<img src="https://img.youtube.com/vi/$1$2/mqdefault.jpg" "#,
-            r#"width="320" height="180" loading="lazy"></a>"#,
+            r#"width="320" height="180"></a>"#,
         );
         let html = youtube_link_regex.replace_all(&html, youtube_thumbnail_link);
         html.replace("\n", "<br>")
@@ -416,7 +416,7 @@ mod tests {
                 "&lt;&amp;test body<br><br>",
                 r#"<a href="https://www.youtube.com/watch?v=12345678ab" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/12345678ab/mqdefault.jpg" "#,
-                r#"width="320" height="180" loading="lazy"></a>"#,
+                r#"width="320" height="180"></a>"#,
             )
         );
         submission.body = "<&test body\n\nhttps://youtube.com/shorts/rb3fj3ADILJ".to_owned();
@@ -426,7 +426,7 @@ mod tests {
                 "&lt;&amp;test body<br><br>",
                 r#"<a href="https://www.youtube.com/watch?v=rb3fj3ADILJ" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/rb3fj3ADILJ/mqdefault.jpg" "#,
-                r#"width="320" height="180" loading="lazy"></a>"#,
+                r#"width="320" height="180"></a>"#,
             )
         );
         submission.body = "<&test body\n\nhttps://youtu.be/2Uc9WTDBSI8?si=q9OkPEWRQ0RjoWg".to_owned();
@@ -436,7 +436,7 @@ mod tests {
                 "&lt;&amp;test body<br><br>",
                 r#"<a href="https://www.youtube.com/watch?v=2Uc9WTDBSI8" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/2Uc9WTDBSI8/mqdefault.jpg" "#,
-                r#"width="320" height="180" loading="lazy"></a>"#,
+                r#"width="320" height="180"></a>"#,
             )
         );
     }
