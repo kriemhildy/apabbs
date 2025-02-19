@@ -205,8 +205,8 @@ impl PostSubmission {
         let html = url_pattern.replace_all(&html, anchor_tag);
         let youtube_link_pattern = concat!(
             r#"<a href=""#,
-            r"https?://(?:(?:www|m).youtube.com/(?:watch?(?:\S*)v=|shorts/)([^&\s]+)|",
-            r"youtu.be/([^&\s]+))\S*",
+            r"https?://(?:(?:(?:www|m)\.)?youtube\.com/(?:watch?(?:\S*)v=|shorts/)([^&\s\?]+)|",
+            r"youtu.be/([^&\s\?]+))\S*",
             r#"" target="_blank">\S+</a>"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
@@ -416,6 +416,26 @@ mod tests {
                 "&lt;&amp;test body<br><br>",
                 r#"<a href="https://www.youtube.com/watch?v=12345678ab" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/12345678ab/mqdefault.jpg" "#,
+                r#"width="320" height="180" loading="lazy"></a>"#,
+            )
+        );
+        submission.body = "<&test body\n\nhttps://youtube.com/shorts/rb3fj3ADILJ".to_owned();
+        assert_eq!(
+            submission.body_as_html(),
+            concat!(
+                "&lt;&amp;test body<br><br>",
+                r#"<a href="https://www.youtube.com/watch?v=rb3fj3ADILJ" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/rb3fj3ADILJ/mqdefault.jpg" "#,
+                r#"width="320" height="180" loading="lazy"></a>"#,
+            )
+        );
+        submission.body = "<&test body\n\nhttps://youtu.be/2Uc9WTDBSI8?si=q9OkPEWRQ0RjoWg".to_owned();
+        assert_eq!(
+            submission.body_as_html(),
+            concat!(
+                "&lt;&amp;test body<br><br>",
+                r#"<a href="https://www.youtube.com/watch?v=2Uc9WTDBSI8" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/2Uc9WTDBSI8/mqdefault.jpg" "#,
                 r#"width="320" height="180" loading="lazy"></a>"#,
             )
         );
