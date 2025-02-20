@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 const UPLOADS_DIR: &'static str = "uploads";
-const MEDIA_DIR: &'static str = "pub/m";
+const MEDIA_DIR: &'static str = "pub/media";
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
