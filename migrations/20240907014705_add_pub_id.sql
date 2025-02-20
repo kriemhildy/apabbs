@@ -22,4 +22,6 @@ CREATE UNIQUE INDEX ON posts(pub_id);
 
 ALTER TABLE posts ADD CHECK (length(pub_id) = 16);
 
+ALTER TABLE posts ALTER COLUMN uuid DROP NOT NULL;
+
 COMMIT;
