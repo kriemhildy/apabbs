@@ -22,32 +22,11 @@ impl User {
         }
     }
 
-    pub fn anon(&self) -> bool {
-        match &self.account {
-            Some(account) => account.anon,
-            None => true,
-        }
-    }
-
     pub fn time_zone(&self) -> &str {
         match &self.account {
             Some(account) => &account.time_zone,
             None => "UTC",
         }
-    }
-
-    pub async fn update_anon(mut self, tx: &mut PgConnection, anon: bool) -> Self {
-        self.account = match self.account {
-            Some(mut account) => {
-                if account.anon != anon {
-                    account.anon = anon;
-                    account.update_anon(tx, anon).await;
-                }
-                Some(account)
-            }
-            None => None,
-        };
-        self
     }
 }
 
@@ -58,7 +37,6 @@ pub struct Account {
     pub token: Uuid,
     pub password_hash: String,
     pub admin: bool,
-    pub anon: bool,
     pub time_zone: String,
     #[sqlx(default)]
     pub created_at_str: Option<String>,
@@ -83,15 +61,6 @@ impl Account {
         .fetch_optional(&mut *tx)
         .await
         .expect("select account by username")
-    }
-
-    pub async fn update_anon(&self, tx: &mut PgConnection, anon: bool) {
-        sqlx::query("UPDATE accounts SET anon = $1 WHERE id = $2")
-            .bind(anon)
-            .bind(self.id)
-            .execute(&mut *tx)
-            .await
-            .expect("update anon bool");
     }
 }
 

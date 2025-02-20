@@ -96,7 +96,6 @@ async fn create_test_post(
     };
     let post_submission = PostSubmission {
         body: String::from("<&test body"),
-        anon: None,
         media_file_name: media_file_name.clone(),
         media_bytes,
     };
@@ -280,39 +279,6 @@ async fn test_submit_post_with_account() {
     assert_eq!(account_post.account_id, Some(account.id));
     assert_eq!(account_post.anon_token, None);
     account_post.delete(&mut tx).await;
-    delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect(COMMIT);
-}
-
-#[tokio::test]
-async fn test_submit_post_with_account_while_anon() {
-    let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
-    tx.commit().await.expect(COMMIT);
-    let anon_token = Uuid::new_v4();
-    let mut form = FormData::new(Vec::new());
-    form.write_field("body", "<&test body").unwrap();
-    form.write_field("anon", "on").unwrap();
-    let request = Request::builder()
-        .method(Method::POST)
-        .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
-        .header(CONTENT_TYPE, form.content_type_header())
-        .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::from(form.finish().unwrap()))
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
-    let mut tx = state.db.begin().await.expect(BEGIN);
-    let anon_post = select_latest_post_by_anon_token(&mut tx, &anon_token)
-        .await
-        .unwrap();
-    let account_post = select_latest_post_by_username(&mut tx, &account.username).await;
-    assert!(account_post.is_none());
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert_eq!(anon_post.account_id, None);
-    anon_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }

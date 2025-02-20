@@ -123,7 +123,6 @@ async fn index(
             logged_in => user.account.is_some(),
             username => user.username(),
             admin => user.admin(),
-            anon => user.anon(),
             query_post,
             prior_page_post,
             solo,
@@ -149,7 +148,6 @@ async fn submit_post(
     check_for_ban!(tx, &ip_hash);
     let mut post_submission = PostSubmission {
         body: String::default(),
-        anon: None,
         media_file_name: None,
         media_bytes: None,
     };
@@ -157,7 +155,6 @@ async fn submit_post(
         let name = field.name().unwrap().to_string();
         match name.as_str() {
             "body" => post_submission.body = field.text().await.unwrap(),
-            "anon" => post_submission.anon = Some(field.text().await.unwrap()),
             "media" => {
                 if post_submission.media_file_name.is_some() {
                     return bad_request("only upload one media file");
@@ -178,7 +175,6 @@ async fn submit_post(
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
-    let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     if post_submission.media_file_name.is_some() {
         if let Err(msg) = post_submission

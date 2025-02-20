@@ -8,10 +8,6 @@
             <input type="file" name="media" id="media">
             <br>
             <input type="submit" value="Post" id="post-submit">
-            {% if logged_in %}
-            <input type="checkbox" name="anon" id="anon" {{ "checked" if anon }}>
-            <label for="anon">Post anonymously</label>
-            {% endif %}
         </form>
         {% endif %}
         <div id="posts"{{ ' class="solo"' if solo }}>

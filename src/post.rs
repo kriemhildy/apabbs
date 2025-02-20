@@ -151,7 +151,6 @@ impl Post {
 
 pub struct PostSubmission {
     pub body: String,
-    pub anon: Option<String>,
     pub media_file_name: Option<String>,
     pub media_bytes: Option<Vec<u8>>,
 }
@@ -160,11 +159,9 @@ impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
-        let (anon_token, account_id, username) = if user.anon() {
-            (Some(&user.anon_token), None, None)
-        } else {
-            let account = user.account.as_ref().expect("get account");
-            (None, Some(account.id), Some(&account.username))
+        let (anon_token, account_id, username) = match &user.account {
+            Some(account) => (None, Some(account.id), Some(&account.username)),
+            None => (Some(&user.anon_token), None, None),
         };
         sqlx::query_as(concat!(
             "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, ",
@@ -182,10 +179,6 @@ impl PostSubmission {
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post")
-    }
-
-    pub fn anon(&self) -> bool {
-        self.anon.as_ref().is_some_and(|a| a == "on")
     }
 
     fn body_as_html(&self) -> String {
@@ -396,7 +389,6 @@ mod tests {
     async fn test_body_as_html() {
         let mut submission = PostSubmission {
             body: "<&test body".to_owned(),
-            anon: None,
             media_file_name: None,
             media_bytes: None,
         };
