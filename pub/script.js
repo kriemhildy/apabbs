@@ -100,7 +100,7 @@ function initWebSocket() {
 // update after sleep
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-function mostRecentPubId() {
+function mostRecentPostId() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
         return post.id.replace("post-", "");
@@ -110,9 +110,9 @@ function mostRecentPubId() {
 }
 
 function checkInterim() {
-    const pubId = mostRecentPubId();
-    console.log(`fetching interim post data from ${pubId}`);
-    fetch(`/interim/${pubId}`).then((response) => {
+    const postId = mostRecentPostId();
+    console.log(`fetching interim post data from ${postId}`);
+    fetch(`/interim/${postId}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {

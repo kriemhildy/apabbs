@@ -1,8 +1,8 @@
 BEGIN;
 
-CREATE OR REPLACE FUNCTION alphanumeric(size INT) RETURNS TEXT AS $$
+CREATE OR REPLACE FUNCTION urlsafe(size INT) RETURNS TEXT AS $$
 DECLARE
-  characters TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
+  characters TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$-_.+!*''(),';
   bytes BYTEA := gen_random_bytes(size);
   l INT := length(characters);
   i INT := 0;
@@ -16,11 +16,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-ALTER TABLE posts ADD COLUMN pub_id text DEFAULT alphanumeric(11) UNIQUE NOT NULL;
+ALTER TABLE posts ADD COLUMN pub_id text DEFAULT urlsafe(8) UNIQUE NOT NULL;
 
-CREATE UNIQUE INDEX ON posts(pub_id);
-
-ALTER TABLE posts ADD CHECK (length(pub_id) = 11);
+ALTER TABLE posts ADD CHECK (length(pub_id) = 8);
 
 ALTER TABLE posts ALTER COLUMN uuid DROP NOT NULL;
 

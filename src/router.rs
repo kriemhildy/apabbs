@@ -40,7 +40,6 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     let router = axum::Router::new()
         .route("/", get(index))
         .route("/page/{pub_id}", get(index))
-        .route("/post/{pub_id}", get(index))
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
@@ -59,6 +58,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
             post(review_post).patch(review_post).delete(review_post),
         )
         .route("/admin/decrypt-media/{pub_id}", get(decrypt_media))
+        .route("/{pub_id}", get(index))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
         router.layer(init::trace_layer())
@@ -95,7 +95,7 @@ async fn index(
         Some(post) => Some(post.id),
         None => None,
     };
-    let solo = uri.path().contains("/post/");
+    let solo = query_post.is_some() && !uri.path().contains("/page/");
     let posts = if solo {
         match &query_post {
             Some(post) => vec![post.clone()],

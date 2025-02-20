@@ -43,7 +43,7 @@
                 {% endif %}
                 {% if not solo and (not post.status == "approved" or not post.media_category == "image") %}
                 <div class="pub-id">
-                    <a href="/post/{{ post.pub_id }}">&rarr;</a>
+                    <a href="/{{ post.pub_id }}">&rarr;</a>
                 </div>
                 {% endif %}
                 {% if admin and (post.status == "pending" or solo) %}
