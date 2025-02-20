@@ -160,12 +160,12 @@ div.post div.body {
 div.post img,
 video {
     max-width: min(100%, 800px);
-    max-height: min(100vh, 600px);
+    max-height: min(90vh, 600px);
 }
 
 div#posts.solo img,
 video {
-    max-height: min(100vh, 750px);
+    max-height: calc(100vh - 12em);
 }
 
 div#posts.solo div.body {
