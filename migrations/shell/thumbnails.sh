@@ -6,11 +6,11 @@ psql $DATABASE_URL \
     --tuples-only \
     --field-separator ' ' \
 | while read -r pub_id media_file_name; do
-    echo "Generating webp thumbnail for pub/media/$pub_id/$media_file_name"
+    echo "Generating webp thumbnail for pub/m/$pub_id/$media_file_name"
     # extension=$(echo "${media_file_name##*.}" | tr '[:upper:]' '[:lower:]')
     extension=$(echo "${media_file_name##*.}" | tr '[:upper:]' '[:lower:]')
     echo "Extension: $extension"
-    vips_input_file_path="pub/media/$pub_id/$media_file_name"
+    vips_input_file_path="pub/m/$pub_id/$media_file_name"
     if [[ $extension == "webp" || $extension == "gif" ]]; then
         vips_input_file_path="$vips_input_file_path[n=-1]"
     fi
@@ -25,7 +25,7 @@ psql $DATABASE_URL \
     echo "Thumbnail generated: $thumbnail_file_name"
     psql $DATABASE_URL \
        --command="UPDATE posts SET thumbnail_file_name = '$thumbnail_file_name' WHERE pub_id = '$pub_id';"
-    old_jpg_thumbnail="pub/media/$pub_id/tn_$file_name_without_extension.jpg"
+    old_jpg_thumbnail="pub/m/$pub_id/tn_$file_name_without_extension.jpg"
     if [ -f "$old_jpg_thumbnail" ]; then
         echo "delete old jpg thumbnail $old_jpg_thumbnail"
         rm "$old_jpg_thumbnail"

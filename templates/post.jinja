@@ -9,7 +9,7 @@
                 {% set optimal_file_name =
                     post.thumbnail_file_name if not solo and post.thumbnail_file_name
                     else post.media_file_name %}
-                {% set media_path = "/media/" + post.pub_id + "/" + optimal_file_name|urlencode %}
+                {% set media_path = "/m/" + post.pub_id + "/" + optimal_file_name|urlencode %}
                 {% include "media.jinja" %}
                 {% elif post.status == "rejected" %}
                 <p class="review">File "{{ post.media_file_name|e }}" deleted.</p>
