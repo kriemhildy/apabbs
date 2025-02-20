@@ -1,14 +1,14 @@
-                    {% if post.media_category == "image" %}
-                    {% set link_href = (media_path if solo else "/" + post.uri) %}
-                    <a href="{{ link_href }}">
-                        <img src="{{ media_path }}" alt="&rarr;">
-                    </a>
-                    {% elif post.media_category == "video" %}
-                    <video controls>
-                        <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
-                    </video>
-                    {% elif post.media_category == "audio" %}
-                    <audio controls>
-                        <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
-                    </audio>
-                    {% endif %}
+                {% if post.media_category == "image" %}
+                {% set link_href = (media_path if solo else "/" + post.uri) %}
+                <a href="{{ link_href }}">
+                    <img src="{{ media_path }}" alt="&rarr;">
+                </a>
+                {% elif post.media_category == "video" %}
+                <video controls>
+                    <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
+                </video>
+                {% elif post.media_category == "audio" %}
+                <audio controls>
+                    <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
+                </audio>
+                {% endif %}
