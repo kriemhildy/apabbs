@@ -54,8 +54,8 @@ function initDomElements() {
     postsDiv = document.querySelector("div#posts");
 }
 
-function updatePost(pub_id, html) {
-    const post = document.querySelector(`div#post-${pub_id}`);
+function updatePost(pubId, html) {
+    const post = document.querySelector(`div#post-${CSS.escape(pubId)}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -68,8 +68,8 @@ function updatePost(pub_id, html) {
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
-    console.log("updating websocket post: ", json.pub_id);
-    updatePost(json.pub_id, json.html);
+    console.log("updating websocket post: ", json.pubId);
+    updatePost(json.pubId, json.html);
 }
 
 function handleWebSocketClosed() {
@@ -188,7 +188,7 @@ function disableSubmitButtons() {
 function restoreSubmitButtons() {
     console.log("restoring submit buttons to previous state");
     for (const id of Object.keys(priorDisabledStatuses)) {
-        let input = document.querySelector(`input#${id}`);
+        let input = document.querySelector(`input#${CSS.escape(id)}`);
         if (input !== null) {
             input.disabled = priorDisabledStatuses[id];
         }
