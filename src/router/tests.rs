@@ -94,17 +94,18 @@ async fn create_test_post(
         }
         None => (None, None),
     };
-    let pub_id = PostSubmission::generate_alphanumeric_id();
     let post_submission = PostSubmission {
-        body: format!("<&test body {}", pub_id),
+        body: String::from("<&test body"),
         anon: None,
         media_file_name: media_file_name.clone(),
-        pub_id,
         media_bytes,
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
     if media_file_name.is_some() {
-        if let Err(msg) = post_submission.save_encrypted_media_file().await {
+        if let Err(msg) = post_submission
+            .save_encrypted_media_file(&post.pub_id)
+            .await
+        {
             eprintln!("{msg}");
             std::process::exit(1);
         }

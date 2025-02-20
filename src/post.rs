@@ -154,7 +154,6 @@ pub struct PostSubmission {
     pub anon: Option<String>,
     pub media_file_name: Option<String>,
     pub media_bytes: Option<Vec<u8>>,
-    pub pub_id: String,
 }
 
 impl PostSubmission {
@@ -168,16 +167,15 @@ impl PostSubmission {
             (None, Some(account.id), Some(&account.username))
         };
         sqlx::query_as(concat!(
-            "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, pub_id, ",
+            "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, ",
             "media_file_name, media_category, media_mime_type) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         ))
         .bind(anon_token)
         .bind(account_id)
         .bind(username)
         .bind(&self.body_as_html())
         .bind(ip_hash)
-        .bind(&self.pub_id)
         .bind(self.media_file_name.as_deref())
         .bind(media_category)
         .bind(media_mime_type.as_deref())
@@ -266,13 +264,13 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    pub async fn save_encrypted_media_file(self) -> Result<(), String> {
+    pub async fn save_encrypted_media_file(self, pub_id: &str) -> Result<(), String> {
         if self.media_bytes.is_none() {
             return Err(String::from("no media bytes"));
         }
         let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
         let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-            .join(&self.pub_id)
+            .join(pub_id)
             .join(&encrypted_file_name);
         let uploads_pub_id_dir = encrypted_file_path.parent().unwrap();
         std::fs::create_dir(uploads_pub_id_dir).expect("create uploads pub_id dir");
@@ -307,16 +305,6 @@ impl PostSubmission {
             std::fs::remove_dir(uploads_pub_id_dir).expect("remove uploads pub_id dir");
             Err(String::from("gpg failed to encrypt media file"))
         }
-    }
-
-    pub fn generate_alphanumeric_id() -> String {
-        use rand::distributions::Alphanumeric;
-        use rand::Rng;
-        rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(12)
-            .map(char::from)
-            .collect()
     }
 }
 
@@ -410,7 +398,6 @@ mod tests {
             body: "<&test body".to_owned(),
             anon: None,
             media_file_name: None,
-            pub_id: PostSubmission::generate_alphanumeric_id(),
             media_bytes: None,
         };
         assert_eq!(submission.body_as_html(), "&lt;&amp;test body");
@@ -439,7 +426,8 @@ mod tests {
                 r#"width="320" height="180"></a>"#,
             )
         );
-        submission.body = "<&test body\n\nhttps://youtu.be/2Uc9WTDBSI8?si=q9OkPEWRQ0RjoWg".to_owned();
+        submission.body =
+            "<&test body\n\nhttps://youtu.be/2Uc9WTDBSI8?si=q9OkPEWRQ0RjoWg".to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(

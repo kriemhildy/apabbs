@@ -152,7 +152,6 @@ async fn submit_post(
         anon: None,
         media_file_name: None,
         media_bytes: None,
-        pub_id: PostSubmission::generate_alphanumeric_id(),
     };
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
@@ -182,7 +181,10 @@ async fn submit_post(
     let user = user.update_anon(&mut tx, post_submission.anon()).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     if post_submission.media_file_name.is_some() {
-        if let Err(msg) = post_submission.save_encrypted_media_file().await {
+        if let Err(msg) = post_submission
+            .save_encrypted_media_file(&post.pub_id)
+            .await
+        {
             return internal_server_error(&msg);
         }
     }
