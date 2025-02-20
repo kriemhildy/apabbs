@@ -1,7 +1,5 @@
 BEGIN;
 
-CREATE EXTENSION pgcrypto;
-
 CREATE OR REPLACE FUNCTION alphanumeric(size INT) RETURNS TEXT AS $$
 DECLARE
   characters TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
