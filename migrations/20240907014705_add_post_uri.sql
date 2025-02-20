@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE OR REPLACE FUNCTION urlsafe(size INT) RETURNS TEXT AS $$
+CREATE FUNCTION urlsafe(size INT) RETURNS TEXT AS $$
 DECLARE
   characters TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$-_.+!*''(),';
   bytes BYTEA := gen_random_bytes(size);
