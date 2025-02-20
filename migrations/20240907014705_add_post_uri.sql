@@ -16,9 +16,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-ALTER TABLE posts ADD COLUMN pub_id text DEFAULT urlsafe(8) UNIQUE NOT NULL;
+ALTER TABLE posts ADD COLUMN uri text DEFAULT urlsafe(8) UNIQUE NOT NULL;
 
-ALTER TABLE posts ADD CHECK (length(pub_id) = 8);
+ALTER TABLE posts ADD CHECK (length(uri) = 8);
 
 ALTER TABLE posts ALTER COLUMN uuid DROP NOT NULL;
 

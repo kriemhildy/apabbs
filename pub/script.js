@@ -54,8 +54,8 @@ function initDomElements() {
     postsDiv = document.querySelector("div#posts");
 }
 
-function updatePost(pubId, html) {
-    const post = document.querySelector(`div#post-${CSS.escape(pubId)}`);
+function updatePost(uri, html) {
+    const post = document.querySelector(`div#post-${CSS.escape(uri)}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -68,8 +68,8 @@ function updatePost(pubId, html) {
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
-    console.log("updating websocket post: ", json.pubId);
-    updatePost(json.pubId, json.html);
+    console.log("updating websocket post: ", json.uri);
+    updatePost(json.uri, json.html);
 }
 
 function handleWebSocketClosed() {
@@ -116,8 +116,8 @@ function checkInterim() {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
-                    console.log("updating interim post: ", post.pubId);
-                    updatePost(post.pubId, post.html);
+                    console.log("updating interim post: ", post.uri);
+                    updatePost(post.uri, post.html);
                 }
             });
         }
