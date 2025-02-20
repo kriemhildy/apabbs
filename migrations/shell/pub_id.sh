@@ -5,6 +5,8 @@ psql $DATABASE_URL \
     --quiet \
     --tuples-only \
 | while read uuid pub_id; do
-  echo "Moving media from $uuid to $pub_id"
-  mv "pub/media/$uuid" "pub/media/$pub_id"
+    if [ -d "pub/media/$uuid" ]; then
+        echo "Moving media from $uuid to $pub_id"
+        mv "pub/media/$uuid" "pub/media/$pub_id"
+    fi
 done
