@@ -16,11 +16,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-ALTER TABLE posts ADD COLUMN pub_id text DEFAULT alphanumeric(16) UNIQUE NOT NULL;
+ALTER TABLE posts ADD COLUMN pub_id text DEFAULT alphanumeric(12) UNIQUE NOT NULL;
 
 CREATE UNIQUE INDEX ON posts(pub_id);
 
-ALTER TABLE posts ADD CHECK (length(pub_id) = 16);
+ALTER TABLE posts ADD CHECK (length(pub_id) = 12);
 
 ALTER TABLE posts ALTER COLUMN uuid DROP NOT NULL;
 
