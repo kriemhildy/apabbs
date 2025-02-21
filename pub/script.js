@@ -54,8 +54,8 @@ function initDomElements() {
     postsDiv = document.querySelector("div#posts");
 }
 
-function updatePost(uri, html) {
-    const post = document.querySelector(`div#post-${uri}`);
+function updatePost(key, html) {
+    const post = document.querySelector(`div#post-${key}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -68,8 +68,8 @@ function updatePost(uri, html) {
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
-    console.log("updating websocket post: ", json.uri);
-    updatePost(json.uri, json.html);
+    console.log("updating websocket post: ", json.key);
+    updatePost(json.key, json.html);
 }
 
 function handleWebSocketClosed() {
@@ -100,7 +100,7 @@ function initWebSocket() {
 // update after sleep
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-function mostRecentPostId() {
+function latestPostKey() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
         return post.id.replace("post-", "");
@@ -110,14 +110,14 @@ function mostRecentPostId() {
 }
 
 function checkInterim() {
-    const postId = mostRecentPostId();
-    console.log(`fetching interim post data from ${postId}`);
-    fetch(`/interim/${postId}`).then((response) => {
+    const latestPostKey = latestPostKey();
+    console.log(`fetching interim post data from ${latestPostKey}`);
+    fetch(`/interim/${latestPostKey}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
-                    console.log("updating interim post: ", post.uri);
-                    updatePost(post.uri, post.html);
+                    console.log("updating interim post: ", post.key);
+                    updatePost(post.key, post.html);
                 }
             });
         }

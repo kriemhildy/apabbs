@@ -102,7 +102,7 @@ async fn create_test_post(
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
     if media_file_name.is_some() {
         if let Err(msg) = post_submission
-            .save_encrypted_media_file(&post.uri)
+            .save_encrypted_media_file(&post.key)
             .await
         {
             eprintln!("{msg}");
@@ -113,12 +113,12 @@ async fn create_test_post(
         PostStatus::Pending => post,
         _ => {
             PostReview {
-                uri: post.uri.clone(),
+                key: post.key.clone(),
                 status: status,
             }
             .update_status(tx)
             .await;
-            Post::select_by_uri(tx, &post.uri)
+            Post::select_by_key(tx, &post.key)
                 .await
                 .expect("select post")
         }
@@ -134,9 +134,9 @@ fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
 
 fn remove_encrypted_file(encrypted_file_path: &Path) {
     println!("removing encrypted file: {:?}", encrypted_file_path);
-    let uploads_uri_dir = encrypted_file_path.parent().unwrap();
+    let uploads_key_dir = encrypted_file_path.parent().unwrap();
     std::fs::remove_file(&encrypted_file_path).expect("remove encrypted file");
-    std::fs::remove_dir(&uploads_uri_dir).expect("remove uploads uri dir");
+    std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
 }
 
 async fn select_latest_post_by_anon_token(
@@ -382,14 +382,14 @@ async fn test_hide_rejected_post() {
     let user = test_anon_user();
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     PostReview {
-        uri: post.uri.clone(),
+        key: post.key.clone(),
         status: PostStatus::Rejected,
     }
     .update_status(&mut tx)
     .await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
-        uri: post.uri.clone(),
+        key: post.key.clone(),
     };
     let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
     let request = Request::builder()
@@ -416,18 +416,18 @@ async fn test_interim() {
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
-        .uri(&format!("/interim/{}", &post1.uri))
+        .uri(&format!("/interim/{}", &post1.key))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(!body_str.contains(&post1.uri));
-    assert!(body_str.contains(&post2.uri));
-    assert!(body_str.contains(&post3.uri));
-    let post2_index = body_str.find(&post2.uri).unwrap();
-    let post3_index = body_str.find(&post3.uri).unwrap();
+    assert!(!body_str.contains(&post1.key));
+    assert!(body_str.contains(&post2.key));
+    assert!(body_str.contains(&post3.key));
+    let post2_index = body_str.find(&post2.key).unwrap();
+    let post3_index = body_str.find(&post3.key).unwrap();
     assert!(post2_index < post3_index);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post1.delete(&mut tx).await;
@@ -528,7 +528,7 @@ async fn test_review_post() {
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        uri: post.uri.clone(),
+        key: post.key.clone(),
         status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
@@ -544,19 +544,19 @@ async fn test_review_post() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = Post::select_by_uri(&mut tx, &post.uri)
+    let post = Post::select_by_key(&mut tx, &post.key)
         .await
         .expect("select post");
-    let uploads_uri_dir = encrypted_media_path.parent().unwrap();
-    assert!(!uploads_uri_dir.exists());
+    let uploads_key_dir = encrypted_media_path.parent().unwrap();
+    assert!(!uploads_key_dir.exists());
     let published_media_path = post.published_media_path();
     assert!(published_media_path.exists());
     let thumbnail_path = post.thumbnail_path();
     assert!(thumbnail_path.exists());
     std::fs::remove_file(&published_media_path).expect("remove media file");
     std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
-    let media_uri_dir = published_media_path.parent().unwrap();
-    std::fs::remove_dir(&media_uri_dir).expect("remove media uri dir");
+    let media_key_dir = published_media_path.parent().unwrap();
+    std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
@@ -573,7 +573,7 @@ async fn test_review_post_with_small_media() {
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        uri: post.uri.clone(),
+        key: post.key.clone(),
         status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
@@ -589,18 +589,18 @@ async fn test_review_post_with_small_media() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = Post::select_by_uri(&mut tx, &post.uri)
+    let post = Post::select_by_key(&mut tx, &post.key)
         .await
         .expect("select post");
-    let uploads_uri_dir = encrypted_media_path.parent().unwrap();
-    assert!(!uploads_uri_dir.exists());
+    let uploads_key_dir = encrypted_media_path.parent().unwrap();
+    assert!(!uploads_key_dir.exists());
     let published_media_path = post.published_media_path();
     assert!(published_media_path.exists());
     let thumbnail_path = post_review.thumbnail_path(post.media_file_name.as_ref().unwrap());
     assert!(!thumbnail_path.exists());
     std::fs::remove_file(&published_media_path).expect("remove media file");
-    let media_uri_dir = published_media_path.parent().unwrap();
-    std::fs::remove_dir(&media_uri_dir).expect("remove media uri dir");
+    let media_key_dir = published_media_path.parent().unwrap();
+    std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, admin_account).await;
     tx.commit().await.expect(COMMIT);
@@ -616,9 +616,9 @@ async fn test_decrypt_media() {
     let encrypted_media_path = post.encrypted_media_path();
     let admin_account = create_test_account(&mut tx, true).await;
     tx.commit().await.expect(COMMIT);
-    let uri = format!("/admin/decrypt-media/{}", &post.uri);
+    let key = format!("/admin/decrypt-media/{}", &post.key);
     let request = Request::builder()
-        .uri(&uri)
+        .uri(&key)
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),

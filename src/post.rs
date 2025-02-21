@@ -36,7 +36,7 @@ pub struct Post {
     pub username: Option<String>, // cache
     pub anon_token: Option<Uuid>,
     pub status: PostStatus,
-    pub uri: String,
+    pub key: String,
     pub media_file_name: Option<String>,
     pub media_category: Option<PostMediaCategory>,
     pub media_mime_type: Option<String>,
@@ -98,17 +98,17 @@ impl Post {
                 .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
-    pub async fn select_by_uri(tx: &mut PgConnection, uri: &str) -> Option<Self> {
+    pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, ",
             "to_char(created_at, $1) AS created_at_str ",
-            "FROM posts WHERE uri = $2"
+            "FROM posts WHERE key = $2"
         ))
         .bind(POSTGRES_TIMESTAMP_FORMAT)
-        .bind(uri)
+        .bind(key)
         .fetch_optional(&mut *tx)
         .await
-        .expect("select post by uri")
+        .expect("select post by key")
     }
 
     pub async fn delete(&self, tx: &mut PgConnection) {
@@ -132,19 +132,19 @@ impl Post {
     pub fn encrypted_media_path(&self) -> PathBuf {
         let encrypted_file_name = self.media_file_name.as_ref().unwrap().to_owned() + ".gpg";
         std::path::Path::new(UPLOADS_DIR)
-            .join(&self.uri)
+            .join(&self.key)
             .join(encrypted_file_name)
     }
 
     pub fn published_media_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
-            .join(&self.uri)
+            .join(&self.key)
             .join(&self.media_file_name.as_ref().unwrap())
     }
 
     pub fn thumbnail_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
-            .join(&self.uri)
+            .join(&self.key)
             .join(&self.thumbnail_file_name.as_ref().unwrap())
     }
 }
@@ -257,16 +257,16 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    pub async fn save_encrypted_media_file(self, uri: &str) -> Result<(), String> {
+    pub async fn save_encrypted_media_file(self, key: &str) -> Result<(), String> {
         if self.media_bytes.is_none() {
             return Err(String::from("no media bytes"));
         }
         let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
         let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-            .join(uri)
+            .join(key)
             .join(&encrypted_file_name);
-        let uploads_uri_dir = encrypted_file_path.parent().unwrap();
-        std::fs::create_dir(uploads_uri_dir).expect("create uploads uri dir");
+        let uploads_key_dir = encrypted_file_path.parent().unwrap();
+        std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
         let mut child = tokio::process::Command::new("gpg")
             .args([
                 "--batch",
@@ -295,7 +295,7 @@ impl PostSubmission {
             );
             Ok(())
         } else {
-            std::fs::remove_dir(uploads_uri_dir).expect("remove uploads uri dir");
+            std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
             Err(String::from("gpg failed to encrypt media file"))
         }
     }
@@ -303,15 +303,15 @@ impl PostSubmission {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
-    pub uri: String,
+    pub key: String,
     pub status: PostStatus,
 }
 
 impl PostReview {
     pub async fn update_status(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET status = $1 WHERE uri = $2")
+        sqlx::query("UPDATE posts SET status = $1 WHERE key = $2")
             .bind(&self.status)
-            .bind(&self.uri)
+            .bind(&self.key)
             .execute(&mut *tx)
             .await
             .expect("update post status");
@@ -324,16 +324,16 @@ impl PostReview {
 
     pub fn thumbnail_path(&self, media_file_name: &str) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
-            .join(&self.uri)
+            .join(&self.key)
             .join(Self::thumbnail_file_name(media_file_name))
     }
 
     pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
         let thumbnail_file_name = Self::thumbnail_file_name(media_file_name);
         println!("thumbnail_file_name: {}", thumbnail_file_name);
-        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE uri = $2")
+        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE key = $2")
             .bind(thumbnail_file_name)
-            .bind(&self.uri)
+            .bind(&self.key)
             .execute(&mut *tx)
             .await
             .expect("update post thumbnail");
@@ -361,13 +361,13 @@ impl PostReview {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
-    pub uri: String,
+    pub key: String,
 }
 
 impl PostHiding {
     pub async fn hide_post(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET hidden = true WHERE uri = $1")
-            .bind(&self.uri)
+        sqlx::query("UPDATE posts SET hidden = true WHERE key = $1")
+            .bind(&self.key)
             .execute(&mut *tx)
             .await
             .expect("set hidden flag to true");

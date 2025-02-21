@@ -1,5 +1,5 @@
                 {% if post.media_category == "image" %}
-                {% set link_href = (media_path if solo else "/" + post.uri) %}
+                {% set link_href = (media_path if solo else "/" + post.key) %}
                 <a href="{{ link_href }}">
                     <img src="{{ media_path }}" alt="{{ post.media_file_name }}">
                 </a>

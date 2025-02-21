@@ -39,7 +39,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
-        .route("/page/{uri}", get(index))
+        .route("/page/{key}", get(index))
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
@@ -49,7 +49,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
             post(hide_rejected_post).patch(hide_rejected_post),
         )
         .route("/web-socket", get(web_socket))
-        .route("/interim/{uri}", get(interim))
+        .route("/interim/{key}", get(interim))
         .route("/user/{username}", get(user_profile))
         .route("/update-time-zone", post(update_time_zone))
         .route("/update-password", post(update_password))
@@ -57,8 +57,8 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
             "/admin/review-post",
             post(review_post).patch(review_post).delete(review_post),
         )
-        .route("/admin/decrypt-media/{uri}", get(decrypt_media))
-        .route("/{uri}", get(index))
+        .route("/admin/decrypt-media/{key}", get(decrypt_media))
+        .route("/{key}", get(index))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
         router.layer(init::trace_layer())
@@ -75,16 +75,16 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 async fn index(
     State(state): State<AppState>,
     mut jar: CookieJar,
-    uri: Uri,
+    key: Uri,
     Path(params): Path<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
     set_session_time_zone(&mut tx, user.time_zone()).await;
-    let query_post = match params.get("uri") {
-        Some(uri) => {
+    let query_post = match params.get("key") {
+        Some(key) => {
             set_session_time_zone(&mut tx, user.time_zone()).await;
-            match Post::select_by_uri(&mut tx, &uri).await {
+            match Post::select_by_key(&mut tx, &key).await {
                 Some(post) => Some(post),
                 None => return not_found("post does not exist"),
             }
@@ -95,7 +95,7 @@ async fn index(
         Some(post) => Some(post.id),
         None => None,
     };
-    let solo = query_post.is_some() && !uri.path().contains("/page/");
+    let solo = query_post.is_some() && !key.path().contains("/page/");
     let posts = if solo {
         match &query_post {
             Some(post) => vec![post.clone()],
@@ -178,7 +178,7 @@ async fn submit_post(
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     if post_submission.media_file_name.is_some() {
         if let Err(msg) = post_submission
-            .save_encrypted_media_file(&post.uri)
+            .save_encrypted_media_file(&post.key)
             .await
         {
             return internal_server_error(&msg);
@@ -291,7 +291,7 @@ async fn hide_rejected_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let post = match Post::select_by_uri(&mut tx, &post_hiding.uri).await {
+    let post = match Post::select_by_key(&mut tx, &post_hiding.key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
@@ -338,7 +338,7 @@ async fn web_socket(
                 continue;
             }
             let json_utf8 = Utf8Bytes::from(
-                serde_json::json!({"uri": msg.post.uri, "html": msg.html}).to_string(),
+                serde_json::json!({"key": msg.post.key, "html": msg.html}).to_string(),
             );
             if socket.send(Message::Text(json_utf8)).await.is_err() {
                 break; // client disconnect
@@ -355,12 +355,12 @@ async fn web_socket(
 async fn interim(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path(uri): Path<String>,
+    Path(key): Path<String>,
 ) -> Response {
-    println!("interim uri: {}", uri);
+    println!("interim key: {}", key);
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let from_post = match Post::select_by_uri(&mut tx, &uri).await {
+    let from_post = match Post::select_by_key(&mut tx, &key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
@@ -375,7 +375,7 @@ async fn interim(
             minijinja::context!(post, admin => user.admin()),
         );
         json_posts.push(serde_json::json!({
-            "uri": post.uri,
+            "key": post.key,
             "html": html
         }));
     }
@@ -478,7 +478,7 @@ async fn review_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = match Post::select_by_uri(&mut tx, &post_review.uri).await {
+    let post = match Post::select_by_key(&mut tx, &post_review.key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
@@ -492,8 +492,8 @@ async fn review_post(
                 if post_review.status == PostStatus::Approved {
                     let media_bytes = post.decrypt_media_file().await;
                     let published_media_path = post.published_media_path();
-                    let media_uri_dir = published_media_path.parent().unwrap();
-                    std::fs::create_dir(media_uri_dir).expect("create media uri dir");
+                    let media_key_dir = published_media_path.parent().unwrap();
+                    std::fs::create_dir(media_key_dir).expect("create media key dir");
                     std::fs::write(&published_media_path, media_bytes).expect("write media file");
                     let media_path_str = published_media_path.to_str().expect("media path to str");
 
@@ -517,16 +517,16 @@ async fn review_post(
                         }
                     }
                 }
-                let uploads_uri_dir = encrypted_media_path.parent().unwrap();
+                let uploads_key_dir = encrypted_media_path.parent().unwrap();
                 std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
-                std::fs::remove_dir(&uploads_uri_dir).expect("remove uploads uri dir");
+                std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
             }
         }
         PostStatus::Approved => (),
         _ => return bad_request("post must be pending or approved"),
     }
     post_review.update_status(&mut tx).await;
-    let post = Post::select_by_uri(&mut tx, &post_review.uri)
+    let post = Post::select_by_key(&mut tx, &post_review.key)
         .await
         .expect("select post");
     if post.status == PostStatus::Banned {
@@ -550,11 +550,11 @@ async fn review_post(
 async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
-    Path(uri): Path<String>,
+    Path(key): Path<String>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     require_admin!(jar, tx);
-    let post = match Post::select_by_uri(&mut tx, &uri).await {
+    let post = match Post::select_by_key(&mut tx, &key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
