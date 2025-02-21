@@ -139,10 +139,6 @@ div.post.banned {
     background: var(--banned);
 }
 
-input#post-submit {
-    padding: 2px 10px;
-}
-
 div.post div.body {
     max-width: 1000px;
     max-height: min(80vh, 500px);
@@ -184,8 +180,8 @@ p#notice {
 }
 
 div#spinner {
-    width: 11px;
-    height: 11px;
+    width: 10px;
+    height: 10px;
     border: 2px solid var(--fore);
     border-top-color: transparent;
     border-radius: 50%;
