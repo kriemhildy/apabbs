@@ -103,7 +103,7 @@ function initWebSocket() {
 function latestPostKey() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
-        return post.dataset.key;
+        return post.id.replace("post-", "");
     } else {
         return null;
     }
