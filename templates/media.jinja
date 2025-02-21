@@ -1,7 +1,7 @@
                 {% if post.media_category == "image" %}
                 {% set link_href = (media_path if solo else "/" + post.key) %}
                 <a href="{{ link_href }}">
-                    <img src="{{ media_path }}" alt="{{ post.key }}">
+                    <img src="{{ media_path }}" alt>
                 </a>
                 {% elif post.media_category == "video" %}
                 <video controls>
