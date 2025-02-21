@@ -55,7 +55,7 @@ function initDomElements() {
 }
 
 function updatePost(uri, html) {
-    const post = document.querySelector(`div#post-${CSS.escape(uri)}`);
+    const post = document.querySelector(`div#post-${uri}`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -188,7 +188,7 @@ function disableSubmitButtons() {
 function restoreSubmitButtons() {
     console.log("restoring submit buttons to previous state");
     for (const id of Object.keys(priorDisabledStatuses)) {
-        let input = document.querySelector(`input#${CSS.escape(id)}`);
+        let input = document.querySelector(`input#${id}`);
         if (input !== null) {
             input.disabled = priorDisabledStatuses[id];
         }
