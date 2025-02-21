@@ -103,16 +103,16 @@ function initWebSocket() {
 function latestPostKey() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
-        return post.id.replace("post-", "");
+        return post.dataset.key;
     } else {
         return null;
     }
 }
 
 function checkInterim() {
-    const latestPostKey = latestPostKey();
-    console.log(`fetching interim post data from ${latestPostKey}`);
-    fetch(`/interim/${latestPostKey}`).then((response) => {
+    const key = latestPostKey();
+    console.log(`fetching interim post data from ${key}`);
+    fetch(`/interim/${key}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
