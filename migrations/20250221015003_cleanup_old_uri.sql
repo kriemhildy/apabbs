@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE posts DROP COLUMN old_uri;
+
+DROP FUNCTION urlsafe;
+
+COMMIT;
