@@ -55,7 +55,7 @@ function initDomElements() {
 }
 
 function updatePost(key, html) {
-    const post = document.querySelector(`div#post-${key}`);
+    const post = document.querySelector(`div.post[data-key=${key}]`);
     template.innerHTML = html;
     addFetchToForms(null, template.content);
     if (post) {
@@ -103,7 +103,7 @@ function initWebSocket() {
 function latestPostKey() {
     const post = document.querySelector("div.post:not(.banned)");
     if (post !== null) {
-        return post.id.replace("post-", "");
+        return post.dataset.key;
     } else {
         return null;
     }
