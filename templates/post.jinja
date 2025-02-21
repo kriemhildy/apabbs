@@ -42,7 +42,7 @@
                 {% if post.status == "approved" %}
                 {% endif %}
                 {% if not solo and (not post.status == "approved" or not post.media_category == "image") %}
-                <div class="key">
+                <div class="arrow">
                     <a href="/{{ post.key }}">&rarr;</a>
                 </div>
                 {% endif %}
