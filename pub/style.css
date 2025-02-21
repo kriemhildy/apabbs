@@ -127,12 +127,6 @@ div.post {
     break-inside: avoid;
 }
 
-div.post.pending,
-div.post.rejected,
-div.post.banned {
-    padding: 10px;
-}
-
 div.post.pending {
     background: var(--pending);
 }

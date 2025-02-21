@@ -12,14 +12,14 @@
                 {% set media_path = "/m/" + post.key + "/" + optimal_file_name|urlencode %}
                 {% include "media.jinja" %}
                 {% elif post.status == "rejected" %}
-                <p class="review">File "{{ post.media_file_name|e }}" deleted.</p>
+                <div class="review">File "{{ post.media_file_name|e }}" deleted.</div>
                 {% elif post.status == "pending" %}
                 {% if admin %}
                 {% set media_path = "/admin/decrypt-media/" + post.key %}
                 {% include "media.jinja" %}
-                <p class="review">File: {{ post.media_file_name|e }}</p>
+                <div class="review">File: {{ post.media_file_name|e }}</div>
                 {% else %}
-                <p class="review">File "{{ post.media_file_name|e }}" pending review.</p>
+                <div class="review">File "{{ post.media_file_name|e }}" pending review.</div>
                 {% endif %}
                 {% endif %}
                 {% endif %}
