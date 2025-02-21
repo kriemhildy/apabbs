@@ -184,3 +184,25 @@ div.post p.info a {
 p#notice {
     color: var(--system);
 }
+
+div#spinner {
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--fore);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spinner 0.85s linear infinite;
+    margin-top: 9px;
+    margin-left: 7px;
+    display: none;
+}
+
+@keyframes spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+div#post-submit-container {
+    display: flex;
+}

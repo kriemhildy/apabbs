@@ -139,6 +139,8 @@ function handleFormSubmit(event) {
     } else {
         fetchBody = new URLSearchParams(formData);
     }
+    const spinner = document.querySelector("div#spinner");
+    if (spinner) spinner.style.display = "block";
     fetch(this.action, {
         method: this.dataset.fetch || "POST",
         body: fetchBody,
@@ -161,6 +163,7 @@ function handleFormSubmit(event) {
             });
         }
         restoreSubmitButtons();
+        if (spinner) spinner.style.display = "none";
     });
 }
 

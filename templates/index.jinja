@@ -6,8 +6,10 @@
             <br>
             <label for="media">Media:</label>
             <input type="file" name="media" id="media">
-            <br>
-            <input type="submit" value="Post" id="post-submit">
+            <div id="post-submit-container">
+                <input type="submit" value="Post" id="post-submit">
+                <div id="spinner"></div>
+            </div>
         </form>
         {% endif %}
         <div id="posts"{{ ' class="solo"' if solo }}>
