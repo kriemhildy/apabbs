@@ -45,6 +45,7 @@ select,
     color: var(--fore);
     background: var(--back);
     accent-color: var(--system);
+    text-size-adjust: none;
 }
 
 ::selection {
