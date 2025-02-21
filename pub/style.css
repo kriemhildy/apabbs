@@ -139,7 +139,7 @@ div.post.banned {
     background: var(--banned);
 }
 
-input#post-button {
+input#post-submit {
     padding: 5px 20px;
     font-weight: bold;
     font-size: 1.1em;
@@ -186,14 +186,14 @@ p#notice {
 }
 
 div#spinner {
-    width: 11px;
-    height: 11px;
+    width: 16px;
+    height: 16px;
     border: 2px solid var(--fore);
     border-top-color: transparent;
     border-radius: 50%;
     animation: spinner 0.85s linear infinite;
-    margin-top: 9px;
-    margin-left: 7px;
+    margin-top: 11px;
+    margin-left: 10px;
     display: none;
 }
 
