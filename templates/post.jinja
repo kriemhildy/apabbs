@@ -1,4 +1,4 @@
-            <div class="post {{ post.status }}" data-key="{{ post.key }}">
+            <div class="post {{ post.status }}" id="post-{{ post.key }}">
                 {% if post.body|length > 0 and post.status != "banned" %}
                 <div class="body">
                     {{ post.body }}
