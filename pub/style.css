@@ -125,7 +125,7 @@ div#posts {
 }
 
 div.post {
-    flex: min(80vh, 500px);
+    flex: clamp(350px, 80vh, 500px);
     break-inside: avoid;
 }
 
@@ -143,14 +143,14 @@ div.post.banned {
 
 div.post div.body {
     max-width: 1000px;
-    max-height: min(80vh, 500px);
+    max-height: clamp(300px, 70vh, 500px);
     overflow: hidden;
 }
 
 div.post img,
 video {
     max-width: min(100%, 800px);
-    max-height: min(80vh, 600px);
+    max-height: clamp(350px, 80vh, 600px);
 }
 
 div#posts.solo img,
