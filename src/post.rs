@@ -202,9 +202,10 @@ impl PostSubmission {
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         let youtube_thumbnail_link = concat!(
+            r#"<img class="youtube" src="/youtube.svg">"#,
             r#"<a href="https://www.youtube.com/watch?v=$1$2" target="_blank">"#,
-            r#"<img src="https://img.youtube.com/vi/$1$2/mqdefault.jpg" "#,
-            r#"width="320" height="180" alt="YouTube $1$2"></a>"#,
+            r#"<img src="https://img.youtube.com/vi/$1$2/maxresdefault.jpg" "#,
+            r#"alt="YouTube $1$2"></a>"#,
         );
         let html = youtube_link_regex.replace_all(&html, youtube_thumbnail_link);
         html.replace("\n", "<br>")
@@ -398,35 +399,38 @@ mod tests {
             submission.body_as_html(),
             "&lt;&amp;test body<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
         );
-        submission.body = "<&test body\n\nhttps://www.youtube.com/watch?v=12345678ab".to_owned();
+        submission.body = "<&test body\n\nhttps://www.youtube.com/watch?v=12345678_bc".to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<a href="https://www.youtube.com/watch?v=12345678ab" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/12345678ab/mqdefault.jpg" "#,
-                r#"width="320" height="180" alt="YouTube 12345678ab"></a>"#,
+                r#"<img class="youtube" src="/youtube.svg">"#,
+                r#"<a href="https://www.youtube.com/watch?v=12345678_bc" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/12345678_bc/maxresdefault.jpg" "#,
+                r#"alt="YouTube 12345678_bc"></a>"#,
             )
         );
-        submission.body = "<&test body\n\nhttps://youtube.com/shorts/rb3fj3ADILJ".to_owned();
+        submission.body = "<&test body\n\nhttps://youtube.com/shorts/rb3fj-ADILJ".to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<a href="https://www.youtube.com/watch?v=rb3fj3ADILJ" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/rb3fj3ADILJ/mqdefault.jpg" "#,
-                r#"width="320" height="180" alt="YouTube rb3fj3ADILJ"></a>"#,
+                r#"<img class="youtube" src="/youtube.svg">"#,
+                r#"<a href="https://www.youtube.com/watch?v=rb3fj-ADILJ" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/rb3fj-ADILJ/maxresdefault.jpg" "#,
+                r#"alt="YouTube rb3fj-ADILJ"></a>"#,
             )
         );
         submission.body =
-            "<&test body\n\nhttps://youtu.be/2Uc9WTDBSI8?si=q9OkPEWRQ0RjoWg".to_owned();
+            "<&test body\n\nhttps://youtu.be/2Uc-WTD_SI8?si=q9OkPEWRQ0RjoWg".to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<a href="https://www.youtube.com/watch?v=2Uc9WTDBSI8" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/2Uc9WTDBSI8/mqdefault.jpg" "#,
-                r#"width="320" height="180" alt="YouTube 2Uc9WTDBSI8"></a>"#,
+                r#"<img class="youtube" src="/youtube.svg">"#,
+                r#"<a href="https://www.youtube.com/watch?v=2Uc-WTD_SI8" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/2Uc-WTD_SI8/maxresdefault.jpg" "#,
+                r#"alt="YouTube 2Uc-WTD_SI8"></a>"#,
             )
         );
     }

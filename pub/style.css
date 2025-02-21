@@ -166,6 +166,7 @@ div#posts.solo div.body {
 div.post div.arrow a {
     text-decoration: none;
     color: var(--arrow);
+    font-size: 1.4em;
 }
 
 div.post details.mod {
@@ -201,4 +202,15 @@ div#spinner {
 
 div#post-submit-container {
     display: flex;
+}
+
+img.youtube {
+    display: block;
+    height: 1.7em;
+}
+
+@media (prefers-color-scheme: dark) {
+    img.youtube {
+        filter: invert(1);
+    }
 }
