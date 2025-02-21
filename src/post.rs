@@ -202,7 +202,7 @@ impl PostSubmission {
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         let youtube_thumbnail_link = concat!(
-            r#"<img class="youtube" src="/youtube.svg">"#,
+            r#"<img class="youtube" src="/youtube.svg" alt>"#,
             r#"<a href="https://www.youtube.com/watch?v=$1$2" target="_blank">"#,
             r#"<img src="https://img.youtube.com/vi/$1$2/maxresdefault.jpg" "#,
             r#"alt="YouTube $1$2"></a>"#,
@@ -404,7 +404,7 @@ mod tests {
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<img class="youtube" src="/youtube.svg">"#,
+                r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=12345678_bc" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/12345678_bc/maxresdefault.jpg" "#,
                 r#"alt="YouTube 12345678_bc"></a>"#,
@@ -415,7 +415,7 @@ mod tests {
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<img class="youtube" src="/youtube.svg">"#,
+                r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=rb3fj-ADILJ" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/rb3fj-ADILJ/maxresdefault.jpg" "#,
                 r#"alt="YouTube rb3fj-ADILJ"></a>"#,
@@ -427,7 +427,7 @@ mod tests {
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<img class="youtube" src="/youtube.svg">"#,
+                r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=2Uc-WTD_SI8" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/2Uc-WTD_SI8/maxresdefault.jpg" "#,
                 r#"alt="YouTube 2Uc-WTD_SI8"></a>"#,
