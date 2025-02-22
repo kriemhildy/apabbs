@@ -143,10 +143,9 @@ div.post.banned {
 
 div.post div.body {
     max-width: 1000px;
-    max-height: clamp(250px, 70vh, 500px);
-    overflow: hidden;
 }
 
+/* youtube thumbnails */
 div.post div.body img {
     max-height: clamp(200px, 60vh, 400px);
 }

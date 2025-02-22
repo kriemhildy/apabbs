@@ -6,6 +6,9 @@
                 {% endif %}
                 {% if post.media_file_name %}
                 {% if post.status == "approved" %}
+                {% if post.body|length > 0 %}
+                <br>
+                {% endif %}
                 {% set optimal_file_name =
                     post.thumbnail_file_name if not solo and post.thumbnail_file_name
                     else post.media_file_name %}
@@ -41,7 +44,10 @@
                 {% endif %}
                 {% if post.status == "approved" %}
                 {% endif %}
-                {% if not solo and (not post.status == "approved" or not post.media_category == "image") %}
+                {% if not solo and (
+                    not post.status == "approved"
+                    or post.media_category != "image"
+                    or post.body|length > 0) %}
                 <div class="arrow">
                     <a href="/{{ post.key }}">&rarr;</a>
                 </div>
