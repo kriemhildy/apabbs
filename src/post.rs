@@ -181,6 +181,15 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
+    fn url_exists(url: &str) -> bool {
+        let curl_status = std::process::Command::new("curl")
+            .args(["--silent", "--head", "--fail", "--output", "/dev/null"])
+            .arg(url)
+            .status()
+            .expect("check if url exists");
+        curl_status.success()
+    }
+
     fn body_as_html(&self) -> String {
         let mut html = self
             .body
@@ -210,17 +219,19 @@ impl PostSubmission {
                 None => break,
             };
             println!("youtube_video_id: {}", youtube_video_id);
-            let mut youtube_thumbnail_url = format!(
-                "https://img.youtube.com/vi/{}/maxresdefault.jpg",
-                youtube_video_id
-            );
-            let curl_status = std::process::Command::new("curl")
-                .args(["--silent", "--head", "--fail", "--output", "/dev/null"])
-                .arg(&youtube_thumbnail_url)
-                .status()
-                .expect("check if maxresdefault exists");
-            if !curl_status.success() {
-                youtube_thumbnail_url = youtube_thumbnail_url.replace("maxresdefault", "mqdefault");
+            let mut youtube_thumbnail_url = String::new();
+            for size in ["maxres", "sd", "hq", "mq"].iter() {
+                let url = format!(
+                    "https://img.youtube.com/vi/{}/{}default.jpg",
+                    youtube_video_id, size
+                );
+                if Self::url_exists(&url) {
+                    youtube_thumbnail_url = url;
+                    break;
+                }
+            };
+            if youtube_thumbnail_url.is_empty() {
+                break;
             }
             let youtube_thumbnail_link = format!(
                 concat!(
@@ -433,7 +444,7 @@ mod tests {
                 "&lt;&amp;test body<br><br>",
                 r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/mqdefault.jpg" "#,
+                r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg" "#,
                 r#"alt="YouTube jNQXAC9IVRw"></a>"#,
             )
         );
@@ -475,7 +486,7 @@ mod tests {
                 r#"<a href="https://example.com" target="_blank">https://example.com</a> "#,
                 r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/mqdefault.jpg" "#,
+                r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg" "#,
                 r#"alt="YouTube jNQXAC9IVRw"></a>"#,
                 r#"<br>"#,
                 r#"<img class="youtube" src="/youtube.svg" alt>"#,
