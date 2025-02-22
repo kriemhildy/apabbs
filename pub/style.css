@@ -147,6 +147,10 @@ div.post div.body {
     overflow: hidden;
 }
 
+div.post div.body img {
+    max-height: clamp(200px, 60vh, 400px);
+}
+
 div.post img,
 video {
     max-width: min(100%, 800px);

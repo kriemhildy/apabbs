@@ -8,6 +8,7 @@ use uuid::Uuid;
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
+const MAX_YOUTUBE_EMBEDS: i32 = 20;
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -205,25 +206,30 @@ impl PostSubmission {
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         let youtube_link_pattern = concat!(
             r#"(?m)^\ *<a href=""#,
-            r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(?:watch\S*[\?&]v=|shorts/))"#,
+            r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*[\?&]v=|shorts/))"#,
             r#"([^&\s\?]+)\S*"#,
             r#"" target="_blank">\S+</a>\ *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         let mut embed_count = 0;
         loop {
-            let youtube_video_id = match youtube_link_regex.captures(&html) {
-                Some(captures) => match captures.get(1) {
-                    Some(video_id) => video_id.as_str(),
-                    None => break,
-                },
+            let captures = match youtube_link_regex.captures(&html) {
+                Some(captures) => captures,
                 None => break,
             };
+            // youtu.be has no match for 1, but is always not a short
+            let youtube_short = captures.get(1).is_some_and(|m| m.as_str() == "shorts/");
+            let youtube_video_id = &captures[2];
             println!("youtube_video_id: {}", youtube_video_id);
             let mut youtube_thumbnail_url = String::new();
-            for size in ["maxres", "sd", "hq", "mq"].iter() {
+            let thumbnail_sizes = if youtube_short {
+                vec!["oar2"]
+            } else {
+                vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
+            };
+            for size in thumbnail_sizes.iter() {
                 let url = format!(
-                    "https://img.youtube.com/vi/{}/{}default.jpg",
+                    "https://img.youtube.com/vi/{}/{}.jpg",
                     youtube_video_id, size
                 );
                 if Self::url_exists(&url) {
@@ -234,12 +240,14 @@ impl PostSubmission {
             if youtube_thumbnail_url.is_empty() {
                 break;
             }
+            let youtube_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(
                 concat!(
-                    r#"<a class="youtube" href="https://www.youtube.com/watch?v={video_id}" "#,
+                    r#"<a class="youtube" href="https://www.youtube.com/{path}{video_id}" "#,
                     r#"target="_blank"><img src="/youtube.svg" alt></a>"#,
                     r#"<img src="{thumbnail_url}" alt="YouTube {video_id}">"#,
                 ),
+                path = youtube_path,
                 video_id = youtube_video_id,
                 thumbnail_url = youtube_thumbnail_url
             );
@@ -247,8 +255,8 @@ impl PostSubmission {
                 .replace(&html, youtube_thumbnail_link)
                 .to_string();
             embed_count += 1;
-            if embed_count >= 20 {
-                break; // sanity check to avoid abuse
+            if embed_count >= MAX_YOUTUBE_EMBEDS {
+                break;
             }
         }
         html.replace("\n", "<br>")
@@ -462,9 +470,9 @@ mod tests {
                 r#"<img src="https://img.youtube.com/vi/kixirmHePCc/maxresdefault.jpg" "#,
                 r#"alt="YouTube kixirmHePCc">"#,
                 r#"<br>"#,
-                r#"<a class="youtube" href="https://www.youtube.com/watch?v=cHMCGCWit6U" "#,
+                r#"<a class="youtube" href="https://www.youtube.com/shorts/cHMCGCWit6U" "#,
                 r#"target="_blank"><img src="/youtube.svg" alt></a>"#,
-                r#"<img src="https://img.youtube.com/vi/cHMCGCWit6U/maxresdefault.jpg" "#,
+                r#"<img src="https://img.youtube.com/vi/cHMCGCWit6U/oar2.jpg" "#,
                 r#"alt="YouTube cHMCGCWit6U">"#,
                 r#"<br>"#,
                 r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw" "#,
