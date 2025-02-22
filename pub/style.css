@@ -162,7 +162,7 @@ video {
 
 div#posts.solo img,
 video {
-    max-height: calc(100vh - 13em);
+    max-height: calc(100vh - 14em);
 }
 
 div#posts.solo div.body {
