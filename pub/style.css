@@ -160,7 +160,7 @@ video {
 
 /* phones get tighter layout because of mobile browser controls */
 
-div.post img,
+div.post.solo img,
 video {
     max-height: max(calc(100vh - 11em), 200px);
 }
