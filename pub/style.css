@@ -204,14 +204,18 @@ div#post-submit-container {
     display: flex;
 }
 
-img.youtube {
+a.youtube {
+    text-decoration: none;
+}
+
+a.youtube img {
     display: block;
     height: 1.7em;
     filter: saturate(0) brightness(0.2);
 }
 
 @media (prefers-color-scheme: dark) {
-    img.youtube {
+    a.youtube img {
         filter: brightness(0.2) invert(1);
     }
 }
