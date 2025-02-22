@@ -162,12 +162,12 @@ video {
 
 div#posts.solo img,
 video {
-    max-height: max(calc(100vh - 14em), 200px);
+    max-height: max(calc(100vh - 16em), 200px);
 }
 
 body.admin div#posts.solo img,
 video {
-    max-height: max(calc(100vh - 18em), 200px);
+    max-height: max(calc(100vh - 20em), 200px);
 }
 
 div#posts.solo div.body {
