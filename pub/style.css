@@ -196,11 +196,6 @@ video {
     }
 }
 
-div#posts.solo div.body {
-    max-height: unset;
-    overflow: unset;
-}
-
 div.post div.arrow a {
     text-decoration: none;
     color: var(--arrow);
