@@ -204,10 +204,10 @@ impl PostSubmission {
         let anchor_tag = r#"<a href="$1" target="_blank">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         let youtube_link_pattern = concat!(
-            r#"<a href=""#,
+            r#"(?m)^\ *<a href=""#,
             r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(?:watch\S*[\?&]v=|shorts/))"#,
             r#"([^&\s\?]+)\S*"#,
-            r#"" target="_blank">\S+</a>"#,
+            r#"" target="_blank">\S+</a>\ *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         loop {
@@ -473,17 +473,20 @@ mod tests {
         );
         submission.body = concat!(
             "<&test body\n\n",
-            "https://example.com ",
-            "https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
-            "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg ",
-            "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw"
+            "https://example.com\n",
+            " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
+            "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg \n",
+            "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\n",
+            "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ\n\n",
+            "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar",
         )
         .to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
                 "&lt;&amp;test body<br><br>",
-                r#"<a href="https://example.com" target="_blank">https://example.com</a> "#,
+                r#"<a href="https://example.com" target="_blank">https://example.com</a>"#,
+                r#"<br>"#,
                 r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg" "#,
@@ -492,9 +495,16 @@ mod tests {
                 r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=cHMCGCWit6U" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/cHMCGCWit6U/maxresdefault.jpg" "#,
-                r#"alt="YouTube cHMCGCWit6U"></a> "#,
+                r#"alt="YouTube cHMCGCWit6U"></a>"#,
+                r#"<br>"#,
                 r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw" "#,
                 r#"target="_blank">https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw</a>"#,
+                r#"<br>"#,
+                r#"foo <a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ" "#,
+                r#"target="_blank">https://www.youtube.com/watch?v=ySrBS4ulbmQ</a>"#,
+                r#"<br><br>"#,
+                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ" "#,
+                r#"target="_blank">https://www.youtube.com/watch?v=ySrBS4ulbmQ</a> bar"#,
             )
         );
     }
