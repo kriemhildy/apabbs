@@ -1,17 +1,15 @@
-@media (prefers-color-scheme: dark) {
-    body {
-        --back: black;
-        --fore: #e3e3e3;
-        --border: #777;
-        --system: #9cdcda;
-        --review: #bebebe;
-        --arrow: #777777;
-        --pending: #111111;
-        --rejected: rgb(37, 4, 4);
-        --banned: rgb(105, 10, 10);
-        --track: #222;
-        --disabled: #444;
-    }
+body {
+    --back: black;
+    --fore: #e3e3e3;
+    --border: #777;
+    --system: #9cdcda;
+    --review: #bebebe;
+    --arrow: #777777;
+    --pending: #111111;
+    --rejected: rgb(37, 4, 4);
+    --banned: rgb(105, 10, 10);
+    --track: #222;
+    --disabled: #444;
 }
 
 @media (prefers-color-scheme: light) {
@@ -244,11 +242,11 @@ a.youtube {
 a.youtube img {
     display: block;
     height: 1.7em;
-    filter: saturate(0) brightness(0.2);
+    filter: brightness(0.2) invert(1);
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
     a.youtube img {
-        filter: brightness(0.2) invert(1);
+        filter: saturate(0) brightness(0.2);
     }
 }
