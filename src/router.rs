@@ -96,22 +96,19 @@ async fn index(
         None => None,
     };
     let solo = query_post.is_some() && !key.path().contains("/page/");
-    let posts = if solo {
+    let mut posts = if solo {
         match &query_post {
             Some(post) => vec![post.clone()],
             None => return bad_request("no post to show solo"),
         }
     } else {
-        Post::select_latest(&mut tx, &user, query_post_id, None, per_page() as i32).await
+        Post::select_latest(&mut tx, &user, query_post_id, None, (per_page() + 1) as i32).await
     };
-    let posts_before_last = if posts.len() < per_page() {
-        Vec::new()
+    let prior_page_post = if posts.len() <= per_page() {
+        None
     } else {
-        let last_post = posts.last().expect("read last post");
-        let post_id_before_last = last_post.id - 1;
-        Post::select_latest(&mut tx, &user, Some(post_id_before_last), None, 1).await
+        posts.pop()
     };
-    let prior_page_post = posts_before_last.first();
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         &state,
