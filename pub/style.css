@@ -207,10 +207,11 @@ div#post-submit-container {
 img.youtube {
     display: block;
     height: 1.7em;
+    filter: saturate(0) brightness(0.2);
 }
 
 @media (prefers-color-scheme: dark) {
     img.youtube {
-        filter: invert(1);
+        filter: brightness(0.2) invert(1);
     }
 }
