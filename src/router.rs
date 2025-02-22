@@ -390,7 +390,7 @@ async fn user_profile(
         None => return not_found("account does not exist"),
     };
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    let posts = Post::select_by_account(&mut tx, account.id).await;
+    let posts = Post::select_by_author(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {

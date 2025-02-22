@@ -87,7 +87,7 @@ impl Post {
             .expect("select posts")
     }
 
-    pub async fn select_by_account(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
+    pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
