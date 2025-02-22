@@ -211,8 +211,7 @@ impl PostSubmission {
             r#"" target="_blank">\S+</a>\ *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
-        let mut embed_count = 0;
-        loop {
+        for _ in 1..=MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
                 Some(captures) => captures,
                 None => break,
@@ -254,10 +253,6 @@ impl PostSubmission {
             html = youtube_link_regex
                 .replace(&html, youtube_thumbnail_link)
                 .to_string();
-            embed_count += 1;
-            if embed_count >= MAX_YOUTUBE_EMBEDS {
-                break;
-            }
         }
         html.replace("\n", "<br>")
     }
