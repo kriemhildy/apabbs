@@ -147,7 +147,7 @@ div.post div.body {
 
 /* youtube thumbnails */
 div.post div.body img {
-    max-height: clamp(200px, 60vh, 400px);
+    max-height: clamp(250px, 70vh, 500px);
 }
 
 div.post img,
