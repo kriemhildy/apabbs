@@ -33,7 +33,6 @@
 body {
     overflow-wrap: break-word;
     margin: 12px;
-    margin-bottom: calc(3vh + 3vw);
 }
 
 body,
@@ -122,7 +121,11 @@ div#posts {
     flex-wrap: wrap;
     gap: calc(3vh + 3vw);
     margin-top: 12px;
-    margin-bottom: 12px;
+    margin-bottom: calc(3vh + 3vw);
+}
+
+div#posts.solo {
+    margin-bottom: unset;
 }
 
 div.post {
