@@ -159,15 +159,40 @@ video {
     max-width: clamp(300px, 100%, 800px);
     max-height: clamp(300px, 80vh, 600px);
 }
+/* 11em and 15em for PC */
 
-div#posts.solo img,
+div.post img,
 video {
-    max-height: max(calc(100vh - 17em), 200px);
+    max-height: max(calc(100vh - 11em), 200px);
 }
 
 body.admin div#posts.solo img,
 video {
-    max-height: max(calc(100vh - 22em), 200px);
+    max-height: max(calc(100vh - 15em), 200px);
+}
+
+@media (max-width: 500px) {
+    div#posts.solo img,
+    video {
+        max-height: max(calc(100vh - 17em), 200px);
+    }
+
+    body.admin div#posts.solo img,
+    video {
+        max-height: max(calc(100vh - 22em), 200px);
+    }
+}
+
+@media (max-height: 500px) {
+    div#posts.solo img,
+    video {
+        max-height: max(calc(100vh - 17em), 200px);
+    }
+
+    body.admin div#posts.solo img,
+    video {
+        max-height: max(calc(100vh - 22em), 200px);
+    }
 }
 
 div#posts.solo div.body {
