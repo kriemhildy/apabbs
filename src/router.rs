@@ -177,10 +177,7 @@ async fn submit_post(
     }
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     if post_submission.media_file_name.is_some() {
-        if let Err(msg) = post_submission
-            .save_encrypted_media_file(&post.key)
-            .await
-        {
+        if let Err(msg) = post_submission.save_encrypted_media_file(&post.key).await {
             return internal_server_error(&msg);
         }
     }

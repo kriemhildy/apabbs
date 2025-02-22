@@ -230,7 +230,7 @@ impl PostSubmission {
                     youtube_thumbnail_url = url;
                     break;
                 }
-            };
+            }
             if youtube_thumbnail_url.is_empty() {
                 break;
             }
@@ -431,61 +431,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_body_as_html() {
-        let mut submission = PostSubmission {
-            body: "<&test body".to_owned(),
+        let submission = PostSubmission {
+            body: concat!(
+                "<&test body\n\n",
+                "https://example.com\n",
+                " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
+                "https://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg\n",
+                "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg \n",
+                "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\n",
+                "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ\n\n",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar",
+            )
+            .to_owned(),
             media_file_name: None,
             media_bytes: None,
         };
-        assert_eq!(submission.body_as_html(), "&lt;&amp;test body");
-        submission.body = "<&test body\n\nhttps://example.com".to_owned();
-        assert_eq!(
-            submission.body_as_html(),
-            "&lt;&amp;test body<br><br><a href=\"https://example.com\" target=\"_blank\">https://example.com</a>"
-        );
-        submission.body = "<&test body\n\nhttps://www.youtube.com/watch?v=jNQXAC9IVRw".to_owned();
-        assert_eq!(
-            submission.body_as_html(),
-            concat!(
-                "&lt;&amp;test body<br><br>",
-                r#"<img class="youtube" src="/youtube.svg" alt>"#,
-                r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg" "#,
-                r#"alt="YouTube jNQXAC9IVRw"></a>"#,
-            )
-        );
-        submission.body = "<&test body\n\nhttps://youtube.com/shorts/cHMCGCWit6U".to_owned();
-        assert_eq!(
-            submission.body_as_html(),
-            concat!(
-                "&lt;&amp;test body<br><br>",
-                r#"<img class="youtube" src="/youtube.svg" alt>"#,
-                r#"<a href="https://www.youtube.com/watch?v=cHMCGCWit6U" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/cHMCGCWit6U/maxresdefault.jpg" "#,
-                r#"alt="YouTube cHMCGCWit6U"></a>"#,
-            )
-        );
-        submission.body =
-            "<&test body\n\nhttps://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg".to_owned();
-        assert_eq!(
-            submission.body_as_html(),
-            concat!(
-                "&lt;&amp;test body<br><br>",
-                r#"<img class="youtube" src="/youtube.svg" alt>"#,
-                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc" target="_blank">"#,
-                r#"<img src="https://img.youtube.com/vi/kixirmHePCc/maxresdefault.jpg" "#,
-                r#"alt="YouTube kixirmHePCc"></a>"#,
-            )
-        );
-        submission.body = concat!(
-            "<&test body\n\n",
-            "https://example.com\n",
-            " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
-            "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg \n",
-            "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\n",
-            "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ\n\n",
-            "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar",
-        )
-        .to_owned();
         assert_eq!(
             submission.body_as_html(),
             concat!(
@@ -496,6 +456,11 @@ mod tests {
                 r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
                 r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg" "#,
                 r#"alt="YouTube jNQXAC9IVRw"></a>"#,
+                r#"<br>"#,
+                r#"<img class="youtube" src="/youtube.svg" alt>"#,
+                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc" target="_blank">"#,
+                r#"<img src="https://img.youtube.com/vi/kixirmHePCc/maxresdefault.jpg" "#,
+                r#"alt="YouTube kixirmHePCc"></a>"#,
                 r#"<br>"#,
                 r#"<img class="youtube" src="/youtube.svg" alt>"#,
                 r#"<a href="https://www.youtube.com/watch?v=cHMCGCWit6U" target="_blank">"#,
