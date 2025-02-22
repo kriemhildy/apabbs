@@ -170,19 +170,7 @@ video {
     max-height: max(calc(100vh - 15em), 200px);
 }
 
-@media (max-width: 500px) {
-    div#posts.solo img,
-    video {
-        max-height: max(calc(100vh - 17em), 200px);
-    }
-
-    body.admin div#posts.solo img,
-    video {
-        max-height: max(calc(100vh - 22em), 200px);
-    }
-}
-
-@media (max-height: 500px) {
+@media (max-width: 450px) or (max-height: 450px) {
     div#posts.solo img,
     video {
         max-height: max(calc(100vh - 17em), 200px);
