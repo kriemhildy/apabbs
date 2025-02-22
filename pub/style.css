@@ -33,6 +33,7 @@
 body {
     overflow-wrap: break-word;
     margin: 12px;
+    margin-bottom: calc(3vh + 3vw);
 }
 
 body,

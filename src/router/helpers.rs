@@ -2,7 +2,7 @@
 // router helper functions and macros
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-use super::{AppState, HeaderMap, IntoResponse, Post, PostMessage, Response};
+use super::{init, AppState, HeaderMap, IntoResponse, Post, PostMessage, Response};
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
@@ -64,28 +64,9 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
         .is_some_and(|v| v != "navigate")
 }
 
-pub fn site_name() -> String {
-    format!(
-        "{}{}",
-        if dev() { "[dev] " } else { "" },
-        std::env::var("SITE_NAME").expect("read SITE_NAME env")
-    )
-}
-
-pub fn dev() -> bool {
-    std::env::var("DEV").is_ok_and(|v| v == "1")
-}
-
-pub fn per_page() -> usize {
-    match std::env::var("PER_PAGE") {
-        Ok(per_page) => per_page.parse().expect("parse PER_PAGE env"),
-        Err(_) => 1000,
-    }
-}
-
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!dev())
+        .secure(!init::dev())
         .http_only(true)
         .path("/")
         .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
@@ -101,7 +82,7 @@ pub fn removal_cookie(name: &str) -> Cookie<'static> {
 }
 
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
-    if dev() {
+    if init::dev() {
         let mut env = state.jinja.write().expect("write jinja env");
         env.clear_templates();
     }

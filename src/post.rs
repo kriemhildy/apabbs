@@ -1,4 +1,4 @@
-use crate::{user::User, POSTGRES_TIMESTAMP_FORMAT};
+use crate::{init, user::User, POSTGRES_TIMESTAMP_FORMAT};
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::PathBuf;
@@ -48,12 +48,11 @@ pub struct Post {
 }
 
 impl Post {
-    pub async fn select_latest(
+    pub async fn select(
         tx: &mut PgConnection,
         user: &User,
-        until_id: Option<i32>,
-        from_id: Option<i32>,
-        limit: i32,
+        post_id_opt: Option<i32>,
+        invert: bool,
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
@@ -68,25 +67,36 @@ impl Post {
             query_builder.push(" OR account_id = ");
             query_builder.push_bind(account.id);
         }
-        query_builder.push(") AND hidden = false ");
-        if let Some(until_id) = until_id {
-            query_builder.push("AND id <= ");
-            query_builder.push_bind(until_id);
-        }
-        if let Some(from_id) = from_id {
-            query_builder.push("AND id > ");
-            query_builder.push_bind(from_id);
-        }
-        query_builder.push(" ORDER BY id ");
+        query_builder.push(") AND hidden = false");
         // invert interim order
-        query_builder.push(if from_id.is_some() { "ASC" } else { "DESC" });
-        query_builder.push(" LIMIT ");
-        query_builder.push_bind(limit);
+        // add one to "until" limit to check if there are more pages
+        let (operator, order, limit) = if invert {
+            (">", "ASC", init::per_page()) // sanity limit
+        } else {
+            ("<=", "DESC", init::per_page() + 1)
+        };
+        if let Some(post_id) = post_id_opt {
+            query_builder.push(&format!(" AND id {} ", operator));
+            query_builder.push_bind(post_id);
+        }
+        query_builder.push(&format!(" ORDER BY id {} LIMIT {}", order, limit));
         query_builder
             .build_query_as()
             .fetch_all(&mut *tx)
             .await
-            .expect("select latest posts")
+            .expect("select posts")
+    }
+
+    pub async fn select_by_account(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
+        sqlx::query_as(concat!(
+            "SELECT * FROM posts WHERE account_id = $1 ",
+            "AND status = 'approved' ORDER BY id DESC LIMIT $2",
+        ))
+        .bind(account_id)
+        .bind(init::per_page() as i32)
+        .fetch_all(&mut *tx)
+        .await
+        .expect("select posts by account")
     }
 
     pub fn author(&self, user: &User) -> bool {

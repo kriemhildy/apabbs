@@ -74,6 +74,25 @@ mod init {
         }
     }
 
+    pub fn dev() -> bool {
+        std::env::var("DEV").is_ok_and(|v| v == "1")
+    }
+
+    pub fn per_page() -> usize {
+        match std::env::var("PER_PAGE") {
+            Ok(per_page) => per_page.parse().expect("parse PER_PAGE env"),
+            Err(_) => 1000,
+        }
+    }
+
+    pub fn site_name() -> String {
+        format!(
+            "{}{}",
+            if dev() { "[dev] " } else { "" },
+            std::env::var("SITE_NAME").expect("read SITE_NAME env")
+        )
+    }
+
     pub async fn app_state() -> AppState {
         let (db, _) = tokio::join!(db(), cron_jobs());
         let jinja = jinja();

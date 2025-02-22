@@ -102,9 +102,9 @@ async fn index(
             None => return bad_request("no post to show solo"),
         }
     } else {
-        Post::select_latest(&mut tx, &user, query_post_id, None, (per_page() + 1) as i32).await
+        Post::select(&mut tx, &user, query_post_id, false).await
     };
-    let prior_page_post = if posts.len() <= per_page() {
+    let prior_page_post = if posts.len() <= init::per_page() {
         None
     } else {
         posts.pop()
@@ -114,7 +114,7 @@ async fn index(
         &state,
         "index.jinja",
         minijinja::context!(
-            title => site_name(),
+            title => init::site_name(),
             nav => !solo,
             posts,
             logged_in => user.account.is_some(),
@@ -191,7 +191,7 @@ async fn login_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => site_name()),
+        minijinja::context!(title => init::site_name()),
     ))
 }
 
@@ -223,7 +223,7 @@ async fn registration_form(State(state): State<AppState>) -> Html<String> {
     Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => site_name()),
+        minijinja::context!(title => init::site_name()),
     ))
 }
 
@@ -354,12 +354,11 @@ async fn interim(
     println!("interim key: {}", key);
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
-    let from_post = match Post::select_by_key(&mut tx, &key).await {
+    let since_post = match Post::select_by_key(&mut tx, &key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
     };
-    let new_posts =
-        Post::select_latest(&mut tx, &user, None, Some(from_post.id), per_page() as i32).await;
+    let new_posts = Post::select(&mut tx, &user, Some(since_post.id), true).await;
     tx.commit().await.expect(COMMIT);
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
     for post in new_posts {
@@ -391,6 +390,7 @@ async fn user_profile(
         None => return not_found("account does not exist"),
     };
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
+    let posts = Post::select_by_account(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
@@ -404,13 +404,14 @@ async fn user_profile(
         &state,
         "user.jinja",
         minijinja::context!(
-            title => site_name(),
+            title => init::site_name(),
             account,
             logged_in => user.account.is_some(),
             username => user.username(),
             admin => user.admin(),
             time_zones,
             notice,
+            posts,
         ),
     ));
     (jar, html).into_response()

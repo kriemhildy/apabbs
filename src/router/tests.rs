@@ -23,7 +23,7 @@ const TEST_MEDIA_DIR: &'static str = "tests/media";
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 async fn init_test() -> (Router, AppState) {
-    if !dev() {
+    if !init::dev() {
         panic!("not in dev mode");
     }
     let state = init::app_state().await;
@@ -179,7 +179,7 @@ async fn test_index() {
     assert!(response_has_cookie(&response, ANON_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(body_str.contains(&site_name()));
+    assert!(body_str.contains(&init::site_name()));
 }
 
 #[tokio::test]
