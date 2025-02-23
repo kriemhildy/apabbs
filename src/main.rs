@@ -12,7 +12,7 @@ use tokio::sync::broadcast::Sender;
 
 const BEGIN: &'static str = "begin transaction";
 const COMMIT: &'static str = "commit transaction";
-const POSTGRES_TIMESTAMP_FORMAT: &'static str = "Dy, DD Mon YYYY HH:MI:SS TZHTZM"; // RFC 2822
+const POSTGRES_TIMESTAMP_FORMAT: &'static str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM"; // RFC 2822
 
 #[derive(Clone)]
 struct AppState {
