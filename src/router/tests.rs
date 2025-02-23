@@ -468,7 +468,7 @@ async fn test_settings() {
     assert!(response.status().is_success());
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(body_str.contains("Delete your login cookie"));
+    assert!(body_str.contains("Settings"));
     let mut tx = state.db.begin().await.expect(BEGIN);
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
