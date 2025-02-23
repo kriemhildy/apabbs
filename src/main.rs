@@ -93,6 +93,11 @@ mod init {
         )
     }
 
+    pub fn secret_key() -> String {
+        std::env::var("SECRET_KEY").expect("read SECRET_KEY env")
+    }
+
+
     pub async fn app_state() -> AppState {
         let (db, _) = tokio::join!(db(), cron_jobs());
         let jinja = jinja();
@@ -101,8 +106,7 @@ mod init {
     }
 
     pub fn validate_secret_key() {
-        let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-        if secret_key.len() < 16 {
+        if secret_key().len() < 16 {
             panic!("SECRET_KEY env must be at least 16 chars");
         }
     }

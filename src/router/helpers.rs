@@ -53,8 +53,7 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
         .expect("get IP header")
         .to_str()
         .expect("convert header to str");
-    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    sha256::digest(secret_key + ip)
+    sha256::digest(init::secret_key() + ip)
 }
 
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {

@@ -48,8 +48,7 @@ fn test_anon_user() -> User {
 }
 
 fn local_ip_hash() -> String {
-    let secret_key = std::env::var("SECRET_KEY").expect("read SECRET_KEY env");
-    sha256::digest(secret_key + LOCAL_IP)
+    sha256::digest(init::secret_key() + LOCAL_IP)
 }
 
 async fn create_test_account(tx: &mut PgConnection, admin: bool) -> Account {
