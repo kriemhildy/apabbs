@@ -406,6 +406,9 @@ async fn user_profile(
 async fn settings(State(state): State<AppState>, mut jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
+    if user.account.is_none() {
+        return unauthorized("not logged in");
+    }
     set_session_time_zone(&mut tx, user.time_zone()).await;
     let account = &user.account;
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;

@@ -357,7 +357,7 @@ async fn test_create_account() {
 async fn test_logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = test_credentials().register(&mut tx, &local_ip_hash()).await;
+    let account = create_test_account(&mut tx, false).await;
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .method(Method::POST)
@@ -452,6 +452,28 @@ async fn test_user_profile() {
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
+
+#[tokio::test]
+async fn test_settings() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let account = create_test_account(&mut tx, false).await;
+    tx.commit().await.expect(COMMIT);
+    let request = Request::builder()
+        .uri("/settings")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert!(response.status().is_success());
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    assert!(body_str.contains("Delete your login cookie"));
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
+}
+
 
 #[tokio::test]
 async fn test_update_time_zone() {
