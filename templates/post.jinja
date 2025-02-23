@@ -28,14 +28,13 @@
                 {% endif %}
                 {% if solo %}
                 <p class="info">
-                    Poster:
+                    {{ post.created_at_str }}
+                    <br>
                     {% if post.username %}
                     <a href="/user/{{ post.username }}">{{ post.username }}</a>
                     {% else %}
                     anon
                     {% endif %}
-                    <br>
-                    At: {{ post.created_at_str }}
                 </p>
                 {% endif %}
                 {% if post.status == "approved" %}
