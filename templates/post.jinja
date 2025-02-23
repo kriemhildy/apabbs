@@ -36,10 +36,6 @@
                     {% endif %}
                     <br>
                     At: {{ post.created_at_str }}
-                    {% if post.media_file_name %}
-                    <br>
-                    Filename: {{ post.media_file_name|e }}
-                    {% endif %}
                 </p>
                 {% endif %}
                 {% if post.status == "approved" %}
