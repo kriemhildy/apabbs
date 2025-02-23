@@ -145,6 +145,13 @@ div.post.banned {
 
 div.post div.body {
     max-width: 1000px;
+    max-height: clamp(300px, 80vh, 600px);
+    overflow: hidden;
+}
+
+div#posts.solo div.post div.body {
+    max-height: unset;
+    overflow: unset;
 }
 
 /* youtube thumbnails */
@@ -160,7 +167,7 @@ video {
 
 /* phones get tighter layout because of mobile browser controls */
 
-div.post.solo img,
+div#posts.solo img,
 video {
     max-height: max(calc(100vh - 10em), 200px);
 }
