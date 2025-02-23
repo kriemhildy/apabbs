@@ -361,7 +361,7 @@ async fn test_logout() {
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/logout")
+        .uri("/settings/logout")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
         .body(Body::empty())
         .unwrap();
@@ -466,7 +466,7 @@ async fn test_update_time_zone() {
     let time_zone_update_str = serde_urlencoded::to_string(&time_zone_update).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/update-time-zone")
+        .uri("/settings/update-time-zone")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(time_zone_update_str))
@@ -496,7 +496,7 @@ async fn test_update_password() {
     let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/update-password")
+        .uri("/settings/update-password")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(credentials_str))

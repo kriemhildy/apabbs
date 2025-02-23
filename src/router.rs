@@ -43,7 +43,6 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
-        .route("/logout", post(logout))
         .route(
             "/hide-rejected-post",
             post(hide_rejected_post).patch(hide_rejected_post),
@@ -51,8 +50,10 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/web-socket", get(web_socket))
         .route("/interim/{key}", get(interim))
         .route("/user/{username}", get(user_profile))
-        .route("/update-time-zone", post(update_time_zone))
-        .route("/update-password", post(update_password))
+        .route("/settings", get(settings))
+        .route("/settings/logout", post(logout))
+        .route("/settings/update-time-zone", post(update_time_zone))
+        .route("/settings/update-password", post(update_password))
         .route(
             "/admin/review-post",
             post(review_post).patch(review_post).delete(review_post),
@@ -117,7 +118,6 @@ async fn index(
             title => init::site_name(),
             nav => !solo,
             posts,
-            logged_in => user.account.is_some(),
             username => user.username(),
             admin => user.admin(),
             query_post,
@@ -380,7 +380,7 @@ async fn interim(
 async fn user_profile(
     State(state): State<AppState>,
     Path(username): Path<String>,
-    mut jar: CookieJar,
+    jar: CookieJar,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = user!(jar, tx);
@@ -389,8 +389,26 @@ async fn user_profile(
         Some(account) => account,
         None => return not_found("account does not exist"),
     };
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     let posts = Post::select_by_author(&mut tx, account.id).await;
+    tx.commit().await.expect(COMMIT);
+    Html(render(
+        &state,
+        "user.jinja",
+        minijinja::context!(
+            title => init::site_name(),
+            account,
+            username => user.username(),
+            posts,
+        ),
+    )).into_response()
+}
+
+async fn settings(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = user!(jar, tx);
+    set_session_time_zone(&mut tx, user.time_zone()).await;
+    let account = &user.account;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
@@ -402,16 +420,13 @@ async fn user_profile(
     };
     let html = Html(render(
         &state,
-        "user.jinja",
+        "settings.jinja",
         minijinja::context!(
             title => init::site_name(),
             account,
-            logged_in => user.account.is_some(),
             username => user.username(),
-            admin => user.admin(),
             time_zones,
             notice,
-            posts,
         ),
     ));
     (jar, html).into_response()
@@ -435,8 +450,7 @@ async fn update_time_zone(
     tx.commit().await.expect(COMMIT);
     let cookie = build_cookie(NOTICE_COOKIE, "Time zone updated.", false);
     jar = jar.add(cookie);
-    let user_profile_path = format!("/user/{}", &time_zone_update.username);
-    let redirect = Redirect::to(&user_profile_path).into_response();
+    let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }
 
@@ -458,8 +472,7 @@ async fn update_password(
     tx.commit().await.expect(COMMIT);
     let cookie = build_cookie(NOTICE_COOKIE, "Password updated.", false);
     jar = jar.add(cookie);
-    let user_profile_path = format!("/user/{}", &credentials.username);
-    let redirect = Redirect::to(&user_profile_path).into_response();
+    let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }
 

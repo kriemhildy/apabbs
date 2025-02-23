@@ -4,40 +4,12 @@
         <p id="notice">{{ notice }}</p>
         {% endif %}
         <h2>{{ account.username }}</h2>
+        {% if username == account.username %}
+        You are logged in as this user. <a href="/settings">Settings</a>
+        {% endif %}
         <p>Created {{ account.created_at_str }}.</p>
         {% if account.admin %}
         <p>This user is an admin.</p>
-        {% endif %}
-        {% if logged_in and username == account.username %}
-        <form action="/logout" method="post">
-            You are logged in as this user.
-            <br>
-            <input type="submit" value="Log out" id="log-out-submit">
-        </form>
-        <p>Time zone: {{ account.time_zone }}</p>
-        <form action="/update-time-zone" method="post">
-            <input type="hidden" name="username" value="{{ account.username }}">
-            <select name="time_zone" id="time_zone">
-                {% for tz in time_zones %}
-                <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
-                {% endfor %}
-            </select>
-            <br>
-            <input type="submit" value="Update time zone" id="update-time-zone-submit">
-        </form>
-        <br>
-        <form action="/update-password" method="post">
-            <input type="hidden" name="username" value="{{ account.username }}">
-            <label for="password">Password:</label>
-            <br>
-            <input type="password" name="password" id="password" maxlength="64" size="32" autocomplete="new-password">
-            <br>
-            <label for="confirm-password">Confirm password:</label>
-            <br>
-            <input type="password" name="confirm_password" id="confirm-password" maxlength="64" size="32" autocomplete="new-password">
-            <br>
-            <input type="submit" value="Update password" id="update-password-submit">
-        </form>
         {% endif %}
         <div id="posts">
             {% for post in posts %}
