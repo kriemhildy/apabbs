@@ -30,7 +30,8 @@ body {
 
 body {
     overflow-wrap: break-word;
-    margin: 12px;
+    margin: max(calc(4vh + 4vw - 50px), 12px);
+    margin-top: 12px;
 }
 
 body,
@@ -118,8 +119,7 @@ div#posts {
     display: flex;
     flex-wrap: wrap;
     gap: calc(3vh + 3vw);
-    margin-top: 12px;
-    margin-bottom: calc(3vh + 3vw);
+    margin-top: max(calc(2vh + 2vw - 20px), 12px);
 }
 
 div#posts.solo {
@@ -127,7 +127,7 @@ div#posts.solo {
 }
 
 div.post {
-    flex: clamp(250px, 80vh, 500px);
+    flex: clamp(250px, 30vh + 20vw, 600px);
     break-inside: avoid;
 }
 
