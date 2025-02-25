@@ -229,7 +229,11 @@ async fn authenticate(
     }
     match credentials.authenticate(&mut tx).await {
         Some(account) => {
-            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string(), true);
+            let cookie = build_cookie(
+                ACCOUNT_COOKIE,
+                &account.token.to_string(),
+                credentials.year_checked(),
+            );
             jar = jar.add(cookie);
         }
         None => return bad_request("password is wrong"),
@@ -282,7 +286,11 @@ async fn create_account(
                 return response;
             }
             let account = credentials.register(&mut tx, &ip_hash).await;
-            let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string(), true);
+            let cookie = build_cookie(
+                ACCOUNT_COOKIE,
+                &account.token.to_string(),
+                credentials.year_checked(),
+            );
             jar = jar.add(cookie);
         }
     }

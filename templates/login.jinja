@@ -8,7 +8,10 @@
             <br>
             <label for="password">Password:</label>
             <input type="password" name="password" id="password" maxlength="64" autocomplete="current-password">
-            <br>
+            <div class="checkbox-container">
+                <input type="checkbox" checked name="year" id="login-year">
+                <label for="login-year">Stay logged in for a year</label>
+            </div>
             <input type="submit" value="Log in" id="log-in-submit">
         </form>
         <p>If you don't have an account, you can <a href="/register">register</a> one.</p>

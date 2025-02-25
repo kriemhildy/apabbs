@@ -99,6 +99,7 @@ pub struct Credentials {
     pub username: String,
     pub password: String,
     pub confirm_password: Option<String>,
+    pub year: Option<String>,
 }
 
 impl Credentials {
@@ -172,6 +173,13 @@ impl Credentials {
         .execute(&mut *tx)
         .await
         .expect("update password");
+    }
+
+    pub fn year_checked(&self) -> bool {
+        match self.year {
+            Some(ref year) => year == "on",
+            None => false,
+        }
     }
 }
 

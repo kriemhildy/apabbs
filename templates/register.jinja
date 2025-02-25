@@ -18,7 +18,10 @@
             <label for="confirm-password">Confirm password:</label>
             <br>
             <input type="password" name="confirm_password" id="confirm-password" maxlength="64" size="32" autocomplete="new-password">
-            <br>
+            <div class="checkbox-container">
+                <input type="checkbox" checked name="year" id="login-year">
+                <label for="login-year">Stay logged in for a year</label>
+            </div>
             <input type="submit" value="Register" id="register-submit">
         </form>
         {% endblock %}
