@@ -157,7 +157,7 @@ pub async fn init_user(
         },
         None => {
             let anon_token = Uuid::new_v4();
-            let cookie = build_cookie(ANON_COOKIE, &anon_token.to_string(), true);
+            let cookie = build_cookie(ANON_COOKIE, &anon_token.to_string(), false);
             jar = jar.add(cookie);
             anon_token
         }
