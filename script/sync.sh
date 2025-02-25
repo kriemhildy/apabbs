@@ -13,3 +13,4 @@ psql $DATABASE_URL < apabbs.sql
 rm apabbs.sql
 rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/uploads .
 rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/pub/media pub
+rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/pub/youtube pub

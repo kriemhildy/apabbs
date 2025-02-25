@@ -8,6 +8,7 @@ use uuid::Uuid;
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
+const YOUTUBE_DIR: &'static str = "pub/youtube";
 const MAX_YOUTUBE_EMBEDS: usize = 3;
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
@@ -194,13 +195,29 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    fn url_exists(url: &str) -> bool {
+    fn download_youtube_thumbnail(video_id: &str, size: &str) -> Option<String> {
+        let remote_thumbnail_url = format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
+        let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
+        let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
+        let local_thumbnail_url = local_thumbnail_path
+            .to_str()
+            .unwrap()
+            .to_owned()
+            .replacen("pub", "", 1);
+        if !video_id_dir.exists() {
+            std::fs::create_dir(&video_id_dir).expect("create youtube video id dir");
+        }
         let curl_status = std::process::Command::new("curl")
-            .args(["--silent", "--head", "--fail", "--output", "/dev/null"])
-            .arg(url)
+            .args(["--silent", "--fail", "--output"])
+            .arg(&local_thumbnail_path)
+            .arg(&remote_thumbnail_url)
             .status()
-            .expect("check if url exists");
-        curl_status.success()
+            .expect("download youtube thumbnail");
+        if curl_status.success() {
+            Some(local_thumbnail_url)
+        } else {
+            None
+        }
     }
 
     fn body_as_html(&self) -> String {
@@ -232,35 +249,28 @@ impl PostSubmission {
             let youtube_short = captures.get(1).is_some_and(|m| m.as_str() == "shorts/");
             let youtube_video_id = &captures[2];
             println!("youtube_video_id: {}", youtube_video_id);
-            let mut youtube_thumbnail_url = String::new();
             let thumbnail_sizes = if youtube_short {
                 vec!["oar2"]
             } else {
                 vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
             };
-            for size in thumbnail_sizes.iter() {
-                let url = format!(
-                    "https://img.youtube.com/vi/{}/{}.jpg",
-                    youtube_video_id, size
-                );
-                if Self::url_exists(&url) {
-                    youtube_thumbnail_url = url;
-                    break;
-                }
-            }
-            if youtube_thumbnail_url.is_empty() {
-                break;
-            }
-            let youtube_path = if youtube_short { "shorts/" } else { "watch?v=" };
+            let local_thumbnail_url = thumbnail_sizes
+                .iter()
+                .find_map(|s| Self::download_youtube_thumbnail(&youtube_video_id, s));
+            let local_thumbnail_url = match local_thumbnail_url {
+                Some(url) => url,
+                None => break,
+            };
+            let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(
                 concat!(
-                    r#"<a class="youtube" href="https://www.youtube.com/{path}{video_id}" "#,
+                    r#"<a class="youtube" href="https://www.youtube.com/{url_path}{video_id}" "#,
                     r#"target="_blank"><img src="/youtube.svg" alt></a>"#,
                     r#"<img src="{thumbnail_url}" alt="YouTube {video_id}">"#,
                 ),
-                path = youtube_path,
+                url_path = youtube_url_path,
                 video_id = youtube_video_id,
-                thumbnail_url = youtube_thumbnail_url
+                thumbnail_url = local_thumbnail_url
             );
             html = youtube_link_regex
                 .replace(&html, youtube_thumbnail_link)
@@ -470,17 +480,17 @@ mod tests {
                 r#"<br>"#,
                 r#"<a class="youtube" href="https://www.youtube.com/watch?v=jNQXAC9IVRw" "#,
                 r#"target="_blank"><img src="/youtube.svg" alt></a>"#,
-                r#"<img src="https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg" "#,
+                r#"<img src="/youtube/jNQXAC9IVRw/hqdefault.jpg" "#,
                 r#"alt="YouTube jNQXAC9IVRw">"#,
                 r#"<br>"#,
                 r#"<a class="youtube" href="https://www.youtube.com/watch?v=kixirmHePCc" "#,
                 r#"target="_blank"><img src="/youtube.svg" alt></a>"#,
-                r#"<img src="https://img.youtube.com/vi/kixirmHePCc/maxresdefault.jpg" "#,
+                r#"<img src="/youtube/kixirmHePCc/maxresdefault.jpg" "#,
                 r#"alt="YouTube kixirmHePCc">"#,
                 r#"<br>"#,
                 r#"<a class="youtube" href="https://www.youtube.com/shorts/cHMCGCWit6U" "#,
                 r#"target="_blank"><img src="/youtube.svg" alt></a>"#,
-                r#"<img src="https://img.youtube.com/vi/cHMCGCWit6U/oar2.jpg" "#,
+                r#"<img src="/youtube/cHMCGCWit6U/oar2.jpg" "#,
                 r#"alt="YouTube cHMCGCWit6U">"#,
                 r#"<br>"#,
                 r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw" "#,

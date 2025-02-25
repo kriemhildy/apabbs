@@ -4,5 +4,6 @@ target
 .DS_Store
 uploads/*
 pub/media/*
+pub/youtube/*
 pub/favicon.ico
 gpg.key
