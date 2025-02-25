@@ -129,12 +129,11 @@ async fn create_test_post(
     }
 }
 
-fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
-    response
-        .headers()
-        .get_all(SET_COOKIE)
-        .iter()
-        .any(|h| h.to_str().unwrap().contains(cookie))
+fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -> bool {
+    response.headers().get_all(SET_COOKIE).iter().any(|h| {
+        let s = h.to_str().expect("header to str");
+        s.contains(cookie) && (removed == s.contains("Max-Age=0"))
+    })
 }
 
 fn remove_encrypted_file(encrypted_file_path: &Path) {
@@ -184,7 +183,7 @@ async fn test_index() {
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_has_cookie(&response, SESSION_COOKIE));
+    assert!(response_has_cookie(&response, SESSION_COOKIE, false));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(&init::site_name()));
@@ -336,7 +335,7 @@ async fn test_authenticate() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE, false));
     let mut tx = state.db.begin().await.expect(BEGIN);
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -375,7 +374,7 @@ async fn test_create_account() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE, false));
     let mut tx = state.db.begin().await.expect(BEGIN);
     let account = Account::select_by_username(&mut tx, &credentials.username)
         .await
@@ -405,7 +404,39 @@ async fn test_logout() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE, true));
     let mut tx = state.db.begin().await.expect(BEGIN);
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
+async fn test_reset_account_token() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = create_test_account(&mut tx, false).await;
+    let account = user.account.as_ref().unwrap();
+    tx.commit().await.expect(COMMIT);
+    let logout = Logout {
+        session_token: user.session_token,
+    };
+    let logout_str = serde_urlencoded::to_string(&logout).unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/settings/reset-account-token")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .body(Body::from(logout_str))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert!(response_has_cookie(&response, ACCOUNT_COOKIE, true));
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let updated_account = Account::select_by_username(&mut tx, &account.username)
+        .await
+        .unwrap();
+    assert_ne!(updated_account.token, account.token);
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
@@ -511,7 +542,7 @@ async fn test_settings() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_has_cookie(&response, SESSION_COOKIE));
+    assert!(response_has_cookie(&response, SESSION_COOKIE, false));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains("Settings"));
