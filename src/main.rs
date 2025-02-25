@@ -97,7 +97,6 @@ mod init {
         std::env::var("SECRET_KEY").expect("read SECRET_KEY env")
     }
 
-
     pub async fn app_state() -> AppState {
         let (db, _) = tokio::join!(db(), cron_jobs());
         let jinja = jinja();

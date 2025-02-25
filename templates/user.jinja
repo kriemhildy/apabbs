@@ -3,12 +3,12 @@
         {% if notice %}
         <p id="notice">{{ notice }}</p>
         {% endif %}
-        <h2>{{ account.username }}</h2>
-        {% if username == account.username %}
+        <h2>{{ display_account.username }}</h2>
+        {% if account.username == display_account.username %}
         You are logged in as this user. <a href="/settings">Settings</a>
         {% endif %}
-        <p>Created {{ account.created_at_str }}.</p>
-        {% if account.admin %}
+        <p>Created {{ display_account.created_at_str }}.</p>
+        {% if display_account.admin %}
         <p>This user is an admin.</p>
         {% endif %}
         <div id="posts">

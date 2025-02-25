@@ -5,7 +5,7 @@ mod tests;
 use crate::{
     ban, init,
     post::{Post, PostHiding, PostMediaCategory, PostReview, PostStatus, PostSubmission},
-    user::{Account, Credentials, TimeZoneUpdate, User},
+    user::{Account, Credentials, Logout, TimeZoneUpdate, User},
     AppState, PostMessage, BEGIN, COMMIT,
 };
 use axum::{
@@ -28,6 +28,7 @@ use uuid::Uuid;
 const ACCOUNT_COOKIE: &'static str = "account";
 const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
+const CSRF_COOKIE: &'static str = "csrf";
 const NOTICE_COOKIE: &'static str = "notice";
 const ROOT: &'static str = "/";
 
@@ -75,31 +76,30 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 
 async fn index(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     key: Uri,
     Path(params): Path<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    set_session_time_zone(&mut tx, user.time_zone()).await;
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
     let query_post = match params.get("key") {
-        Some(key) => {
-            set_session_time_zone(&mut tx, user.time_zone()).await;
-            match Post::select_by_key(&mut tx, &key).await {
-                Some(post) => Some(post),
-                None => return not_found("post does not exist"),
-            }
-        }
+        Some(key) => match Post::select_by_key(&mut tx, &key).await {
+            Some(post) => Some(post),
+            None => return not_found("post does not exist"),
+        },
         None => None,
     };
-    let query_post_id = match &query_post {
-        Some(post) => Some(post.id),
+    let query_post_id = match query_post {
+        Some(ref post) => Some(post.id),
         None => None,
     };
     let solo = query_post.is_some() && !key.path().contains("/page/");
     let mut posts = if solo {
-        match &query_post {
-            Some(post) => vec![post.clone()],
+        match query_post {
+            Some(ref post) => vec![post.clone()],
             None => return bad_request("no post to show solo"),
         }
     } else {
@@ -118,17 +118,14 @@ async fn index(
             title => init::site_name(),
             nav => !solo,
             posts,
-            username => user.username(),
+            account => user.account,
             admin => user.admin(),
             query_post,
             prior_page_post,
             solo,
+            csrf_token => user.csrf_token,
         ),
     ));
-    if jar.get(ANON_COOKIE).is_none() {
-        let cookie = build_cookie(ANON_COOKIE, &user.anon_token.to_string(), true);
-        jar = jar.add(cookie);
-    }
     (jar, html).into_response()
 }
 
@@ -139,18 +136,25 @@ async fn submit_post(
     mut multipart: Multipart,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    let ip_hash = ip_hash(&headers);
-    set_session_time_zone(&mut tx, user.time_zone()).await;
-    check_for_ban!(tx, &ip_hash);
-    let mut post_submission = PostSubmission {
-        body: String::default(),
-        media_file_name: None,
-        media_bytes: None,
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
     };
+    let ip_hash = ip_hash(&headers);
+    if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
+        tx.commit().await.expect(COMMIT);
+        return response;
+    }
+    let mut post_submission = PostSubmission::default();
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
         match name.as_str() {
+            "csrf_token" => {
+                post_submission.csrf_token = match Uuid::try_parse(&field.text().await.unwrap()) {
+                    Ok(uuid) => uuid,
+                    Err(_) => return bad_request("invalid CSRF token uuid"),
+                };
+            }
             "body" => post_submission.body = field.text().await.unwrap(),
             "media" => {
                 if post_submission.media_file_name.is_some() {
@@ -169,6 +173,9 @@ async fn submit_post(
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
+    if post_submission.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
@@ -180,32 +187,45 @@ async fn submit_post(
     }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
-    if is_fetch_request(&headers) {
+    let response = if is_fetch_request(&headers) {
         StatusCode::CREATED.into_response()
     } else {
         Redirect::to(ROOT).into_response()
-    }
+    };
+    (jar, response).into_response()
 }
 
-async fn login_form(State(state): State<AppState>) -> Html<String> {
-    Html(render(
+async fn login_form(State(state): State<AppState>, jar: CookieJar) -> Response {
+    let (csrf_token, jar) = match ensure_csrf_token(jar) {
+        Ok((csrf_token, jar)) => (csrf_token, jar),
+        Err(response) => return response,
+    };
+    let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => init::site_name()),
-    ))
+        minijinja::context!(title => init::site_name(), csrf_token),
+    ));
+    (jar, html).into_response()
 }
 
 async fn authenticate(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
     if jar.get(ACCOUNT_COOKIE).is_some() {
         return bad_request("already logged in");
     }
     if !credentials.username_exists(&mut tx).await {
         return not_found("username does not exist");
+    }
+    if credentials.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
     }
     match credentials.authenticate(&mut tx).await {
         Some(account) => {
@@ -219,21 +239,33 @@ async fn authenticate(
     (jar, redirect).into_response()
 }
 
-async fn registration_form(State(state): State<AppState>) -> Html<String> {
-    Html(render(
+async fn registration_form(State(state): State<AppState>, jar: CookieJar) -> Response {
+    let (csrf_token, jar) = match ensure_csrf_token(jar) {
+        Ok((csrf_token, jar)) => (csrf_token, jar),
+        Err(response) => return response,
+    };
+    let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => init::site_name()),
-    ))
+        minijinja::context!(title => init::site_name(), csrf_token),
+    ));
+    (jar, html).into_response()
 }
 
 async fn create_account(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if credentials.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
     if credentials.username_exists(&mut tx).await {
         return bad_request("username is taken");
     }
@@ -245,8 +277,10 @@ async fn create_account(
         Some(_cookie) => return bad_request("log out before registering"),
         None => {
             let ip_hash = ip_hash(&headers);
-            set_session_time_zone(&mut tx, "UTC").await;
-            check_for_ban!(tx, &ip_hash);
+            if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
+                tx.commit().await.expect(COMMIT);
+                return response;
+            }
             let account = credentials.register(&mut tx, &ip_hash).await;
             let cookie = build_cookie(ACCOUNT_COOKIE, &account.token.to_string(), true);
             jar = jar.add(cookie);
@@ -257,21 +291,24 @@ async fn create_account(
     (jar, redirect).into_response()
 }
 
-async fn logout(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+async fn logout(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(logout): Form<Logout>,
+) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    match jar.get(ACCOUNT_COOKIE) {
-        Some(cookie) => {
-            let token = match Uuid::try_parse(cookie.value()) {
-                Ok(uuid) => uuid,
-                Err(_) => return bad_request("invalid account token"),
-            };
-            match Account::select_by_token(&mut tx, &token).await {
-                Some(_account) => jar = jar.remove(removal_cookie(ACCOUNT_COOKIE)),
-                None => return bad_request(ACCOUNT_NOT_FOUND),
-            };
-        }
-        None => return bad_request("cookie not found"),
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
     };
+    if logout.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
+    if user.account.is_some() {
+        jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+    } else {
+        return bad_request("not logged in");
+    }
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
@@ -284,7 +321,13 @@ async fn hide_rejected_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if post_hiding.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
     let post = match Post::select_by_key(&mut tx, &post_hiding.key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
@@ -300,11 +343,12 @@ async fn hide_rejected_post(
     }
     post_hiding.hide_post(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    if is_fetch_request(&headers) {
+    let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
     } else {
         Redirect::to(ROOT).into_response()
-    }
+    };
+    (jar, response).into_response()
 }
 
 async fn web_socket(
@@ -331,16 +375,21 @@ async fn web_socket(
             if !should_send {
                 continue;
             }
-            let json_utf8 = Utf8Bytes::from(
-                serde_json::json!({"key": msg.post.key, "html": msg.html}).to_string(),
-            );
+            let html = msg
+                .html
+                .replace("<CSRF_TOKEN>", &user.csrf_token.to_string());
+            let json_utf8 =
+                Utf8Bytes::from(serde_json::json!({"key": msg.post.key, "html": html}).to_string());
             if socket.send(Message::Text(json_utf8)).await.is_err() {
                 break; // client disconnect
             }
         }
     }
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
+    let (user, _jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
     tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
     upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
@@ -351,9 +400,11 @@ async fn interim(
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Response {
-    println!("interim key: {}", key);
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
     let since_post = match Post::select_by_key(&mut tx, &key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
@@ -372,9 +423,8 @@ async fn interim(
             "html": html
         }));
     }
-    serde_json::json!({"posts": json_posts})
-        .to_string()
-        .into_response()
+    let json = serde_json::json!({"posts": json_posts}).to_string();
+    (jar, json).into_response()
 }
 
 async fn user_profile(
@@ -383,34 +433,40 @@ async fn user_profile(
     jar: CookieJar,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    set_session_time_zone(&mut tx, user.time_zone()).await;
-    let account = match Account::select_by_username(&mut tx, &username).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    let display_account = match Account::select_by_username(&mut tx, &username).await {
         Some(account) => account,
         None => return not_found("account does not exist"),
     };
-    let posts = Post::select_by_author(&mut tx, account.id).await;
+    let posts = Post::select_by_author(&mut tx, display_account.id).await;
     tx.commit().await.expect(COMMIT);
-    Html(render(
+    let html = Html(render(
         &state,
         "user.jinja",
         minijinja::context!(
             title => init::site_name(),
-            account,
-            username => user.username(),
+            account => user.account,
+            admin => user.admin(),
+            display_account,
             posts,
         ),
-    )).into_response()
+    ));
+    (jar, html).into_response()
 }
 
-async fn settings(State(state): State<AppState>, mut jar: CookieJar) -> Response {
+async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
     if user.account.is_none() {
         return unauthorized("not logged in");
     }
-    set_session_time_zone(&mut tx, user.time_zone()).await;
-    let account = &user.account;
+    let account = user.account.as_ref().unwrap();
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let notice = match jar.get(NOTICE_COOKIE) {
@@ -430,6 +486,7 @@ async fn settings(State(state): State<AppState>, mut jar: CookieJar) -> Response
             username => user.username(),
             time_zones,
             notice,
+            csrf_token => user.csrf_token,
         ),
     ));
     (jar, html).into_response()
@@ -437,19 +494,26 @@ async fn settings(State(state): State<AppState>, mut jar: CookieJar) -> Response
 
 async fn update_time_zone(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    if user.username() != Some(&time_zone_update.username) {
-        return unauthorized("not your account");
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if user.account.is_none() {
+        return unauthorized("not logged in");
     }
+    if time_zone_update.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
+    let account = user.account.unwrap();
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     if !time_zones.contains(&time_zone_update.time_zone) {
         return bad_request("invalid time zone");
     }
-    time_zone_update.update(&mut tx).await;
+    time_zone_update.update(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     let cookie = build_cookie(NOTICE_COOKIE, "Time zone updated.", false);
     jar = jar.add(cookie);
@@ -459,14 +523,25 @@ async fn update_time_zone(
 
 async fn update_password(
     State(state): State<AppState>,
-    mut jar: CookieJar,
+    jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = user!(jar, tx);
-    if user.username() != Some(&credentials.username) {
-        return unauthorized("not your account");
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if credentials.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
     }
+    match user.account {
+        Some(account) => {
+            if account.username != credentials.username {
+                return unauthorized("not logged in as this user");
+            }
+        }
+        None => return unauthorized("not logged in"),
+    };
     let errors = credentials.validate();
     if !errors.is_empty() {
         return bad_request(&errors.join("\n"));
@@ -488,7 +563,16 @@ async fn review_post(
     Form(post_review): Form<PostReview>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    require_admin!(jar, tx);
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if post_review.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
+    if !user.admin() {
+        return unauthorized("not an admin");
+    }
     let post = match Post::select_by_key(&mut tx, &post_review.key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
@@ -513,7 +597,6 @@ async fn review_post(
                         .media_category
                         .is_some_and(|c| c == PostMediaCategory::Image)
                     {
-                        println!("generating thumbnail for {media_path_str}");
                         PostReview::generate_thumbnail(media_path_str).await;
                         let thumbnail_path = post_review.thumbnail_path(media_file_name);
                         if !thumbnail_path.exists() {
@@ -551,11 +634,12 @@ async fn review_post(
     }
     tx.commit().await.expect(COMMIT);
     send_post_to_web_socket(&state, post);
-    if is_fetch_request(&headers) {
+    let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
     } else {
         Redirect::to(ROOT).into_response()
-    }
+    };
+    (jar, response).into_response()
 }
 
 async fn decrypt_media(
@@ -564,7 +648,13 @@ async fn decrypt_media(
     Path(key): Path<String>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    require_admin!(jar, tx);
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if !user.admin() {
+        return unauthorized("not an admin");
+    }
     let post = match Post::select_by_key(&mut tx, &key).await {
         Some(post) => post,
         None => return not_found("post does not exist"),
@@ -582,5 +672,5 @@ async fn decrypt_media(
             &format!(r#"inline; file_name="{}""#, media_file_name),
         ),
     ];
-    (headers, media_bytes).into_response()
+    (jar, headers, media_bytes).into_response()
 }

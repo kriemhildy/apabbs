@@ -12,8 +12,8 @@
 <body{{ ' class="admin"' if admin }}>
     {% if nav %}
     <nav class="system">
-        {% if username %}
-        <a href="/user/{{ username }}">{{ username }}</a>
+        {% if account %}
+        <a href="/user/{{ account.username }}">{{ account.username }}</a>
         {% else %}
         <a href="/login">log in</a>
         {% endif %}

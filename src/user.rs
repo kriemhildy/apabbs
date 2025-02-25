@@ -8,6 +8,7 @@ const BLOWFISH_ITERATIONS: i32 = 10;
 pub struct User {
     pub account: Option<Account>,
     pub anon_token: Uuid,
+    pub csrf_token: Uuid,
 }
 
 impl User {
@@ -16,15 +17,15 @@ impl User {
     }
 
     pub fn username(&self) -> Option<&str> {
-        match &self.account {
-            Some(account) => Some(&account.username),
+        match self.account {
+            Some(ref account) => Some(&account.username),
             None => None,
         }
     }
 
     pub fn time_zone(&self) -> &str {
-        match &self.account {
-            Some(account) => &account.time_zone,
+        match self.account {
+            Some(ref account) => &account.time_zone,
             None => "UTC",
         }
     }
@@ -66,7 +67,7 @@ impl Account {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TimeZoneUpdate {
-    pub username: String,
+    pub csrf_token: Uuid,
     pub time_zone: String,
 }
 
@@ -82,10 +83,10 @@ impl TimeZoneUpdate {
         .expect("select distinct time zones")
     }
 
-    pub async fn update(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE accounts SET time_zone = $1 WHERE username = $2")
+    pub async fn update(&self, tx: &mut PgConnection, account_id: i32) {
+        sqlx::query("UPDATE accounts SET time_zone = $1 WHERE id = $2")
             .bind(&self.time_zone)
-            .bind(&self.username)
+            .bind(account_id)
             .execute(&mut *tx)
             .await
             .expect("update time zone");
@@ -94,6 +95,7 @@ impl TimeZoneUpdate {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Credentials {
+    pub csrf_token: Uuid,
     pub username: String,
     pub password: String,
     pub confirm_password: Option<String>,
@@ -122,8 +124,8 @@ impl Credentials {
         if lowercase_password.contains(&lowercase_username) {
             errors.push("password cannot contain username");
         }
-        match &self.confirm_password {
-            Some(confirm_password) => {
+        match self.confirm_password {
+            Some(ref confirm_password) => {
                 if &self.password != confirm_password {
                     errors.push("passwords do not match");
                 }
@@ -171,4 +173,9 @@ impl Credentials {
         .await
         .expect("update password");
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Logout {
+    pub csrf_token: Uuid,
 }

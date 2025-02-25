@@ -2,6 +2,7 @@
         {% block main %}
         {% if query_post is none %}
         <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <textarea name="body"></textarea>
             <br>
             <label for="media">Media:</label>

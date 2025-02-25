@@ -160,7 +160,9 @@ impl Post {
     }
 }
 
+#[derive(Default)]
 pub struct PostSubmission {
+    pub csrf_token: Uuid,
     pub body: String,
     pub media_file_name: Option<String>,
     pub media_bytes: Option<Vec<u8>>,
@@ -170,8 +172,8 @@ impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
-        let (anon_token, account_id, username) = match &user.account {
-            Some(account) => (None, Some(account.id), Some(&account.username)),
+        let (anon_token, account_id, username) = match user.account {
+            Some(ref account) => (None, Some(account.id), Some(&account.username)),
             None => (Some(&user.anon_token), None, None),
         };
         sqlx::query_as(concat!(
@@ -360,6 +362,7 @@ impl PostSubmission {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
+    pub csrf_token: Uuid,
     pub key: String,
     pub status: PostStatus,
 }
@@ -418,6 +421,7 @@ impl PostReview {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
+    pub csrf_token: Uuid,
     pub key: String,
 }
 
@@ -456,8 +460,7 @@ mod tests {
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar",
             )
             .to_owned(),
-            media_file_name: None,
-            media_bytes: None,
+            ..Default::default()
         };
         assert_eq!(
             submission.body_as_html(),

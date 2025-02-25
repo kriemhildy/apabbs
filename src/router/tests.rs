@@ -31,19 +31,20 @@ async fn init_test() -> (Router, AppState) {
     (router, state)
 }
 
-fn test_credentials() -> Credentials {
-    let uuid = Uuid::new_v4().simple().to_string();
+fn test_credentials(user: &User) -> Credentials {
     Credentials {
-        username: String::from(&uuid[..16]),
+        csrf_token: user.csrf_token,
+        username: Uuid::new_v4().simple().to_string()[..16].to_string(),
         password: String::from("test_password"),
         confirm_password: Some(String::from("test_password")),
     }
 }
 
-fn test_anon_user() -> User {
+fn test_user(account: Option<Account>) -> User {
     User {
-        account: None,
+        account,
         anon_token: Uuid::new_v4(),
+        csrf_token: Uuid::new_v4(),
     }
 }
 
@@ -51,10 +52,11 @@ fn local_ip_hash() -> String {
     sha256::digest(init::secret_key() + LOCAL_IP)
 }
 
-async fn create_test_account(tx: &mut PgConnection, admin: bool) -> Account {
-    let credentials = test_credentials();
+async fn create_test_account(tx: &mut PgConnection, admin: bool) -> User {
+    let user = test_user(None);
+    let credentials = test_credentials(&user);
     let account = credentials.register(tx, &local_ip_hash()).await;
-    if admin {
+    let account = if admin {
         sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
             .bind(true)
             .bind(account.id)
@@ -66,10 +68,15 @@ async fn create_test_account(tx: &mut PgConnection, admin: bool) -> Account {
             .expect("select account")
     } else {
         account
+    };
+    User {
+        account: Some(account),
+        anon_token: user.anon_token,
+        csrf_token: user.csrf_token,
     }
 }
 
-async fn delete_test_account(tx: &mut PgConnection, account: Account) {
+async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account.id)
         .execute(&mut *tx)
@@ -94,6 +101,7 @@ async fn create_test_post(
         None => (None, None),
     };
     let post_submission = PostSubmission {
+        csrf_token: user.csrf_token,
         body: String::from("<&test body"),
         media_file_name: media_file_name.clone(),
         media_bytes,
@@ -109,8 +117,9 @@ async fn create_test_post(
         PostStatus::Pending => post,
         _ => {
             PostReview {
+                csrf_token: user.csrf_token,
                 key: post.key.clone(),
-                status: status,
+                status,
             }
             .update_status(tx)
             .await;
@@ -124,8 +133,9 @@ async fn create_test_post(
 fn response_has_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response
         .headers()
-        .get(SET_COOKIE)
-        .is_some_and(|c| c.to_str().unwrap().contains(cookie))
+        .get_all(SET_COOKIE)
+        .iter()
+        .any(|h| h.to_str().unwrap().contains(cookie))
 }
 
 fn remove_encrypted_file(encrypted_file_path: &Path) {
@@ -175,6 +185,7 @@ async fn test_index() {
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
+    assert!(response_has_cookie(&response, CSRF_COOKIE));
     assert!(response_has_cookie(&response, ANON_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
@@ -184,20 +195,23 @@ async fn test_index() {
 #[tokio::test]
 async fn test_submit_post() {
     let (router, state) = init_test().await;
-    let anon_token = Uuid::new_v4();
+    let user = test_user(None);
     let mut form = FormData::new(Vec::new());
+    form.write_field("csrf_token", &user.csrf_token.to_string())
+        .unwrap();
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_anon_token(&mut tx, &anon_token)
+    let post = select_latest_post_by_anon_token(&mut tx, &user.anon_token)
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -205,7 +219,7 @@ async fn test_submit_post() {
     assert_eq!(post.media_file_name, None);
     assert_eq!(post.media_category, None);
     assert_eq!(post.media_mime_type, None);
-    assert_eq!(post.anon_token, Some(anon_token));
+    assert_eq!(post.anon_token, Some(user.anon_token));
     assert_eq!(post.account_id, None);
     assert_eq!(post.username, None);
     assert_eq!(post.status, PostStatus::Pending);
@@ -216,23 +230,26 @@ async fn test_submit_post() {
 #[tokio::test]
 async fn test_submit_post_with_media() {
     let (router, state) = init_test().await;
-    let anon_token = Uuid::new_v4();
+    let user = test_user(None);
     let mut form = FormData::new(Vec::new());
     let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
+    form.write_field("csrf_token", &user.csrf_token.to_string())
+        .unwrap();
     form.write_field("body", "").unwrap();
     form.write_path("media", test_image_path, "image/jpeg")
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_anon_token(&mut tx, &anon_token)
+    let post = select_latest_post_by_anon_token(&mut tx, &user.anon_token)
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -250,16 +267,19 @@ async fn test_submit_post_with_media() {
 async fn test_submit_post_with_account() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, false).await;
     tx.commit().await.expect(COMMIT);
-    let anon_token = Uuid::new_v4();
+    let account = user.account.as_ref().unwrap();
     let mut form = FormData::new(Vec::new());
+    form.write_field("csrf_token", &user.csrf_token.to_string())
+        .unwrap();
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &anon_token))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
@@ -269,7 +289,7 @@ async fn test_submit_post_with_account() {
     let account_post = select_latest_post_by_username(&mut tx, &account.username)
         .await
         .unwrap();
-    let anon_post = select_latest_post_by_anon_token(&mut tx, &anon_token).await;
+    let anon_post = select_latest_post_by_anon_token(&mut tx, &user.anon_token).await;
     assert!(anon_post.is_none());
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(account_post.account_id, Some(account.id));
@@ -297,13 +317,15 @@ async fn test_login_form() {
 async fn test_authenticate() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let credentials = test_credentials();
+    let user = test_user(None);
+    let credentials = test_credentials(&user);
     let account = credentials.register(&mut tx, &local_ip_hash()).await;
     tx.commit().await.expect(COMMIT);
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/login")
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(creds_str))
         .unwrap();
@@ -311,7 +333,7 @@ async fn test_authenticate() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert!(response_has_cookie(&response, ACCOUNT_COOKIE));
     let mut tx = state.db.begin().await.expect(BEGIN);
-    delete_test_account(&mut tx, account).await;
+    delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
 }
 
@@ -332,12 +354,14 @@ async fn test_registration_form() {
 #[tokio::test]
 async fn test_create_account() {
     let (router, state) = init_test().await;
-    let credentials = test_credentials();
+    let user = test_user(None);
+    let credentials = test_credentials(&user);
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/register")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(creds_str))
         .unwrap();
@@ -348,7 +372,7 @@ async fn test_create_account() {
     let account = Account::select_by_username(&mut tx, &credentials.username)
         .await
         .unwrap();
-    delete_test_account(&mut tx, account).await;
+    delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
 }
 
@@ -356,13 +380,20 @@ async fn test_create_account() {
 async fn test_logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, false).await;
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
+    let logout = Logout {
+        csrf_token: user.csrf_token,
+    };
+    let logout_str = serde_urlencoded::to_string(&logout).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/settings/logout")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
-        .body(Body::empty())
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .body(Body::from(logout_str))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -375,9 +406,10 @@ async fn test_logout() {
 async fn test_hide_rejected_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = test_anon_user();
+    let user = test_user(None);
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     PostReview {
+        csrf_token: user.csrf_token,
         key: post.key.clone(),
         status: PostStatus::Rejected,
     }
@@ -385,6 +417,7 @@ async fn test_hide_rejected_post() {
     .await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
+        csrf_token: user.csrf_token,
         key: post.key.clone(),
     };
     let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
@@ -392,6 +425,7 @@ async fn test_hide_rejected_post() {
         .method(Method::POST)
         .uri("/hide-rejected-post")
         .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_hiding_str))
         .unwrap();
@@ -406,7 +440,7 @@ async fn test_hide_rejected_post() {
 async fn test_interim() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = test_anon_user();
+    let user = test_user(None);
     let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
@@ -436,7 +470,8 @@ async fn test_interim() {
 async fn test_user_profile() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, false).await;
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .uri(&format!("/user/{}", &account.username))
@@ -456,15 +491,17 @@ async fn test_user_profile() {
 async fn test_settings() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, false).await;
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .uri("/settings")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
+    assert!(response_has_cookie(&response, CSRF_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains("Settings"));
@@ -473,22 +510,23 @@ async fn test_settings() {
     tx.commit().await.expect(COMMIT);
 }
 
-
 #[tokio::test]
 async fn test_update_time_zone() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, false).await;
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let time_zone_update = TimeZoneUpdate {
-        username: account.username.clone(),
+        csrf_token: user.csrf_token,
         time_zone: String::from("America/New_York"),
     };
     let time_zone_update_str = serde_urlencoded::to_string(&time_zone_update).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/settings/update-time-zone")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(time_zone_update_str))
         .unwrap();
@@ -507,9 +545,11 @@ async fn test_update_time_zone() {
 async fn test_update_password() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, false).await;
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let credentials = Credentials {
+        csrf_token: user.csrf_token,
         username: account.username.clone(),
         password: String::from("new_password"),
         confirm_password: Some(String::from("new_password")),
@@ -518,7 +558,8 @@ async fn test_update_password() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/settings/update-password")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, &account.token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(credentials_str))
         .unwrap();
@@ -540,12 +581,14 @@ async fn test_update_password() {
 async fn test_review_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = test_anon_user();
+    let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let admin_account = create_test_account(&mut tx, true).await;
+    let user = create_test_account(&mut tx, true).await;
+    let admin_account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
+        csrf_token: user.csrf_token,
         key: post.key.clone(),
         status: PostStatus::Approved,
     };
@@ -557,6 +600,7 @@ async fn test_review_post() {
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
         )
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
@@ -576,7 +620,7 @@ async fn test_review_post() {
     let media_key_dir = published_media_path.parent().unwrap();
     std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, admin_account).await;
+    delete_test_account(&mut tx, &admin_account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -585,12 +629,14 @@ async fn test_review_post() {
 async fn test_review_post_with_small_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = test_anon_user();
+    let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let admin_account = create_test_account(&mut tx, true).await;
+    let user = create_test_account(&mut tx, true).await;
+    let admin_account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
+        csrf_token: user.csrf_token,
         key: post.key.clone(),
         status: PostStatus::Approved,
     };
@@ -602,6 +648,7 @@ async fn test_review_post_with_small_media() {
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
         )
+        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
@@ -620,7 +667,7 @@ async fn test_review_post_with_small_media() {
     let media_key_dir = published_media_path.parent().unwrap();
     std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, admin_account).await;
+    delete_test_account(&mut tx, &admin_account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -629,10 +676,11 @@ async fn test_review_post_with_small_media() {
 async fn test_decrypt_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = test_anon_user();
-    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
+    let anon_user = test_user(None);
+    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let admin_account = create_test_account(&mut tx, true).await;
+    let user = create_test_account(&mut tx, true).await;
+    let admin_account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let key = format!("/admin/decrypt-media/{}", &post.key);
     let request = Request::builder()
@@ -651,7 +699,7 @@ async fn test_decrypt_media() {
     assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, admin_account).await;
+    delete_test_account(&mut tx, &admin_account).await;
     tx.commit().await.expect(COMMIT);
     remove_encrypted_file(&encrypted_media_path);
 }
