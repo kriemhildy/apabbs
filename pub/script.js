@@ -25,61 +25,6 @@ function initUnseenPosts() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// init web socket
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
-let webSocket, template, postsDiv, reconnectInterval;
-let webSocketOpen = false; // apparently necessary to avoid duplicate reconnects
-
-function initDomElements() {
-    template = document.createElement("template");
-    postsDiv = document.querySelector("div#posts");
-}
-
-function updatePost(key, html) {
-    const post = document.querySelector(`div#post-${key}`);
-    template.innerHTML = html;
-    addFetchToForms(null, template.content);
-    if (post) {
-        post.replaceWith(template.content);
-    } else {
-        postsDiv.prepend(template.content);
-        incrementUnseenPosts();
-    }
-}
-
-function handleWebSocketMessage(event) {
-    const json = JSON.parse(event.data);
-    console.log("updating websocket post: ", json.key);
-    updatePost(json.key, json.html);
-}
-
-function handleWebSocketClosed() {
-    if (webSocketOpen) {
-        webSocketOpen = false;
-        console.log("websocket closed, attempting to reconnect every ten seconds");
-        reconnectInterval = setInterval(initWebSocket, 10_000);
-    }
-}
-
-function handleWebSocketOpened() {
-    webSocketOpen = true;
-    clearInterval(reconnectInterval);
-    console.log("websocket successfully connected");
-    checkInterim();
-}
-
-
-function initWebSocket() {
-    console.log("attempting to connect to websocket");
-    webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
-    webSocket.addEventListener("message", handleWebSocketMessage);
-    webSocket.addEventListener("close", handleWebSocketClosed);
-    webSocket.addEventListener("open", handleWebSocketOpened);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // update after sleep
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -105,6 +50,60 @@ function checkInterim() {
             });
         }
     });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// init web socket
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
+let webSocket, template, postsDiv, reconnectInterval;
+let webSocketOpen = false; // necessary to prevent multiple reconnects
+
+function initDomElements() {
+    template = document.createElement("template");
+    postsDiv = document.querySelector("div#posts");
+}
+
+function updatePost(key, html) {
+    const post = document.querySelector(`div#post-${key}`);
+    template.innerHTML = html;
+    addFetchToForms(null, template.content);
+    if (post) {
+        post.replaceWith(template.content);
+    } else {
+        postsDiv.prepend(template.content);
+        incrementUnseenPosts();
+    }
+}
+
+function handleWebSocketMessage(event) {
+    const json = JSON.parse(event.data);
+    console.log("updating websocket post: ", json.key);
+    updatePost(json.key, json.html);
+}
+
+function handleWebSocketClosed(event) {
+    if (!event.wasClean && webSocketOpen) {
+        webSocketOpen = false;
+        console.log("websocket unexpectedly closed, attempting to reconnect every ten seconds");
+        reconnectInterval = setInterval(initWebSocket, 10_000);
+    }
+}
+
+function handleWebSocketOpened(_event) {
+    webSocketOpen = true;
+    clearInterval(reconnectInterval);
+    console.log("websocket successfully connected");
+    checkInterim();
+}
+
+function initWebSocket() {
+    console.log("attempting to connect to websocket");
+    webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
+    webSocket.addEventListener("message", handleWebSocketMessage);
+    webSocket.addEventListener("close", handleWebSocketClosed);
+    webSocket.addEventListener("open", handleWebSocketOpened);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
