@@ -11,7 +11,7 @@
 
 <body{{ ' class="admin"' if admin }}>
     {% if nav %}
-    <nav class="system">
+    <nav>
         {% if account %}
         <a href="/user/{{ account.username }}">{{ account.username }}</a>
         {% else %}
