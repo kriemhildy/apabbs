@@ -1,3 +1,7 @@
+0.22.0
+
+Add CSRF prevention tokens.
+
 0.21.0
 
 Use alphanumeric keys.
