@@ -26,8 +26,7 @@ use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
-const ANON_COOKIE: &'static str = "anon";
-const CSRF_COOKIE: &'static str = "csrf";
+const SESSION_COOKIE: &'static str = "session";
 const NOTICE_COOKIE: &'static str = "notice";
 const ROOT: &'static str = "/";
 
@@ -123,7 +122,7 @@ async fn index(
             query_post,
             prior_page_post,
             solo,
-            csrf_token => user.csrf_token,
+            session_token => user.session_token,
         ),
     ));
     (jar, html).into_response()
@@ -149,8 +148,9 @@ async fn submit_post(
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
         match name.as_str() {
-            "csrf_token" => {
-                post_submission.csrf_token = match Uuid::try_parse(&field.text().await.unwrap()) {
+            "session_token" => {
+                post_submission.session_token = match Uuid::try_parse(&field.text().await.unwrap())
+                {
                     Ok(uuid) => uuid,
                     Err(_) => return bad_request("invalid CSRF token uuid"),
                 };
@@ -173,7 +173,7 @@ async fn submit_post(
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    if post_submission.csrf_token != user.csrf_token {
+    if post_submission.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
@@ -196,14 +196,14 @@ async fn submit_post(
 }
 
 async fn login_form(State(state): State<AppState>, jar: CookieJar) -> Response {
-    let (csrf_token, jar) = match ensure_csrf_token(jar) {
-        Ok((csrf_token, jar)) => (csrf_token, jar),
+    let (session_token, jar) = match ensure_session_token(jar) {
+        Ok((session_token, jar)) => (session_token, jar),
         Err(response) => return response,
     };
     let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => init::site_name(), csrf_token),
+        minijinja::context!(title => init::site_name(), session_token),
     ));
     (jar, html).into_response()
 }
@@ -224,7 +224,7 @@ async fn authenticate(
     if !credentials.username_exists(&mut tx).await {
         return not_found("username does not exist");
     }
-    if credentials.csrf_token != user.csrf_token {
+    if credentials.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     match credentials.authenticate(&mut tx).await {
@@ -244,14 +244,14 @@ async fn authenticate(
 }
 
 async fn registration_form(State(state): State<AppState>, jar: CookieJar) -> Response {
-    let (csrf_token, jar) = match ensure_csrf_token(jar) {
-        Ok((csrf_token, jar)) => (csrf_token, jar),
+    let (session_token, jar) = match ensure_session_token(jar) {
+        Ok((session_token, jar)) => (session_token, jar),
         Err(response) => return response,
     };
     let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => init::site_name(), csrf_token),
+        minijinja::context!(title => init::site_name(), session_token),
     ));
     (jar, html).into_response()
 }
@@ -267,7 +267,7 @@ async fn create_account(
         Ok(user) => user,
         Err(response) => return response,
     };
-    if credentials.csrf_token != user.csrf_token {
+    if credentials.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     if credentials.username_exists(&mut tx).await {
@@ -309,7 +309,7 @@ async fn logout(
         Ok(user) => user,
         Err(response) => return response,
     };
-    if logout.csrf_token != user.csrf_token {
+    if logout.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     if user.account.is_some() {
@@ -332,7 +332,7 @@ async fn reset_account_token(
         Ok(user) => user,
         Err(response) => return response,
     };
-    if logout.csrf_token != user.csrf_token {
+    if logout.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     match user.account {
@@ -358,7 +358,7 @@ async fn hide_rejected_post(
         Ok(user) => user,
         Err(response) => return response,
     };
-    if post_hiding.csrf_token != user.csrf_token {
+    if post_hiding.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     let post = match Post::select_by_key(&mut tx, &post_hiding.key).await {
@@ -410,7 +410,7 @@ async fn web_socket(
             }
             let html = msg
                 .html
-                .replace("<CSRF_TOKEN>", &user.csrf_token.to_string());
+                .replace("<CSRF_TOKEN>", &user.session_token.to_string());
             let json_utf8 =
                 Utf8Bytes::from(serde_json::json!({"key": msg.post.key, "html": html}).to_string());
             if socket.send(Message::Text(json_utf8)).await.is_err() {
@@ -519,7 +519,7 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
             username => user.username(),
             time_zones,
             notice,
-            csrf_token => user.csrf_token,
+            session_token => user.session_token,
         ),
     ));
     (jar, html).into_response()
@@ -538,7 +538,7 @@ async fn update_time_zone(
     if user.account.is_none() {
         return unauthorized("not logged in");
     }
-    if time_zone_update.csrf_token != user.csrf_token {
+    if time_zone_update.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     let account = user.account.unwrap();
@@ -564,7 +564,7 @@ async fn update_password(
         Ok(user) => user,
         Err(response) => return response,
     };
-    if credentials.csrf_token != user.csrf_token {
+    if credentials.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     match user.account {
@@ -600,7 +600,7 @@ async fn review_post(
         Ok(user) => user,
         Err(response) => return response,
     };
-    if post_review.csrf_token != user.csrf_token {
+    if post_review.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     if !user.admin() {

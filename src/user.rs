@@ -7,8 +7,7 @@ const BLOWFISH_ITERATIONS: i32 = 10;
 
 pub struct User {
     pub account: Option<Account>,
-    pub anon_token: Uuid,
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
 }
 
 impl User {
@@ -75,7 +74,7 @@ impl Account {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TimeZoneUpdate {
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
     pub time_zone: String,
 }
 
@@ -103,7 +102,7 @@ impl TimeZoneUpdate {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Credentials {
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
     pub username: String,
     pub password: String,
     pub confirm_password: Option<String>,
@@ -193,5 +192,5 @@ impl Credentials {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Logout {
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
 }

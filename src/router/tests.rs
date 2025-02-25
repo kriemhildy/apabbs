@@ -33,7 +33,7 @@ async fn init_test() -> (Router, AppState) {
 
 fn test_credentials(user: &User) -> Credentials {
     Credentials {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         username: Uuid::new_v4().simple().to_string()[..16].to_string(),
         password: String::from("test_password"),
         confirm_password: Some(String::from("test_password")),
@@ -44,8 +44,7 @@ fn test_credentials(user: &User) -> Credentials {
 fn test_user(account: Option<Account>) -> User {
     User {
         account,
-        anon_token: Uuid::new_v4(),
-        csrf_token: Uuid::new_v4(),
+        session_token: Uuid::new_v4(),
     }
 }
 
@@ -72,8 +71,7 @@ async fn create_test_account(tx: &mut PgConnection, admin: bool) -> User {
     };
     User {
         account: Some(account),
-        anon_token: user.anon_token,
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
     }
 }
 
@@ -102,7 +100,7 @@ async fn create_test_post(
         None => (None, None),
     };
     let post_submission = PostSubmission {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         body: String::from("<&test body"),
         media_file_name: media_file_name.clone(),
         media_bytes,
@@ -118,7 +116,7 @@ async fn create_test_post(
         PostStatus::Pending => post,
         _ => {
             PostReview {
-                csrf_token: user.csrf_token,
+                session_token: user.session_token,
                 key: post.key.clone(),
                 status,
             }
@@ -146,12 +144,12 @@ fn remove_encrypted_file(encrypted_file_path: &Path) {
     std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
 }
 
-async fn select_latest_post_by_anon_token(
+async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
-    anon_token: &Uuid,
+    session_token: &Uuid,
 ) -> Option<Post> {
-    sqlx::query_as("SELECT * FROM posts WHERE anon_token = $1 ORDER BY id DESC LIMIT 1")
-        .bind(anon_token)
+    sqlx::query_as("SELECT * FROM posts WHERE session_token = $1 ORDER BY id DESC LIMIT 1")
+        .bind(session_token)
         .fetch_optional(&mut *tx)
         .await
         .expect("select post")
@@ -186,8 +184,7 @@ async fn test_index() {
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_has_cookie(&response, CSRF_COOKIE));
-    assert!(response_has_cookie(&response, ANON_COOKIE));
+    assert!(response_has_cookie(&response, SESSION_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(&init::site_name()));
@@ -198,21 +195,23 @@ async fn test_submit_post() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
-    form.write_field("csrf_token", &user.csrf_token.to_string())
+    form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_anon_token(&mut tx, &user.anon_token)
+    let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -220,7 +219,7 @@ async fn test_submit_post() {
     assert_eq!(post.media_file_name, None);
     assert_eq!(post.media_category, None);
     assert_eq!(post.media_mime_type, None);
-    assert_eq!(post.anon_token, Some(user.anon_token));
+    assert_eq!(post.session_token, Some(user.session_token));
     assert_eq!(post.account_id, None);
     assert_eq!(post.username, None);
     assert_eq!(post.status, PostStatus::Pending);
@@ -234,7 +233,7 @@ async fn test_submit_post_with_media() {
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
     let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
-    form.write_field("csrf_token", &user.csrf_token.to_string())
+    form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
     form.write_field("body", "").unwrap();
     form.write_path("media", test_image_path, "image/jpeg")
@@ -242,15 +241,17 @@ async fn test_submit_post_with_media() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_anon_token(&mut tx, &user.anon_token)
+    let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -272,15 +273,15 @@ async fn test_submit_post_with_account() {
     tx.commit().await.expect(COMMIT);
     let account = user.account.as_ref().unwrap();
     let mut form = FormData::new(Vec::new());
-    form.write_field("csrf_token", &user.csrf_token.to_string())
+    form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, user.anon_token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
@@ -290,11 +291,11 @@ async fn test_submit_post_with_account() {
     let account_post = select_latest_post_by_username(&mut tx, &account.username)
         .await
         .unwrap();
-    let anon_post = select_latest_post_by_anon_token(&mut tx, &user.anon_token).await;
+    let anon_post = select_latest_post_by_session_token(&mut tx, &user.session_token).await;
     assert!(anon_post.is_none());
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(account_post.account_id, Some(account.id));
-    assert_eq!(account_post.anon_token, None);
+    assert_eq!(account_post.session_token, None);
     account_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
@@ -326,7 +327,10 @@ async fn test_authenticate() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/login")
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(creds_str))
         .unwrap();
@@ -362,7 +366,10 @@ async fn test_create_account() {
         .method(Method::POST)
         .uri("/register")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(creds_str))
         .unwrap();
@@ -385,14 +392,14 @@ async fn test_logout() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
     };
     let logout_str = serde_urlencoded::to_string(&logout).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/settings/logout")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(logout_str))
         .unwrap();
@@ -410,7 +417,7 @@ async fn test_hide_rejected_post() {
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     PostReview {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         key: post.key.clone(),
         status: PostStatus::Rejected,
     }
@@ -418,15 +425,17 @@ async fn test_hide_rejected_post() {
     .await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         key: post.key.clone(),
     };
     let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hide-rejected-post")
-        .header(COOKIE, format!("{}={}", ANON_COOKIE, &user.anon_token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_hiding_str))
         .unwrap();
@@ -502,7 +511,7 @@ async fn test_settings() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_has_cookie(&response, CSRF_COOKIE));
+    assert!(response_has_cookie(&response, SESSION_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains("Settings"));
@@ -519,7 +528,7 @@ async fn test_update_time_zone() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let time_zone_update = TimeZoneUpdate {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         time_zone: String::from("America/New_York"),
     };
     let time_zone_update_str = serde_urlencoded::to_string(&time_zone_update).unwrap();
@@ -527,7 +536,7 @@ async fn test_update_time_zone() {
         .method(Method::POST)
         .uri("/settings/update-time-zone")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(time_zone_update_str))
         .unwrap();
@@ -550,7 +559,7 @@ async fn test_update_password() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let credentials = Credentials {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         username: account.username.clone(),
         password: String::from("new_password"),
         confirm_password: Some(String::from("new_password")),
@@ -561,7 +570,7 @@ async fn test_update_password() {
         .method(Method::POST)
         .uri("/settings/update-password")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, user.csrf_token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(credentials_str))
         .unwrap();
@@ -587,10 +596,10 @@ async fn test_review_post() {
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, true).await;
-    let admin_account = user.account.as_ref().unwrap();
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         key: post.key.clone(),
         status: PostStatus::Approved,
     };
@@ -598,11 +607,8 @@ async fn test_review_post() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/admin/review-post")
-        .header(
-            COOKIE,
-            format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
-        )
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
@@ -622,7 +628,7 @@ async fn test_review_post() {
     let media_key_dir = published_media_path.parent().unwrap();
     std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &admin_account).await;
+    delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -635,10 +641,10 @@ async fn test_review_post_with_small_media() {
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, true).await;
-    let admin_account = user.account.as_ref().unwrap();
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        csrf_token: user.csrf_token,
+        session_token: user.session_token,
         key: post.key.clone(),
         status: PostStatus::Approved,
     };
@@ -646,11 +652,8 @@ async fn test_review_post_with_small_media() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/admin/review-post")
-        .header(
-            COOKIE,
-            format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
-        )
-        .header(COOKIE, format!("{}={}", CSRF_COOKIE, &user.csrf_token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
@@ -669,7 +672,7 @@ async fn test_review_post_with_small_media() {
     let media_key_dir = published_media_path.parent().unwrap();
     std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &admin_account).await;
+    delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
@@ -682,15 +685,12 @@ async fn test_decrypt_media() {
     let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, true).await;
-    let admin_account = user.account.as_ref().unwrap();
+    let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let key = format!("/admin/decrypt-media/{}", &post.key);
     let request = Request::builder()
         .uri(&key)
-        .header(
-            COOKIE,
-            format!("{}={}", ACCOUNT_COOKIE, &admin_account.token),
-        )
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -701,7 +701,7 @@ async fn test_decrypt_media() {
     assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &admin_account).await;
+    delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
     remove_encrypted_file(&encrypted_media_path);
 }

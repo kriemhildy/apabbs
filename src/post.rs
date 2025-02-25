@@ -36,7 +36,7 @@ pub struct Post {
     pub body: String,
     pub account_id: Option<i32>,
     pub username: Option<String>, // cache
-    pub anon_token: Option<Uuid>,
+    pub session_token: Option<Uuid>,
     pub status: PostStatus,
     pub key: String,
     pub media_file_name: Option<String>,
@@ -62,8 +62,8 @@ impl Post {
         } else {
             query_builder.push("status = 'approved' ")
         };
-        query_builder.push("OR anon_token = ");
-        query_builder.push_bind(&user.anon_token);
+        query_builder.push("OR session_token = ");
+        query_builder.push_bind(&user.session_token);
         if let Some(account) = &user.account {
             query_builder.push(" OR account_id = ");
             query_builder.push_bind(account.id);
@@ -101,9 +101,9 @@ impl Post {
     }
 
     pub fn author(&self, user: &User) -> bool {
-        self.anon_token
+        self.session_token
             .as_ref()
-            .is_some_and(|uuid| uuid == &user.anon_token)
+            .is_some_and(|uuid| uuid == &user.session_token)
             || user
                 .account
                 .as_ref()
@@ -163,7 +163,7 @@ impl Post {
 
 #[derive(Default)]
 pub struct PostSubmission {
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
     pub body: String,
     pub media_file_name: Option<String>,
     pub media_bytes: Option<Vec<u8>>,
@@ -173,16 +173,16 @@ impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
-        let (anon_token, account_id, username) = match user.account {
+        let (session_token, account_id, username) = match user.account {
             Some(ref account) => (None, Some(account.id), Some(&account.username)),
-            None => (Some(&user.anon_token), None, None),
+            None => (Some(&user.session_token), None, None),
         };
         sqlx::query_as(concat!(
-            "INSERT INTO posts (anon_token, account_id, username, body, ip_hash, ",
+            "INSERT INTO posts (session_token, account_id, username, body, ip_hash, ",
             "media_file_name, media_category, media_mime_type) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         ))
-        .bind(anon_token)
+        .bind(session_token)
         .bind(account_id)
         .bind(username)
         .bind(&self.body_as_html())
@@ -372,7 +372,7 @@ impl PostSubmission {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
     pub key: String,
     pub status: PostStatus,
 }
@@ -431,7 +431,7 @@ impl PostReview {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
-    pub csrf_token: Uuid,
+    pub session_token: Uuid,
     pub key: String,
 }
 

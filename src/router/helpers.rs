@@ -4,7 +4,7 @@
 
 use super::{
     ban, init, Account, AppState, CookieJar, HeaderMap, IntoResponse, Post, PostMessage, Response,
-    User, Uuid, ACCOUNT_COOKIE, ANON_COOKIE, CSRF_COOKIE,
+    User, Uuid, ACCOUNT_COOKIE, SESSION_COOKIE,
 };
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
@@ -98,7 +98,7 @@ pub fn send_post_to_web_socket(state: &AppState, post: Post) {
         let html = render(
             state,
             "post.jinja",
-            minijinja::context!(post, admin, csrf_token => "<CSRF_TOKEN>"),
+            minijinja::context!(post, admin, session_token => "<CSRF_TOKEN>"),
         );
         let msg = PostMessage {
             post: post.clone(),
@@ -117,20 +117,20 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
         .expect("set time zone");
 }
 
-pub fn ensure_csrf_token(mut jar: CookieJar) -> Result<(Uuid, CookieJar), Response> {
-    let csrf_token = match jar.get(CSRF_COOKIE) {
+pub fn ensure_session_token(mut jar: CookieJar) -> Result<(Uuid, CookieJar), Response> {
+    let session_token = match jar.get(SESSION_COOKIE) {
         Some(cookie) => match Uuid::try_parse(cookie.value()) {
             Ok(uuid) => uuid,
             Err(_) => return Err(bad_request("invalid CSRF token uuid")),
         },
         None => {
-            let csrf_token = Uuid::new_v4();
-            let cookie = build_cookie(CSRF_COOKIE, &csrf_token.to_string(), false);
+            let session_token = Uuid::new_v4();
+            let cookie = build_cookie(SESSION_COOKIE, &session_token.to_string(), false);
             jar = jar.add(cookie);
-            csrf_token
+            session_token
         }
     };
-    Ok((csrf_token, jar))
+    Ok((session_token, jar))
 }
 
 pub async fn init_user(
@@ -159,26 +159,20 @@ pub async fn init_user(
         }
         None => None,
     };
-    let anon_token = match jar.get(ANON_COOKIE) {
-        Some(cookie) => match Uuid::try_parse(cookie.value()) {
-            Ok(uuid) => uuid,
-            Err(_) => return Err(bad_request("invalid anon token uuid")),
-        },
-        None => {
-            let anon_token = Uuid::new_v4();
-            let cookie = build_cookie(ANON_COOKIE, &anon_token.to_string(), false);
-            jar = jar.add(cookie);
-            anon_token
-        }
-    };
-    let (csrf_token, jar) = match ensure_csrf_token(jar) {
-        Ok((csrf_token, jar)) => (csrf_token, jar),
+    // temporary migrations to remove after a reasonable period
+    if jar.get("anon").is_some() {
+        jar = jar.remove(removal_cookie("anon"));
+    }
+    if jar.get("csrf").is_some() {
+        jar = jar.remove(removal_cookie("csrf"));
+    }
+    let (session_token, jar) = match ensure_session_token(jar) {
+        Ok((session_token, jar)) => (session_token, jar),
         Err(response) => return Err(response),
     };
     let user = User {
         account,
-        anon_token,
-        csrf_token,
+        session_token,
     };
     set_session_time_zone(tx, user.time_zone()).await;
     Ok((user, jar))
