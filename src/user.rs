@@ -63,6 +63,14 @@ impl Account {
         .await
         .expect("select account by username")
     }
+
+    pub async fn reset_token(&self, tx: &mut PgConnection) {
+        sqlx::query("UPDATE accounts SET token = gen_random_uuid() WHERE id = $1")
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update account token");
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

@@ -11,6 +11,13 @@
             <input type="submit" value="Log out" id="log-out-submit">
         </form>
         <br>
+        <form action="/settings/reset-account-token" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            Reset authentication token:
+            <br>
+            <input type="submit" value="Log out all devices" id="reset-account-token-submit">
+        </form>
+        <br>
         <p>Time zone: {{ account.time_zone }}</p>
         <form action="/settings/update-time-zone" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

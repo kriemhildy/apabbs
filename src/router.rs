@@ -26,7 +26,6 @@ use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 const ACCOUNT_COOKIE: &'static str = "account";
-const ACCOUNT_NOT_FOUND: &'static str = "account not found";
 const ANON_COOKIE: &'static str = "anon";
 const CSRF_COOKIE: &'static str = "csrf";
 const NOTICE_COOKIE: &'static str = "notice";
@@ -53,6 +52,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/user/{username}", get(user_profile))
         .route("/settings", get(settings))
         .route("/settings/logout", post(logout))
+        .route("/settings/reset-account-token", post(reset_account_token))
         .route("/settings/update-time-zone", post(update_time_zone))
         .route("/settings/update-password", post(update_password))
         .route(
@@ -317,6 +317,31 @@ async fn logout(
     } else {
         return bad_request("not logged in");
     }
+    tx.commit().await.expect(COMMIT);
+    let redirect = Redirect::to(ROOT);
+    (jar, redirect).into_response()
+}
+
+async fn reset_account_token(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(logout): Form<Logout>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (user, mut jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
+        Err(response) => return response,
+    };
+    if logout.csrf_token != user.csrf_token {
+        return unauthorized("invalid CSRF token");
+    }
+    match user.account {
+        Some(account) => {
+            account.reset_token(&mut tx).await;
+            jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+        }
+        None => return bad_request("not logged in"),
+    };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()

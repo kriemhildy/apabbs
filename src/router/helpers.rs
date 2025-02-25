@@ -4,7 +4,7 @@
 
 use super::{
     ban, init, Account, AppState, CookieJar, HeaderMap, IntoResponse, Post, PostMessage, Response,
-    User, Uuid, ACCOUNT_COOKIE, ACCOUNT_NOT_FOUND, ANON_COOKIE, CSRF_COOKIE,
+    User, Uuid, ACCOUNT_COOKIE, ANON_COOKIE, CSRF_COOKIE,
 };
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
@@ -140,12 +140,21 @@ pub async fn init_user(
     let account = match jar.get(ACCOUNT_COOKIE) {
         Some(cookie) => {
             let token = match Uuid::try_parse(cookie.value()) {
-                Ok(uuid) => uuid,
-                Err(_) => return Err(bad_request("invalid account token uuid")),
+                Ok(uuid) => Some(uuid),
+                Err(_) => {
+                    jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+                    None
+                }
             };
-            match Account::select_by_token(tx, &token).await {
-                Some(account) => Some(account),
-                None => return Err(bad_request(ACCOUNT_NOT_FOUND)),
+            match token {
+                Some(token) => match Account::select_by_token(tx, &token).await {
+                    Some(account) => Some(account),
+                    None => {
+                        jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+                        None
+                    }
+                },
+                None => None,
             }
         }
         None => None,
