@@ -1,3 +1,9 @@
+0.24.0
+
+Allow user to decide account cookie duration.
+Add ability to log out all devices.
+Combine "anon" and "csrf" cookies into "session" cookie.
+
 0.23.0
 
 Download Youtube thumbnails locally.
