@@ -233,7 +233,6 @@ a.youtube {
 }
 
 a.youtube img {
-    display: block;
     height: 1.7em;
     filter: brightness(0.2) invert(1);
 }
