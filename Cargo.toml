@@ -12,7 +12,6 @@ opt-level = "z" # Optimize for size
 sqlx = { version = "*", features = [
     "postgres",
     "runtime-tokio-rustls",
-    "time",
     "uuid",
 ] }
 tokio = { version = "*", features = ["full"] }
