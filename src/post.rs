@@ -64,7 +64,7 @@ impl Post {
         };
         query_builder.push("OR session_token = ");
         query_builder.push_bind(&user.session_token);
-        if let Some(account) = &user.account {
+        if let Some(ref account) = user.account {
             query_builder.push(" OR account_id = ");
             query_builder.push_bind(account.id);
         }
