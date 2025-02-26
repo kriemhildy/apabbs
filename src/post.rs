@@ -489,9 +489,9 @@ mod tests {
         };
         let test_ids = ["jNQXAC9IVRw", "kixirmHePCc", "cHMCGCWit6U"];
         let mut existing_ids = Vec::new();
-        for dir in test_ids {
-            if std::path::Path::new(YOUTUBE_DIR).join(dir).exists() {
-                existing_ids.push(dir);
+        for id in test_ids {
+            if std::path::Path::new(YOUTUBE_DIR).join(id).exists() {
+                existing_ids.push(id);
             }
         }
         assert_eq!(
@@ -525,9 +525,9 @@ mod tests {
                 r#"target="_blank">https://www.youtube.com/watch?v=ySrBS4ulbmQ</a> bar"#,
             )
         );
-        for dir in test_ids {
-            if !existing_ids.contains(&dir) {
-                std::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(dir))
+        for id in test_ids {
+            if !existing_ids.contains(&id) {
+                std::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
                     .expect("remove dir and its contents");
             }
         }
