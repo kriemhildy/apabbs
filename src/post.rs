@@ -448,7 +448,11 @@ impl PostReview {
         // better safe than sorry
         let re = Regex::new(r"^[a-zA-Z0-9]{8,12}$").expect("build regex pattern");
         assert!(re.is_match(&self.key));
+        assert!(media_dir != std::path::Path::new(MEDIA_DIR));
+        assert!(media_dir.starts_with(MEDIA_DIR));
+        assert!(media_dir.ends_with(&self.key));
         assert!(media_dir.exists());
+        assert!(!media_dir.to_str().unwrap().contains("."));
         std::fs::remove_dir_all(&media_dir).expect("remove media dir and its contents");
     }
 }
