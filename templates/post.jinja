@@ -68,13 +68,18 @@
                     </form>
                 </details>
                 {% elif post.status == "rejected" %}
-                <form action="/hide-rejected-post" method="post" data-fetch="PATCH">
+                <form action="/hide-post" method="post" data-fetch="PATCH">
                     <input type="hidden" name="session_token" value="{{ session_token }}">
                     <span class="review">Post rejected.</span>
                     <input type="hidden" name="key" value="{{ post.key }}">
                     <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
                 </form>
                 {% elif post.status == "banned" %}
-                <div class="review">This post has been deleted and its IP has been banned for a month.</div>
+                <form action="/hide-post" method="post" data-fetch="PATCH">
+                    <input type="hidden" name="session_token" value="{{ session_token }}">
+                    <span class="review">This post has been deleted and its IP has been banned for a month.</span>
+                    <input type="hidden" name="key" value="{{ post.key }}">
+                    <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
+                </form>
                 {% endif %}
             </div>

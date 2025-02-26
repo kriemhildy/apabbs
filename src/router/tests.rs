@@ -514,13 +514,15 @@ async fn test_reset_account_token() {
 }
 
 #[tokio::test]
-async fn test_hide_rejected_post() {
+async fn test_hide_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
+    let admin = create_test_account(&mut tx, true).await;
+    let account = admin.account.as_ref().unwrap();
     PostReview {
-        session_token: user.session_token,
+        session_token: admin.session_token,
         key: post.key.clone(),
         status: PostStatus::Rejected,
     }
@@ -534,7 +536,7 @@ async fn test_hide_rejected_post() {
     let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/hide-rejected-post")
+        .uri("/hide-post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -546,6 +548,7 @@ async fn test_hide_rejected_post() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
+    delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
 }
 

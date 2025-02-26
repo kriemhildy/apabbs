@@ -43,8 +43,8 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
         .route(
-            "/hide-rejected-post",
-            post(hide_rejected_post).patch(hide_rejected_post),
+            "/hide-post",
+            post(hide_post).patch(hide_post),
         )
         .route("/web-socket", get(web_socket))
         .route("/interim/{key}", get(interim))
@@ -347,7 +347,7 @@ async fn reset_account_token(
     (jar, redirect).into_response()
 }
 
-async fn hide_rejected_post(
+async fn hide_post(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
@@ -361,21 +361,16 @@ async fn hide_rejected_post(
     if post_hiding.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
-    let post = match Post::select_by_key(&mut tx, &post_hiding.key).await {
-        Some(post) => post,
-        None => return not_found("post does not exist"),
-    };
-    if !post.author(&user) {
-        if user.admin() {
-            return Redirect::to(ROOT).into_response();
+    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await {
+        if !post.author(&user) && !user.admin() {
+            return unauthorized("not post author");
         }
-        return unauthorized("not post author");
-    }
-    if post.status != PostStatus::Rejected {
-        return bad_request("post is not rejected");
-    }
-    post_hiding.hide_post(&mut tx).await;
-    tx.commit().await.expect(COMMIT);
+        if post.status != PostStatus::Rejected {
+            return bad_request("post is not rejected");
+        }
+        post_hiding.hide_post(&mut tx).await;
+        tx.commit().await.expect(COMMIT);
+    };
     let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
     } else {

@@ -135,7 +135,7 @@ function handleFormSubmit(event) {
                 case "/submit-post":
                     this.reset();
                     break;
-                case "/hide-rejected-post":
+                case "/hide-post":
                     this.parentElement.remove();
                     break;
             }
