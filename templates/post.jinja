@@ -54,13 +54,13 @@
                         <input type="hidden" name="status" value="approved">
                         <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
                     </form>
-                    <form action="/admin/review-post" method="post" class="reject" data-fetch="PATCH">
+                    <form action="/admin/review-post" method="post" class="reject" data-fetch="PATCH" data-confirm>
                         <input type="hidden" name="session_token" value="{{ session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="rejected">
                         <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.key }}-submit">
                     </form>
-                    <form action="/admin/review-post" method="post" class="ban" data-fetch="DELETE">
+                    <form action="/admin/review-post" method="post" class="ban" data-fetch="DELETE" data-confirm>
                         <input type="hidden" name="session_token" value="{{ session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="banned">

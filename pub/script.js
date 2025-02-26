@@ -68,6 +68,7 @@ function initDomElements() {
 function updatePost(key, html) {
     const post = document.querySelector(`div#post-${key}`);
     template.innerHTML = html;
+    addSubmitConfirmations(null, template.content);
     addFetchToForms(null, template.content);
     if (post) {
         post.replaceWith(template.content);
@@ -181,9 +182,26 @@ function restoreSubmitButtons() {
     priorDisabledStatuses = {};
 }
 
+function confirmSubmit(event) {
+    console.log("confirming submit");
+    if (!confirm("Are you sure?")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}
+
+function addSubmitConfirmations(_event, element = document) {
+    element.querySelectorAll("form[data-confirm]").forEach((form) => {
+        form.addEventListener("submit", confirmSubmit);
+    });
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // routing
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// need to handle submits added via websocket or interim check
+document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 
 const url = new URL(window.location.href);
 

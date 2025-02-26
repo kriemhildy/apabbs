@@ -42,10 +42,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
-        .route(
-            "/hide-post",
-            post(hide_post).patch(hide_post),
-        )
+        .route("/hide-post", post(hide_post).patch(hide_post))
         .route("/web-socket", get(web_socket))
         .route("/interim/{key}", get(interim))
         .route("/user/{username}", get(user_profile))
@@ -644,7 +641,14 @@ async fn review_post(
                 std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
             }
         }
-        PostStatus::Approved => (),
+        PostStatus::Approved => match post_review.status {
+            PostStatus::Rejected | PostStatus::Banned => {
+                if post.media_file_name.is_some() {
+                    post_review.delete_media_dir();
+                }
+            }
+            _ => return bad_request("unexpected new post status"),
+        },
         _ => return bad_request("post must be pending or approved"),
     }
     post_review.update_status(&mut tx).await;
@@ -657,7 +661,10 @@ async fn review_post(
         }
         post.delete(&mut tx).await;
     }
-    if post.thumbnail_file_name.is_some() && !post.thumbnail_path().exists() {
+    if post.status == PostStatus::Approved
+        && post.thumbnail_file_name.is_some()
+        && !post.thumbnail_path().exists()
+    {
         return internal_server_error("error setting post thumbnail");
     }
     tx.commit().await.expect(COMMIT);

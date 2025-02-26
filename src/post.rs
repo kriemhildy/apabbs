@@ -442,6 +442,15 @@ impl PostReview {
             .expect("generate thumbnail");
         println!("vipsthumbnail output: {:?}", command_output);
     }
+
+    pub fn delete_media_dir(&self) {
+        let media_dir = std::path::Path::new(MEDIA_DIR).join(&self.key);
+        // better safe than sorry
+        let re = Regex::new(r"^[a-zA-Z0-9]{8,12}$").expect("build regex pattern");
+        assert!(re.is_match(&self.key));
+        assert!(media_dir.exists());
+        std::fs::remove_dir_all(&media_dir).expect("remove media dir and its contents");
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
