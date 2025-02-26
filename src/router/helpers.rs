@@ -3,10 +3,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 use super::{
-    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Response, User,
-    Uuid,
+    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method,
+    Response, StatusCode, User, Uuid,
 };
-use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
 
@@ -107,6 +106,8 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
 pub async fn init_user(
     mut jar: CookieJar,
     tx: &mut PgConnection,
+    method: Method,
+    csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), Response> {
     let account = match jar.get(ACCOUNT_COOKIE) {
         Some(cookie) => {
@@ -152,6 +153,14 @@ pub async fn init_user(
             token
         }
     };
+    if method != Method::GET && csrf_token.is_none() {
+        return Err(unauthorized("CSRF token required"));
+    }
+    if let Some(csrf_token) = csrf_token {
+        if session_token != csrf_token {
+            return Err(unauthorized("CSRF token mismatch"));
+        }
+    }
     let user = User {
         account,
         session_token,

@@ -15,7 +15,7 @@ use axum::{
     },
     http::{
         header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
-        StatusCode, Uri,
+        Method, StatusCode, Uri,
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -68,13 +68,14 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 async fn index(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     key: Uri,
     Path(params): Path<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -119,16 +120,13 @@ async fn index(
 }
 
 async fn submit_post(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
     let ip_hash = ip_hash(&headers);
     if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
         tx.commit().await.expect(COMMIT);
@@ -141,7 +139,7 @@ async fn submit_post(
             "session_token" => {
                 post_submission.session_token = match Uuid::try_parse(&field.text().await.unwrap())
                 {
-                    Err(_) => return bad_request("invalid CSRF token uuid"),
+                    Err(_) => return bad_request("invalid session token"),
                     Ok(uuid) => uuid,
                 };
             }
@@ -163,9 +161,11 @@ async fn submit_post(
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    if post_submission.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
+    let (user, jar) =
+        match init_user(jar, &mut tx, method, Some(post_submission.session_token)).await {
+            Err(response) => return response,
+            Ok(tuple) => tuple,
+        };
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
@@ -185,9 +185,9 @@ async fn submit_post(
     (jar, response).into_response()
 }
 
-async fn login_form(State(state): State<AppState>, jar: CookieJar) -> Response {
+async fn login_form(method: Method, State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -200,12 +200,13 @@ async fn login_form(State(state): State<AppState>, jar: CookieJar) -> Response {
 }
 
 async fn authenticate(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -215,9 +216,6 @@ async fn authenticate(
     if !credentials.username_exists(&mut tx).await {
         return not_found("username does not exist");
     }
-    if credentials.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     let jar = match credentials.authenticate(&mut tx).await {
         None => return bad_request("password is wrong"),
         Some(account) => add_account_cookie(jar, &account, &credentials),
@@ -226,9 +224,13 @@ async fn authenticate(
     (jar, redirect).into_response()
 }
 
-async fn registration_form(State(state): State<AppState>, jar: CookieJar) -> Response {
+async fn registration_form(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -241,19 +243,17 @@ async fn registration_form(State(state): State<AppState>, jar: CookieJar) -> Res
 }
 
 async fn create_account(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if credentials.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     if credentials.username_exists(&mut tx).await {
         return bad_request("username is taken");
     }
@@ -277,18 +277,16 @@ async fn create_account(
 }
 
 async fn logout(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(logout): Form<Logout>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if logout.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     if user.account.is_none() {
         return bad_request("not logged in");
     }
@@ -298,18 +296,16 @@ async fn logout(
 }
 
 async fn reset_account_token(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(logout): Form<Logout>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if logout.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     let jar = match user.account {
         None => return bad_request("not logged in"),
         Some(account) => {
@@ -323,19 +319,17 @@ async fn reset_account_token(
 }
 
 async fn hide_post(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if post_hiding.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await {
         if !post.author(&user) && !user.admin() {
             return unauthorized("not post author");
@@ -355,6 +349,7 @@ async fn hide_post(
 }
 
 async fn web_socket(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     upgrade: WebSocketUpgrade,
@@ -384,7 +379,7 @@ async fn web_socket(
         }
     }
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, _jar) = match init_user(jar, &mut tx).await {
+    let (user, _jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -393,12 +388,13 @@ async fn web_socket(
 }
 
 async fn interim(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -420,12 +416,13 @@ async fn interim(
 }
 
 async fn user_profile(
+    method: Method,
     State(state): State<AppState>,
     Path(username): Path<String>,
     jar: CookieJar,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -447,9 +444,9 @@ async fn user_profile(
     (jar, html).into_response()
 }
 
-async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
+async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -472,20 +469,19 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
 }
 
 async fn update_time_zone(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) =
+        match init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await {
+            Err(response) => return response,
+            Ok(tuple) => tuple,
+        };
     if user.account.is_none() {
         return unauthorized("not logged in");
-    }
-    if time_zone_update.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
     }
     let account = user.account.unwrap();
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
@@ -500,18 +496,16 @@ async fn update_time_zone(
 }
 
 async fn update_password(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if credentials.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     match user.account {
         None => return unauthorized("not logged in"),
         Some(account) => {
@@ -534,19 +528,17 @@ async fn update_password(
 // admin handlers
 
 async fn review_post(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
     Form(post_review): Form<PostReview>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if post_review.session_token != user.session_token {
-        return unauthorized("invalid CSRF token");
-    }
     if !user.admin() {
         return unauthorized("not an admin");
     }
@@ -630,12 +622,13 @@ async fn review_post(
 }
 
 async fn decrypt_media(
+    method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
