@@ -460,7 +460,7 @@ mod tests {
     async fn test_body_as_html() {
         let submission = PostSubmission {
             body: concat!(
-                "<&test body\n\n",
+                "<&test body コンピューター\n\n",
                 "https://example.com\n",
                 " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
                 "https://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg\n",
@@ -475,7 +475,7 @@ mod tests {
         assert_eq!(
             submission.body_as_html(),
             concat!(
-                "&lt;&amp;test body<br><br>",
+                "&lt;&amp;test body コンピューター<br><br>",
                 r#"<a href="https://example.com" target="_blank">https://example.com</a>"#,
                 r#"<br>"#,
                 r#"<a class="youtube" href="https://www.youtube.com/watch?v=jNQXAC9IVRw" "#,
