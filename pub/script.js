@@ -65,11 +65,12 @@ function initUnseenPosts() {
 // dynamically update posts
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-let template, postsDiv;
+let template, postsDiv, spinner;
 
 function initDomElements() {
     template = document.createElement("template");
     postsDiv = document.querySelector("div#posts");
+    spinner = document.querySelector("div#spinner");
 }
 
 function updatePost(key, html) {
@@ -194,7 +195,6 @@ function handleFormSubmit(event) {
     } else {
         fetchBody = new URLSearchParams(formData);
     }
-    const spinner = document.querySelector("div#spinner");
     spinner.style.display = "block";
     fetch(this.action, {
         method: this.dataset.fetch || "POST",
