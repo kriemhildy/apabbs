@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 let originalTitle, unseenPosts = 0;
 
 function incrementUnseenPosts() {
-    if (document.visibilityState == "hidden") {
+    if (document.visibilityState == "hidden" || !document.hasFocus()) {
         unseenPosts++;
         document.title = `(${unseenPosts}) ${originalTitle}`;
     }
