@@ -17,7 +17,7 @@
                 {% elif post.status == "rejected" %}
                 <div class="review">File "{{ post.media_file_name|e }}" deleted.</div>
                 {% elif post.status == "pending" %}
-                {% if admin %}
+                {% if user.account.admin %}
                 {% set media_path = "/admin/decrypt-media/" + post.key %}
                 {% include "media.jinja" %}
                 <div class="review">File: {{ post.media_file_name|e }}</div>
@@ -45,23 +45,23 @@
                     <a href="/{{ post.key }}">&rarr;</a>
                 </div>
                 {% endif %}
-                {% if admin and (post.status == "pending" or solo) %}
+                {% if user.account.admin and (post.status == "pending" or solo) %}
                 <details class="mod"{{ " open" if post.status == "pending" }}>
                     <summary>Mod</summary>
                     <form action="/admin/review-post" method="post" class="approve" data-fetch="PATCH">
-                        <input type="hidden" name="session_token" value="{{ session_token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="approved">
                         <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
                     </form>
                     <form action="/admin/review-post" method="post" class="reject" data-fetch="PATCH" data-confirm>
-                        <input type="hidden" name="session_token" value="{{ session_token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="rejected">
                         <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.key }}-submit">
                     </form>
                     <form action="/admin/review-post" method="post" class="ban" data-fetch="DELETE" data-confirm>
-                        <input type="hidden" name="session_token" value="{{ session_token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="banned">
                         <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }} id="ban-{{ post.key }}-submit">
@@ -69,14 +69,14 @@
                 </details>
                 {% elif post.status == "rejected" %}
                 <form action="/hide-post" method="post" data-fetch="PATCH">
-                    <input type="hidden" name="session_token" value="{{ session_token }}">
+                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
                     <span class="review">Post rejected.</span>
                     <input type="hidden" name="key" value="{{ post.key }}">
                     <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
                 </form>
                 {% elif post.status == "banned" %}
                 <form action="/hide-post" method="post" data-fetch="PATCH">
-                    <input type="hidden" name="session_token" value="{{ session_token }}">
+                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
                     <span class="review">This post has been deleted and its IP has been banned for a month.</span>
                     <input type="hidden" name="key" value="{{ post.key }}">
                     <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">

@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 const BLOWFISH_ITERATIONS: i32 = 10;
 
+#[derive(serde::Serialize)]
 pub struct User {
     pub account: Option<Account>,
     pub session_token: Uuid,
@@ -13,13 +14,6 @@ pub struct User {
 impl User {
     pub fn admin(&self) -> bool {
         self.account.as_ref().is_some_and(|a| a.admin)
-    }
-
-    pub fn username(&self) -> Option<&str> {
-        match self.account {
-            Some(ref account) => Some(&account.username),
-            None => None,
-        }
     }
 
     pub fn time_zone(&self) -> &str {

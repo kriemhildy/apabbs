@@ -469,13 +469,6 @@ impl PostHiding {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct PostMessage {
-    pub post: Post,
-    pub html: String,
-    pub admin: bool,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

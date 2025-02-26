@@ -9,11 +9,11 @@
     <script src="/script.js?35"></script>
 </head>
 
-<body{{ ' class="admin"' if admin }}>
-    {% if nav %}
+<body{{ ' class="admin"' if user.account.admin }}>
+    {% if not solo %}
     <nav>
-        {% if account %}
-        <a href="/user/{{ account.username }}">{{ account.username }}</a>
+        {% if user.account %}
+        <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
         {% else %}
         <a href="/login">log in</a>
         {% endif %}

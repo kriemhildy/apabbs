@@ -5,7 +5,7 @@ mod router;
 mod user;
 
 use minijinja::Environment;
-use post::PostMessage;
+use post::Post;
 use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
@@ -18,11 +18,11 @@ const POSTGRES_TIMESTAMP_FORMAT: &'static str = "Dy, DD Mon YYYY HH24:MI:SS TZHT
 struct AppState {
     db: PgPool,
     jinja: Arc<RwLock<Environment<'static>>>,
-    sender: Arc<Sender<PostMessage>>,
+    sender: Arc<Sender<Post>>,
 }
 
 mod init {
-    use crate::{jobs, AppState, Arc, Environment, PgPool, PostMessage, RwLock, Sender};
+    use crate::{jobs, AppState, Arc, Environment, PgPool, Post, RwLock, Sender};
     use tower_http::{
         classify::{ServerErrorsAsFailures, SharedClassifier},
         trace::TraceLayer,
@@ -51,7 +51,7 @@ mod init {
         Arc::new(RwLock::new(env))
     }
 
-    pub fn sender() -> Arc<Sender<PostMessage>> {
+    pub fn sender() -> Arc<Sender<Post>> {
         Arc::new(tokio::sync::broadcast::channel(100).0)
     }
 

@@ -4,7 +4,7 @@
         <p id="notice">{{ notice }}</p>
         {% endif %}
         <h2>{{ display_account.username }}</h2>
-        {% if account.username == display_account.username %}
+        {% if user.account.username == display_account.username %}
         You are logged in as this user. <a href="/settings">Settings</a>
         {% endif %}
         <p>Created {{ display_account.created_at_str }}.</p>

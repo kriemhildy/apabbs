@@ -3,8 +3,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 use super::{
-    ban, init, Account, AppState, CookieJar, HeaderMap, IntoResponse, Post, PostMessage, Response,
-    User, Uuid, ACCOUNT_COOKIE, SESSION_COOKIE,
+    ban, init, Account, AppState, CookieJar, HeaderMap, IntoResponse, Response, User, Uuid,
+    ACCOUNT_COOKIE, SESSION_COOKIE,
 };
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
@@ -91,22 +91,6 @@ pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> Str
     let env = state.jinja.read().expect("read jinja env");
     let tmpl = env.get_template(name).expect("get jinja template");
     tmpl.render(ctx).expect("render template")
-}
-
-pub fn send_post_to_web_socket(state: &AppState, post: Post) {
-    for admin in [true, false] {
-        let html = render(
-            state,
-            "post.jinja",
-            minijinja::context!(post, admin, session_token => "<CSRF_TOKEN>"),
-        );
-        let msg = PostMessage {
-            post: post.clone(),
-            html,
-            admin,
-        };
-        state.sender.send(msg).ok();
-    }
 }
 
 pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {

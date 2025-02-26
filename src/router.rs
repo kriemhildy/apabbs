@@ -6,7 +6,7 @@ use crate::{
     ban, init,
     post::{Post, PostHiding, PostMediaCategory, PostReview, PostStatus, PostSubmission},
     user::{Account, Credentials, Logout, TimeZoneUpdate, User},
-    AppState, PostMessage, BEGIN, COMMIT,
+    AppState, BEGIN, COMMIT,
 };
 use axum::{
     extract::{
@@ -112,14 +112,11 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => init::site_name(),
-            nav => !solo,
+            user,
             posts,
-            account => user.account,
-            admin => user.admin(),
             query_post,
             prior_page_post,
             solo,
-            session_token => user.session_token,
         ),
     ));
     (jar, html).into_response()
@@ -183,7 +180,7 @@ async fn submit_post(
         }
     }
     tx.commit().await.expect(COMMIT);
-    send_post_to_web_socket(&state, post);
+    state.sender.send(post).ok();
     let response = if is_fetch_request(&headers) {
         StatusCode::CREATED.into_response()
     } else {
@@ -193,14 +190,15 @@ async fn submit_post(
 }
 
 async fn login_form(State(state): State<AppState>, jar: CookieJar) -> Response {
-    let (session_token, jar) = match ensure_session_token(jar) {
-        Ok((session_token, jar)) => (session_token, jar),
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
         Err(response) => return response,
     };
     let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => init::site_name(), session_token),
+        minijinja::context!(title => init::site_name(), user),
     ));
     (jar, html).into_response()
 }
@@ -241,14 +239,15 @@ async fn authenticate(
 }
 
 async fn registration_form(State(state): State<AppState>, jar: CookieJar) -> Response {
-    let (session_token, jar) = match ensure_session_token(jar) {
-        Ok((session_token, jar)) => (session_token, jar),
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (user, jar) = match init_user(jar, &mut tx).await {
+        Ok(user) => user,
         Err(response) => return response,
     };
     let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => init::site_name(), session_token),
+        minijinja::context!(title => init::site_name(), user),
     ));
     (jar, html).into_response()
 }
@@ -382,29 +381,24 @@ async fn web_socket(
     upgrade: WebSocketUpgrade,
 ) -> Response {
     async fn watch_receiver(
+        State(state): State<AppState>,
         mut socket: WebSocket,
-        mut receiver: Receiver<PostMessage>,
+        mut receiver: Receiver<Post>,
         user: User,
     ) {
         use PostStatus::*;
-        while let Ok(msg) = receiver.recv().await {
-            let should_send = if msg.admin {
-                user.admin()
-            } else {
-                !user.admin()
-                    && match msg.post.status {
-                        Pending | Rejected | Banned => msg.post.author(&user),
-                        Approved => true,
-                    }
-            };
+        while let Ok(post) = receiver.recv().await {
+            let should_send = user.admin()
+                || match post.status {
+                    Pending | Rejected | Banned => post.author(&user),
+                    Approved => true,
+                };
             if !should_send {
                 continue;
             }
-            let html = msg
-                .html
-                .replace("<CSRF_TOKEN>", &user.session_token.to_string());
+            let html = render(&state, "post.jinja", minijinja::context!(post, user));
             let json_utf8 =
-                Utf8Bytes::from(serde_json::json!({"key": msg.post.key, "html": html}).to_string());
+                Utf8Bytes::from(serde_json::json!({"key": post.key, "html": html}).to_string());
             if socket.send(Message::Text(json_utf8)).await.is_err() {
                 break; // client disconnect
             }
@@ -417,7 +411,7 @@ async fn web_socket(
     };
     tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
-    upgrade.on_upgrade(move |socket| watch_receiver(socket, receiver, user))
+    upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user))
 }
 
 async fn interim(
@@ -438,11 +432,7 @@ async fn interim(
     tx.commit().await.expect(COMMIT);
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
     for post in new_posts {
-        let html = render(
-            &state,
-            "post.jinja",
-            minijinja::context!(post, admin => user.admin()),
-        );
+        let html = render(&state, "post.jinja", minijinja::context!(post, user));
         json_posts.push(serde_json::json!({
             "key": post.key,
             "html": html
@@ -470,11 +460,10 @@ async fn user_profile(
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         &state,
-        "user.jinja",
+        "profile.jinja",
         minijinja::context!(
             title => init::site_name(),
-            account => user.account,
-            admin => user.admin(),
+            user,
             display_account,
             posts,
         ),
@@ -491,7 +480,6 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
     if user.account.is_none() {
         return unauthorized("not logged in");
     }
-    let account = user.account.as_ref().unwrap();
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let notice = match jar.get(NOTICE_COOKIE) {
@@ -507,11 +495,9 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
         "settings.jinja",
         minijinja::context!(
             title => init::site_name(),
-            account,
-            username => user.username(),
+            user,
             time_zones,
             notice,
-            session_token => user.session_token,
         ),
     ));
     (jar, html).into_response()
@@ -668,7 +654,7 @@ async fn review_post(
         return internal_server_error("error setting post thumbnail");
     }
     tx.commit().await.expect(COMMIT);
-    send_post_to_web_socket(&state, post);
+    state.sender.send(post).ok();
     let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
     } else {

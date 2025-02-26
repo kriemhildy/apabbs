@@ -2,7 +2,7 @@
         {% block main %}
         {% if query_post is none %}
         <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
-            <input type="hidden" name="session_token" value="{{ session_token }}">
+            <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body"></textarea>
             <br>
             <label for="media">Media:</label>
