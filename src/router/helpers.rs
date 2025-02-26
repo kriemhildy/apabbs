@@ -3,14 +3,17 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 use super::{
-    ban, init, Account, AppState, CookieJar, HeaderMap, IntoResponse, Response, User, Uuid,
-    ACCOUNT_COOKIE, NOTICE_COOKIE, SESSION_COOKIE,
+    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Response, User,
+    Uuid,
 };
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
+pub const ACCOUNT_COOKIE: &'static str = "account";
+pub const SESSION_COOKIE: &'static str = "session";
+pub const NOTICE_COOKIE: &'static str = "notice";
 
 fn http_status(status: StatusCode, msg: &str) -> Response {
     (
@@ -169,11 +172,11 @@ pub async fn check_for_ban(tx: &mut PgConnection, ip_hash: &str) -> Option<Respo
     None
 }
 
-pub fn set_notice(jar: CookieJar, notice: &str) -> CookieJar {
+pub fn set_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
     jar.add(build_cookie(NOTICE_COOKIE, notice, false))
 }
 
-pub fn get_notice(mut jar: CookieJar) -> (CookieJar, Option<String>) {
+pub fn get_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
             let value = cookie.value().to_owned();
@@ -183,4 +186,21 @@ pub fn get_notice(mut jar: CookieJar) -> (CookieJar, Option<String>) {
         None => None,
     };
     (jar, notice)
+}
+
+pub fn set_account_cookie(
+    jar: CookieJar,
+    account: &Account,
+    credentials: &Credentials,
+) -> CookieJar {
+    let cookie = build_cookie(
+        ACCOUNT_COOKIE,
+        &account.token.to_string(),
+        credentials.year_checked(),
+    );
+    jar.add(cookie)
+}
+
+pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
+    jar.remove(removal_cookie(ACCOUNT_COOKIE))
 }

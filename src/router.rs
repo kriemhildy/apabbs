@@ -25,9 +25,6 @@ use std::collections::HashMap;
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
-const ACCOUNT_COOKIE: &'static str = "account";
-const SESSION_COOKIE: &'static str = "session";
-const NOTICE_COOKIE: &'static str = "notice";
 const ROOT: &'static str = "/";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -208,11 +205,11 @@ async fn authenticate(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
-    if jar.get(ACCOUNT_COOKIE).is_some() {
+    if user.account.is_some() {
         return bad_request("already logged in");
     }
     if !credentials.username_exists(&mut tx).await {
@@ -221,17 +218,10 @@ async fn authenticate(
     if credentials.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
-    match credentials.authenticate(&mut tx).await {
-        Some(account) => {
-            let cookie = build_cookie(
-                ACCOUNT_COOKIE,
-                &account.token.to_string(),
-                credentials.year_checked(),
-            );
-            jar = jar.add(cookie);
-        }
+    let jar = match credentials.authenticate(&mut tx).await {
+        Some(account) => set_account_cookie(jar, &account, &credentials),
         None => return bad_request("password is wrong"),
-    }
+    };
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
@@ -257,7 +247,7 @@ async fn create_account(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
@@ -271,23 +261,16 @@ async fn create_account(
     if !errors.is_empty() {
         return bad_request(&errors.join("\n"));
     }
-    match jar.get(ACCOUNT_COOKIE) {
-        Some(_cookie) => return bad_request("log out before registering"),
-        None => {
-            let ip_hash = ip_hash(&headers);
-            if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
-                tx.commit().await.expect(COMMIT);
-                return response;
-            }
-            let account = credentials.register(&mut tx, &ip_hash).await;
-            let cookie = build_cookie(
-                ACCOUNT_COOKIE,
-                &account.token.to_string(),
-                credentials.year_checked(),
-            );
-            jar = jar.add(cookie);
-        }
+    if user.account.is_some() {
+        return bad_request("log out before registering");
     }
+    let ip_hash = ip_hash(&headers);
+    if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
+        tx.commit().await.expect(COMMIT);
+        return response;
+    }
+    let account = credentials.register(&mut tx, &ip_hash).await;
+    let jar = set_account_cookie(jar, &account, &credentials);
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
@@ -299,18 +282,18 @@ async fn logout(
     Form(logout): Form<Logout>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
     if logout.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
-    if user.account.is_some() {
-        jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+    let jar = if user.account.is_some() {
+        remove_account_cookie(jar)
     } else {
         return bad_request("not logged in");
-    }
+    };
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
@@ -321,17 +304,17 @@ async fn reset_account_token(
     Form(logout): Form<Logout>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
     if logout.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
-    match user.account {
+    let jar = match user.account {
         Some(account) => {
             account.reset_token(&mut tx).await;
-            jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+            remove_account_cookie(jar)
         }
         None => return bad_request("not logged in"),
     };
@@ -475,7 +458,7 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
         return unauthorized("not logged in");
     }
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    let (jar, notice) = get_notice(jar);
+    let (jar, notice) = get_notice_cookie(jar);
     let html = Html(render(
         &state,
         "settings.jinja",
@@ -512,7 +495,7 @@ async fn update_time_zone(
     }
     time_zone_update.update(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
-    let jar = set_notice(jar, "Time zone updated.");
+    let jar = set_notice_cookie(jar, "Time zone updated.");
     let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }
@@ -544,7 +527,7 @@ async fn update_password(
     }
     credentials.update_password(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let jar = set_notice(jar, "Password updated.");
+    let jar = set_notice_cookie(jar, "Password updated.");
     let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }
