@@ -16,7 +16,27 @@ function styleScrollbar() {
 document.addEventListener("DOMContentLoaded", styleScrollbar);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// change title for unseen posts received via web socket or interim check
+// confirm potentially harmful form submissions
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+function confirmSubmit(event) {
+    console.log("confirming submit");
+    if (!confirm("Are you sure?")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}
+
+function addSubmitConfirmations(_event, element = document) {
+    element.querySelectorAll("form[data-confirm]").forEach((form) => {
+        form.addEventListener("submit", confirmSubmit);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// change title for unseen posts received via dynamic update
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 let originalTitle, unseenPosts = 0;
@@ -42,7 +62,31 @@ function initUnseenPosts() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// update after sleep
+// dynamically update posts
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+let template, postsDiv;
+
+function initDomElements() {
+    template = document.createElement("template");
+    postsDiv = document.querySelector("div#posts");
+}
+
+function updatePost(key, html) {
+    const post = document.querySelector(`div#post-${key}`);
+    template.innerHTML = html;
+    addSubmitConfirmations(null, template.content);
+    addFetchToForms(null, template.content);
+    if (post) {
+        post.replaceWith(template.content);
+    } else {
+        postsDiv.prepend(template.content);
+        incrementUnseenPosts();
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// add missed posts after sleep
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function latestPostKey() {
@@ -74,26 +118,8 @@ function checkInterim() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
-let webSocket, template, postsDiv, reconnectInterval;
+let webSocket, reconnectInterval;
 let webSocketOpen = false; // necessary to prevent multiple reconnects
-
-function initDomElements() {
-    template = document.createElement("template");
-    postsDiv = document.querySelector("div#posts");
-}
-
-function updatePost(key, html) {
-    const post = document.querySelector(`div#post-${key}`);
-    template.innerHTML = html;
-    addSubmitConfirmations(null, template.content);
-    addFetchToForms(null, template.content);
-    if (post) {
-        post.replaceWith(template.content);
-    } else {
-        postsDiv.prepend(template.content);
-        incrementUnseenPosts();
-    }
-}
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
@@ -122,6 +148,34 @@ function initWebSocket() {
     webSocket.addEventListener("message", handleWebSocketMessage);
     webSocket.addEventListener("close", handleWebSocketClosed);
     webSocket.addEventListener("open", handleWebSocketOpened);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// temporarily disable submit buttons when fetching
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+let priorDisabledStatuses = {};
+
+function disableSubmitButtons() {
+    console.log("disabling submit buttons");
+    document.querySelectorAll("input[type=submit]").forEach((input) => {
+        if (!input.id) {
+            alert("submit button is missing id");
+        }
+        priorDisabledStatuses[input.id] = input.disabled;
+        input.disabled = true;
+    });
+}
+
+function restoreSubmitButtons() {
+    console.log("restoring submit buttons to previous state");
+    for (const id of Object.keys(priorDisabledStatuses)) {
+        let input = document.querySelector(`input#${id}`);
+        if (input !== null) {
+            input.disabled = priorDisabledStatuses[id];
+        }
+    }
+    priorDisabledStatuses = {};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,50 +229,9 @@ function addFetchToForms(_event, element = document) {
     }
 }
 
-let priorDisabledStatuses = {};
-
-function disableSubmitButtons() {
-    console.log("disabling submit buttons");
-    document.querySelectorAll("input[type=submit]").forEach((input) => {
-        if (!input.id) {
-            alert("submit button is missing id");
-        }
-        priorDisabledStatuses[input.id] = input.disabled;
-        input.disabled = true;
-    });
-}
-
-function restoreSubmitButtons() {
-    console.log("restoring submit buttons to previous state");
-    for (const id of Object.keys(priorDisabledStatuses)) {
-        let input = document.querySelector(`input#${id}`);
-        if (input !== null) {
-            input.disabled = priorDisabledStatuses[id];
-        }
-    }
-    priorDisabledStatuses = {};
-}
-
-function confirmSubmit(event) {
-    console.log("confirming submit");
-    if (!confirm("Are you sure?")) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-    }
-}
-
-function addSubmitConfirmations(_event, element = document) {
-    element.querySelectorAll("form[data-confirm]").forEach((form) => {
-        form.addEventListener("submit", confirmSubmit);
-    });
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // routing
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-// need to handle submits added via websocket or interim check
-document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 
 const url = new URL(window.location.href);
 
