@@ -467,7 +467,7 @@ async fn user_profile(
 
 async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
@@ -475,14 +475,7 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
         return unauthorized("not logged in");
     }
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    let notice = match jar.get(NOTICE_COOKIE) {
-        Some(cookie) => {
-            let value = cookie.value().to_owned();
-            jar = jar.remove(removal_cookie(NOTICE_COOKIE));
-            Some(value)
-        }
-        None => None,
-    };
+    let (jar, notice) = get_notice(jar);
     let html = Html(render(
         &state,
         "settings.jinja",
@@ -502,7 +495,7 @@ async fn update_time_zone(
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
@@ -519,8 +512,7 @@ async fn update_time_zone(
     }
     time_zone_update.update(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
-    let cookie = build_cookie(NOTICE_COOKIE, "Time zone updated.", false);
-    jar = jar.add(cookie);
+    let jar = set_notice(jar, "Time zone updated.");
     let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }
@@ -531,7 +523,7 @@ async fn update_password(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, mut jar) = match init_user(jar, &mut tx).await {
+    let (user, jar) = match init_user(jar, &mut tx).await {
         Ok(user) => user,
         Err(response) => return response,
     };
@@ -552,8 +544,7 @@ async fn update_password(
     }
     credentials.update_password(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let cookie = build_cookie(NOTICE_COOKIE, "Password updated.", false);
-    jar = jar.add(cookie);
+    let jar = set_notice(jar, "Password updated.");
     let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }

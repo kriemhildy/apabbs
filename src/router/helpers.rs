@@ -4,7 +4,7 @@
 
 use super::{
     ban, init, Account, AppState, CookieJar, HeaderMap, IntoResponse, Response, User, Uuid,
-    ACCOUNT_COOKIE, SESSION_COOKIE,
+    ACCOUNT_COOKIE, NOTICE_COOKIE, SESSION_COOKIE,
 };
 use axum::http::StatusCode;
 use axum_extra::extract::cookie::{Cookie, SameSite};
@@ -167,4 +167,20 @@ pub async fn check_for_ban(tx: &mut PgConnection, ip_hash: &str) -> Option<Respo
         return Some(ban_message(&expires_at_str));
     }
     None
+}
+
+pub fn set_notice(jar: CookieJar, notice: &str) -> CookieJar {
+    jar.add(build_cookie(NOTICE_COOKIE, notice, false))
+}
+
+pub fn get_notice(mut jar: CookieJar) -> (CookieJar, Option<String>) {
+    let notice = match jar.get(NOTICE_COOKIE) {
+        Some(cookie) => {
+            let value = cookie.value().to_owned();
+            jar = jar.remove(removal_cookie(NOTICE_COOKIE));
+            Some(value)
+        }
+        None => None,
+    };
+    (jar, notice)
 }
