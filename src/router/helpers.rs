@@ -101,22 +101,6 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
         .expect("set time zone");
 }
 
-pub fn ensure_session_token(mut jar: CookieJar) -> Result<(Uuid, CookieJar), Response> {
-    let session_token = match jar.get(SESSION_COOKIE) {
-        Some(cookie) => match Uuid::try_parse(cookie.value()) {
-            Ok(uuid) => uuid,
-            Err(_) => return Err(bad_request("invalid CSRF token uuid")),
-        },
-        None => {
-            let session_token = Uuid::new_v4();
-            let cookie = build_cookie(SESSION_COOKIE, &session_token.to_string(), false);
-            jar = jar.add(cookie);
-            session_token
-        }
-    };
-    Ok((session_token, jar))
-}
-
 pub async fn init_user(
     mut jar: CookieJar,
     tx: &mut PgConnection,
@@ -150,9 +134,20 @@ pub async fn init_user(
     if jar.get("csrf").is_some() {
         jar = jar.remove(removal_cookie("csrf"));
     }
-    let (session_token, jar) = match ensure_session_token(jar) {
-        Ok((session_token, jar)) => (session_token, jar),
-        Err(response) => return Err(response),
+    let session_token_opt = match jar.get(SESSION_COOKIE) {
+        Some(cookie) => match Uuid::try_parse(cookie.value()) {
+            Ok(uuid) => Some(uuid),
+            Err(_) => None,
+        },
+        None => None,
+    };
+    let session_token = match session_token_opt {
+        Some(token) => token,
+        None => {
+            let token = Uuid::new_v4();
+            jar = jar.add(build_cookie(SESSION_COOKIE, &token.to_string(), false));
+            token
+        }
     };
     let user = User {
         account,
