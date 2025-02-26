@@ -219,7 +219,7 @@ async fn authenticate(
         return unauthorized("invalid CSRF token");
     }
     let jar = match credentials.authenticate(&mut tx).await {
-        Some(account) => set_account_cookie(jar, &account, &credentials),
+        Some(account) => add_account_cookie(jar, &account, &credentials),
         None => return bad_request("password is wrong"),
     };
     let redirect = Redirect::to(ROOT);
@@ -270,7 +270,7 @@ async fn create_account(
         return response;
     }
     let account = credentials.register(&mut tx, &ip_hash).await;
-    let jar = set_account_cookie(jar, &account, &credentials);
+    let jar = add_account_cookie(jar, &account, &credentials);
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
@@ -458,7 +458,7 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
         return unauthorized("not logged in");
     }
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    let (jar, notice) = get_notice_cookie(jar);
+    let (jar, notice) = remove_notice_cookie(jar);
     let html = Html(render(
         &state,
         "settings.jinja",
@@ -495,7 +495,7 @@ async fn update_time_zone(
     }
     time_zone_update.update(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
-    let jar = set_notice_cookie(jar, "Time zone updated.");
+    let jar = add_notice_cookie(jar, "Time zone updated.");
     let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }
@@ -527,7 +527,7 @@ async fn update_password(
     }
     credentials.update_password(&mut tx).await;
     tx.commit().await.expect(COMMIT);
-    let jar = set_notice_cookie(jar, "Password updated.");
+    let jar = add_notice_cookie(jar, "Password updated.");
     let redirect = Redirect::to("/settings").into_response();
     (jar, redirect).into_response()
 }

@@ -172,11 +172,11 @@ pub async fn check_for_ban(tx: &mut PgConnection, ip_hash: &str) -> Option<Respo
     None
 }
 
-pub fn set_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
+pub fn add_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
     jar.add(build_cookie(NOTICE_COOKIE, notice, false))
 }
 
-pub fn get_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
+pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
             let value = cookie.value().to_owned();
@@ -188,7 +188,7 @@ pub fn get_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     (jar, notice)
 }
 
-pub fn set_account_cookie(
+pub fn add_account_cookie(
     jar: CookieJar,
     account: &Account,
     credentials: &Credentials,
