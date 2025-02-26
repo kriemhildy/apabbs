@@ -73,7 +73,7 @@ function initDomElements() {
 }
 
 function updatePost(key, html) {
-    console.log("updating post: ", key);
+    console.log("updating post:", key);
     const post = document.querySelector(`div#post-${key}`);
     template.innerHTML = html;
     addSubmitConfirmations(null, template.content);
@@ -101,12 +101,12 @@ function latestPostKey() {
 
 function checkInterim() {
     const key = latestPostKey();
-    console.log(`fetching interim post data from ${key}`);
+    console.log("fetching interim post data since:", key);
     fetch(`/interim/${key}`).then((response) => {
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
-                    console.log("updating interim post: ", post.key);
+                    console.log("updating interim post:", post.key);
                     updatePost(post.key, post.html);
                 }
             });
@@ -123,6 +123,7 @@ let webSocket, reconnectInterval;
 let webSocketOpen = false; // necessary to prevent multiple reconnects
 
 function handleWebSocketMessage(event) {
+    console.log("websocket message received");
     const json = JSON.parse(event.data);
     updatePost(json.key, json.html);
 }
@@ -185,7 +186,7 @@ function restoreSubmitButtons() {
 function handleFormSubmit(event) {
     event.preventDefault();
     disableSubmitButtons();
-    console.log("fetching form: ", this);
+    console.log("fetching form:", this);
     const formData = new FormData(this);
     let fetchBody;
     if (this.enctype == "multipart/form-data") {
@@ -199,9 +200,9 @@ function handleFormSubmit(event) {
         method: this.dataset.fetch || "POST",
         body: fetchBody,
     }).then((response) => {
-        console.log("response.status", response.status);
+        console.log("response.status:", response.status);
         let actionUrl = new URL(this.action);
-        console.log("actionUrl.pathname: ", actionUrl.pathname);
+        console.log("actionUrl.pathname:", actionUrl.pathname);
         if ([200, 201, 204].includes(response.status)) {
             switch (actionUrl.pathname) {
                 case "/submit-post":
@@ -224,7 +225,7 @@ function handleFormSubmit(event) {
 function addFetchToForms(_event, element = document) {
     const forms = element.querySelectorAll("form[data-fetch]");
     for (const form of forms) {
-        console.log("adding fetch to form: ", form);
+        console.log("adding fetch to form:", form);
         form.addEventListener("submit", handleFormSubmit);
     }
 }
