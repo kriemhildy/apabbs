@@ -195,15 +195,13 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    fn download_youtube_thumbnail(video_id: &str, size: &str) -> Option<String> {
+    fn download_youtube_thumbnail(
+        video_id: &str,
+        video_id_dir: &PathBuf,
+        size: &str,
+    ) -> Option<PathBuf> {
         let remote_thumbnail_url = format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
-        let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
-        let local_thumbnail_url = local_thumbnail_path
-            .to_str()
-            .unwrap()
-            .to_owned()
-            .replacen("pub", "", 1);
         if !video_id_dir.exists() {
             std::fs::create_dir(&video_id_dir).expect("create youtube video id dir");
         }
@@ -214,7 +212,7 @@ impl PostSubmission {
             .status()
             .expect("download youtube thumbnail");
         if curl_status.success() {
-            Some(local_thumbnail_url)
+            Some(local_thumbnail_path)
         } else {
             None
         }
@@ -254,11 +252,28 @@ impl PostSubmission {
             } else {
                 vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
             };
-            let local_thumbnail_url = thumbnail_sizes
-                .iter()
-                .find_map(|s| Self::download_youtube_thumbnail(&youtube_video_id, s));
-            let local_thumbnail_url = match local_thumbnail_url {
-                Some(url) => url,
+            let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(&youtube_video_id);
+            let local_thumbnail_path = if video_id_dir.exists() {
+                Some(
+                    video_id_dir
+                        .read_dir()
+                        .expect("read video id dir")
+                        .next()
+                        .expect("get first entry")
+                        .expect("unwrap entry")
+                        .path(),
+                )
+            } else {
+                thumbnail_sizes.iter().find_map(|s| {
+                    Self::download_youtube_thumbnail(&youtube_video_id, &video_id_dir, s)
+                })
+            };
+            let local_thumbnail_url = match local_thumbnail_path {
+                Some(path) => path
+                    .to_str()
+                    .expect("path to str")
+                    .to_owned()
+                    .replacen("pub", "", 1),
                 None => break,
             };
             let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
@@ -472,6 +487,13 @@ mod tests {
             .to_owned(),
             ..Default::default()
         };
+        let test_ids = ["jNQXAC9IVRw", "kixirmHePCc", "cHMCGCWit6U"];
+        let mut existing_ids = Vec::new();
+        for dir in test_ids {
+            if std::path::Path::new(YOUTUBE_DIR).join(dir).exists() {
+                existing_ids.push(dir);
+            }
+        }
         assert_eq!(
             submission.body_as_html(),
             concat!(
@@ -503,5 +525,11 @@ mod tests {
                 r#"target="_blank">https://www.youtube.com/watch?v=ySrBS4ulbmQ</a> bar"#,
             )
         );
+        for dir in test_ids {
+            if !existing_ids.contains(&dir) {
+                std::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(dir))
+                    .expect("remove dir and its contents");
+            }
+        }
     }
 }
