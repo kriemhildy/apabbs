@@ -1,3 +1,9 @@
+0.25.0
+
+Improved rejection and ban handling.
+More conventional custom scrollbar.
+Prevent re-downloading of Youtube thumbnails.
+
 0.24.0
 
 Allow user to decide account cookie duration.
