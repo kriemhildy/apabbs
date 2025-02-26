@@ -106,7 +106,6 @@ async fn index(
     } else {
         posts.pop()
     };
-    tx.commit().await.expect(COMMIT);
     let html = Html(render(
         &state,
         "index.jinja",
@@ -233,7 +232,6 @@ async fn authenticate(
         }
         None => return bad_request("password is wrong"),
     }
-    tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
@@ -313,7 +311,6 @@ async fn logout(
     } else {
         return bad_request("not logged in");
     }
-    tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
@@ -409,7 +406,6 @@ async fn web_socket(
         Ok(user) => user,
         Err(response) => return response,
     };
-    tx.commit().await.expect(COMMIT);
     let receiver = state.sender.subscribe();
     upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user))
 }
@@ -429,7 +425,6 @@ async fn interim(
         None => return not_found("post does not exist"),
     };
     let new_posts = Post::select(&mut tx, &user, Some(since_post.id), true).await;
-    tx.commit().await.expect(COMMIT);
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
     for post in new_posts {
         let html = render(&state, "post.jinja", minijinja::context!(post, user));
@@ -457,7 +452,6 @@ async fn user_profile(
         None => return not_found("account does not exist"),
     };
     let posts = Post::select_by_author(&mut tx, account.id).await;
-    tx.commit().await.expect(COMMIT);
     let html = Html(render(
         &state,
         "profile.jinja",
@@ -481,7 +475,6 @@ async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
         return unauthorized("not logged in");
     }
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    tx.commit().await.expect(COMMIT);
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
             let value = cookie.value().to_owned();
