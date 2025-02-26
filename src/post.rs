@@ -175,7 +175,7 @@ impl PostSubmission {
             Self::determine_media_type(self.media_file_name.as_deref());
         let (session_token, account_id, username) = match user.account {
             Some(ref account) => (None, Some(account.id), Some(&account.username)),
-            None => (Some(&user.session_token), None, None),
+            None => (Some(self.session_token), None, None),
         };
         sqlx::query_as(concat!(
             "INSERT INTO posts (session_token, account_id, username, body, ip_hash, ",
@@ -240,7 +240,7 @@ impl PostSubmission {
             r#"" target="_blank">\S+</a>\ *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
-        for _ in 1..=MAX_YOUTUBE_EMBEDS {
+        for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
                 Some(captures) => captures,
                 None => break,

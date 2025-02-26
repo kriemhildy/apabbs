@@ -15,6 +15,7 @@ use std::path::Path;
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
 
 const LOCAL_IP: &'static str = "::1";
+const BAN_IP: &'static str = "192.0.2.0"; // RFC 5737 TEST-NET-1
 const APPLICATION_WWW_FORM_URLENCODED: &'static str = "application/x-www-form-urlencoded";
 const TEST_MEDIA_DIR: &'static str = "tests/media";
 
@@ -50,6 +51,10 @@ fn test_user(account: Option<Account>) -> User {
 
 fn local_ip_hash() -> String {
     sha256::digest(init::secret_key() + LOCAL_IP)
+}
+
+fn ban_ip_hash() -> String {
+    sha256::digest(init::secret_key() + BAN_IP)
 }
 
 async fn create_test_account(tx: &mut PgConnection, admin: bool) -> User {
@@ -160,6 +165,14 @@ async fn select_latest_post_by_username(tx: &mut PgConnection, username: &str) -
         .fetch_optional(&mut *tx)
         .await
         .expect("select post")
+}
+
+async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
+    sqlx::query("DELETE FROM bans WHERE ip_hash = $1")
+        .bind(ip_hash)
+        .execute(&mut *tx)
+        .await
+        .expect("delete test ban");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -297,6 +310,65 @@ async fn test_submit_post_with_account() {
     assert_eq!(account_post.session_token, None);
     account_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
+async fn test_autoban() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = test_user(None);
+    let mut credentials = test_credentials(&user);
+    for _ in 0..3 {
+        credentials.session_token = Uuid::new_v4();
+        credentials.username = Uuid::new_v4().simple().to_string()[..16].to_string();
+        credentials.register(&mut tx, &ban_ip_hash()).await;
+    }
+    let mut post_submission = PostSubmission {
+        session_token: Uuid::new_v4(),
+        body: String::from("trololol"),
+        media_file_name: None,
+        media_bytes: None,
+    };
+    for _ in 0..5 {
+        post_submission.session_token = Uuid::new_v4();
+        post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
+    }
+    assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
+    assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 5);
+    assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_none());
+    assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
+    post_submission.session_token = Uuid::new_v4();
+    post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
+    assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
+    assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 6);
+    assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_none());
+    assert!(ban::flooding(&mut tx, &ban_ip_hash()).await);
+    tx.commit().await.expect(COMMIT);
+    let mut form = FormData::new(Vec::new());
+    let bogus_session_token = Uuid::new_v4();
+    form.write_field("session_token", &bogus_session_token.to_string())
+        .unwrap();
+    form.write_field("body", "trololol").unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, bogus_session_token),
+        )
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, BAN_IP)
+        .body(Body::from(form.finish().unwrap()))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_some());
+    assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
+    assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 0);
+    assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 0);
+    delete_test_ban(&mut tx, &ban_ip_hash()).await;
     tx.commit().await.expect(COMMIT);
 }
 

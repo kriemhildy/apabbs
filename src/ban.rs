@@ -21,24 +21,32 @@ pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
     .expect("return expiration if ip ban exists")
 }
 
-pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
-    let new_users_count: i64 = sqlx::query_scalar(concat!(
+pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
+    sqlx::query_scalar(concat!(
         "SELECT count(*) FROM accounts WHERE ip_hash = $1 ",
         "AND created_at > now() - interval '1 day'"
     ))
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("count new account registrations by IP");
-    let new_posts_count: i64 = sqlx::query_scalar(concat!(
+    .expect("count new account registrations by IP")
+}
+
+pub async fn new_posts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
+    sqlx::query_scalar(concat!(
         "SELECT count(*) FROM posts WHERE ip_hash = $1 ",
         "AND status = 'pending' AND created_at > now() - interval '1 day'"
     ))
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("count new pending posts by IP");
-    new_users_count + new_posts_count >= 10
+    .expect("count new pending posts by IP")
+}
+
+pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
+    let new_accounts_count = new_accounts_count(tx, ip_hash).await;
+    let new_posts_count = new_posts_count(tx, ip_hash).await;
+    new_accounts_count + new_posts_count >= 9
 }
 
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
