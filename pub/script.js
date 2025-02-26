@@ -73,6 +73,7 @@ function initDomElements() {
 }
 
 function updatePost(key, html) {
+    console.log("updating post: ", key);
     const post = document.querySelector(`div#post-${key}`);
     template.innerHTML = html;
     addSubmitConfirmations(null, template.content);
@@ -123,7 +124,6 @@ let webSocketOpen = false; // necessary to prevent multiple reconnects
 
 function handleWebSocketMessage(event) {
     const json = JSON.parse(event.data);
-    console.log("updating websocket post: ", json.key);
     updatePost(json.key, json.html);
 }
 
@@ -185,7 +185,7 @@ function restoreSubmitButtons() {
 function handleFormSubmit(event) {
     event.preventDefault();
     disableSubmitButtons();
-    console.log("this: ", this);
+    console.log("fetching form: ", this);
     const formData = new FormData(this);
     let fetchBody;
     if (this.enctype == "multipart/form-data") {
