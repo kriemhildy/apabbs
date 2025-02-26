@@ -75,13 +75,13 @@ async fn index(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let query_post = match params.get("key") {
         Some(key) => match Post::select_by_key(&mut tx, &key).await {
-            Some(post) => Some(post),
             None => return not_found("post does not exist"),
+            Some(post) => Some(post),
         },
         None => None,
     };
@@ -92,8 +92,8 @@ async fn index(
     let solo = query_post.is_some() && !key.path().contains("/page/");
     let mut posts = if solo {
         match query_post {
-            Some(ref post) => vec![post.clone()],
             None => return bad_request("no post to show solo"),
+            Some(ref post) => vec![post.clone()],
         }
     } else {
         Post::select(&mut tx, &user, query_post_id, false).await
@@ -126,8 +126,8 @@ async fn submit_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let ip_hash = ip_hash(&headers);
     if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
@@ -141,8 +141,8 @@ async fn submit_post(
             "session_token" => {
                 post_submission.session_token = match Uuid::try_parse(&field.text().await.unwrap())
                 {
-                    Ok(uuid) => uuid,
                     Err(_) => return bad_request("invalid CSRF token uuid"),
+                    Ok(uuid) => uuid,
                 };
             }
             "body" => post_submission.body = field.text().await.unwrap(),
@@ -151,8 +151,8 @@ async fn submit_post(
                     return bad_request("only upload one media file");
                 }
                 let file_name = match field.file_name() {
-                    Some(file_name) => file_name.to_owned(),
                     None => return bad_request("media file has no file_name"),
+                    Some(file_name) => file_name.to_owned(),
                 };
                 if file_name.is_empty() {
                     continue;
@@ -188,8 +188,8 @@ async fn submit_post(
 async fn login_form(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let html = Html(render(
         &state,
@@ -206,8 +206,8 @@ async fn authenticate(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if user.account.is_some() {
         return bad_request("already logged in");
@@ -219,8 +219,8 @@ async fn authenticate(
         return unauthorized("invalid CSRF token");
     }
     let jar = match credentials.authenticate(&mut tx).await {
-        Some(account) => add_account_cookie(jar, &account, &credentials),
         None => return bad_request("password is wrong"),
+        Some(account) => add_account_cookie(jar, &account, &credentials),
     };
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
@@ -229,8 +229,8 @@ async fn authenticate(
 async fn registration_form(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let html = Html(render(
         &state,
@@ -248,8 +248,8 @@ async fn create_account(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if credentials.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
@@ -283,17 +283,16 @@ async fn logout(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if logout.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
-    let jar = if user.account.is_some() {
-        remove_account_cookie(jar)
-    } else {
+    if user.account.is_none() {
         return bad_request("not logged in");
-    };
+    }
+    let jar = remove_account_cookie(jar);
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
 }
@@ -305,18 +304,18 @@ async fn reset_account_token(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if logout.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     let jar = match user.account {
+        None => return bad_request("not logged in"),
         Some(account) => {
             account.reset_token(&mut tx).await;
             remove_account_cookie(jar)
         }
-        None => return bad_request("not logged in"),
     };
     tx.commit().await.expect(COMMIT);
     let redirect = Redirect::to(ROOT);
@@ -331,8 +330,8 @@ async fn hide_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if post_hiding.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
@@ -386,8 +385,8 @@ async fn web_socket(
     }
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, _jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let receiver = state.sender.subscribe();
     upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user))
@@ -400,12 +399,12 @@ async fn interim(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let since_post = match Post::select_by_key(&mut tx, &key).await {
-        Some(post) => post,
         None => return not_found("post does not exist"),
+        Some(post) => post,
     };
     let new_posts = Post::select(&mut tx, &user, Some(since_post.id), true).await;
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
@@ -427,12 +426,12 @@ async fn user_profile(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     let account = match Account::select_by_username(&mut tx, &username).await {
-        Some(account) => account,
         None => return not_found("account does not exist"),
+        Some(account) => account,
     };
     let posts = Post::select_by_author(&mut tx, account.id).await;
     let html = Html(render(
@@ -451,8 +450,8 @@ async fn user_profile(
 async fn settings(State(state): State<AppState>, jar: CookieJar) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if user.account.is_none() {
         return unauthorized("not logged in");
@@ -479,8 +478,8 @@ async fn update_time_zone(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if user.account.is_none() {
         return unauthorized("not logged in");
@@ -507,19 +506,19 @@ async fn update_password(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if credentials.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
     }
     match user.account {
+        None => return unauthorized("not logged in"),
         Some(account) => {
             if account.username != credentials.username {
                 return unauthorized("not logged in as this user");
             }
         }
-        None => return unauthorized("not logged in"),
     };
     let errors = credentials.validate();
     if !errors.is_empty() {
@@ -542,8 +541,8 @@ async fn review_post(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if post_review.session_token != user.session_token {
         return unauthorized("invalid CSRF token");
@@ -552,8 +551,8 @@ async fn review_post(
         return unauthorized("not an admin");
     }
     let post = match Post::select_by_key(&mut tx, &post_review.key).await {
-        Some(post) => post,
         None => return not_found("post does not exist"),
+        Some(post) => post,
     };
     match post.status {
         PostStatus::Pending => {
@@ -637,15 +636,15 @@ async fn decrypt_media(
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx).await {
-        Ok(user) => user,
         Err(response) => return response,
+        Ok(tuple) => tuple,
     };
     if !user.admin() {
         return unauthorized("not an admin");
     }
     let post = match Post::select_by_key(&mut tx, &key).await {
-        Some(post) => post,
         None => return not_found("post does not exist"),
+        Some(post) => post,
     };
     if !post.encrypted_media_path().exists() {
         return not_found("encrypted media file does not exist");
