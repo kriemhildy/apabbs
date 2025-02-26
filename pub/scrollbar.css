@@ -1,0 +1,5 @@
+/* Only applied on non-Mac operating systems to WebKit browsers */
+
+html {
+    scrollbar-color: var(--thumb) var(--back);
+}
