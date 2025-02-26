@@ -293,7 +293,6 @@ async fn test_submit_post_with_account() {
         .uri("/submit-post")
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
