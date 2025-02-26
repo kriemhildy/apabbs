@@ -452,11 +452,11 @@ async fn user_profile(
         Ok(user) => user,
         Err(response) => return response,
     };
-    let display_account = match Account::select_by_username(&mut tx, &username).await {
+    let account = match Account::select_by_username(&mut tx, &username).await {
         Some(account) => account,
         None => return not_found("account does not exist"),
     };
-    let posts = Post::select_by_author(&mut tx, display_account.id).await;
+    let posts = Post::select_by_author(&mut tx, account.id).await;
     tx.commit().await.expect(COMMIT);
     let html = Html(render(
         &state,
@@ -464,7 +464,7 @@ async fn user_profile(
         minijinja::context!(
             title => init::site_name(),
             user,
-            display_account,
+            account,
             posts,
         ),
     ));
