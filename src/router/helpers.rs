@@ -110,26 +110,26 @@ pub async fn init_user(
     csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), Response> {
     let account = match jar.get(ACCOUNT_COOKIE) {
+        None => None,
         Some(cookie) => {
             let token = match Uuid::try_parse(cookie.value()) {
-                Ok(uuid) => Some(uuid),
                 Err(_) => {
-                    jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+                    jar = remove_account_cookie(jar);
                     None
                 }
+                Ok(uuid) => Some(uuid),
             };
             match token {
+                None => None,
                 Some(token) => match Account::select_by_token(tx, &token).await {
-                    Some(account) => Some(account),
                     None => {
-                        jar = jar.remove(removal_cookie(ACCOUNT_COOKIE));
+                        jar = remove_account_cookie(jar);
                         None
                     }
+                    Some(account) => Some(account),
                 },
-                None => None,
             }
         }
-        None => None,
     };
     // temporary migrations to remove after a reasonable period
     if jar.get("anon").is_some() {
@@ -139,19 +139,19 @@ pub async fn init_user(
         jar = jar.remove(removal_cookie("csrf"));
     }
     let session_token_opt = match jar.get(SESSION_COOKIE) {
-        Some(cookie) => match Uuid::try_parse(cookie.value()) {
-            Ok(uuid) => Some(uuid),
-            Err(_) => None,
-        },
         None => None,
+        Some(cookie) => match Uuid::try_parse(cookie.value()) {
+            Err(_) => None,
+            Ok(uuid) => Some(uuid),
+        },
     };
     let session_token = match session_token_opt {
-        Some(token) => token,
         None => {
             let token = Uuid::new_v4();
-            jar = jar.add(build_cookie(SESSION_COOKIE, &token.to_string(), false));
+            jar = add_session_cookie(jar, token);
             token
         }
+        Some(token) => token,
     };
     if method != Method::GET && csrf_token.is_none() {
         return Err(unauthorized("CSRF token required"));
@@ -212,4 +212,12 @@ pub fn add_account_cookie(
 
 pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
+}
+
+fn add_session_cookie(jar: CookieJar, session_token: Uuid) -> CookieJar {
+    jar.add(build_cookie(
+        SESSION_COOKIE,
+        &session_token.to_string(),
+        false,
+    ))
 }
