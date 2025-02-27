@@ -126,6 +126,9 @@ impl Credentials {
         if lowercase_password.contains(&lowercase_username) {
             errors.push("password cannot contain username");
         }
+        if lowercase_password.contains("password") {
+            errors.push(r#"password cannot contain "password""#);
+        }
         match self.confirm_password {
             None => errors.push("password confirmation is required"),
             Some(ref confirm_password) => {
@@ -187,4 +190,52 @@ impl Credentials {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Logout {
     pub session_token: Uuid,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn set_password_and_confirmation(
+        credentials: &mut Credentials,
+        password: &str,
+    ) {
+        credentials.password = password.to_owned();
+        credentials.confirm_password = Some(password.to_owned());
+    }
+
+    #[test]
+    fn validate_credentials() {
+        let mut credentials = Credentials {
+            session_token: Uuid::new_v4(),
+            username: "username".to_owned(),
+            password: "passw0rd".to_owned(),
+            confirm_password: Some("passw0rd".to_owned()),
+            year: None,
+        };
+        assert_eq!(credentials.validate().len(), 0);
+        credentials.username = "bob".to_owned();
+        assert_eq!(credentials.validate().len(), 1);
+        credentials.username = "bob_the_magical_genius".to_owned();
+        assert_eq!(credentials.validate().len(), 1);
+        credentials.username = "bob cool".to_owned();
+        assert_eq!(credentials.validate().len(), 1);
+        credentials.username = "username".to_owned();
+        set_password_and_confirmation(&mut credentials, "passw0r");
+        assert_eq!(credentials.validate().len(), 1);
+        set_password_and_confirmation(&mut credentials, "username1");
+        assert_eq!(credentials.validate().len(), 1);
+        set_password_and_confirmation(&mut credentials, "UserName1");
+        assert_eq!(credentials.validate().len(), 1);
+        set_password_and_confirmation(&mut credentials, "passw0rd");
+        assert_eq!(credentials.validate().len(), 0);
+        credentials.confirm_password = Some("pass".to_owned());
+        assert_eq!(credentials.validate().len(), 1);
+        credentials.confirm_password = Some("passw0rd".to_owned());
+        assert_eq!(credentials.validate().len(), 0);
+        set_password_and_confirmation(&mut credentials, "password1");
+        assert_eq!(credentials.validate().len(), 1);
+        credentials.username = "password".to_owned();
+        assert_eq!(credentials.validate().len(), 2);
+    }
 }

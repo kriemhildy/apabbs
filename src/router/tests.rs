@@ -36,8 +36,8 @@ fn test_credentials(user: &User) -> Credentials {
     Credentials {
         session_token: user.session_token,
         username: Uuid::new_v4().simple().to_string()[..16].to_string(),
-        password: String::from("test_password"),
-        confirm_password: Some(String::from("test_password")),
+        password: String::from("test_passw0rd"),
+        confirm_password: Some(String::from("test_passw0rd")),
         year: Some("on".to_string()),
     }
 }
@@ -724,8 +724,8 @@ async fn update_password() {
     let credentials = Credentials {
         session_token: user.session_token,
         username: account.username.clone(),
-        password: String::from("new_password"),
-        confirm_password: Some(String::from("new_password")),
+        password: String::from("new_passw0rd"),
+        confirm_password: Some(String::from("new_passw0rd")),
         year: Some("on".to_string()),
     };
     let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
