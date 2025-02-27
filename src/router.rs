@@ -206,13 +206,10 @@ async fn authenticate(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if user.account.is_some() {
-        return bad_request("already logged in");
-    }
     if !credentials.username_exists(&mut tx).await {
         return not_found("username does not exist");
     }
@@ -250,7 +247,7 @@ async fn create_account(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -260,9 +257,6 @@ async fn create_account(
     let errors = credentials.validate();
     if !errors.is_empty() {
         return bad_request(&errors.join("\n"));
-    }
-    if user.account.is_some() {
-        return bad_request("log out before registering");
     }
     let ip_hash = ip_hash(&headers);
     if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
