@@ -231,6 +231,38 @@ async fn test_index_solo() {
 }
 
 #[tokio::test]
+async fn test_index_page() {
+    let (router, state) = init_test().await;
+    let user = test_user(None);
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    tx.commit().await.expect(COMMIT);
+    let uri = format!("/page/{}", &post2.key);
+    let request = Request::builder()
+        .uri(&uri)
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert!(response.status().is_success());
+    assert!(response_adds_cookie(&response, SESSION_COOKIE));
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    assert!(body_str.contains(&post1.key));
+    assert!(body_str.contains(&post2.key));
+    assert!(!body_str.contains(&post3.key));
+    let post1_index = body_str.find(&post1.key).unwrap();
+    let post2_index = body_str.find(&post2.key).unwrap();
+    assert!(post2_index < post1_index);
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    post1.delete(&mut tx).await;
+    post2.delete(&mut tx).await;
+    post3.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+}
+
+#[tokio::test]
 async fn test_submit_post() {
     let (router, state) = init_test().await;
     let user = test_user(None);
