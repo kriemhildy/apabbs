@@ -175,7 +175,7 @@ video {
 
 body.admin div#posts.solo img,
 video {
-    max-height: max(calc(100vh - 14em), 200px);
+    max-height: max(calc(100vh - 15em), 200px);
 }
 
 @media (max-width: 450px) or (max-height: 450px) {
