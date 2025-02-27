@@ -186,7 +186,7 @@ video {
 
     body.admin div#posts.solo img,
     video {
-        max-height: max(calc(100vh - 21em), 200px);
+        max-height: max(calc(100vh - 20em), 200px);
     }
 }
 
