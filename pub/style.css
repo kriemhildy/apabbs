@@ -33,6 +33,24 @@ body {
     margin: 12px max(calc(4vh + 4vw - 50px), 12px);
 }
 
+textarea {
+    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 12px)), 600px);
+    height: 4em;
+    padding: 5px;
+}
+
+/* zero side margin on phones */
+
+@media (max-width: 450px) {
+    body {
+        margin: 12px 0;
+    }
+
+    textarea {
+        width: 100%;
+    }
+}
+
 body,
 textarea,
 input,
@@ -56,11 +74,6 @@ input:disabled {
     color: var(--disabled);
 }
 
-textarea {
-    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 12px)), 600px);
-    height: 4em;
-    padding: 5px;
-}
 
 input[type="submit"] {
     margin-top: 7px;
