@@ -193,7 +193,7 @@ async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #[tokio::test]
-async fn test_not_found() {
+async fn not_found() {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/not-found")
@@ -204,7 +204,7 @@ async fn test_not_found() {
 }
 
 #[tokio::test]
-async fn test_index() {
+async fn index() {
     let (router, _state) = init_test().await;
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -216,7 +216,7 @@ async fn test_index() {
 }
 
 #[tokio::test]
-async fn test_index_solo() {
+async fn index_solo() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -235,7 +235,7 @@ async fn test_index_solo() {
 }
 
 #[tokio::test]
-async fn test_index_page() {
+async fn index_page() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -266,7 +266,7 @@ async fn test_index_page() {
 }
 
 #[tokio::test]
-async fn test_submit_post() {
+async fn submit_post() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
@@ -303,7 +303,7 @@ async fn test_submit_post() {
 }
 
 #[tokio::test]
-async fn test_submit_post_with_media() {
+async fn submit_post_with_media() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
@@ -341,7 +341,7 @@ async fn test_submit_post_with_media() {
 }
 
 #[tokio::test]
-async fn test_submit_post_with_account() {
+async fn submit_post_with_account() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -376,7 +376,7 @@ async fn test_submit_post_with_account() {
 }
 
 #[tokio::test]
-async fn test_autoban() {
+async fn autoban() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -435,7 +435,7 @@ async fn test_autoban() {
 }
 
 #[tokio::test]
-async fn test_login_form() {
+async fn login_form() {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/login")
@@ -448,7 +448,7 @@ async fn test_login_form() {
 }
 
 #[tokio::test]
-async fn test_authenticate() {
+async fn authenticate() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -475,7 +475,7 @@ async fn test_authenticate() {
 }
 
 #[tokio::test]
-async fn test_registration_form() {
+async fn registration_form() {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/register")
@@ -488,7 +488,7 @@ async fn test_registration_form() {
 }
 
 #[tokio::test]
-async fn test_create_account() {
+async fn create_account() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let credentials = test_credentials(&user);
@@ -516,7 +516,7 @@ async fn test_create_account() {
 }
 
 #[tokio::test]
-async fn test_logout() {
+async fn logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -543,7 +543,7 @@ async fn test_logout() {
 }
 
 #[tokio::test]
-async fn test_reset_account_token() {
+async fn reset_account_token() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -574,7 +574,7 @@ async fn test_reset_account_token() {
 }
 
 #[tokio::test]
-async fn test_hide_post() {
+async fn hide_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -613,7 +613,7 @@ async fn test_hide_post() {
 }
 
 #[tokio::test]
-async fn test_interim() {
+async fn interim() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -642,7 +642,7 @@ async fn test_interim() {
 }
 
 #[tokio::test]
-async fn test_user_profile() {
+async fn user_profile() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -662,7 +662,7 @@ async fn test_user_profile() {
 }
 
 #[tokio::test]
-async fn test_settings() {
+async fn settings() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -684,7 +684,7 @@ async fn test_settings() {
 }
 
 #[tokio::test]
-async fn test_update_time_zone() {
+async fn update_time_zone() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -715,7 +715,7 @@ async fn test_update_time_zone() {
 }
 
 #[tokio::test]
-async fn test_update_password() {
+async fn update_password() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, false).await;
@@ -752,7 +752,7 @@ async fn test_update_password() {
 }
 
 #[tokio::test]
-async fn test_review_post() {
+async fn review_post() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -797,7 +797,7 @@ async fn test_review_post() {
 }
 
 #[tokio::test]
-async fn test_review_post_with_small_media() {
+async fn review_post_with_small_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -841,7 +841,7 @@ async fn test_review_post_with_small_media() {
 }
 
 #[tokio::test]
-async fn test_decrypt_media() {
+async fn decrypt_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let anon_user = test_user(None);

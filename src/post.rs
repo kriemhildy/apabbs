@@ -478,7 +478,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_body_as_html() {
+    async fn body_as_html() {
         let submission = PostSubmission {
             body: concat!(
                 "<&test body コンピューター\n\n",
