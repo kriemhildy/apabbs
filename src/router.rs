@@ -480,10 +480,10 @@ async fn update_time_zone(
             Err(response) => return response,
             Ok(tuple) => tuple,
         };
-    if user.account.is_none() {
-        return unauthorized("not logged in");
-    }
-    let account = user.account.unwrap();
+    let account = match user.account {
+        None => return unauthorized("not logged in"),
+        Some(account) => account,
+    };
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     if !time_zones.contains(&time_zone_update.time_zone) {
         return bad_request("invalid time zone");

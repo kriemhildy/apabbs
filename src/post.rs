@@ -297,10 +297,10 @@ impl PostSubmission {
     fn determine_media_type(
         media_file_name: Option<&str>,
     ) -> (Option<PostMediaCategory>, Option<String>) {
-        if media_file_name.is_none() {
-            return (None, None);
-        }
-        let media_file_name = media_file_name.unwrap();
+        let media_file_name = match media_file_name {
+            None => return (None, None),
+            Some(media_file_name) => media_file_name,
+        };
         use PostMediaCategory::*;
         let extension = media_file_name.split('.').last();
         let (media_category, media_mime_type_str) = match extension {
