@@ -178,24 +178,10 @@ video {
     max-height: clamp(300px, 80vh, 600px);
 }
 
-/* phones get tighter layout because of mobile browser controls */
-
 div#posts.solo img,
 video {
     max-width: max(300px, 100%);
     max-height: unset;
-}
-
-@media (max-width: 450px) or (max-height: 450px) {
-    div#posts.solo img,
-    video {
-        max-height: max(calc(100vh - 16em), 200px);
-    }
-
-    body.admin div#posts.solo img,
-    video {
-        max-height: max(calc(100vh - 20em), 200px);
-    }
 }
 
 div.post div.arrow a {
