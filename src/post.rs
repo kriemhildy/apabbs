@@ -240,8 +240,8 @@ impl PostSubmission {
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
-                Some(captures) => captures,
                 None => break,
+                Some(captures) => captures,
             };
             // youtu.be has no match for 1, but is always not a short
             let youtube_short = captures.get(1).is_some_and(|m| m.as_str() == "shorts/");
@@ -269,12 +269,12 @@ impl PostSubmission {
                 })
             };
             let local_thumbnail_url = match local_thumbnail_path {
+                None => break,
                 Some(path) => path
                     .to_str()
                     .expect("path to str")
                     .to_owned()
                     .replacen("pub", "", 1),
-                None => break,
             };
             let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(

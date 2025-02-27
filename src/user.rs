@@ -127,12 +127,12 @@ impl Credentials {
             errors.push("password cannot contain username");
         }
         match self.confirm_password {
+            None => errors.push("password confirmation is required"),
             Some(ref confirm_password) => {
                 if &self.password != confirm_password {
                     errors.push("passwords do not match");
                 }
             }
-            None => errors.push("password confirmation is required"),
         }
         errors
     }
