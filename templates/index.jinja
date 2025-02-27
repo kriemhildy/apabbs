@@ -5,8 +5,10 @@
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body"></textarea>
             <br>
-            <label for="media">Media:</label>
-            <input type="file" name="media" id="media">
+            <label>
+                Media:
+                <input type="file" name="media">
+            </label>
             <div id="post-submit-container">
                 <input type="submit" value="Post" id="post-submit">
                 <div id="spinner"></div>

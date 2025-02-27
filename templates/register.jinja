@@ -7,17 +7,23 @@
         </ul>
         <form action="/register" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <label for="username">Username:</label>
+            <label>
+                Username:
+                <br>
+                <input type="text" name="username" maxlength="16" size="16" autocomplete="username">
+            </label>
             <br>
-            <input type="text" name="username" id="username" maxlength="16" size="16" autocomplete="username">
+            <label>
+                Password:
+                <br>
+                <input type="password" name="password" maxlength="64" size="32" autocomplete="new-password">
+            </label>
             <br>
-            <label for="password">Password:</label>
-            <br>
-            <input type="password" name="password" id="password" maxlength="64" size="32" autocomplete="new-password">
-            <br>
-            <label for="confirm-password">Confirm password:</label>
-            <br>
-            <input type="password" name="confirm_password" id="confirm-password" maxlength="64" size="32" autocomplete="new-password">
+            <label>
+                Confirm password:
+                <br>
+                <input type="password" name="confirm_password" maxlength="64" size="32" autocomplete="new-password">
+            </label>
             <div class="checkbox-container">
                 <input type="checkbox" checked name="year" id="login-year">
                 <label for="login-year">Stay logged in for a year</label>

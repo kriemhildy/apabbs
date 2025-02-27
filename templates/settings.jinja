@@ -36,13 +36,17 @@
         <form action="/settings/update-password" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="username" value="{{ user.account.username }}">
-            <label for="password">New password:</label>
+            <label>
+                New password:
+                <br>
+                <input type="password" name="password" maxlength="64" size="32" autocomplete="new-password">
+            </label>
             <br>
-            <input type="password" name="password" id="password" maxlength="64" size="32" autocomplete="new-password">
-            <br>
-            <label for="confirm-password">Confirm new password:</label>
-            <br>
-            <input type="password" name="confirm_password" id="confirm-password" maxlength="64" size="32" autocomplete="new-password">
+            <label>
+                Confirm new password:
+                <br>
+                <input type="password" name="confirm_password" maxlength="64" size="32" autocomplete="new-password">
+            </label>
             <br>
             <input type="submit" value="Update password">
         </form>
