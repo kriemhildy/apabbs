@@ -42,22 +42,19 @@ document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 let originalTitle, unseenPosts = 0;
 
 function incrementUnseenPosts() {
-    if (document.visibilityState == "hidden" || !document.hasFocus()) {
+    if (!document.hasFocus()) {
         unseenPosts++;
         document.title = `(${unseenPosts}) ${originalTitle}`;
     }
 }
 
 function restoreTitle() {
-    if (document.visibilityState == "visible") {
-        unseenPosts = 0;
-        document.title = originalTitle;
-    }
+    unseenPosts = 0;
+    document.title = originalTitle;
 }
 
 function initUnseenPosts() {
     originalTitle = document.title;
-    document.addEventListener("visibilitychange", restoreTitle);
     window.addEventListener("focus", restoreTitle);
 }
 
