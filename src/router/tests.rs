@@ -156,6 +156,11 @@ fn remove_encrypted_file(encrypted_file_path: &Path) {
     std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
 }
 
+async fn response_body_str(response: Response<Body>) -> String {
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    String::from_utf8(body.to_vec()).unwrap()
+}
+
 async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
     session_token: &Uuid,
@@ -222,8 +227,7 @@ async fn test_index_solo() {
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(body_str.contains("class=\"solo\""));
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
@@ -247,8 +251,7 @@ async fn test_index_page() {
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(body_str.contains(&post1.key));
     assert!(body_str.contains(&post2.key));
     assert!(!body_str.contains(&post3.key));
@@ -440,8 +443,7 @@ async fn test_login_form() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(body_str.contains("Log in"));
 }
 
@@ -481,8 +483,7 @@ async fn test_registration_form() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(body_str.contains("Register"));
 }
 
@@ -626,8 +627,7 @@ async fn test_interim() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(!body_str.contains(&post1.key));
     assert!(body_str.contains(&post2.key));
     assert!(body_str.contains(&post3.key));
@@ -654,8 +654,7 @@ async fn test_user_profile() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(body_str.contains(&account.username));
     let mut tx = state.db.begin().await.expect(BEGIN);
     delete_test_account(&mut tx, account).await;
@@ -677,8 +676,7 @@ async fn test_settings() {
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body_str = response_body_str(response).await;
     assert!(body_str.contains("Settings"));
     let mut tx = state.db.begin().await.expect(BEGIN);
     delete_test_account(&mut tx, account).await;
