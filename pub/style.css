@@ -183,12 +183,7 @@ video {
 div#posts.solo img,
 video {
     max-width: max(300px, 100%);
-    max-height: max(calc(100vh - 11em), 200px);
-}
-
-body.admin div#posts.solo img,
-video {
-    max-height: max(calc(100vh - 15em), 200px);
+    max-height: unset;
 }
 
 @media (max-width: 450px) or (max-height: 450px) {
