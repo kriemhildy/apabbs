@@ -30,8 +30,7 @@ html {
 
 body {
     overflow-wrap: break-word;
-    margin: max(calc(4vh + 4vw - 50px), 12px);
-    margin-top: 12px;
+    margin: 12px max(calc(4vh + 4vw - 50px), 12px);
 }
 
 body,
@@ -120,6 +119,7 @@ div#posts {
     flex-wrap: wrap;
     gap: calc(3vh + 3vw);
     margin-top: max(calc(2vh + 2vw - 20px), 12px);
+    margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
 }
 
 div#posts.solo {
@@ -169,7 +169,8 @@ video {
 
 div#posts.solo img,
 video {
-    max-height: max(calc(100vh - 10em), 200px);
+    max-width: max(300px, 100%);
+    max-height: max(calc(100vh - 11em), 200px);
 }
 
 body.admin div#posts.solo img,
