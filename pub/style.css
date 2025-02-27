@@ -47,7 +47,7 @@ textarea {
     }
 
     textarea {
-        width: calc(100% - 1px);
+        width: calc(100% - 12px);
     }
 }
 
