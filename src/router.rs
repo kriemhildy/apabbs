@@ -71,7 +71,7 @@ async fn index(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
-    key: Uri,
+    uri: Uri,
     Path(params): Path<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -90,7 +90,7 @@ async fn index(
         Some(ref post) => Some(post.id),
         None => None,
     };
-    let solo = query_post.is_some() && !key.path().contains("/page/");
+    let solo = query_post.is_some() && !uri.path().contains("/page/");
     let mut posts = if solo {
         match query_post {
             None => return bad_request("no post to show solo"),
