@@ -185,7 +185,7 @@ impl PostSubmission {
         .bind(session_token)
         .bind(account_id)
         .bind(username)
-        .bind(&self.body_as_html())
+        .bind(&self.body_to_html())
         .bind(ip_hash)
         .bind(self.media_file_name.as_deref())
         .bind(media_category)
@@ -218,7 +218,7 @@ impl PostSubmission {
         }
     }
 
-    fn body_as_html(&self) -> String {
+    fn body_to_html(&self) -> String {
         let mut html = self
             .body
             .trim_end()
@@ -478,7 +478,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn body_as_html() {
+    async fn body_to_html() {
         let submission = PostSubmission {
             body: concat!(
                 "<&test body コンピューター\n\n",
@@ -501,7 +501,7 @@ mod tests {
             }
         }
         assert_eq!(
-            submission.body_as_html(),
+            submission.body_to_html(),
             concat!(
                 "&lt;&amp;test body コンピューター<br><br>",
                 r#"<a href="https://example.com" target="_blank">https://example.com</a>"#,
