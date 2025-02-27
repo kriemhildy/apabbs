@@ -18,8 +18,10 @@
             <input type="submit" value="Log out all devices">
         </form>
         <br>
-        <p>Time zone: {{ user.account.time_zone }}</p>
+        <br>
         <form action="/settings/update-time-zone" method="post">
+            Time zone: {{ user.account.time_zone }}
+            <br>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <select name="time_zone" id="time_zone">
                 {% for tz in time_zones %}
