@@ -41,13 +41,13 @@ textarea {
 
 /* zero side margin on phones */
 
-@media (max-width: 450px) {
+@media (max-width: 450px) or (max-height: 450px) {
     body {
         margin: 12px 0;
     }
 
     textarea {
-        width: calc(100% - 12px);
+        width: min(calc(100% - 12px), 600px);
     }
 }
 
