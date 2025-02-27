@@ -90,7 +90,7 @@ async fn index(
         Some(ref post) => Some(post.id),
         None => None,
     };
-    let solo = query_post.is_some() && !uri.path().contains("/page/");
+    let solo = query_post.is_some() && !uri.path().starts_with("/page/");
     let mut posts = if solo {
         match query_post {
             None => return bad_request("no post to show solo"),
@@ -206,7 +206,8 @@ async fn authenticate(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
+    {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -247,7 +248,8 @@ async fn create_account(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
+    {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
