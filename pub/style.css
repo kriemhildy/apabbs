@@ -130,7 +130,7 @@ div#posts {
     display: flex;
     flex-wrap: wrap;
     gap: calc(3vh + 3vw + 16px);
-    margin-top: max(calc(2vh + 2vw - 20px), 12px);
+    margin-top: 12px;
     margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
 }
 
