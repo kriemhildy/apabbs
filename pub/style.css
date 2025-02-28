@@ -134,7 +134,7 @@ div#posts.solo {
 }
 
 div.post {
-    flex: clamp(250px, 30vh + 20vw, 400px);
+    flex: clamp(250px, 30vh + 20vw, 500px);
     break-inside: avoid;
     margin: 0 -8px;
     padding: 0 8px;
@@ -165,13 +165,13 @@ div#posts.solo div.post div.body {
 
 /* youtube thumbnails */
 div.post div.body img {
-    max-height: clamp(250px, 70vh, 500px);
+    max-height: clamp(180px, 70vh, 360px);
 }
 
 div.post img,
 video {
-    max-width: clamp(300px, calc(100% + 16px), 800px);
-    max-height: clamp(300px, 80vh, 600px);
+    max-width: clamp(300px, calc(100% + 16px), 1600px);
+    max-height: clamp(300px, 80vh, 1200px);
     margin-left: -8px;
 }
 
