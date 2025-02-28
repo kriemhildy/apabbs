@@ -153,20 +153,8 @@ div.post.banned {
 }
 
 div.post div.body {
-    max-width: 1000px;
-    max-height: clamp(300px, 80vh, 600px);
-    overflow-y: clip;
+    max-width: 1264px;
     margin-bottom: 4px;
-}
-
-div#posts.solo div.post div.body {
-    max-height: unset;
-    overflow-y: unset;
-}
-
-/* youtube thumbnails */
-div.post div.body img {
-    max-height: clamp(180px, 70vh, 360px);
 }
 
 div.post img,
