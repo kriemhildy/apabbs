@@ -155,12 +155,12 @@ div.post.banned {
 div.post div.body {
     max-width: 1000px;
     max-height: clamp(300px, 80vh, 600px);
-    overflow: hidden;
+    overflow-y: clip;
 }
 
 div#posts.solo div.post div.body {
     max-height: unset;
-    overflow: unset;
+    overflow-y: unset;
 }
 
 /* youtube thumbnails */
@@ -230,7 +230,6 @@ a.youtube {
 a.youtube img {
     height: 1.7em;
     filter: brightness(0.2) invert(1);
-    margin-left: 0;
 }
 
 @media (prefers-color-scheme: light) {
