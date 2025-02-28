@@ -8,7 +8,7 @@
         You are logged in as this user. <a href="/settings">Settings</a>
         {% endif %}
         <p>Created {{ account.created_at_str }}.</p>
-        {% if account.admin %}
+        {% if account.role == "admin" %}
         <p>This user is an admin.</p>
         {% endif %}
         <div id="posts">

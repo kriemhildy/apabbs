@@ -1,5 +1,5 @@
 use super::*;
-use crate::post::PostMediaCategory;
+use crate::{post::PostMediaCategory, user::AccountRole};
 use axum::{
     body::Body,
     http::{
@@ -57,17 +57,17 @@ fn ban_ip_hash() -> String {
     sha256::digest(init::secret_key() + BAN_IP)
 }
 
-async fn create_test_account(tx: &mut PgConnection, admin: bool) -> User {
+async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     let user = test_user(None);
     let credentials = test_credentials(&user);
     let account = credentials.register(tx, &local_ip_hash()).await;
-    let account = if admin {
-        sqlx::query("UPDATE accounts SET admin = $1 WHERE id = $2")
-            .bind(true)
+    let account = if role != AccountRole::Novice {
+        sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
+            .bind(role)
             .bind(account.id)
             .execute(&mut *tx)
             .await
-            .expect("set account as admin");
+            .expect("set account as role");
         Account::select_by_username(&mut *tx, &account.username)
             .await
             .expect("select account")
@@ -244,10 +244,7 @@ async fn index_page() {
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await.expect(COMMIT);
     let uri = format!("/page/{}", &post2.key);
-    let request = Request::builder()
-        .uri(&uri)
-        .body(Body::empty())
-        .unwrap();
+    let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
@@ -344,7 +341,7 @@ async fn submit_post_with_media() {
 async fn submit_post_with_account() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     tx.commit().await.expect(COMMIT);
     let account = user.account.as_ref().unwrap();
     let mut form = FormData::new(Vec::new());
@@ -519,7 +516,7 @@ async fn create_account() {
 async fn logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
@@ -546,7 +543,7 @@ async fn logout() {
 async fn reset_account_token() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
@@ -579,7 +576,7 @@ async fn hide_post() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
-    let admin = create_test_account(&mut tx, true).await;
+    let admin = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin.account.as_ref().unwrap();
     PostReview {
         session_token: admin.session_token,
@@ -645,7 +642,7 @@ async fn interim() {
 async fn user_profile() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
@@ -665,7 +662,7 @@ async fn user_profile() {
 async fn settings() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
@@ -687,7 +684,7 @@ async fn settings() {
 async fn update_time_zone() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let time_zone_update = TimeZoneUpdate {
@@ -718,7 +715,7 @@ async fn update_time_zone() {
 async fn update_password() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let user = create_test_account(&mut tx, false).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let credentials = Credentials {
@@ -758,7 +755,7 @@ async fn review_post() {
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, true).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
@@ -803,7 +800,7 @@ async fn review_post_with_small_media() {
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, true).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
@@ -847,7 +844,7 @@ async fn decrypt_media() {
     let anon_user = test_user(None);
     let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, true).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let key = format!("/admin/decrypt-media/{}", &post.key);

@@ -14,7 +14,7 @@
                 {% elif post.status == "rejected" %}
                 <div class="review">File "{{ post.media_file_name|e }}" deleted.</div>
                 {% elif post.status == "pending" %}
-                {% if user.account.admin %}
+                {% if user.account.role == "admin" %}
                 {% set media_path = "/admin/decrypt-media/" + post.key %}
                 {% include "media.jinja" %}
                 <div class="review">File: {{ post.media_file_name|e }}</div>
@@ -42,7 +42,7 @@
                     <a href="/{{ post.key }}">&rarr;</a>
                 </div>
                 {% endif %}
-                {% if user.account.admin and (post.status == "pending" or solo) %}
+                {% if user.account.role == "admin" and (post.status == "pending" or solo) %}
                 <details class="mod">
                     <summary>Mod</summary>
                     <form action="/admin/review-post" method="post" class="approve" data-fetch="PATCH">

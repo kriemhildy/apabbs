@@ -10,7 +10,7 @@
 </head>
 
 
-<body{{ ' class="admin"' if user.account.admin }}>
+<body{{ ' class="' + user.account.role + '"' if user.account }}>
     {% if not solo %}
     <nav>
         {% if user.account %}

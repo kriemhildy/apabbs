@@ -5,6 +5,16 @@ use uuid::Uuid;
 
 const BLOWFISH_ITERATIONS: i32 = 10;
 
+#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "account_role", rename_all = "snake_case")]
+pub enum AccountRole {
+    Novice,
+    Member,
+    Mod,
+    Admin,
+}
+
 #[derive(serde::Serialize)]
 pub struct User {
     pub account: Option<Account>,
@@ -13,7 +23,9 @@ pub struct User {
 
 impl User {
     pub fn admin(&self) -> bool {
-        self.account.as_ref().is_some_and(|a| a.admin)
+        self.account
+            .as_ref()
+            .is_some_and(|a| a.role == AccountRole::Admin)
     }
 
     pub fn time_zone(&self) -> &str {
@@ -30,7 +42,7 @@ pub struct Account {
     pub username: String,
     pub token: Uuid,
     pub password_hash: String,
-    pub admin: bool,
+    pub role: AccountRole,
     pub time_zone: String,
     #[sqlx(default)]
     pub created_at_str: Option<String>,
@@ -196,10 +208,7 @@ pub struct Logout {
 mod tests {
     use super::*;
 
-    fn set_password_and_confirmation(
-        credentials: &mut Credentials,
-        password: &str,
-    ) {
+    fn set_password_and_confirmation(credentials: &mut Credentials, password: &str) {
         credentials.password = password.to_owned();
         credentials.confirm_password = Some(password.to_owned());
     }
