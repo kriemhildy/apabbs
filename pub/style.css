@@ -30,25 +30,13 @@ html {
 
 body {
     overflow-wrap: break-word;
-    margin: 8px max(calc(4vh + 4vw - 50px), 8px);
+    margin: 8px;
 }
 
 textarea {
-    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 8px)), 600px);
+    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 12px)), 600px);
     height: 4em;
     padding: 5px;
-}
-
-/* zero side margin on phones */
-
-@media (max-width: 450px) or (max-height: 450px) {
-    body {
-        margin: 8px;
-    }
-
-    textarea {
-        width: min(calc(100% - 12px), 600px);
-    }
 }
 
 body,
@@ -146,8 +134,10 @@ div#posts.solo {
 }
 
 div.post {
-    flex: clamp(250px, 30vh + 20vw, 600px);
+    flex: clamp(250px, 30vh + 20vw, 400px);
     break-inside: avoid;
+    margin: 0 -8px;
+    padding: 0 8px;
 }
 
 div.post.pending {
@@ -180,33 +170,16 @@ div.post div.body img {
 
 div.post img,
 video {
-    max-width: clamp(300px, 100%, 800px);
+    max-width: clamp(300px, calc(100% + 16px), 800px);
     max-height: clamp(300px, 80vh, 600px);
+    margin-left: -8px;
 }
 
 div#posts.solo img,
 video {
-    max-width: max(300px, 100%);
+    max-width: max(300px, calc(100% + 16px));
     max-height: unset;
-}
-
-@media (max-width: 450px) or (max-height: 450px) {
-    div.post {
-        margin: 0 -8px;
-        padding: 0 8px;
-    }
-
-    div.post img,
-    video {
-        max-width: calc(100% + 16px);
-        margin-left: -8px;
-    }
-
-    div#posts.solo img,
-    video {
-        max-width: calc(100% + 16px);
-        margin-left: -8px;
-    }
+    margin-left: -8px;
 }
 
 div.post div.arrow a {
