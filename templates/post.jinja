@@ -6,9 +6,6 @@
                 {% endif %}
                 {% if post.media_file_name %}
                 {% if post.status == "approved" %}
-                {% if post.body|length > 0 %}
-                <br>
-                {% endif %}
                 {% set optimal_file_name =
                     post.thumbnail_file_name if not solo and post.thumbnail_file_name
                     else post.media_file_name %}

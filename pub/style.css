@@ -156,6 +156,7 @@ div.post div.body {
     max-width: 1000px;
     max-height: clamp(300px, 80vh, 600px);
     overflow-y: clip;
+    margin-bottom: 4px;
 }
 
 div#posts.solo div.post div.body {
