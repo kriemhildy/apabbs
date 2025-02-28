@@ -30,11 +30,11 @@ html {
 
 body {
     overflow-wrap: break-word;
-    margin: 12px max(calc(4vh + 4vw - 50px), 12px);
+    margin: 8px max(calc(4vh + 4vw - 50px), 8px);
 }
 
 textarea {
-    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 12px)), 600px);
+    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 8px)), 600px);
     height: 4em;
     padding: 5px;
 }
@@ -43,7 +43,7 @@ textarea {
 
 @media (max-width: 450px) or (max-height: 450px) {
     body {
-        margin: 12px;
+        margin: 8px;
     }
 
     textarea {
@@ -193,14 +193,14 @@ video {
 @media (max-width: 450px) or (max-height: 450px) {
     div.post img,
     video {
-        max-width: calc(100% + 24px);
-        margin-left: -12px;
+        max-width: calc(100% + 16px);
+        margin-left: -8px;
     }
 
     div#posts.solo img,
     video {
-        max-width: calc(100% + 24px);
-        margin-left: -12px;
+        max-width: calc(100% + 16px);
+        margin-left: -8px;
     }
 }
 
