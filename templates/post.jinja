@@ -46,7 +46,7 @@
                 </div>
                 {% endif %}
                 {% if user.account.admin and (post.status == "pending" or solo) %}
-                <details class="mod"{{ " open" if post.status == "pending" }}>
+                <details class="mod">
                     <summary>Mod</summary>
                     <form action="/admin/review-post" method="post" class="approve" data-fetch="PATCH">
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
