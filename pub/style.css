@@ -34,9 +34,15 @@ body {
 }
 
 textarea {
-    width: min(calc(100% - 14px), 600px);
+    width: min(calc(100% - 12px), 600px);
     height: 4em;
     padding: 5px;
+}
+
+@-moz-document url-prefix() {
+    textarea {
+        width: min(calc(100% - 14px), 600px);
+    }
 }
 
 body,
