@@ -191,6 +191,11 @@ video {
 }
 
 @media (max-width: 450px) or (max-height: 450px) {
+    div.post {
+        margin: 0 -8px;
+        padding: 0 8px;
+    }
+
     div.post img,
     video {
         max-width: calc(100% + 16px);
