@@ -43,7 +43,7 @@ textarea {
 
 @media (max-width: 450px) or (max-height: 450px) {
     body {
-        margin: 12px 0;
+        margin: 12px;
     }
 
     textarea {
@@ -74,12 +74,13 @@ input:disabled {
     color: var(--disabled);
 }
 
-
-input[type="submit"], select {
+input[type="submit"],
+select {
     margin-top: 7px;
 }
 
-input[type="text"], input[type="password"] {
+input[type="text"],
+input[type="password"] {
     margin: 4px 0;
 }
 
@@ -187,6 +188,20 @@ div#posts.solo img,
 video {
     max-width: max(300px, 100%);
     max-height: unset;
+}
+
+@media (max-width: 450px) or (max-height: 450px) {
+    div.post img,
+    video {
+        max-width: calc(100% + 24px);
+        margin-left: -12px;
+    }
+
+    div#posts.solo img,
+    video {
+        max-width: calc(100% + 24px);
+        margin-left: -12px;
+    }
 }
 
 div.post div.arrow a {
