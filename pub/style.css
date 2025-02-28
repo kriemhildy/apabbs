@@ -34,7 +34,7 @@ body {
 }
 
 textarea {
-    width: min(calc(100% - max(calc(4vh + 4vw - 50px), 14px)), 600px);
+    width: min(calc(100% - 14px), 600px);
     height: 4em;
     padding: 5px;
 }
