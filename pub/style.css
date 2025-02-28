@@ -230,6 +230,7 @@ a.youtube {
 a.youtube img {
     height: 1.7em;
     filter: brightness(0.2) invert(1);
+    margin-left: 0;
 }
 
 @media (prefers-color-scheme: light) {
