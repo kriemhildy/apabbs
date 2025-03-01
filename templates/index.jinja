@@ -4,8 +4,7 @@
         <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body"></textarea>
-            <br>
-            <label>
+            <label id="post-media-label">
                 Media:
                 <input type="file" name="media">
             </label>
