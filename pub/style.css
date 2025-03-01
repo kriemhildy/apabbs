@@ -174,7 +174,6 @@ div#posts.solo img,
 video {
     max-width: max(300px, calc(100% + 16px));
     max-height: unset;
-    margin-left: -8px;
 }
 
 div.post div.arrow a {
