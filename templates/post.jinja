@@ -5,7 +5,7 @@
                 </div>
                 {% endif %}
                 {% if post.media_file_name %}
-                {% if post.status == "approved" %}
+                {% if post.status in ["approved", "delisted"] %}
                 {% set optimal_file_name =
                     post.thumbnail_file_name if not solo and post.thumbnail_file_name
                     else post.media_file_name %}
@@ -32,11 +32,9 @@
                     {% endif %}
                 </p>
                 {% endif %}
-                {% if post.status == "approved" %}
-                {% endif %}
-                {% if not solo and (
-                    not post.status == "approved"
-                    or post.media_category != "image") %}
+                {% if not solo
+                    and post.status in ["pending", "approved", "delisted"]
+                    and post.media_category != "image" %}
                 <div class="arrow">
                     <a href="/{{ post.key }}">&rarr;</a>
                 </div>
@@ -49,6 +47,12 @@
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="approved">
                         <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
+                    </form>
+                    <form action="/admin/review-post" method="post" class="delist" data-fetch="PATCH">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                        <input type="hidden" name="key" value="{{ post.key }}">
+                        <input type="hidden" name="status" value="delisted">
+                        <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }} id="delist-{{ post.key }}-submit">
                     </form>
                     <form action="/admin/review-post" method="post" class="reject" data-fetch="PATCH" data-confirm>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">

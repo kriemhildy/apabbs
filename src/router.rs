@@ -93,8 +93,13 @@ async fn index(
     let solo = query_post.is_some() && !uri.path().starts_with("/page/");
     let mut posts = if solo {
         match query_post {
-            None => return bad_request("no post to show solo"),
-            Some(ref post) => vec![post.clone()],
+            None => return bad_request("no post to show"),
+            Some(ref post) => {
+                if post.status == PostStatus::Pending && (!user.admin() || !post.author(&user)) {
+                    return unauthorized("post is pending approval");
+                }
+                vec![post.clone()]
+            }
         }
     } else {
         Post::select(&mut tx, &user, query_post_id, false).await
@@ -360,7 +365,7 @@ async fn web_socket(
         while let Ok(post) = receiver.recv().await {
             let should_send = user.admin()
                 || match post.status {
-                    Pending | Rejected | Banned => post.author(&user),
+                    Pending | Delisted | Rejected | Banned => post.author(&user),
                     Approved => true,
                 };
             if !should_send {
@@ -549,7 +554,7 @@ async fn review_post(
                 if !encrypted_media_path.exists() {
                     return not_found("encrypted media file does not exist");
                 }
-                if post_review.status == PostStatus::Approved {
+                if [PostStatus::Approved, PostStatus::Delisted].contains(&post_review.status) {
                     let media_bytes = post.decrypt_media_file().await;
                     let published_media_path = post.published_media_path();
                     let media_key_dir = published_media_path.parent().unwrap();
@@ -581,12 +586,13 @@ async fn review_post(
                 std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
             }
         }
-        PostStatus::Approved => match post_review.status {
+        PostStatus::Approved | PostStatus::Delisted => match post_review.status {
             PostStatus::Rejected | PostStatus::Banned => {
                 if post.media_file_name.is_some() {
                     post_review.delete_media_dir();
                 }
             }
+            PostStatus::Approved | PostStatus::Delisted => (),
             _ => return bad_request("unexpected new post status"),
         },
         _ => return bad_request("post must be pending or approved"),
