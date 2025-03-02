@@ -86,9 +86,8 @@ select,
     border-color: var(--border);
 }
 
-label#post-media-label {
-    display: block;
-    margin-top: 4px;
+textarea#post-body {
+    margin-bottom: 4px;
 }
 
 a {
