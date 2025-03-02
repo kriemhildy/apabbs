@@ -10,9 +10,11 @@
                 {% elif post.media_category == "video" %}
                 <video controls>
                     <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
+                    {{ post.media_file_name }}
                 </video>
                 {% elif post.media_category == "audio" %}
                 <audio controls>
                     <source src="{{ media_path }}" type="{{ post.media_mime_type }}">
+                    {{ post.media_file_name }}
                 </audio>
                 {% endif %}
