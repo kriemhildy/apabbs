@@ -1,6 +1,6 @@
         {% extends "layout.jinja" %}
         {% block main %}
-        <h3>Log in</h3>
+        <h2>Log in</h2>
         <form action="/login" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <label>
