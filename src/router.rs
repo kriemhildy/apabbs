@@ -114,6 +114,7 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => init::site_name(),
+            nav => !solo,
             user,
             posts,
             query_post,

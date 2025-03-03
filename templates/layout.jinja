@@ -11,7 +11,7 @@
 
 
 <body{{ ' class="' + user.account.role + '"' if user.account }}>
-    {% if not solo %}
+    {% if nav %}
     <nav>
         {% if user.account %}
         <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
