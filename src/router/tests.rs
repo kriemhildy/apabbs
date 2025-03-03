@@ -235,7 +235,7 @@ async fn index_solo() {
 }
 
 #[tokio::test]
-async fn index_page() {
+async fn index_with_page() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut tx = state.db.begin().await.expect(BEGIN);
