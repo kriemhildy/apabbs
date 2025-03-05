@@ -151,7 +151,7 @@ pub async fn init_user(
     let token = match token_opt {
         None => {
             let token = Uuid::new_v4();
-            jar = add_user_cookie(jar, token);
+            jar = jar.add(build_cookie(USER_COOKIE, &token.to_string(), true));
             token
         }
         Some(token) => token,
@@ -212,8 +212,4 @@ pub fn add_account_cookie(
 
 pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
-}
-
-fn add_user_cookie(jar: CookieJar, user_token: Uuid) -> CookieJar {
-    jar.add(build_cookie(USER_COOKIE, &user_token.to_string(), true))
 }
