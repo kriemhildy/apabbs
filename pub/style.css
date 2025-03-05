@@ -22,7 +22,7 @@ html {
         --review: rgb(63, 63, 63);
         --arrow: black;
         --pending: #eeeeee;
-        --delisted: #1e6rgb(97, 156, 223)
+        --delisted: rgb(97, 156, 223);
         --rejected: rgb(250, 226, 226);
         --banned: rgb(231, 102, 102);
         --thumb: #666;
