@@ -102,7 +102,7 @@ function checkInterim() {
     console.log("fetching interim post data since", key);
     fetch(`/interim/${key}`).then((response) => {
         console.log("interim response", response);
-        if (response.status == 200) {
+        if (response.status === 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
                     console.log("updating interim post", post.key);
@@ -117,7 +117,7 @@ function checkInterim() {
 // init web socket
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const webSocketProtocol = location.protocol == "https:" ? "wss:" : "ws:";
+const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
 let webSocket, reconnectInterval;
 let webSocketOpen = false; // necessary to prevent multiple reconnects
 
@@ -188,7 +188,7 @@ function handleFormSubmit(event) {
     console.log("fetching form", this);
     const formData = new FormData(this);
     let fetchBody;
-    if (this.enctype == "multipart/form-data") {
+    if (this.enctype === "multipart/form-data") {
         fetchBody = formData;
     } else {
         fetchBody = new URLSearchParams(formData);
@@ -249,7 +249,7 @@ function reloadCache() {
 
 const url = new URL(window.location.href);
 
-if (url.pathname == "/") {
+if (url.pathname === "/") {
     for (fn of [reloadCache, initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
