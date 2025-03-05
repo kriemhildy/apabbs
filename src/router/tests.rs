@@ -384,10 +384,9 @@ async fn autoban() {
         credentials.register(&mut tx, &ban_ip_hash()).await;
     }
     let mut post_submission = PostSubmission {
-        session_token: Uuid::new_v4(),
+        session_token: user.session_token,
         body: String::from("trololol"),
-        media_file_name: None,
-        media_bytes: None,
+        ..Default::default()
     };
     for _ in 0..5 {
         post_submission.session_token = Uuid::new_v4();
