@@ -232,15 +232,16 @@ function addFetchToForms(_event, element = document) {
 // reload cached page
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Some browsers (Brave) cache pages even when the server sends a no-store header.
-// This should only happen when the browser is reopened and restores old tabs.
+// Some browsers (Brave) use cached HTML when the browser is reopened.
+// This causes the CSRF token to not be updated.
+// It also prevents the loading of interim data via fetch.
+// Force a reload of the page to fix this.
 function reloadCache() {
     const cached = performance.getEntriesByType("navigation")[0].transferSize === 0;
     if (cached) {
         window.location.reload();
     }
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // routing
