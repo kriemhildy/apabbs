@@ -235,8 +235,8 @@ function addFetchToForms(_event, element = document) {
 // Some browsers (Brave) cache pages even when the server sends a no-store header.
 // This should only happen when the browser is reopened and restores old tabs.
 function reloadCache() {
-    let isCached = performance.getEntriesByType("navigation")[0].transferSize === 0;
-    if (isCached) {
+    const cached = performance.getEntriesByType("navigation")[0].transferSize === 0;
+    if (cached) {
         window.location.reload();
     }
 }
