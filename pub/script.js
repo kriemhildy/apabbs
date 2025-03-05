@@ -101,6 +101,7 @@ function checkInterim() {
     const key = latestPostKey();
     console.log("fetching interim post data since", key);
     fetch(`/interim/${key}`).then((response) => {
+        console.log("interim response", response);
         if (response.status == 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
@@ -228,13 +229,27 @@ function addFetchToForms(_event, element = document) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// reload cached page
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Some browsers (Brave) cache pages even when the server sends a no-store header.
+// This should only happen when the browser is reopened and restores old tabs.
+function reloadCache() {
+    let isCached = performance.getEntriesByType("navigation")[0].transferSize === 0;
+    if (isCached) {
+        window.location.reload();
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // routing
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const url = new URL(window.location.href);
 
 if (url.pathname == "/") {
-    for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
+    for (fn of [reloadCache, initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
