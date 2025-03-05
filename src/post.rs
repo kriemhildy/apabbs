@@ -9,7 +9,7 @@ const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
 const YOUTUBE_DIR: &'static str = "pub/youtube";
-const MAX_YOUTUBE_EMBEDS: usize = 3;
+const MAX_YOUTUBE_EMBEDS: usize = 4;
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -232,7 +232,7 @@ impl PostSubmission {
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         let youtube_link_pattern = concat!(
             r#"(?m)^\ *<a href=""#,
-            r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*[\?&]v=|shorts/))"#,
+            r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*"#,
             r#"" target="_blank">\S+</a>\ *$"#,
         );
@@ -487,12 +487,13 @@ mod tests {
                 "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg \n",
                 "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\n",
                 "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ\n\n",
-                "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar\n",
+                "https://www.youtube.com/watch?app=desktop&v=28jr-6-XDPM",
             )
             .to_owned(),
             ..Default::default()
         };
-        let test_ids = ["jNQXAC9IVRw", "kixirmHePCc", "cHMCGCWit6U"];
+        let test_ids = ["jNQXAC9IVRw", "kixirmHePCc", "cHMCGCWit6U", "28jr-6-XDPM"];
         let mut existing_ids = Vec::new();
         for id in test_ids {
             if std::path::Path::new(YOUTUBE_DIR).join(id).exists() {
@@ -528,6 +529,12 @@ mod tests {
                 r#"<br><br>"#,
                 r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ" "#,
                 r#"target="_blank">https://www.youtube.com/watch?v=ySrBS4ulbmQ</a> bar"#,
+                r#"<br>"#,
+                r#"<a class="youtube" href="https://www.youtube.com/watch?v=28jr-6-XDPM" "#,
+                r#"target="_blank"><img src="/youtube.svg" alt></a><br>"#,
+                r#"<img src="/youtube/28jr-6-XDPM/hqdefault.jpg" "#,
+                r#"alt="YouTube 28jr-6-XDPM">"#,
+
             )
         );
         for id in test_ids {
