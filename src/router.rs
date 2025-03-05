@@ -100,7 +100,7 @@ async fn index(
         match query_post {
             None => return bad_request("no post to show"),
             Some(ref post) => {
-                if post.status == PostStatus::Pending && (!user.admin() || !post.author(&user)) {
+                if post.status == PostStatus::Pending && !(user.admin() || post.author(&user)) {
                     return unauthorized("post is pending approval");
                 }
                 vec![post.clone()]
