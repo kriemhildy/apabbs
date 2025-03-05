@@ -5,14 +5,14 @@
         {% endif %}
         <h2>Settings</h2>
         <form action="/settings/logout" method="post">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="user_token" value="{{ user.token }}">
             Delete account cookie:
             <br>
             <input type="submit" value="Log out">
         </form>
         <br>
         <form action="/settings/reset-account-token" method="post">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="user_token" value="{{ user.token }}">
             Reset authentication token:
             <br>
             <input type="submit" value="Log out all devices">
@@ -22,7 +22,7 @@
         <form action="/settings/update-time-zone" method="post">
             Time zone: {{ user.account.time_zone }}
             <br>
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="user_token" value="{{ user.token }}">
             <select name="time_zone" id="time_zone">
                 {% for tz in time_zones %}
                 <option value="{{ tz }}"{{ " selected" if tz == user.account.time_zone }}>{{ tz }}</option>
@@ -34,7 +34,7 @@
         <br>
         <br>
         <form action="/settings/update-password" method="post">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="user_token" value="{{ user.token }}">
             <input type="hidden" name="username" value="{{ user.account.username }}">
             <label>
                 New password:

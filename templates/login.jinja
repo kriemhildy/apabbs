@@ -2,7 +2,7 @@
         {% block main %}
         <h2>Log in</h2>
         <form action="/login" method="post">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="user_token" value="{{ user.token }}">
             <label>
                 Username:
                 <input type="text" name="username" maxlength="16" autocomplete="username">

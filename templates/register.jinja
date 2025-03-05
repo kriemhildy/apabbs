@@ -6,7 +6,7 @@
             <li>You will be able to set a time zone.</li>
         </ul>
         <form action="/register" method="post">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="user_token" value="{{ user.token }}">
             <label>
                 Username:
                 <br>

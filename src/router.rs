@@ -147,10 +147,9 @@ async fn submit_post(
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
         match name.as_str() {
-            "session_token" => {
-                post_submission.session_token = match Uuid::try_parse(&field.text().await.unwrap())
-                {
-                    Err(_) => return bad_request("invalid session token"),
+            "user_token" => {
+                post_submission.user_token = match Uuid::try_parse(&field.text().await.unwrap()) {
+                    Err(_) => return bad_request("invalid user token"),
                     Ok(uuid) => uuid,
                 };
             }
@@ -172,11 +171,11 @@ async fn submit_post(
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
-    let (user, jar) =
-        match init_user(jar, &mut tx, method, Some(post_submission.session_token)).await {
-            Err(response) => return response,
-            Ok(tuple) => tuple,
-        };
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_submission.user_token)).await
+    {
+        Err(response) => return response,
+        Ok(tuple) => tuple,
+    };
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
@@ -217,8 +216,7 @@ async fn authenticate(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
-    {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -259,8 +257,7 @@ async fn create_account(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
-    {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -290,7 +287,7 @@ async fn logout(
     Form(logout): Form<Logout>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -309,7 +306,7 @@ async fn reset_account_token(
     Form(logout): Form<Logout>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -333,7 +330,7 @@ async fn hide_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -482,11 +479,11 @@ async fn update_time_zone(
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) =
-        match init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await {
-            Err(response) => return response,
-            Ok(tuple) => tuple,
-        };
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(time_zone_update.user_token)).await
+    {
+        Err(response) => return response,
+        Ok(tuple) => tuple,
+    };
     let account = match user.account {
         None => return unauthorized("not logged in"),
         Some(account) => account,
@@ -509,7 +506,7 @@ async fn update_password(
     Form(credentials): Form<Credentials>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -542,7 +539,7 @@ async fn review_post(
     Form(post_review): Form<PostReview>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
+    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.user_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };

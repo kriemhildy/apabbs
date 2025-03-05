@@ -229,28 +229,13 @@ function addFetchToForms(_event, element = document) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// reload cached page
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Some browsers (Brave) use cached HTML when the browser is reopened.
-// This causes the CSRF token to not be updated.
-// It also prevents the loading of interim data via fetch.
-// Force a reload of the page to fix this.
-function reloadCache() {
-    const cached = performance.getEntriesByType("navigation")[0].transferSize === 0;
-    if (cached) {
-        window.location.reload();
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // routing
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const url = new URL(window.location.href);
 
 if (url.pathname === "/") {
-    for (fn of [reloadCache, initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
+    for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
