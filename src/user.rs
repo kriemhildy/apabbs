@@ -18,7 +18,7 @@ pub enum AccountRole {
 #[derive(serde::Serialize)]
 pub struct User {
     pub account: Option<Account>,
-    pub token: Uuid,
+    pub session_token: Uuid,
 }
 
 impl User {
@@ -80,7 +80,7 @@ impl Account {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TimeZoneUpdate {
-    pub user_token: Uuid,
+    pub session_token: Uuid,
     pub time_zone: String,
 }
 
@@ -108,7 +108,7 @@ impl TimeZoneUpdate {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Credentials {
-    pub user_token: Uuid,
+    pub session_token: Uuid,
     pub username: String,
     pub password: String,
     pub confirm_password: Option<String>,
@@ -201,7 +201,7 @@ impl Credentials {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Logout {
-    pub user_token: Uuid,
+    pub session_token: Uuid,
 }
 
 #[cfg(test)]
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn validate_credentials() {
         let mut credentials = Credentials {
-            user_token: Uuid::new_v4(),
+            session_token: Uuid::new_v4(),
             username: "username".to_owned(),
             password: "passw0rd".to_owned(),
             confirm_password: Some("passw0rd".to_owned()),

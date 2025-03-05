@@ -11,7 +11,7 @@ use sqlx::PgConnection;
 
 pub const X_REAL_IP: &'static str = "X-Real-IP";
 pub const ACCOUNT_COOKIE: &'static str = "account";
-pub const USER_COOKIE: &'static str = "user";
+pub const SESSION_COOKIE: &'static str = "session";
 pub const NOTICE_COOKIE: &'static str = "notice";
 
 fn http_status(status: StatusCode, msg: &str) -> Response {
@@ -138,20 +138,20 @@ pub async fn init_user(
     if jar.get("csrf").is_some() {
         jar = jar.remove(removal_cookie("csrf"));
     }
-    if jar.get("session").is_some() {
-        jar = jar.remove(removal_cookie("session"));
+    if jar.get("user").is_some() {
+        jar = jar.remove(removal_cookie("user"));
     }
-    let token_opt = match jar.get(USER_COOKIE) {
+    let session_token_opt = match jar.get(SESSION_COOKIE) {
         None => None,
         Some(cookie) => match Uuid::try_parse(cookie.value()) {
             Err(_) => None,
             Ok(uuid) => Some(uuid),
         },
     };
-    let token = match token_opt {
+    let session_token = match session_token_opt {
         None => {
             let token = Uuid::new_v4();
-            jar = jar.add(build_cookie(USER_COOKIE, &token.to_string(), true));
+            jar = jar.add(build_cookie(SESSION_COOKIE, &token.to_string(), false));
             token
         }
         Some(token) => token,
@@ -160,11 +160,14 @@ pub async fn init_user(
         return Err(unauthorized("CSRF token required"));
     }
     if let Some(csrf_token) = csrf_token {
-        if token != csrf_token {
+        if session_token != csrf_token {
             return Err(unauthorized("CSRF token mismatch"));
         }
     }
-    let user = User { account, token };
+    let user = User {
+        account,
+        session_token,
+    };
     set_session_time_zone(tx, user.time_zone()).await;
     Ok((user, jar))
 }

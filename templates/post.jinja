@@ -43,25 +43,25 @@
                 <details class="mod">
                     <summary>Mod</summary>
                     <form action="/admin/review-post" method="post" class="approve" data-fetch="PATCH">
-                        <input type="hidden" name="user_token" value="{{ user.token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="approved">
                         <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
                     </form>
                     <form action="/admin/review-post" method="post" class="delist" data-fetch="PATCH">
-                        <input type="hidden" name="user_token" value="{{ user.token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="delisted">
                         <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }} id="delist-{{ post.key }}-submit">
                     </form>
                     <form action="/admin/review-post" method="post" class="reject" data-fetch="PATCH" data-confirm>
-                        <input type="hidden" name="user_token" value="{{ user.token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="rejected">
                         <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.key }}-submit">
                     </form>
                     <form action="/admin/review-post" method="post" class="ban" data-fetch="DELETE" data-confirm>
-                        <input type="hidden" name="user_token" value="{{ user.token }}">
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="banned">
                         <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }} id="ban-{{ post.key }}-submit">
@@ -69,14 +69,14 @@
                 </details>
                 {% elif post.status == "rejected" %}
                 <form action="/hide-post" method="post" data-fetch="PATCH">
-                    <input type="hidden" name="user_token" value="{{ user.token }}">
+                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
                     <span class="review">Post rejected.</span>
                     <input type="hidden" name="key" value="{{ post.key }}">
                     <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
                 </form>
                 {% elif post.status == "banned" %}
                 <form action="/hide-post" method="post" data-fetch="PATCH">
-                    <input type="hidden" name="user_token" value="{{ user.token }}">
+                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
                     <span class="review">This post has been deleted and its IP has been banned for a month.</span>
                     <input type="hidden" name="key" value="{{ post.key }}">
                     <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">

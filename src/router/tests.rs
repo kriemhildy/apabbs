@@ -34,7 +34,7 @@ async fn init_test() -> (Router, AppState) {
 
 fn test_credentials(user: &User) -> Credentials {
     Credentials {
-        user_token: user.token,
+        session_token: user.session_token,
         username: Uuid::new_v4().simple().to_string()[..16].to_string(),
         password: String::from("test_passw0rd"),
         confirm_password: Some(String::from("test_passw0rd")),
@@ -45,7 +45,7 @@ fn test_credentials(user: &User) -> Credentials {
 fn test_user(account: Option<Account>) -> User {
     User {
         account,
-        token: Uuid::new_v4(),
+        session_token: Uuid::new_v4(),
     }
 }
 
@@ -76,7 +76,7 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     };
     User {
         account: Some(account),
-        token: user.token,
+        session_token: user.session_token,
     }
 }
 
@@ -105,7 +105,7 @@ async fn create_test_post(
         None => (None, None),
     };
     let post_submission = PostSubmission {
-        user_token: user.token,
+        session_token: user.session_token,
         body: String::from("<&test body"),
         media_file_name: media_file_name.clone(),
         media_bytes,
@@ -121,7 +121,7 @@ async fn create_test_post(
         PostStatus::Pending => post,
         _ => {
             PostReview {
-                user_token: user.token,
+                session_token: user.session_token,
                 key: post.key.clone(),
                 status,
             }
@@ -161,12 +161,12 @@ async fn response_body_str(response: Response<Body>) -> String {
     String::from_utf8(body.to_vec()).unwrap()
 }
 
-async fn select_latest_post_by_user_token(
+async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
-    user_token: &Uuid,
+    session_token: &Uuid,
 ) -> Option<Post> {
-    sqlx::query_as("SELECT * FROM posts WHERE user_token = $1 ORDER BY id DESC LIMIT 1")
-        .bind(user_token)
+    sqlx::query_as("SELECT * FROM posts WHERE session_token = $1 ORDER BY id DESC LIMIT 1")
+        .bind(session_token)
         .fetch_optional(&mut *tx)
         .await
         .expect("select post")
@@ -209,7 +209,7 @@ async fn index() {
     let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_adds_cookie(&response, USER_COOKIE));
+    assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(&init::site_name()));
@@ -226,7 +226,7 @@ async fn index_solo() {
     let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_adds_cookie(&response, USER_COOKIE));
+    assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body_str = response_body_str(response).await;
     assert!(body_str.contains("class=\"solo\""));
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -247,7 +247,7 @@ async fn index_with_page() {
     let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_adds_cookie(&response, USER_COOKIE));
+    assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body_str = response_body_str(response).await;
     assert!(body_str.contains(&post1.key));
     assert!(body_str.contains(&post2.key));
@@ -267,20 +267,23 @@ async fn submit_post() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
-    form.write_field("user_token", &user.token.to_string())
+    form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", USER_COOKIE, &user.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_user_token(&mut tx, &user.token)
+    let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -288,7 +291,7 @@ async fn submit_post() {
     assert_eq!(post.media_file_name, None);
     assert_eq!(post.media_category, None);
     assert_eq!(post.media_mime_type, None);
-    assert_eq!(post.user_token, Some(user.token));
+    assert_eq!(post.session_token, Some(user.session_token));
     assert_eq!(post.account_id, None);
     assert_eq!(post.username, None);
     assert_eq!(post.status, PostStatus::Pending);
@@ -302,7 +305,7 @@ async fn submit_post_with_media() {
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
     let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
-    form.write_field("user_token", &user.token.to_string())
+    form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
     form.write_field("body", "").unwrap();
     form.write_path("media", test_image_path, "image/jpeg")
@@ -310,14 +313,17 @@ async fn submit_post_with_media() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", USER_COOKIE, &user.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = select_latest_post_by_user_token(&mut tx, &user.token)
+    let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -339,13 +345,13 @@ async fn submit_post_with_account() {
     tx.commit().await.expect(COMMIT);
     let account = user.account.as_ref().unwrap();
     let mut form = FormData::new(Vec::new());
-    form.write_field("user_token", &user.token.to_string())
+    form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
@@ -356,11 +362,11 @@ async fn submit_post_with_account() {
     let account_post = select_latest_post_by_username(&mut tx, &account.username)
         .await
         .unwrap();
-    let anon_post = select_latest_post_by_user_token(&mut tx, &user.token).await;
+    let anon_post = select_latest_post_by_session_token(&mut tx, &user.session_token).await;
     assert!(anon_post.is_none());
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(account_post.account_id, Some(account.id));
-    assert_eq!(account_post.user_token, None);
+    assert_eq!(account_post.session_token, None);
     account_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
@@ -373,25 +379,25 @@ async fn autoban() {
     let user = test_user(None);
     let mut credentials = test_credentials(&user);
     for _ in 0..3 {
-        credentials.user_token = Uuid::new_v4();
+        credentials.session_token = Uuid::new_v4();
         credentials.username = Uuid::new_v4().simple().to_string()[..16].to_string();
         credentials.register(&mut tx, &ban_ip_hash()).await;
     }
     let mut post_submission = PostSubmission {
-        user_token: Uuid::new_v4(),
+        session_token: Uuid::new_v4(),
         body: String::from("trololol"),
         media_file_name: None,
         media_bytes: None,
     };
     for _ in 0..5 {
-        post_submission.user_token = Uuid::new_v4();
+        post_submission.session_token = Uuid::new_v4();
         post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
     }
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 5);
     assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_none());
     assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
-    post_submission.user_token = Uuid::new_v4();
+    post_submission.session_token = Uuid::new_v4();
     post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 6);
@@ -399,14 +405,17 @@ async fn autoban() {
     assert!(ban::flooding(&mut tx, &ban_ip_hash()).await);
     tx.commit().await.expect(COMMIT);
     let mut form = FormData::new(Vec::new());
-    let bogus_user_token = Uuid::new_v4();
-    form.write_field("user_token", &bogus_user_token.to_string())
+    let bogus_session_token = Uuid::new_v4();
+    form.write_field("session_token", &bogus_session_token.to_string())
         .unwrap();
     form.write_field("body", "trololol").unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(COOKIE, format!("{}={}", USER_COOKIE, bogus_user_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, bogus_session_token),
+        )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, BAN_IP)
         .body(Body::from(form.finish().unwrap()))
@@ -447,7 +456,10 @@ async fn authenticate() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/login")
-        .header(COOKIE, format!("{}={}", USER_COOKIE, &user.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(creds_str))
         .unwrap();
@@ -482,7 +494,10 @@ async fn create_account() {
         .method(Method::POST)
         .uri("/register")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(COOKIE, format!("{}={}", USER_COOKIE, &user.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(creds_str))
         .unwrap();
@@ -505,14 +520,14 @@ async fn logout() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
-        user_token: user.token,
+        session_token: user.session_token,
     };
     let logout_str = serde_urlencoded::to_string(&logout).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/settings/logout")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(logout_str))
         .unwrap();
@@ -532,14 +547,14 @@ async fn reset_account_token() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
-        user_token: user.token,
+        session_token: user.session_token,
     };
     let logout_str = serde_urlencoded::to_string(&logout).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/settings/reset-account-token")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(logout_str))
         .unwrap();
@@ -564,7 +579,7 @@ async fn hide_post() {
     let admin = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin.account.as_ref().unwrap();
     PostReview {
-        user_token: admin.token,
+        session_token: admin.session_token,
         key: post.key.clone(),
         status: PostStatus::Rejected,
     }
@@ -572,14 +587,17 @@ async fn hide_post() {
     .await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
-        user_token: user.token,
+        session_token: user.session_token,
         key: post.key.clone(),
     };
     let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hide-post")
-        .header(COOKIE, format!("{}={}", USER_COOKIE, &user.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_hiding_str))
         .unwrap();
@@ -654,7 +672,7 @@ async fn settings() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
-    assert!(response_adds_cookie(&response, USER_COOKIE));
+    assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body_str = response_body_str(response).await;
     assert!(body_str.contains("Settings"));
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -670,7 +688,7 @@ async fn update_time_zone() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let time_zone_update = TimeZoneUpdate {
-        user_token: user.token,
+        session_token: user.session_token,
         time_zone: String::from("America/New_York"),
     };
     let time_zone_update_str = serde_urlencoded::to_string(&time_zone_update).unwrap();
@@ -678,7 +696,7 @@ async fn update_time_zone() {
         .method(Method::POST)
         .uri("/settings/update-time-zone")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(time_zone_update_str))
         .unwrap();
@@ -701,7 +719,7 @@ async fn update_password() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let credentials = Credentials {
-        user_token: user.token,
+        session_token: user.session_token,
         username: account.username.clone(),
         password: String::from("new_passw0rd"),
         confirm_password: Some(String::from("new_passw0rd")),
@@ -712,7 +730,7 @@ async fn update_password() {
         .method(Method::POST)
         .uri("/settings/update-password")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(credentials_str))
         .unwrap();
@@ -741,7 +759,7 @@ async fn review_post() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        user_token: user.token,
+        session_token: user.session_token,
         key: post.key.clone(),
         status: PostStatus::Approved,
     };
@@ -750,7 +768,7 @@ async fn review_post() {
         .method(Method::POST)
         .uri("/admin/review-post")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
@@ -786,7 +804,7 @@ async fn review_post_with_small_media() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
-        user_token: user.token,
+        session_token: user.session_token,
         key: post.key.clone(),
         status: PostStatus::Approved,
     };
@@ -795,7 +813,7 @@ async fn review_post_with_small_media() {
         .method(Method::POST)
         .uri("/admin/review-post")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", USER_COOKIE, user.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
