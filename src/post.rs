@@ -113,8 +113,7 @@ impl Post {
 
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_str ",
-            "FROM posts WHERE key = $2 AND status IN ('pending', 'approved', 'delisted')"
+            "SELECT *, to_char(created_at, $1) AS created_at_str FROM posts WHERE key = $2"
         ))
         .bind(POSTGRES_TIMESTAMP_FORMAT)
         .bind(key)

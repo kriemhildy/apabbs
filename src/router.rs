@@ -82,7 +82,12 @@ async fn index(
     let query_post = match params.get("key") {
         Some(key) => match Post::select_by_key(&mut tx, &key).await {
             None => return not_found("post does not exist"),
-            Some(post) => Some(post),
+            Some(post) => {
+                if [PostStatus::Rejected, PostStatus::Banned].contains(&post.status) {
+                    return unauthorized("post is rejected or banned");
+                }
+                Some(post)
+            }
         },
         None => None,
     };
