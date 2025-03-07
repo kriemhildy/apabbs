@@ -1,3 +1,11 @@
+0.27.0
+
+Add account roles.
+Add "delisted" and "reported" statuses.
+Resolve serious caching issue (done in nginx).
+Tweak display margins and heights.
+Improve Youtube URL parsing support.
+
 0.26.0
 
 Display full images on solo page.
