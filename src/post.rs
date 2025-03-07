@@ -420,6 +420,16 @@ impl PostReview {
             .expect("update post status");
     }
 
+    pub async fn insert(&self, tx: &mut PgConnection, account_id: i32, post_id: i32) {
+        sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
+            .bind(account_id)
+            .bind(post_id)
+            .bind(&self.status)
+            .execute(&mut *tx)
+            .await
+            .expect("insert post review");
+    }
+
     pub fn thumbnail_file_name(media_file_name: &str) -> String {
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
         String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp")

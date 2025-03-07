@@ -655,6 +655,7 @@ async fn review_post(
         }
     }
     post_review.update_status(&mut tx).await;
+    post_review.insert(&mut tx, account.id, post.id).await;
     let post = Post::select_by_key(&mut tx, &post_review.key)
         .await
         .expect("select post");
