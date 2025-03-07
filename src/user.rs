@@ -22,10 +22,10 @@ pub struct User {
 }
 
 impl User {
-    pub fn admin(&self) -> bool {
+    pub fn mod_or_admin(&self) -> bool {
         self.account
             .as_ref()
-            .is_some_and(|a| a.role == AccountRole::Admin)
+            .is_some_and(|a| [AccountRole::Admin, AccountRole::Mod].contains(&a.role))
     }
 
     pub fn time_zone(&self) -> &str {

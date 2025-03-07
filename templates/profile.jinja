@@ -4,12 +4,10 @@
         <p id="notice">{{ notice }}</p>
         {% endif %}
         <h2>{{ account.username }}</h2>
-        {% if user.account.username == account.username %}
-        You are logged in as this user. <a href="/settings">Settings</a>
-        {% endif %}
+        <p>{{ account.role|capitalize }}</p>
         <p>Created {{ account.created_at_str }}.</p>
-        {% if account.role == "admin" %}
-        <p>This user is an admin.</p>
+        {% if user.account.username == account.username %}
+        <p>You are logged in as this user. <a href="/settings">Settings</a></p>
         {% endif %}
         <div id="posts">
             {% for post in posts %}

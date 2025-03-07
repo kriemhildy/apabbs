@@ -1,4 +1,8 @@
-use crate::{init, user::User, POSTGRES_TIMESTAMP_FORMAT};
+use crate::{
+    init,
+    user::{AccountRole, User},
+    POSTGRES_TIMESTAMP_FORMAT,
+};
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::PathBuf;
@@ -18,6 +22,7 @@ pub enum PostStatus {
     Pending,
     Approved,
     Delisted,
+    Reported,
     Rejected,
     Banned,
 }
@@ -58,10 +63,13 @@ impl Post {
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
-        if user.admin() {
-            query_builder.push("status <> 'rejected' ")
-        } else {
-            query_builder.push("status = 'approved' ")
+        match user.account {
+            Some(ref account) => match account.role {
+                AccountRole::Admin => query_builder.push("status <> 'rejected' "),
+                AccountRole::Mod => query_builder.push("status NOT IN ('rejected', 'reported') "),
+                _ => query_builder.push("status = 'approved' "),
+            },
+            None => query_builder.push("status = 'approved' "),
         };
         query_builder.push("OR session_token = ");
         query_builder.push_bind(&user.session_token);
@@ -157,6 +165,37 @@ impl Post {
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
             .join(&self.thumbnail_file_name.as_ref().unwrap())
+    }
+
+    pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
+        let encrypted_media_path = self.encrypted_media_path();
+        let mut child = tokio::process::Command::new("gpg")
+            .args([
+                "--batch",
+                "--symmetric",
+                "--passphrase-file",
+                "gpg.key",
+                "--output",
+            ])
+            .arg(&encrypted_media_path)
+            .stdin(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .expect("spawn gpg to encrypt media file");
+        let mut stdin = child.stdin.take().expect("open stdin");
+        tokio::spawn(async move {
+            stdin.write_all(&bytes).await.expect("write data to stdin");
+        });
+        let child_status = child.wait().await.expect("wait for gpg to finish");
+        if child_status.success() {
+            println!(
+                "file encrypted as: {}",
+                encrypted_media_path.to_str().unwrap()
+            );
+            Ok(())
+        } else {
+            Err("gpg failed to encrypt file")
+        }
     }
 }
 
@@ -340,48 +379,28 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    pub async fn save_encrypted_media_file(self, key: &str) -> Result<(), String> {
+    pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
         if self.media_bytes.is_none() {
-            return Err(String::from("no media bytes"));
+            return Err("no media bytes");
         }
-        let encrypted_file_name = self.media_file_name.unwrap() + ".gpg";
-        let encrypted_file_path = std::path::Path::new(UPLOADS_DIR)
-            .join(key)
-            .join(&encrypted_file_name);
+        let encrypted_file_path = post.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
         std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
-        let mut child = tokio::process::Command::new("gpg")
-            .args([
-                "--batch",
-                "--symmetric",
-                "--passphrase-file",
-                "gpg.key",
-                "--output",
-            ])
-            .arg(&encrypted_file_path)
-            .stdin(std::process::Stdio::piped())
-            .kill_on_drop(true)
-            .spawn()
-            .expect("spawn gpg to encrypt media file");
-        let mut stdin = child.stdin.take().expect("open stdin");
-        tokio::spawn(async move {
-            stdin
-                .write_all(&self.media_bytes.unwrap())
-                .await
-                .expect("write data to stdin");
-        });
-        let child_status = child.wait().await.expect("wait for gpg to finish");
-        if child_status.success() {
-            println!(
-                "file uploaded and encrypted as: {}",
-                encrypted_file_path.to_str().unwrap()
-            );
-            Ok(())
-        } else {
+        let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
+        if result.is_err() {
             std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
-            Err(String::from("gpg failed to encrypt media file"))
         }
+        result
     }
+}
+
+#[derive(PartialEq)]
+pub enum ReviewAction {
+    DecryptMedia,
+    DeleteEncryptedMedia,
+    DeletePublishedMedia,
+    ReencryptMedia,
+    Nothing,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -442,17 +461,35 @@ impl PostReview {
         println!("vipsthumbnail output: {:?}", command_output);
     }
 
-    pub fn delete_media_dir(&self) {
-        let media_dir = std::path::Path::new(MEDIA_DIR).join(&self.key);
+    pub fn delete_media_dir(key: &str) {
+        let media_dir = std::path::Path::new(MEDIA_DIR).join(key);
         // better safe than sorry
         let re = Regex::new(r"^[a-zA-Z0-9]{8,12}$").expect("build regex pattern");
-        assert!(re.is_match(&self.key));
+        assert!(re.is_match(key));
         assert!(media_dir != std::path::Path::new(MEDIA_DIR));
         assert!(media_dir.starts_with(MEDIA_DIR));
-        assert!(media_dir.ends_with(&self.key));
+        assert!(media_dir.ends_with(key));
         assert!(media_dir.exists());
+        assert!(media_dir.is_dir());
         assert!(!media_dir.to_str().unwrap().contains("."));
         std::fs::remove_dir_all(&media_dir).expect("remove media dir and its contents");
+    }
+
+    pub async fn reencrypt_media_file(post: &Post) -> Result<(), &str> {
+        let encrypted_file_path = post.encrypted_media_path();
+        let uploads_key_dir = encrypted_file_path.parent().unwrap();
+        std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
+        let media_file_path = post.published_media_path();
+        let media_bytes = std::fs::read(&media_file_path).expect("read media file");
+        let result = post.gpg_encrypt(media_bytes).await;
+        match result {
+            Ok(()) => Self::delete_media_dir(&post.key),
+            Err(msg) => {
+                std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
+                eprintln!("{}", msg);
+            }
+        }
+        result
     }
 }
 
@@ -534,7 +571,6 @@ mod tests {
                 r#"target="_blank"><img src="/youtube.svg" alt></a><br>"#,
                 r#"<img src="/youtube/28jr-6-XDPM/hqdefault.jpg" "#,
                 r#"alt="YouTube 28jr-6-XDPM">"#,
-
             )
         );
         for id in test_ids {

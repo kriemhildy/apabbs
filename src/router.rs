@@ -4,8 +4,10 @@ mod tests;
 
 use crate::{
     ban, init,
-    post::{Post, PostHiding, PostMediaCategory, PostReview, PostStatus, PostSubmission},
-    user::{Account, Credentials, Logout, TimeZoneUpdate, User},
+    post::{
+        Post, PostHiding, PostMediaCategory, PostReview, PostStatus, PostSubmission, ReviewAction,
+    },
+    user::{Account, AccountRole, Credentials, Logout, TimeZoneUpdate, User},
     AppState, BEGIN, COMMIT,
 };
 use axum::{
@@ -100,7 +102,9 @@ async fn index(
         match query_post {
             None => return bad_request("no post to show"),
             Some(ref post) => {
-                if post.status == PostStatus::Pending && !(user.admin() || post.author(&user)) {
+                if post.status == PostStatus::Pending
+                    && !(user.mod_or_admin() || post.author(&user))
+                {
                     return unauthorized("post is pending approval");
                 }
                 vec![post.clone()]
@@ -182,7 +186,7 @@ async fn submit_post(
     }
     let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
     if post_submission.media_file_name.is_some() {
-        if let Err(msg) = post_submission.save_encrypted_media_file(&post.key).await {
+        if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             return internal_server_error(&msg);
         }
     }
@@ -338,14 +342,17 @@ async fn hide_post(
         Ok(tuple) => tuple,
     };
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await {
-        if !post.author(&user) && !user.admin() {
+        if !post.author(&user) {
             return unauthorized("not post author");
         }
-        if post.status != PostStatus::Rejected {
-            return bad_request("post is not rejected");
+        match post.status {
+            PostStatus::Rejected => {
+                post_hiding.hide_post(&mut tx).await;
+                tx.commit().await.expect(COMMIT);
+            }
+            PostStatus::Reported | PostStatus::Banned => (),
+            _ => return bad_request("post is not rejected, reported nor banned"),
         }
-        post_hiding.hide_post(&mut tx).await;
-        tx.commit().await.expect(COMMIT);
     };
     let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
@@ -367,12 +374,17 @@ async fn web_socket(
         mut receiver: Receiver<Post>,
         user: User,
     ) {
+        use AccountRole::*;
         use PostStatus::*;
         while let Ok(post) = receiver.recv().await {
-            let should_send = user.admin()
-                || match post.status {
-                    Pending | Delisted | Rejected | Banned => post.author(&user),
-                    Approved => true,
+            let should_send = post.author(&user)
+                || match user.account {
+                    None => post.status == Approved,
+                    Some(ref account) => match account.role {
+                        Admin => true,
+                        Mod => [Pending, Approved, Delisted, Reported].contains(&post.status),
+                        Member | Novice => post.status == Approved,
+                    },
                 };
             if !should_send {
                 continue;
@@ -541,79 +553,118 @@ async fn review_post(
     headers: HeaderMap,
     Form(post_review): Form<PostReview>,
 ) -> Response {
+    use AccountRole::*;
+    use PostStatus::*;
+    use ReviewAction::*;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if !user.admin() {
-        return unauthorized("not an admin");
-    }
+    let account = match user.account {
+        None => return unauthorized("not logged in"),
+        Some(account) => account,
+    };
+    match account.role {
+        Admin | Mod => (),
+        _ => return unauthorized("not an admin or mod"),
+    };
     let post = match Post::select_by_key(&mut tx, &post_review.key).await {
         None => return not_found("post does not exist"),
         Some(post) => post,
     };
-    match post.status {
-        PostStatus::Pending => {
-            if let Some(media_file_name) = post.media_file_name.as_ref() {
-                let encrypted_media_path = post.encrypted_media_path();
-                if !encrypted_media_path.exists() {
-                    return not_found("encrypted media file does not exist");
+    let review_action = match post.status {
+        Pending => match post_review.status {
+            Pending => return bad_request("cannot set pending post to pending"),
+            Approved | Delisted => DecryptMedia,
+            Reported => Nothing,
+            Rejected | Banned => DeleteEncryptedMedia,
+        },
+        Approved | Delisted => match post_review.status {
+            Pending => return bad_request("post cannot return to pending"),
+            Approved | Delisted => Nothing,
+            Reported => {
+                if account.role != Mod {
+                    return unauthorized("only mods can report posts");
                 }
-                if [PostStatus::Approved, PostStatus::Delisted].contains(&post_review.status) {
-                    let media_bytes = post.decrypt_media_file().await;
-                    let published_media_path = post.published_media_path();
-                    let media_key_dir = published_media_path.parent().unwrap();
-                    std::fs::create_dir(media_key_dir).expect("create media key dir");
-                    std::fs::write(&published_media_path, media_bytes).expect("write media file");
-                    let media_path_str = published_media_path.to_str().expect("media path to str");
-
-                    // generate webp thumbnail for images
-                    if post
-                        .media_category
-                        .is_some_and(|c| c == PostMediaCategory::Image)
-                    {
-                        PostReview::generate_thumbnail(media_path_str).await;
-                        let thumbnail_path = post_review.thumbnail_path(media_file_name);
-                        if !thumbnail_path.exists() {
-                            return internal_server_error("thumbnail not created successfully");
-                        }
-                        let thumbnail_len = thumbnail_path.metadata().unwrap().len();
-                        let media_file_len = published_media_path.metadata().unwrap().len();
-                        if thumbnail_len > media_file_len {
-                            std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
-                        } else {
-                            post_review.update_thumbnail(&mut tx, media_file_name).await;
-                        }
-                    }
-                }
-                let uploads_key_dir = encrypted_media_path.parent().unwrap();
-                std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
-                std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
+                ReencryptMedia
+            }
+            Rejected | Banned => DeletePublishedMedia,
+        },
+        Reported => {
+            if account.role != Admin {
+                return unauthorized("only admins can review reported posts");
+            }
+            match post_review.status {
+                Pending => return bad_request("post cannot return to pending"),
+                Approved | Delisted => DecryptMedia,
+                Rejected | Banned => DeleteEncryptedMedia,
+                Reported => return bad_request("cannot set reported post to reported"),
             }
         }
-        PostStatus::Approved | PostStatus::Delisted => match post_review.status {
-            PostStatus::Rejected | PostStatus::Banned => {
-                if post.media_file_name.is_some() {
-                    post_review.delete_media_dir();
+        Rejected | Banned => return bad_request("post cannot be rejected or banned"),
+    };
+    if [DecryptMedia, DeleteEncryptedMedia].contains(&review_action) {
+        if let Some(media_file_name) = post.media_file_name.as_ref() {
+            let encrypted_media_path = post.encrypted_media_path();
+            if !encrypted_media_path.exists() {
+                return not_found("encrypted media file does not exist");
+            }
+            if review_action == DecryptMedia {
+                let media_bytes = post.decrypt_media_file().await;
+                let published_media_path = post.published_media_path();
+                let media_key_dir = published_media_path.parent().unwrap();
+                std::fs::create_dir(media_key_dir).expect("create media key dir");
+                std::fs::write(&published_media_path, media_bytes).expect("write media file");
+                let media_path_str = published_media_path.to_str().expect("media path to str");
+                // generate webp thumbnail for images
+                if post
+                    .media_category
+                    .as_ref()
+                    .is_some_and(|c| *c == PostMediaCategory::Image)
+                {
+                    PostReview::generate_thumbnail(media_path_str).await;
+                    let thumbnail_path = post_review.thumbnail_path(media_file_name);
+                    if !thumbnail_path.exists() {
+                        return internal_server_error("thumbnail not created successfully");
+                    }
+                    let thumbnail_len = thumbnail_path.metadata().unwrap().len();
+                    let media_file_len = published_media_path.metadata().unwrap().len();
+                    if thumbnail_len > media_file_len {
+                        std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+                    } else {
+                        post_review.update_thumbnail(&mut tx, media_file_name).await;
+                    }
                 }
             }
-            PostStatus::Approved | PostStatus::Delisted => (),
-            _ => return bad_request("unexpected new post status"),
-        },
-        _ => return bad_request("post must be pending or approved"),
+            let uploads_key_dir = encrypted_media_path.parent().unwrap();
+            std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
+            std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
+        }
+    }
+    if review_action == DeletePublishedMedia {
+        if account.role != Admin {
+            return unauthorized("only admins can ban or reject posts");
+        }
+        if post.media_file_name.as_ref().is_some() && post.published_media_path().exists() {
+            PostReview::delete_media_dir(&post.key);
+        }
+    } else if review_action == ReencryptMedia {
+        if let Err(msg) = PostReview::reencrypt_media_file(&post).await {
+            return internal_server_error(msg);
+        }
     }
     post_review.update_status(&mut tx).await;
     let post = Post::select_by_key(&mut tx, &post_review.key)
         .await
         .expect("select post");
-    if post.status == PostStatus::Banned {
+    if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
             ban::insert(&mut tx, ip_hash).await;
         }
         post.delete(&mut tx).await;
     }
-    if post.status == PostStatus::Approved
+    if post.status == Approved
         && post.thumbnail_file_name.is_some()
         && !post.thumbnail_path().exists()
     {
@@ -640,8 +691,8 @@ async fn decrypt_media(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if !user.admin() {
-        return unauthorized("not an admin");
+    if !user.mod_or_admin() {
+        return unauthorized("not a mod or admin");
     }
     let post = match Post::select_by_key(&mut tx, &key).await {
         None => return not_found("post does not exist"),

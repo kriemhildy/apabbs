@@ -112,7 +112,7 @@ async fn create_test_post(
     };
     let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
     if media_file_name.is_some() {
-        if let Err(msg) = post_submission.save_encrypted_media_file(&post.key).await {
+        if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             eprintln!("{msg}");
             std::process::exit(1);
         }

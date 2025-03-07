@@ -198,7 +198,7 @@ function handleFormSubmit(event) {
         method: this.dataset.fetch || "POST",
         body: fetchBody,
     }).then((response) => {
-        console.log("response.status", response.status);
+        console.log("response", response);
         let actionUrl = new URL(this.action);
         console.log("actionUrl.pathname", actionUrl.pathname);
         if ([200, 201, 204].includes(response.status)) {
