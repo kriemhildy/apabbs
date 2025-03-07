@@ -79,7 +79,7 @@
                         <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }} id="delist-{{ post.key }}-submit">
                     </form>
                 {% if user.account.role == "mod" %}
-                    <form action="/admin/review-post" method="post" class="reported" data-fetch="PATCH">
+                    <form action="/admin/review-post" method="post" class="reported" data-fetch="PATCH" data-confirm>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
                         <input type="hidden" name="status" value="reported">
