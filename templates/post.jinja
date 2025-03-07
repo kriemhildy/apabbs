@@ -39,8 +39,10 @@
                 <p class="info">
                     {% if post.username %}
                     <a href="/user/{{ post.username }}">{{ post.username }}</a>
-                    <br>
+                    {% else %}
+                    anon
                     {% endif %}
+                    <br>
                     {{ post.created_at_str }}
                 </p>
                 {% endif %}
