@@ -187,7 +187,7 @@ div.post div.body {
 div.post img,
 video {
     max-width: clamp(300px, calc(100% + 16px), 1600px);
-    max-height: clamp(300px, 80vh, 1200px);
+    max-height: clamp(300px, 100vh, 1200px);
     margin-left: -8px;
 }
 
