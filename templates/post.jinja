@@ -37,11 +37,11 @@
                 {###################################################################################}
                 {% if solo %}
                 <p class="info">
-                    {{ post.created_at_str }}
-                    <br>
                     {% if post.username %}
                     <a href="/user/{{ post.username }}">{{ post.username }}</a>
+                    <br>
                     {% endif %}
+                    {{ post.created_at_str }}
                 </p>
                 {% endif %}
                 {###################################################################################}
