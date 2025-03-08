@@ -127,6 +127,10 @@ header h1 {
     color: var(--review);
 }
 
+.status a {
+    text-decoration: none;
+}
+
 details.review form {
     display: inline;
 }
