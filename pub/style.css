@@ -219,7 +219,6 @@ div#spinner {
     border-top-color: transparent;
     border-radius: 50%;
     animation: spinner 0.85s linear infinite;
-    margin-left: 7px;
     display: none;
 }
 
@@ -231,6 +230,7 @@ div#spinner {
 
 div#post-submit-container {
     display: flex;
+    gap: 6px;
     align-items: center;
 }
 

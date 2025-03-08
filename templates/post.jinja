@@ -76,7 +76,7 @@
                     or (user.account.role == "mod" and post.status in ["pending", "delisted"])
                     or (user.account.role in ["admin", "mod"] and post.status == "approved" and solo) %}
                 <details class="review">
-                    <summary>{{ user.account.role|capitalize }}</summary>
+                    <summary>Review</summary>
                     <form action="/admin/review-post" method="post" class="approve" data-fetch="PATCH">
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="key" value="{{ post.key }}">
