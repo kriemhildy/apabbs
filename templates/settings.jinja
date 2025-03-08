@@ -1,5 +1,6 @@
-        {% extends "layout.jinja" %}
-        {% block main %}
+    {% extends "layout.jinja" %}
+    {% block main %}
+    <main id="settings">
         {% if notice %}
         <p id="notice">{{ notice }}</p>
         {% endif %}
@@ -7,48 +8,36 @@
         <form action="/settings/logout" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             Delete account cookie:
-            <br>
             <input type="submit" value="Log out">
         </form>
-        <br>
         <form action="/settings/reset-account-token" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             Reset authentication token:
-            <br>
             <input type="submit" value="Log out all devices">
         </form>
-        <br>
-        <br>
         <form action="/settings/update-time-zone" method="post">
             Time zone: {{ user.account.time_zone }}
-            <br>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <select name="time_zone" id="time_zone">
                 {% for tz in time_zones %}
                 <option value="{{ tz }}"{{ " selected" if tz == user.account.time_zone }}>{{ tz }}</option>
                 {% endfor %}
             </select>
-            <br>
             <input type="submit" value="Update time zone">
         </form>
-        <br>
-        <br>
         <form action="/settings/update-password" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="username" value="{{ user.account.username }}">
             <label>
                 New password:
-                <br>
                 <input type="password" name="password" maxlength="64" size="32" autocomplete="new-password">
             </label>
-            <br>
             <label>
                 Confirm new password:
-                <br>
                 <input type="password" name="confirm_password" maxlength="64" size="32" autocomplete="new-password">
             </label>
-            <br>
             <input type="submit" value="Update password">
         </form>
-        {% endblock %}
+    </main>
+    {% endblock %}
 

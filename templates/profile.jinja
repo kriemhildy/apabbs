@@ -1,5 +1,6 @@
-        {% extends "layout.jinja" %}
-        {% block main %}
+    {% extends "layout.jinja" %}
+    {% block main %}
+    <main>
         {% if notice %}
         <p id="notice">{{ notice }}</p>
         {% endif %}
@@ -14,4 +15,5 @@
             {% include "post.jinja" %}
             {% endfor %}
         </div>
-        {% endblock %}
+    </main>
+    {% endblock %}

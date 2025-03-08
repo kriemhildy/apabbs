@@ -76,7 +76,7 @@ input:disabled {
 input[type="submit"],
 button,
 select {
-    margin-top: 7px;
+    margin: 7px 0;
 }
 
 input[type="text"],
@@ -185,14 +185,14 @@ div.post div.body {
 }
 
 div.post img,
-video {
+div.post video {
     max-width: clamp(300px, calc(100% + 16px), 1600px);
     max-height: clamp(300px, 100vh, 1200px);
     margin-left: -8px;
 }
 
 div#posts.solo img,
-video {
+div#posts.solo video {
     max-width: max(300px, calc(100% + 16px));
     max-height: unset;
 }
@@ -263,4 +263,13 @@ div.checkbox-container {
 
 div.checkbox-container label {
     margin-left: 4px;
+}
+
+main#settings input,
+main#settings select {
+    display: block;
+}
+
+main#settings form {
+    margin-top: 20px;
 }
