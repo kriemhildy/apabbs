@@ -145,7 +145,7 @@ div#posts.solo {
 }
 
 div.post {
-    flex: clamp(250px, 30vh + 20vw, 500px);
+    flex: clamp(300px, 60vh, 550px);
     break-inside: avoid;
     margin: 0 -8px;
     padding: 0 8px;
