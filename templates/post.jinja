@@ -48,7 +48,7 @@
                 {###################################################################################}
                 {% if solo %}
                 {% if post.status == "approved" %}
-                <p>
+                <p id="user">
                     {% if post.username %}
                     <a href="/user/{{ post.username }}">{{ post.username }}</a>
                     {% else %}
@@ -56,8 +56,7 @@
                     {% endif %}
                 </p>
                 {% endif %}
-                <p>{{ post.created_at_str }}
-                </p>
+                <p id="created-at">{{ post.created_at_str }}</p>
                 {% endif %}
                 {###################################################################################}
                 {# Arrow #}
