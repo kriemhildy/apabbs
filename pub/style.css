@@ -203,7 +203,11 @@ div.post div.arrow a {
     font-size: 1.2em;
 }
 
-div.post p.info a {
+div#info {
+    margin: 8px 0;
+}
+
+div#info a {
     text-decoration: none;
     color: var(--system);
 }
