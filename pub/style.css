@@ -296,3 +296,11 @@ main#register input[type="submit"] {
     grid-column: 2;
     justify-self: start;
 }
+
+main#register input[type="password"] {
+    width: 31ch;
+}
+
+input#username {
+    width: 17ch;
+}
