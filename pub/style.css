@@ -280,24 +280,24 @@ main#login label {
     display: block;
 }
 
-main#register form {
+form.grid {
     display: grid;
     grid-template-columns: max-content max-content;
     column-gap: 5px;
     align-items: center;
 }
 
-main#register label {
+form.grid label {
     text-align: right;
 }
 
-main#register div.checkbox-container,
-main#register input[type="submit"] {
+form.grid div.checkbox-container,
+form.grid input[type="submit"] {
     grid-column: 2;
     justify-self: start;
 }
 
-main#register input[type="password"] {
+input#password {
     width: 31ch;
 }
 
