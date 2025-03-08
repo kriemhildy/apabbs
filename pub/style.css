@@ -131,10 +131,6 @@ details.review form {
     display: inline;
 }
 
-details.review {
-    height: 40px;
-}
-
 div#posts {
     display: flex;
     flex-wrap: wrap;
@@ -144,8 +140,12 @@ div#posts {
 }
 
 div#posts.solo {
-    margin-top: 12px;
     margin-bottom: unset;
+}
+
+div#posts.solo details.review {
+    height: 40px;
+    margin-bottom: 12px;
 }
 
 div.post {
