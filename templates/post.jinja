@@ -47,6 +47,7 @@
                 {# Info #}
                 {###################################################################################}
                 {% if solo %}
+                {% if post.status == "approved" %}
                 <p>
                     {% if post.username %}
                     <a href="/user/{{ post.username }}">{{ post.username }}</a>
@@ -54,6 +55,7 @@
                     Anon
                     {% endif %}
                 </p>
+                {% endif %}
                 <p>{{ post.created_at_str }}
                 </p>
                 {% endif %}
