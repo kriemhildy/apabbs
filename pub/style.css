@@ -267,15 +267,6 @@ div.checkbox-container label {
     margin-left: 4px;
 }
 
-main#settings input,
-main#settings select {
-    display: block;
-}
-
-main#settings form {
-    margin-top: 20px;
-}
-
 main#login label {
     display: block;
 }

@@ -5,37 +5,35 @@
         <p id="notice">{{ notice }}</p>
         {% endif %}
         <h2>Settings</h2>
-        <form action="/settings/logout" method="post">
+        <h3>Authentication</h3>
+        <form action="/settings/logout" method="post" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             Delete account cookie:
             <input type="submit" value="Log out">
         </form>
-        <form action="/settings/reset-account-token" method="post">
+        <form action="/settings/reset-account-token" method="post" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            Reset authentication token:
+            Reset account token:
             <input type="submit" value="Log out all devices">
         </form>
+        <h3>Time zone</h3>
         <form action="/settings/update-time-zone" method="post">
-            Time zone: {{ user.account.time_zone }}
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <select name="time_zone" id="time_zone">
+            <select name="time_zone">
                 {% for tz in time_zones %}
                 <option value="{{ tz }}"{{ " selected" if tz == user.account.time_zone }}>{{ tz }}</option>
                 {% endfor %}
             </select>
-            <input type="submit" value="Update time zone">
+            <input type="submit" value="Update">
         </form>
-        <form action="/settings/update-password" method="post">
+        <h3>Password</h3>
+        <form action="/settings/update-password" method="post" class="grid">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="username" value="{{ user.account.username }}">
-            <label>
-                New password:
-                <input type="password" name="password" maxlength="64" size="32" autocomplete="new-password">
-            </label>
-            <label>
-                Confirm new password:
-                <input type="password" name="confirm_password" maxlength="64" size="32" autocomplete="new-password">
-            </label>
+            <label for="new-password">New password:</label>
+            <input id="new-password" type="password" name="password" maxlength="64" autocomplete="new-password">
+            <label for="confirm-password">Confirm new password:</label>
+            <input id="confirm-password" type="password" name="confirm_password" maxlength="64" autocomplete="new-password">
             <input type="submit" value="Update password">
         </form>
     </main>
