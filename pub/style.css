@@ -131,6 +131,10 @@ details.review form {
     display: inline;
 }
 
+details.review {
+    height: 40px;
+}
+
 div#posts {
     display: flex;
     flex-wrap: wrap;

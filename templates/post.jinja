@@ -47,20 +47,15 @@
                 {# Info #}
                 {###################################################################################}
                 {% if solo %}
-                <div id="info">
-                    <div id="user">
-                        {% if post.username %}
-                        <a href="/user/{{ post.username }}">{{ post.username }}</a>
-                        {% else %}
-                        Anon
-                        {% endif %}
-                    </div>
-                    <div id="created-at">
-                        {{ post.created_at_str }}
-                    </div>
-                </div>
-                <div class="info">
-                </div>
+                <p>
+                    {% if post.username %}
+                    <a href="/user/{{ post.username }}">{{ post.username }}</a>
+                    {% else %}
+                    Anon
+                    {% endif %}
+                </p>
+                <p>{{ post.created_at_str }}
+                </p>
                 {% endif %}
                 {###################################################################################}
                 {# Arrow #}
