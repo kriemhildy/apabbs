@@ -257,8 +257,6 @@ a.youtube img {
 div.checkbox-container {
     display: flex;
     align-items: center;
-    padding: 3px;
-    margin-top: 3px;
 }
 
 div.checkbox-container label {
@@ -276,4 +274,21 @@ main#settings form {
 
 main#login label {
     display: block;
+}
+
+main#register form {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    column-gap: 5px;
+    align-items: center;
+}
+
+main#register label {
+    text-align: right;
+}
+
+main#register div.checkbox-container,
+main#register input[type="submit"] {
+    grid-column: 2;
+    justify-self: start;
 }
