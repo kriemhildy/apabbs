@@ -6,7 +6,7 @@
         {% endif %}
         <h2>Settings</h2>
         <h3>Authentication</h3>
-        <form action="/settings/logout" method="post" data-confirm>
+        <form action="/settings/logout" method="post">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             Delete account cookie:
             <input type="submit" value="Log out">
