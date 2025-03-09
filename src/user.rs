@@ -135,6 +135,9 @@ impl Credentials {
         }
         let lowercase_username = self.username.to_lowercase();
         let lowercase_password = self.password.to_lowercase();
+        if lowercase_username == "anon" {
+            errors.push("username cannot be \"anon\"");
+        }
         if lowercase_password.contains(&lowercase_username) {
             errors.push("password cannot contain username");
         }
@@ -229,6 +232,10 @@ mod tests {
         assert_eq!(credentials.validate().len(), 1);
         credentials.username = "bob cool".to_owned();
         assert_eq!(credentials.validate().len(), 1);
+        credentials.username = "anon".to_owned();
+        assert_eq!(credentials.validate().len(), 1);
+        credentials.username = "anon1".to_owned();
+        assert_eq!(credentials.validate().len(), 0);
         credentials.username = "username".to_owned();
         set_password_and_confirmation(&mut credentials, "passw0r");
         assert_eq!(credentials.validate().len(), 1);
