@@ -6,7 +6,7 @@
         {% endif %}
         <h2>{{ account.username }}</h2>
         <p>{{ account.role|capitalize }}</p>
-        <p>Created {{ account.created_at_str }}.</p>
+        <p>Created {{ account.created_at_str }}</p>
         {% if user.account.username == account.username %}
         <p>You are logged in as this user. <a href="/settings">Settings</a></p>
         {% endif %}

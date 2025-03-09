@@ -268,7 +268,7 @@ div.checkbox-container {
 }
 
 div.checkbox-container label {
-    margin-left: 4px;
+    margin-left: 2px;
 }
 
 main#login label {
@@ -292,7 +292,7 @@ form.grid input[type="submit"] {
     justify-self: start;
 }
 
-input#password {
+input[type="password"] {
     width: 31ch;
 }
 
