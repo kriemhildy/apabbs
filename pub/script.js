@@ -203,7 +203,7 @@ function handleFormSubmit(event) {
         console.log("actionUrl.pathname", actionUrl.pathname);
         if ([200, 201, 204].includes(response.status)) {
             switch (actionUrl.pathname) {
-                case "/submit-post":
+                case "/post":
                     this.reset();
                     break;
                 case "/hide-post":
@@ -234,7 +234,7 @@ function addFetchToForms(_event, element = document) {
 
 const url = new URL(window.location.href);
 
-if (url.pathname === "/") {
+if (url.pathname === "/" && !url.searchParams.has("page")) {
     for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }

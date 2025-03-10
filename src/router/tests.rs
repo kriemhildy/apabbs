@@ -143,13 +143,6 @@ fn response_removes_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, true)
 }
 
-fn delete_encrypted_dir(encrypted_file_path: &Path) {
-    println!("removing encrypted file: {:?}", encrypted_file_path);
-    let uploads_key_dir = encrypted_file_path.parent().unwrap();
-    std::fs::remove_file(&encrypted_file_path).expect("remove encrypted file");
-    std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
-}
-
 async fn response_body_str(response: Response<Body>) -> String {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     String::from_utf8(body.to_vec()).unwrap()
@@ -237,7 +230,7 @@ async fn index_with_page() {
     let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await.expect(COMMIT);
-    let uri = format!("/page/{}", &post2.key);
+    let uri = format!("/{}/page", &post2.key);
     let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
@@ -266,7 +259,7 @@ async fn submit_post() {
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/submit-post")
+        .uri("/post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -306,7 +299,7 @@ async fn submit_post_with_media() {
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/submit-post")
+        .uri("/post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -328,7 +321,7 @@ async fn submit_post_with_media() {
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
-    delete_encrypted_dir(&encrypted_file_path);
+    PostReview::delete_upload_key_dir(&encrypted_file_path);
 }
 
 #[tokio::test]
@@ -344,7 +337,7 @@ async fn submit_post_with_account() {
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/submit-post")
+        .uri("/post")
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(CONTENT_TYPE, form.content_type_header())
@@ -404,7 +397,7 @@ async fn autoban() {
     form.write_field("body", "trololol").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/submit-post")
+        .uri("/post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, bogus_session_token),
@@ -752,7 +745,7 @@ async fn review_post() {
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
         .method(Method::PATCH)
-        .uri(format!("/post/{}", &post.key))
+        .uri(format!("/posts/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
@@ -769,7 +762,7 @@ async fn review_post() {
     assert!(published_media_path.exists());
     let thumbnail_path = post.thumbnail_path();
     assert!(thumbnail_path.exists());
-    post.delete_media_dir();
+    PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -792,7 +785,7 @@ async fn review_post_with_small_media() {
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/post/{}", &post.key))
+        .uri(format!("/posts/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
@@ -808,7 +801,7 @@ async fn review_post_with_small_media() {
     assert!(!uploads_key_dir.exists());
     assert!(post.published_media_path().exists());
     assert!(!post.thumbnail_path().exists());
-    post.delete_media_dir();
+    PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -841,5 +834,5 @@ async fn decrypt_media() {
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
-    delete_encrypted_dir(&encrypted_media_path);
+    PostReview::delete_upload_key_dir(&encrypted_media_path);
 }

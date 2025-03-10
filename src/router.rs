@@ -13,11 +13,11 @@ use crate::{
 use axum::{
     extract::{
         ws::{Message, Utf8Bytes, WebSocket},
-        DefaultBodyLimit, Multipart, Path, State, WebSocketUpgrade,
+        DefaultBodyLimit, Multipart, Path, Query, State, WebSocketUpgrade,
     },
     http::{
         header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
-        Method, StatusCode, Uri,
+        Method, StatusCode,
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -37,8 +37,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
-        .route("/page/{key}", get(index))
-        .route("/post", post(submit_post))
+        .route("/posts", get(index).post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
         .route("/hide-post", post(hide_post).patch(hide_post))
@@ -50,12 +49,13 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/settings/reset-account-token", post(reset_account_token))
         .route("/settings/update-time-zone", post(update_time_zone))
         .route("/settings/update-password", post(update_password))
-        .route("/post/{key}", get(index))
+        .route("/posts/{key}", get(index))
         .route(
-            "/post/{key}",
+            "/posts/{key}",
             post(review_post).patch(review_post).delete(review_post),
         )
         .route("/decrypt-media/{key}", get(decrypt_media))
+        .route("/{key}", get(index))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
         router.layer(init::trace_layer())
@@ -73,15 +73,15 @@ async fn index(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
-    uri: Uri,
-    Path(params): Path<HashMap<String, String>>,
+    Path(path): Path<HashMap<String, String>>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let query_post = match params.get("key") {
+    let path_post = match path.get("key") {
         Some(key) => match Post::select_by_key(&mut tx, &key).await {
             None => return not_found("post does not exist"),
             Some(post) => {
@@ -93,13 +93,14 @@ async fn index(
         },
         None => None,
     };
-    let query_post_id = match query_post {
-        Some(ref post) => Some(post.id),
+    let page_post_id_opt = match query.get("page") {
+        Some(page_key) => Post::select_by_key(&mut tx, &page_key).await.map(|p| p.id),
         None => None,
     };
-    let solo = query_post.is_some() && !uri.path().starts_with("/page/");
+    println!("page_post_id_opt: {page_post_id_opt:?}");
+    let solo = path_post.is_some();
     let mut posts = if solo {
-        match query_post {
+        match path_post {
             None => return bad_request("no post to show"),
             Some(ref post) => {
                 if post.status == PostStatus::Pending
@@ -111,7 +112,7 @@ async fn index(
             }
         }
     } else {
-        Post::select(&mut tx, &user, query_post_id, false).await
+        Post::select(&mut tx, &user, page_post_id_opt, false).await
     };
     let prior_page_post = if posts.len() <= init::per_page() {
         None
@@ -126,7 +127,7 @@ async fn index(
             nav => !solo,
             user,
             posts,
-            query_post,
+            path_post,
             prior_page_post,
             solo,
         ),
@@ -608,37 +609,34 @@ async fn review_post(
         Rejected | Banned => return bad_request("post cannot be rejected or banned"),
     };
     if [DecryptMedia, DeleteEncryptedMedia].contains(&review_action) {
-        if post.media_file_name.is_some() {
+        if let Some(ref media_file_name) = post.media_file_name {
             if !post.encrypted_media_path().exists() {
                 return not_found("encrypted media file does not exist");
             }
             if review_action == DecryptMedia {
                 let media_bytes = post.decrypt_media_file().await;
                 let published_media_path = post.published_media_path();
-                let media_key_dir = published_media_path.parent().unwrap();
-                std::fs::create_dir(media_key_dir).expect("create media key dir");
-                std::fs::write(&published_media_path, media_bytes).expect("write media file");
-                // generate webp thumbnail for images
+                PostReview::write_media_file(&published_media_path, media_bytes);
                 if post
                     .media_category
                     .as_ref()
                     .is_some_and(|c| *c == PostMediaCategory::Image)
                 {
-                    post.generate_thumbnail().await;
-                    let thumbnail_path = post.thumbnail_path();
+                    PostReview::generate_thumbnail(&published_media_path).await;
+                    let (thumbnail_file_name, thumbnail_path) =
+                        PostReview::new_thumbnail_info(&post.key, &media_file_name);
                     if !thumbnail_path.exists() {
                         return internal_server_error("thumbnail not created successfully");
                     }
-                    let thumbnail_len = thumbnail_path.metadata().unwrap().len();
-                    let media_file_len = published_media_path.metadata().unwrap().len();
-                    if thumbnail_len > media_file_len {
+                    if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                         std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
                     } else {
-                        post.update_thumbnail(&mut tx).await;
+                        post.update_thumbnail(&mut tx, &thumbnail_file_name)
+                            .await;
                     }
                 }
             }
-            post.delete_encrypted_dir();
+            PostReview::delete_upload_key_dir(&post.encrypted_media_path());
         }
     }
     if review_action == DeletePublishedMedia {
@@ -646,7 +644,7 @@ async fn review_post(
             return unauthorized("only admins can ban or reject posts");
         }
         if post.media_file_name.as_ref().is_some() && post.published_media_path().exists() {
-            post.delete_media_dir();
+            PostReview::delete_media_key_dir(&post.key);
         }
     } else if review_action == ReencryptMedia {
         if let Err(msg) = post.reencrypt_media_file().await {

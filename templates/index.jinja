@@ -1,8 +1,8 @@
     {% extends "layout.jinja" %}
     {% block main %}
     <main>
-        {% if query_post is none %}
-        <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
+        {% if path_post is none %}
+        <form action="/post" method="post" enctype="multipart/form-data" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body" id="post-body"></textarea>
             <div id="post-submit-container">
@@ -18,7 +18,7 @@
             {% endfor %}
         </div>
         {% if prior_page_post %}
-        <p><a href="/page/{{ prior_page_post.key }}" class="system">Prior page</a></p>
+        <p><a href="/{{ prior_page_post.key }}/page" class="system">Prior page</a></p>
         {% endif %}
     </main>
     {% endblock %}
