@@ -635,8 +635,7 @@ async fn review_post(
                     if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                         std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
                     } else {
-                        post.update_thumbnail(&mut tx, &thumbnail_file_name)
-                            .await;
+                        post.update_thumbnail(&mut tx, &thumbnail_file_name).await;
                     }
                 }
             }
