@@ -75,7 +75,7 @@
                 {###################################################################################}
                 {% if (user.account.role == "admin" and post.status in ["pending", "delisted", "reported"])
                     or (user.account.role == "mod" and post.status in ["pending", "delisted"])
-                    or (user.account.role in ["admin", "mod"] and post.status == "approved" and solo) %}
+                    or (user.account.role in ["admin", "mod"] and post.status == "approved" and path_post) %}
                 <details class="review">
                     <summary>Review</summary>
                     <form action="/posts/{{ post.key }}" method="post" class="approve" data-fetch="PATCH">

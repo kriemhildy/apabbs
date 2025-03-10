@@ -110,12 +110,12 @@ nav a {
     color: var(--system);
 }
 
-header h1 a {
+h1 a {
     text-decoration: none;
     color: var(--fore);
 }
 
-header h1 {
+h1 {
     font-size: 1em;
 }
 
@@ -159,41 +159,41 @@ div.post {
     padding: 0 8px;
 }
 
-div.post.pending,
-div.post.delisted,
-div.post.reported,
-div.post.rejected,
-div.post.banned {
+div.pending,
+div.delisted,
+div.reported,
+div.rejected,
+div.banned {
     padding: 8px;
 }
 
-div.post.pending {
+div.pending {
     background: var(--pending);
 }
 
-div.post.delisted {
+div.delisted {
     background: var(--delisted);
 }
 
-div.post.reported {
+div.reported {
     background: var(--reported);
 }
 
-div.post.rejected {
+div.rejected {
     background: var(--rejected);
 }
 
-div.post.banned {
+div.banned {
     background: var(--banned);
 }
 
-div.post div.body {
+div.body {
     max-width: 1264px;
     margin-bottom: 4px;
 }
 
-div.post img,
-div.post video {
+div#posts img,
+div#posts video {
     max-width: clamp(300px, calc(100% + 16px), 1600px);
     max-height: clamp(300px, 100vh, 1200px);
     margin-left: -8px;
@@ -205,7 +205,7 @@ div#posts.solo video {
     max-height: unset;
 }
 
-div.post div.arrow a {
+div.arrow a {
     text-decoration: none;
     color: var(--arrow);
     font-size: 1.2em;
