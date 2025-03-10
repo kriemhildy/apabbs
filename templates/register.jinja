@@ -6,7 +6,7 @@
             <li>Registering will give you a username and profile.</li>
             <li>You will be able to set a time zone.</li>
         </ul>
-        <form action="/register" method="post" class="grid">
+        <form action="/users" method="post" class="grid">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <label for="username">Username:</label>
             <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
