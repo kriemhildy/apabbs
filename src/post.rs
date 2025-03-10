@@ -164,7 +164,7 @@ impl Post {
     pub fn thumbnail_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(&self.thumbnail_file_name.as_ref().unwrap())
+            .join(&self.thumbnail_file_name.as_ref().expect("thumbnail_file_name exists"))
     }
 
     pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {

@@ -230,7 +230,7 @@ async fn index_with_page() {
     let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await.expect(COMMIT);
-    let uri = format!("/{}/page", &post2.key);
+    let uri = format!("/?page={}", &post2.key);
     let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());
@@ -259,7 +259,7 @@ async fn submit_post() {
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/post")
+        .uri("/posts")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -299,7 +299,7 @@ async fn submit_post_with_media() {
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/post")
+        .uri("/posts")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -337,7 +337,7 @@ async fn submit_post_with_account() {
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/post")
+        .uri("/posts")
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(CONTENT_TYPE, form.content_type_header())
@@ -397,7 +397,7 @@ async fn autoban() {
     form.write_field("body", "trololol").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/post")
+        .uri("/posts")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, bogus_session_token),
@@ -478,7 +478,7 @@ async fn create_account() {
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/register")
+        .uri("/users")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(
             COOKIE,
@@ -800,7 +800,10 @@ async fn review_post_with_small_media() {
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
     assert!(post.published_media_path().exists());
-    assert!(!post.thumbnail_path().exists());
+    assert!(post.thumbnail_file_name.is_none());
+    let (_thumbnail_file_name, thumbnail_path) =
+        PostReview::new_thumbnail_info(&post.key, post.media_file_name.as_ref().unwrap());
+    assert!(!thumbnail_path.exists());
     PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
