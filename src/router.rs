@@ -142,11 +142,6 @@ async fn submit_post(
     mut multipart: Multipart,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let ip_hash = ip_hash(&headers);
-    if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
-        tx.commit().await.expect(COMMIT);
-        return response;
-    }
     let mut post_submission = PostSubmission::default();
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
@@ -176,11 +171,18 @@ async fn submit_post(
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
     }
+    let ip_hash = ip_hash(&headers);
     let (user, jar) =
         match init_user(jar, &mut tx, method, Some(post_submission.session_token)).await {
             Err(response) => return response,
             Ok(tuple) => tuple,
         };
+    if let Some(response) =
+        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
+    {
+        tx.commit().await.expect(COMMIT);
+        return response;
+    }
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
@@ -276,7 +278,7 @@ async fn create_account(
         return bad_request(&errors.join("\n"));
     }
     let ip_hash = ip_hash(&headers);
-    if let Some(response) = check_for_ban(&mut tx, &ip_hash).await {
+    if let Some(response) = check_for_ban(&mut tx, &ip_hash, None, None).await {
         tx.commit().await.expect(COMMIT);
         return response;
     }
@@ -661,7 +663,7 @@ async fn review_post(
         .expect("select post");
     if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
-            ban::insert(&mut tx, ip_hash).await;
+            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await;
         }
         post.delete(&mut tx).await;
     }

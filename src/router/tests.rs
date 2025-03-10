@@ -394,13 +394,13 @@ async fn autoban() {
     }
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 5);
-    assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_none());
+    assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());
     assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
     post_submission.session_token = Uuid::new_v4();
     post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 6);
-    assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_none());
+    assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());
     assert!(ban::flooding(&mut tx, &ban_ip_hash()).await);
     tx.commit().await.expect(COMMIT);
     let mut form = FormData::new(Vec::new());
@@ -422,7 +422,7 @@ async fn autoban() {
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     let mut tx = state.db.begin().await.expect(BEGIN);
-    assert!(ban::exists(&mut tx, &ban_ip_hash()).await.is_some());
+    assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_some());
     assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 0);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 0);

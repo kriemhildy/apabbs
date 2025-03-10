@@ -1,24 +1,40 @@
 use crate::POSTGRES_TIMESTAMP_FORMAT;
 use sqlx::PgConnection;
 
-pub async fn insert(tx: &mut PgConnection, ip_hash: &str) -> String {
-    sqlx::query_scalar("INSERT INTO bans (ip_hash) VALUES ($1) RETURNING to_char(expires_at, $2)")
-        .bind(ip_hash)
-        .bind(POSTGRES_TIMESTAMP_FORMAT)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("insert ip ban")
+pub async fn insert(
+    tx: &mut PgConnection,
+    ip_hash: &str,
+    banned_account_id: Option<i32>,
+    admin_account_id: Option<i32>,
+) -> String {
+    sqlx::query_scalar(concat!(
+        "INSERT INTO bans (ip_hash, banned_account_id, admin_account_id) ",
+        "VALUES ($1, $2, $3) RETURNING to_char(expires_at, $4)",
+    ))
+    .bind(ip_hash)
+    .bind(banned_account_id)
+    .bind(admin_account_id)
+    .bind(POSTGRES_TIMESTAMP_FORMAT)
+    .fetch_one(&mut *tx)
+    .await
+    .expect("insert ban")
 }
 
-pub async fn exists(tx: &mut PgConnection, ip_hash: &str) -> Option<String> {
-    sqlx::query_scalar(
-        "SELECT to_char(expires_at, $1) FROM bans WHERE ip_hash = $2 AND expires_at > now()",
-    )
+pub async fn exists(
+    tx: &mut PgConnection,
+    ip_hash: &str,
+    banned_account_id: Option<i32>,
+) -> Option<String> {
+    sqlx::query_scalar(concat!(
+        "SELECT to_char(expires_at, $1) FROM bans ",
+        "WHERE expires_at > now() AND (ip_hash = $2 OR banned_account_id = $3)",
+    ))
     .bind(POSTGRES_TIMESTAMP_FORMAT)
     .bind(ip_hash)
+    .bind(banned_account_id)
     .fetch_optional(&mut *tx)
     .await
-    .expect("return expiration if ip ban exists")
+    .expect("return expiration if ban exists")
 }
 
 pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
