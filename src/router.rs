@@ -39,12 +39,16 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/", get(index))
         .route("/posts", get(index).post(submit_post))
         .route("/login", get(login_form).post(authenticate))
-        .route("/register", get(registration_form).post(create_account))
+        .route("/register", get(registration_form))
+        // this should be a patch
         .route("/hide-post", post(hide_post).patch(hide_post))
         .route("/web-socket", get(web_socket))
+        // this could be a call to index with a query
         .route("/interim/{key}", get(interim))
-        .route("/user/{username}", get(user_profile))
+        .route("/users", post(create_account))
+        .route("/users/{username}", get(user_profile))
         .route("/settings", get(settings))
+        // make these all into patch requests?
         .route("/settings/logout", post(logout))
         .route("/settings/reset-account-token", post(reset_account_token))
         .route("/settings/update-time-zone", post(update_time_zone))

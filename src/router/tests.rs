@@ -626,7 +626,7 @@ async fn user_profile() {
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
-        .uri(&format!("/user/{}", &account.username))
+        .uri(&format!("/users/{}", &account.username))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();

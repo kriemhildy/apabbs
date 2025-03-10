@@ -13,7 +13,7 @@
     {% if nav %}
     <nav>
         {% if user.account %}
-        <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
+        <a href="/users/{{ user.account.username }}">{{ user.account.username }}</a>
         {% else %}
         <a href="/login">log in</a>
         {% endif %}
