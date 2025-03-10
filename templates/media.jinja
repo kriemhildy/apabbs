@@ -1,6 +1,6 @@
                 {% if post.media_category == "image" %}
                 {% set solo_path = "/" + post.key %}
-                {% if solo %}
+                {% if path_post %}
                 <img src="{{ media_path }}" alt="{{ post.media_file_name }}">
                 {% else %}
                 <a href="{{ solo_path }}">

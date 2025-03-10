@@ -13,7 +13,7 @@
                 {% if post.media_file_name %}
                 {% if post.status in ["approved", "delisted"] %}
                 {% set optimal_file_name =
-                    post.thumbnail_file_name if not solo and post.thumbnail_file_name
+                    post.thumbnail_file_name if not path_post and post.thumbnail_file_name
                     else post.media_file_name %}
                 {% set media_path = "/m/" + post.key + "/" + optimal_file_name|urlencode %}
                 {% include "media.jinja" %}
@@ -46,7 +46,7 @@
                 {###################################################################################}
                 {# Info #}
                 {###################################################################################}
-                {% if solo %}
+                {% if path_post %}
                 {% if post.status == "approved" %}
                 <p id="user">
                     {% if post.username %}
@@ -61,7 +61,7 @@
                 {###################################################################################}
                 {# Arrow #}
                 {###################################################################################}
-                {% if not solo
+                {% if not path_post
                     and post.status not in ["rejected", "banned"]
                     and (post.media_category != "image"
                         or (post.status in ["pending", "reported"]

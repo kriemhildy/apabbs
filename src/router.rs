@@ -102,21 +102,14 @@ async fn index(
         None => None,
     };
     println!("page_post_id_opt: {page_post_id_opt:?}");
-    let solo = path_post.is_some();
-    let mut posts = if solo {
-        match path_post {
-            None => return bad_request("no post to show"),
-            Some(ref post) => {
-                if post.status == PostStatus::Pending
-                    && !(user.mod_or_admin() || post.author(&user))
-                {
-                    return unauthorized("post is pending approval");
-                }
-                vec![post.clone()]
+    let mut posts = match path_post {
+        Some(ref post) => {
+            if post.status == PostStatus::Pending && !(user.mod_or_admin() || post.author(&user)) {
+                return unauthorized("post is pending approval");
             }
+            vec![post.clone()]
         }
-    } else {
-        Post::select(&mut tx, &user, page_post_id_opt, false).await
+        None => Post::select(&mut tx, &user, page_post_id_opt, false).await,
     };
     let prior_page_post = if posts.len() <= init::per_page() {
         None
@@ -128,12 +121,11 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => init::site_name(),
-            nav => !solo,
+            nav => path_post.is_none(),
             user,
             posts,
             path_post,
             prior_page_post,
-            solo,
         ),
     ));
     (jar, html).into_response()
