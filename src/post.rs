@@ -197,6 +197,91 @@ impl Post {
             Err("gpg failed to encrypt file")
         }
     }
+
+    pub async fn update_status(&self, tx: &mut PgConnection, new_status: &PostStatus) {
+        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
+            .bind(new_status)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post status");
+    }
+
+    pub fn thumbnail_file_name(&self) -> String {
+        let media_file_name = self.media_file_name.as_ref().unwrap();
+        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
+        String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp")
+    }
+
+    pub async fn update_thumbnail(&self, tx: &mut PgConnection) {
+        let thumbnail_file_name = self.thumbnail_file_name();
+        println!("thumbnail_file_name: {}", thumbnail_file_name);
+        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE key = $2")
+            .bind(thumbnail_file_name)
+            .bind(&self.key)
+            .execute(&mut *tx)
+            .await
+            .expect("update post thumbnail");
+    }
+
+    pub async fn generate_thumbnail(&self) {
+        let published_media_path = self.published_media_path();
+        let media_path_str = published_media_path.to_str().unwrap();
+        let extension = media_path_str
+            .split('.')
+            .last()
+            .expect("get file extension");
+        let vips_input_file_path = media_path_str.to_owned()
+            + match extension.to_lowercase().as_str() {
+                "gif" | "webp" => "[n=-1]", // animated image support
+                _ => "",
+            };
+        let command_output = tokio::process::Command::new("vipsthumbnail")
+            .args(["--size=1200x1600>", "--output=tn_%s.webp"])
+            .arg(&vips_input_file_path)
+            .output()
+            .await
+            .expect("generate thumbnail");
+        println!("vipsthumbnail output: {:?}", command_output);
+    }
+
+    pub fn delete_media_dir(&self) {
+        let media_dir = std::path::Path::new(MEDIA_DIR).join(&self.key);
+        // better safe than sorry
+        let re = Regex::new(r"^[a-zA-Z0-9]{8,12}$").expect("build regex pattern");
+        assert!(re.is_match(&self.key));
+        assert!(media_dir != std::path::Path::new(MEDIA_DIR));
+        assert!(media_dir.starts_with(MEDIA_DIR));
+        assert!(media_dir.ends_with(&self.key));
+        assert!(media_dir.exists());
+        assert!(media_dir.is_dir());
+        assert!(!media_dir.to_str().unwrap().contains("."));
+        std::fs::remove_dir_all(&media_dir).expect("remove media dir and its contents");
+    }
+
+    pub fn delete_encrypted_dir(&self) {
+        let encrypted_media_path = self.encrypted_media_path();
+        let uploads_key_dir = encrypted_media_path.parent().unwrap();
+        std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
+        std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
+    }
+
+    pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
+        let encrypted_file_path = self.encrypted_media_path();
+        let uploads_key_dir = encrypted_file_path.parent().unwrap();
+        std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
+        let media_file_path = self.published_media_path();
+        let media_bytes = std::fs::read(&media_file_path).expect("read media file");
+        let result = self.gpg_encrypt(media_bytes).await;
+        match result {
+            Ok(()) => self.delete_media_dir(),
+            Err(msg) => {
+                std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
+                eprintln!("{}", msg);
+            }
+        }
+        result
+    }
 }
 
 #[derive(Default)]
@@ -406,20 +491,10 @@ pub enum ReviewAction {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostReview {
     pub session_token: Uuid,
-    pub key: String,
     pub status: PostStatus,
 }
 
 impl PostReview {
-    pub async fn update_status(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET status = $1 WHERE key = $2")
-            .bind(&self.status)
-            .bind(&self.key)
-            .execute(&mut *tx)
-            .await
-            .expect("update post status");
-    }
-
     pub async fn insert(&self, tx: &mut PgConnection, account_id: i32, post_id: i32) {
         sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
             .bind(account_id)
@@ -428,78 +503,6 @@ impl PostReview {
             .execute(&mut *tx)
             .await
             .expect("insert post review");
-    }
-
-    pub fn thumbnail_file_name(media_file_name: &str) -> String {
-        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
-        String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp")
-    }
-
-    pub fn thumbnail_path(&self, media_file_name: &str) -> PathBuf {
-        std::path::Path::new(MEDIA_DIR)
-            .join(&self.key)
-            .join(Self::thumbnail_file_name(media_file_name))
-    }
-
-    pub async fn update_thumbnail(&self, tx: &mut PgConnection, media_file_name: &str) {
-        let thumbnail_file_name = Self::thumbnail_file_name(media_file_name);
-        println!("thumbnail_file_name: {}", thumbnail_file_name);
-        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE key = $2")
-            .bind(thumbnail_file_name)
-            .bind(&self.key)
-            .execute(&mut *tx)
-            .await
-            .expect("update post thumbnail");
-    }
-
-    pub async fn generate_thumbnail(media_path_str: &str) {
-        let extension = media_path_str
-            .split('.')
-            .last()
-            .expect("get file extension");
-        let vips_input_file_path = media_path_str.to_owned()
-            + match extension.to_lowercase().as_str() {
-                "gif" | "webp" => "[n=-1]", // animated image support
-                _ => "",
-            };
-        let command_output = tokio::process::Command::new("vipsthumbnail")
-            .args(["--size=1200x1600>", "--output=tn_%s.webp"])
-            .arg(&vips_input_file_path)
-            .output()
-            .await
-            .expect("generate thumbnail");
-        println!("vipsthumbnail output: {:?}", command_output);
-    }
-
-    pub fn delete_media_dir(key: &str) {
-        let media_dir = std::path::Path::new(MEDIA_DIR).join(key);
-        // better safe than sorry
-        let re = Regex::new(r"^[a-zA-Z0-9]{8,12}$").expect("build regex pattern");
-        assert!(re.is_match(key));
-        assert!(media_dir != std::path::Path::new(MEDIA_DIR));
-        assert!(media_dir.starts_with(MEDIA_DIR));
-        assert!(media_dir.ends_with(key));
-        assert!(media_dir.exists());
-        assert!(media_dir.is_dir());
-        assert!(!media_dir.to_str().unwrap().contains("."));
-        std::fs::remove_dir_all(&media_dir).expect("remove media dir and its contents");
-    }
-
-    pub async fn reencrypt_media_file(post: &Post) -> Result<(), &str> {
-        let encrypted_file_path = post.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
-        let media_file_path = post.published_media_path();
-        let media_bytes = std::fs::read(&media_file_path).expect("read media file");
-        let result = post.gpg_encrypt(media_bytes).await;
-        match result {
-            Ok(()) => Self::delete_media_dir(&post.key),
-            Err(msg) => {
-                std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
-                eprintln!("{}", msg);
-            }
-        }
-        result
     }
 }
 

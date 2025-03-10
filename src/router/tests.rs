@@ -120,13 +120,7 @@ async fn create_test_post(
     match status {
         PostStatus::Pending => post,
         _ => {
-            PostReview {
-                session_token: user.session_token,
-                key: post.key.clone(),
-                status,
-            }
-            .update_status(tx)
-            .await;
+            post.update_status(tx, &status).await;
             Post::select_by_key(tx, &post.key)
                 .await
                 .expect("select post")
@@ -149,7 +143,7 @@ fn response_removes_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, true)
 }
 
-fn remove_encrypted_file(encrypted_file_path: &Path) {
+fn delete_encrypted_dir(encrypted_file_path: &Path) {
     println!("removing encrypted file: {:?}", encrypted_file_path);
     let uploads_key_dir = encrypted_file_path.parent().unwrap();
     std::fs::remove_file(&encrypted_file_path).expect("remove encrypted file");
@@ -334,7 +328,7 @@ async fn submit_post_with_media() {
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
-    remove_encrypted_file(&encrypted_file_path);
+    delete_encrypted_dir(&encrypted_file_path);
 }
 
 #[tokio::test]
@@ -575,15 +569,9 @@ async fn hide_post() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
-    let admin = create_test_account(&mut tx, AccountRole::Admin).await;
-    let account = admin.account.as_ref().unwrap();
-    PostReview {
-        session_token: admin.session_token,
-        key: post.key.clone(),
-        status: PostStatus::Rejected,
-    }
-    .update_status(&mut tx)
-    .await;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let account = admin_user.account.as_ref().unwrap();
+    post.update_status(&mut tx, &PostStatus::Rejected).await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
         session_token: user.session_token,
@@ -759,13 +747,12 @@ async fn review_post() {
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
         session_token: user.session_token,
-        key: post.key.clone(),
         status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
-        .method(Method::POST)
-        .uri("/admin/review-post")
+        .method(Method::PATCH)
+        .uri(format!("/post/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
@@ -782,10 +769,7 @@ async fn review_post() {
     assert!(published_media_path.exists());
     let thumbnail_path = post.thumbnail_path();
     assert!(thumbnail_path.exists());
-    std::fs::remove_file(&published_media_path).expect("remove media file");
-    std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
-    let media_key_dir = published_media_path.parent().unwrap();
-    std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
+    post.delete_media_dir();
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -798,19 +782,17 @@ async fn review_post_with_small_media() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
-    let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
         session_token: user.session_token,
-        key: post.key.clone(),
         status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/admin/review-post")
+        .uri(format!("/post/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
@@ -821,15 +803,12 @@ async fn review_post_with_small_media() {
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
         .expect("select post");
+    let encrypted_media_path = post.encrypted_media_path();
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
-    let published_media_path = post.published_media_path();
-    assert!(published_media_path.exists());
-    let thumbnail_path = post_review.thumbnail_path(post.media_file_name.as_ref().unwrap());
-    assert!(!thumbnail_path.exists());
-    std::fs::remove_file(&published_media_path).expect("remove media file");
-    let media_key_dir = published_media_path.parent().unwrap();
-    std::fs::remove_dir(&media_key_dir).expect("remove media key dir");
+    assert!(post.published_media_path().exists());
+    assert!(!post.thumbnail_path().exists());
+    post.delete_media_dir();
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -846,7 +825,7 @@ async fn decrypt_media() {
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
-    let key = format!("/admin/decrypt-media/{}", &post.key);
+    let key = format!("/decrypt-media/{}", &post.key);
     let request = Request::builder()
         .uri(&key)
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
@@ -862,5 +841,5 @@ async fn decrypt_media() {
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
-    remove_encrypted_file(&encrypted_media_path);
+    delete_encrypted_dir(&encrypted_media_path);
 }
