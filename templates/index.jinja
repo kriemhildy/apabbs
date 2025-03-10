@@ -18,7 +18,7 @@
             {% endfor %}
         </div>
         {% if prior_page_post %}
-        <p><a href="/{{ prior_page_post.key }}/page" class="system">Prior page</a></p>
+        <p><a href="/?page={{ prior_page_post.key }}" class="system">Prior page</a></p>
         {% endif %}
     </main>
     {% endblock %}
