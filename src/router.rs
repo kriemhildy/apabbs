@@ -44,7 +44,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/web-socket", get(web_socket))
         // this could be a call to index with a query
         .route("/interim/{key}", get(interim))
-        .route("/users/{username}", get(user_profile))
+        .route("/user/{username}", get(user_profile))
         .route("/settings", get(settings))
         .route("/settings/logout", post(logout))
         .route("/settings/reset-account-token", post(reset_account_token))
