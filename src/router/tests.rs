@@ -744,8 +744,8 @@ async fn review_post() {
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
-        .method(Method::PATCH)
-        .uri(format!("/posts/{}", &post.key))
+        .method(Method::POST)
+        .uri(format!("/review/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
@@ -785,7 +785,7 @@ async fn review_post_with_small_media() {
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/posts/{}", &post.key))
+        .uri(format!("/review/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)

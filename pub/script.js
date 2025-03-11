@@ -195,7 +195,7 @@ function handleFormSubmit(event) {
     }
     spinner.style.display = "block";
     fetch(this.action, {
-        method: this.dataset.fetch || "POST",
+        method: "POST",
         body: fetchBody,
     }).then((response) => {
         console.log("response", response);

@@ -78,29 +78,29 @@
                     or (user.account.role in ["admin", "mod"] and post.status == "approved" and path_post) %}
                 <details class="review">
                     <summary>Review</summary>
-                    <form action="/posts/{{ post.key }}" method="post" class="approve" data-fetch="PATCH">
+                    <form action="/review/{{ post.key }}" method="post" class="approve" data-fetch>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="status" value="approved">
                         <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
                     </form>
-                    <form action="/posts/{{ post.key }}" method="post" class="delist" data-fetch="PATCH">
+                    <form action="/review/{{ post.key }}" method="post" class="delist" data-fetch>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="status" value="delisted">
                         <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }} id="delist-{{ post.key }}-submit">
                     </form>
                 {% if user.account.role == "mod" %}
-                    <form action="/posts/{{ post.key }}" method="post" class="reported" data-fetch="PATCH" data-confirm>
+                    <form action="/review/{{ post.key }}" method="post" class="reported" data-fetch data-confirm>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="status" value="reported">
                         <input type="submit" value="Report"{{ " disabled" if post.status == "reported" }} id="report-{{ post.key }}-submit">
                     </form>
                 {% elif user.account.role == "admin" %}
-                    <form action="/posts/{{ post.key }}" method="post" class="reject" data-fetch="PATCH" data-confirm>
+                    <form action="/review/{{ post.key }}" method="post" class="reject" data-fetch data-confirm>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="status" value="rejected">
                         <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.key }}-submit">
                     </form>
-                    <form action="/posts/{{ post.key }}" method="post" class="ban" data-fetch="DELETE" data-confirm>
+                    <form action="/review/{{ post.key }}" method="post" class="ban" data-fetch data-confirm>
                         <input type="hidden" name="session_token" value="{{ user.session_token }}">
                         <input type="hidden" name="status" value="banned">
                         <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }} id="ban-{{ post.key }}-submit">
@@ -113,7 +113,7 @@
                 {###################################################################################}
                 {% if post.status == "rejected" and
                     (post.session_token == user.session_token or post.account_id == user.account.id) %}
-                <form action="/hide-post" method="post" data-fetch="PATCH">
+                <form action="/hide-post" method="post" data-fetch>
                     <input type="hidden" name="session_token" value="{{ user.session_token }}">
                     <input type="hidden" name="key" value="{{ post.key }}">
                     <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
