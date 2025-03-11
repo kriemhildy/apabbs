@@ -230,7 +230,7 @@ async fn index_with_page() {
     let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await.expect(COMMIT);
-    let uri = format!("/?page={}", &post2.key);
+    let uri = format!("/page/{}", &post2.key);
     let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
     let response = router.oneshot(request).await.unwrap();
     assert!(response.status().is_success());

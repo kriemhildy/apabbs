@@ -13,11 +13,11 @@ use crate::{
 use axum::{
     extract::{
         ws::{Message, Utf8Bytes, WebSocket},
-        DefaultBodyLimit, Multipart, Path, Query, State, WebSocketUpgrade,
+        DefaultBodyLimit, Multipart, Path, State, WebSocketUpgrade,
     },
     http::{
         header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
-        Method, StatusCode,
+        Method, StatusCode, Uri,
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -37,6 +37,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
+        .route("/page/{key}", get(index))
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
@@ -70,8 +71,8 @@ async fn index(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    uri: Uri,
     Path(path): Path<HashMap<String, String>>,
-    Query(query): Query<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -90,19 +91,16 @@ async fn index(
         },
         None => None,
     };
-    let page_post_id_opt = match query.get("page") {
-        Some(page_key) => Post::select_by_key(&mut tx, &page_key).await.map(|p| p.id),
-        None => None,
-    };
-    println!("page_post_id_opt: {page_post_id_opt:?}");
-    let mut posts = match path_post {
-        Some(ref post) => {
-            if post.status == PostStatus::Pending && !(user.mod_or_admin() || post.author(&user)) {
-                return unauthorized("post is pending approval");
-            }
-            vec![post.clone()]
+    let solo = path_post.is_some() && !uri.path().starts_with("/page/");
+    let mut posts = if solo {
+        let post = path_post.as_ref().expect("path post exists");
+        if post.status == PostStatus::Pending && !(user.mod_or_admin() || post.author(&user)) {
+            return unauthorized("post is pending approval");
         }
-        None => Post::select(&mut tx, &user, page_post_id_opt, false).await,
+        vec![post.clone()]
+    } else {
+        let page_post_id_opt = path_post.as_ref().map(|p| p.id);
+        Post::select(&mut tx, &user, page_post_id_opt, false).await
     };
     let prior_page_post = if posts.len() <= init::per_page() {
         None
@@ -114,11 +112,12 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => init::site_name(),
-            nav => path_post.is_none(),
+            nav => !solo,
             user,
             posts,
             path_post,
             prior_page_post,
+            solo
         ),
     ));
     (jar, html).into_response()

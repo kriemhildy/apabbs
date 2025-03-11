@@ -234,7 +234,7 @@ function addFetchToForms(_event, element = document) {
 
 const url = new URL(window.location.href);
 
-if (url.pathname === "/" && !url.searchParams.has("page")) {
+if (url.pathname === "/") {
     for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
