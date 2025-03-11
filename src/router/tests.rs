@@ -478,7 +478,7 @@ async fn create_account() {
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/users")
+        .uri("/register")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(
             COOKIE,

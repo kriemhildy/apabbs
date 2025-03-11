@@ -39,12 +39,11 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/", get(index))
         .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
-        .route("/register", get(registration_form))
+        .route("/register", get(registration_form).post(create_account))
         .route("/hide-post", post(hide_post))
         .route("/web-socket", get(web_socket))
         // this could be a call to index with a query
         .route("/interim/{key}", get(interim))
-        .route("/users", post(create_account))
         .route("/users/{username}", get(user_profile))
         .route("/settings", get(settings))
         .route("/settings/logout", post(logout))

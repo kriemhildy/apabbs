@@ -2,7 +2,7 @@
     {% block main %}
     <main>
         <h2>Log in</h2>
-        <form action="/login" method="post" class="grid">
+        <form method="post" class="grid">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <label for="username">Username:</label>
             <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
