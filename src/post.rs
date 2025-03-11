@@ -211,9 +211,9 @@ impl Post {
     }
 
     pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_file_name: &str) {
-        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE key = $2")
+        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE id = $2")
             .bind(thumbnail_file_name)
-            .bind(&self.key)
+            .bind(self.id)
             .execute(&mut *tx)
             .await
             .expect("update post thumbnail");
