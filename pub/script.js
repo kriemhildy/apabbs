@@ -203,7 +203,7 @@ function handleFormSubmit(event) {
         console.log("actionUrl.pathname", actionUrl.pathname);
         if ([200, 201, 204].includes(response.status)) {
             switch (actionUrl.pathname) {
-                case "/post":
+                case "/submit-post":
                     this.reset();
                     break;
                 case "/hide-post":

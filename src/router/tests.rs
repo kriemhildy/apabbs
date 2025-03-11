@@ -259,7 +259,7 @@ async fn submit_post() {
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/posts")
+        .uri("/submit-post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -299,7 +299,7 @@ async fn submit_post_with_media() {
         .unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/posts")
+        .uri("/submit-post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
@@ -337,7 +337,7 @@ async fn submit_post_with_account() {
     form.write_field("body", "<&test body").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/posts")
+        .uri("/submit-post")
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(CONTENT_TYPE, form.content_type_header())
@@ -397,7 +397,7 @@ async fn autoban() {
     form.write_field("body", "trololol").unwrap();
     let request = Request::builder()
         .method(Method::POST)
-        .uri("/posts")
+        .uri("/submit-post")
         .header(
             COOKIE,
             format!("{}={}", SESSION_COOKIE, bogus_session_token),

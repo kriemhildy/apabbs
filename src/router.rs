@@ -37,7 +37,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
     let router = axum::Router::new()
         .route("/", get(index))
-        .route("/posts", get(index).post(submit_post))
+        .route("/submit-post", post(submit_post))
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form))
         // this should be a patch
