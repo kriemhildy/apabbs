@@ -486,12 +486,16 @@ impl PostReview {
         println!("vipsthumbnail output: {:?}", command_output);
     }
 
-    pub fn new_thumbnail_info(key: &str, media_file_name: &str) -> (String, PathBuf) {
+    pub fn new_thumbnail_info(post: &Post) -> (String, PathBuf) {
+        let media_file_name = post
+            .media_file_name
+            .as_ref()
+            .expect("media_file_name exists");
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
         let thumbnail_file_name =
             String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp");
         let thumbnail_path = std::path::Path::new(MEDIA_DIR)
-            .join(key)
+            .join(&post.key)
             .join(&thumbnail_file_name);
         (thumbnail_file_name, thumbnail_path)
     }
@@ -528,10 +532,10 @@ impl PostReview {
         post_status: &PostStatus,
         reviewer_role: &AccountRole,
     ) -> Result<ReviewAction, ReviewError> {
+        use AccountRole::*;
+        use PostStatus::*;
         use ReviewAction::*;
         use ReviewError::*;
-        use PostStatus::*;
-        use AccountRole::*;
         match post_status {
             Pending => match self.status {
                 Pending => Err(SameStatus),
@@ -544,7 +548,7 @@ impl PostReview {
                 Approved | Delisted => Ok(NoAction),
                 Reported => {
                     if *reviewer_role != Mod {
-                        return Err(ModOnly)
+                        return Err(ModOnly);
                     }
                     Ok(ReencryptMedia)
                 }
@@ -552,7 +556,7 @@ impl PostReview {
             },
             Reported => {
                 if *reviewer_role != Admin {
-                    return Err(AdminOnly)
+                    return Err(AdminOnly);
                 }
                 match self.status {
                     Pending => Err(ReturnToPending),
@@ -563,6 +567,29 @@ impl PostReview {
             }
             Rejected | Banned => Err(RejectedOrBanned),
         }
+    }
+
+    pub async fn handle_decrypt_media(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+        let media_bytes = post.decrypt_media_file().await;
+        let published_media_path = post.published_media_path();
+        PostReview::write_media_file(&published_media_path, media_bytes);
+        if post
+            .media_category
+            .as_ref()
+            .is_some_and(|c| *c == PostMediaCategory::Image)
+        {
+            PostReview::generate_thumbnail(&published_media_path).await;
+            let (thumbnail_file_name, thumbnail_path) = PostReview::new_thumbnail_info(&post);
+            if !thumbnail_path.exists() {
+                return Err("thumbnail not created successfully".to_owned());
+            }
+            if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+                std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+            } else {
+                post.update_thumbnail(tx, &thumbnail_file_name).await;
+            }
+        }
+        Ok(())
     }
 }
 

@@ -4,10 +4,7 @@ mod tests;
 
 use crate::{
     ban, init,
-    post::{
-        Post, PostHiding, PostMediaCategory, PostReview, PostStatus, PostSubmission, ReviewAction,
-        ReviewError,
-    },
+    post::{Post, PostHiding, PostReview, PostStatus, PostSubmission, ReviewAction, ReviewError},
     user::{Account, AccountRole, Credentials, Logout, TimeZoneUpdate, User},
     AppState, BEGIN, COMMIT,
 };
@@ -582,39 +579,20 @@ async fn review_post(
         Err(AdminOnly) => return unauthorized("only admins can ban or reject posts"),
         Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
         Ok(DecryptMedia) | Ok(DeleteEncryptedMedia) => {
-            if let Some(ref media_file_name) = post.media_file_name {
-                if !post.encrypted_media_path().exists() {
+            if post.media_file_name.is_some() {
+                let encrypted_media_path = post.encrypted_media_path();
+                if !encrypted_media_path.exists() {
                     return not_found("encrypted media file does not exist");
                 }
                 if review_action == Ok(DecryptMedia) {
-                    let media_bytes = post.decrypt_media_file().await;
-                    let published_media_path = post.published_media_path();
-                    PostReview::write_media_file(&published_media_path, media_bytes);
-                    if post
-                        .media_category
-                        .as_ref()
-                        .is_some_and(|c| *c == PostMediaCategory::Image)
-                    {
-                        PostReview::generate_thumbnail(&published_media_path).await;
-                        let (thumbnail_file_name, thumbnail_path) =
-                            PostReview::new_thumbnail_info(&post.key, &media_file_name);
-                        if !thumbnail_path.exists() {
-                            return internal_server_error("thumbnail not created successfully");
-                        }
-                        if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-                            std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
-                        } else {
-                            post.update_thumbnail(&mut tx, &thumbnail_file_name).await;
-                        }
+                    if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await {
+                        return internal_server_error(&msg);
                     }
                 }
-                PostReview::delete_upload_key_dir(&post.encrypted_media_path());
+                PostReview::delete_upload_key_dir(&encrypted_media_path);
             }
         }
         Ok(DeletePublishedMedia) => {
-            if account.role != Admin {
-                return unauthorized("only admins can ban or reject posts");
-            }
             if post.media_file_name.as_ref().is_some() && post.published_media_path().exists() {
                 PostReview::delete_media_key_dir(&post.key);
             }
