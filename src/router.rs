@@ -17,7 +17,7 @@ use axum::{
     },
     http::{
         header::{HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE},
-        Method, StatusCode, Uri,
+        Method, StatusCode,
     },
     response::{Form, Html, IntoResponse, Redirect, Response},
 };
@@ -43,7 +43,6 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/register", get(registration_form).post(create_account))
         .route("/hide-post", post(hide_post))
         .route("/web-socket", get(web_socket))
-        // this could be a call to index with a query
         .route("/interim/{key}", get(interim))
         .route("/user/{username}", get(user_profile))
         .route("/settings", get(settings))
@@ -53,7 +52,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/settings/update-password", post(update_password))
         .route("/review/{key}", post(review_post))
         .route("/decrypt-media/{key}", get(decrypt_media))
-        .route("/{key}", get(index))
+        .route("/{key}", get(solo_post))
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
         router.layer(init::trace_layer())
@@ -71,7 +70,6 @@ async fn index(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
-    uri: Uri,
     Path(path): Path<HashMap<String, String>>,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -79,7 +77,7 @@ async fn index(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let path_post = match path.get("key") {
+    let page_post = match path.get("key") {
         Some(key) => match Post::select_by_key(&mut tx, &key).await {
             None => return not_found("post does not exist"),
             Some(post) => {
@@ -91,17 +89,8 @@ async fn index(
         },
         None => None,
     };
-    let solo = path_post.is_some() && !uri.path().starts_with("/page/");
-    let mut posts = if solo {
-        let post = path_post.as_ref().expect("path post exists");
-        if post.status == PostStatus::Pending && !(user.mod_or_admin() || post.author(&user)) {
-            return unauthorized("post is pending approval");
-        }
-        vec![post.clone()]
-    } else {
-        let page_post_id_opt = path_post.as_ref().map(|p| p.id);
-        Post::select(&mut tx, &user, page_post_id_opt, false).await
-    };
+    let page_post_id_opt = page_post.as_ref().map(|p| p.id);
+    let mut posts = Post::select(&mut tx, &user, page_post_id_opt, false).await;
     let prior_page_post = if posts.len() <= init::per_page() {
         None
     } else {
@@ -112,13 +101,39 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => init::site_name(),
-            nav => !solo,
+            nav => true,
             user,
             posts,
-            path_post,
+            page_post,
             prior_page_post,
-            solo
+            solo => false
         ),
+    ));
+    (jar, html).into_response()
+}
+
+async fn solo_post(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Path(key): Path<String>,
+) -> Response {
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
+        Err(response) => return response,
+        Ok(tuple) => tuple,
+    };
+    let post = match Post::select_by_key(&mut tx, &key).await {
+        None => return not_found("post does not exist"),
+        Some(post) => post,
+    };
+    if post.status == PostStatus::Pending && !post.author(&user) {
+        return unauthorized("post is pending approval");
+    }
+    let html = Html(render(
+        &state,
+        "solo.jinja",
+        minijinja::context!(title => init::site_name(), user, post, solo => true),
     ));
     (jar, html).into_response()
 }

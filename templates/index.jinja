@@ -1,7 +1,9 @@
     {% extends "layout.jinja" %}
     {% block main %}
     <main>
-        {% if path_post is none %}
+        {% if page_post %}
+        <p class="system">Page beginning at "{{ page_post.key }}"</p>
+        {% else %}
         <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body" id="post-body"></textarea>
@@ -12,7 +14,7 @@
             </div>
         </form>
         {% endif %}
-        <div id="posts"{{ ' class="solo"' if solo }}>
+        <div id="posts" class="index">
             {% for post in posts %}
             {% include "post.jinja" %}
             {% endfor %}

@@ -140,11 +140,10 @@ div#posts {
     flex-wrap: wrap;
     gap: calc(3vh + 3vw + 16px);
     margin-top: 12px;
-    margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
 }
 
-div#posts.solo {
-    margin-bottom: unset;
+div#posts.index {
+    margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
 }
 
 div#posts.solo details.review {
@@ -194,15 +193,18 @@ div.body {
 
 div#posts img,
 div#posts video {
-    max-width: clamp(300px, calc(100% + 16px), 1600px);
-    max-height: clamp(300px, 100vh, 1200px);
     margin-left: -8px;
+}
+
+div#posts.index img,
+div#posts.index video {
+    max-width: max(300px, calc(100% + 16px));
+    max-height: clamp(300px, 100vh, 1200px);
 }
 
 div#posts.solo img,
 div#posts.solo video {
     max-width: max(300px, calc(100% + 16px));
-    max-height: unset;
 }
 
 div.arrow a {
