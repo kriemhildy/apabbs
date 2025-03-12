@@ -34,7 +34,6 @@ html {
 
 body {
     overflow-wrap: break-word;
-    margin: 8px;
 }
 
 textarea {
@@ -140,6 +139,7 @@ div#posts {
     flex-wrap: wrap;
     gap: calc(3vh + 3vw + 16px);
     margin-top: 12px;
+    align-items: center;
 }
 
 div#posts.index {
@@ -154,8 +154,6 @@ div#posts.solo details.review {
 div.post {
     flex: clamp(300px, 60vh, 550px);
     break-inside: avoid;
-    margin: 0 -8px;
-    padding: 0 8px;
 }
 
 div.pending,
@@ -191,20 +189,20 @@ div.body {
     margin-bottom: 4px;
 }
 
-div#posts img,
-div#posts video {
-    margin-left: -8px;
+div.media {
+    margin: 0 auto;
+    width: fit-content;
 }
 
-div#posts.index img,
-div#posts.index video {
+div.post img,
+div.post video {
     max-width: max(300px, calc(100% + 16px));
-    max-height: clamp(300px, 100vh, 1200px);
+    margin: 0 -8px;
 }
 
-div#posts.solo img,
-div#posts.solo video {
-    max-width: max(300px, calc(100% + 16px));
+div#posts.index div.post img,
+div#posts.index div.post video {
+    max-height: clamp(300px, 90vh, 1200px);
 }
 
 div.arrow a {
@@ -248,18 +246,24 @@ div#post-submit-container input[type="submit"] {
     margin: unset;
 }
 
-a.youtube {
+div.youtube {
+    margin: 0 auto;
+    width: fit-content;
+}
+
+div.youtube a {
     text-decoration: none;
 }
 
-a.youtube img {
+div.youtube a img {
     height: 1.7em;
     filter: brightness(0.2) invert(1);
-    margin-left: 0;
+    margin: unset;
+    display: unset;
 }
 
 @media (prefers-color-scheme: light) {
-    a.youtube img {
+    div.youtube a img {
         filter: saturate(0) brightness(0.2);
     }
 }
