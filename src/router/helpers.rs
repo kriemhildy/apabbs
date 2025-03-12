@@ -3,8 +3,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 use super::{
-    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method,
-    Response, StatusCode, User, Uuid,
+    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse,
+    Method, Post, PostStatus, Response, StatusCode, User, Uuid,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
@@ -220,4 +220,20 @@ pub fn add_account_cookie(
 
 pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
+}
+
+pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, Response> {
+    use PostStatus::*;
+    match Post::select_by_key(tx, &key).await {
+        None => return Err(not_found("post does not exist")),
+        Some(post) => {
+            if [Reported, Rejected, Banned].contains(&post.status) && !user.admin() {
+                return Err(unauthorized("post is reported, rejected, or banned"));
+            }
+            if post.status == Pending && !(post.author(user) || user.mod_or_admin()) {
+                return Err(unauthorized("post is pending approval"));
+            }
+            Ok(post)
+        }
+    }
 }

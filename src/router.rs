@@ -78,14 +78,9 @@ async fn index(
         Ok(tuple) => tuple,
     };
     let page_post = match path.get("key") {
-        Some(key) => match Post::select_by_key(&mut tx, &key).await {
-            None => return not_found("post does not exist"),
-            Some(post) => {
-                if [PostStatus::Rejected, PostStatus::Banned].contains(&post.status) {
-                    return unauthorized("post is rejected or banned");
-                }
-                Some(post)
-            }
+        Some(key) => match init_post(&mut tx, key, &user).await {
+            Err(response) => return response,
+            Ok(post) => Some(post),
         },
         None => None,
     };
@@ -123,13 +118,10 @@ async fn solo_post(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("post does not exist"),
-        Some(post) => post,
+    let post = match init_post(&mut tx, &key, &user).await {
+        Err(response) => return response,
+        Ok(post) => post,
     };
-    if post.status == PostStatus::Pending && !post.author(&user) {
-        return unauthorized("post is pending approval");
-    }
     let html = Html(render(
         &state,
         "solo.jinja",
@@ -423,9 +415,9 @@ async fn interim(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let since_post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("post does not exist"),
-        Some(post) => post,
+    let since_post = match init_post(&mut tx, &key, &user).await {
+        Err(response) => return response,
+        Ok(post) => post,
     };
     let new_posts = Post::select(&mut tx, &user, Some(since_post.id), true).await;
     let mut json_posts: Vec<serde_json::Value> = Vec::new();

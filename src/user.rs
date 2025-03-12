@@ -28,6 +28,12 @@ impl User {
             .is_some_and(|a| [AccountRole::Admin, AccountRole::Mod].contains(&a.role))
     }
 
+    pub fn admin(&self) -> bool {
+        self.account
+            .as_ref()
+            .is_some_and(|a| a.role == AccountRole::Admin)
+    }
+
     pub fn time_zone(&self) -> &str {
         match self.account {
             Some(ref account) => &account.time_zone,
