@@ -152,7 +152,7 @@ div#posts.solo details.review {
 }
 
 div.post {
-    flex: clamp(300px, 40vh, 550px);
+    flex: clamp(300px, 40vh, 400px);
     break-inside: avoid;
 }
 
