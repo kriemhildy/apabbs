@@ -3,8 +3,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 use super::{
-    ban, init, post, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method,
-    Post, Response, StatusCode, User, Uuid,
+    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method, Post,
+    PostStatus, Response, StatusCode, User, Uuid,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
@@ -223,7 +223,7 @@ pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
 }
 
 pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, Response> {
-    use post::PostStatus::*;
+    use PostStatus::*;
     match Post::select_by_key(tx, &key).await {
         None => return Err(not_found("post does not exist")),
         Some(post) => {

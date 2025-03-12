@@ -3,10 +3,9 @@ mod helpers;
 mod tests;
 
 use crate::{
-    ban, init, post,
-    post::{Post, PostHiding, PostReview, PostSubmission},
-    user,
-    user::{Account, Credentials, Logout, TimeZoneUpdate, User},
+    ban, init,
+    post::{Post, PostHiding, PostReview, PostStatus, PostSubmission, ReviewAction, ReviewError},
+    user::{Account, AccountRole, Credentials, Logout, TimeZoneUpdate, User},
     AppState, BEGIN, COMMIT,
 };
 use axum::{
@@ -333,7 +332,7 @@ async fn hide_post(
     headers: HeaderMap,
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
-    use post::PostStatus::*;
+    use PostStatus::*;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
         Err(response) => return response,
@@ -372,8 +371,8 @@ async fn web_socket(
         mut receiver: Receiver<Post>,
         user: User,
     ) {
-        use post::PostStatus::*;
-        use user::AccountRole::*;
+        use AccountRole::*;
+        use PostStatus::*;
         while let Ok(post) = receiver.recv().await {
             let should_send = post.author(&user)
                 || match user.account {
@@ -552,10 +551,10 @@ async fn review_post(
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
 ) -> Response {
-    use post::PostStatus::*;
-    use post::ReviewAction::*;
-    use post::ReviewError::*;
-    use user::AccountRole::*;
+    use AccountRole::*;
+    use PostStatus::*;
+    use ReviewAction::*;
+    use ReviewError::*;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
         Err(response) => return response,
