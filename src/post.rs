@@ -441,7 +441,16 @@ pub enum ReviewAction {
     DeleteEncryptedMedia,
     DeletePublishedMedia,
     ReencryptMedia,
-    Nothing,
+    NoAction,
+}
+
+#[derive(PartialEq)]
+pub enum ReviewError {
+    SameStatus,
+    ReturnToPending,
+    ModOnly,
+    AdminOnly,
+    RejectedOrBanned,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -512,6 +521,48 @@ impl PostReview {
             .execute(&mut *tx)
             .await
             .expect("insert post review");
+    }
+
+    pub fn determine_action(
+        &self,
+        post_status: &PostStatus,
+        reviewer_role: &AccountRole,
+    ) -> Result<ReviewAction, ReviewError> {
+        use ReviewAction::*;
+        use ReviewError::*;
+        use PostStatus::*;
+        use AccountRole::*;
+        match post_status {
+            Pending => match self.status {
+                Pending => Err(SameStatus),
+                Approved | Delisted => Ok(DecryptMedia),
+                Reported => Ok(NoAction),
+                Rejected | Banned => Ok(DeleteEncryptedMedia),
+            },
+            Approved | Delisted => match self.status {
+                Pending => Err(ReturnToPending),
+                Approved | Delisted => Ok(NoAction),
+                Reported => {
+                    if *reviewer_role != Mod {
+                        return Err(ModOnly)
+                    }
+                    Ok(ReencryptMedia)
+                }
+                Rejected | Banned => Ok(DeletePublishedMedia),
+            },
+            Reported => {
+                if *reviewer_role != Admin {
+                    return Err(AdminOnly)
+                }
+                match self.status {
+                    Pending => Err(ReturnToPending),
+                    Approved | Delisted => Ok(DecryptMedia),
+                    Rejected | Banned => Ok(DeleteEncryptedMedia),
+                    Reported => Err(SameStatus),
+                }
+            }
+            Rejected | Banned => Err(RejectedOrBanned),
+        }
     }
 }
 
