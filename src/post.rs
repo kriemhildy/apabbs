@@ -1,7 +1,6 @@
 use crate::{
-    init,
+    POSTGRES_TIMESTAMP_FORMAT, init,
     user::{AccountRole, User},
-    POSTGRES_TIMESTAMP_FORMAT,
 };
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};

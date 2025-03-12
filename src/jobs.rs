@@ -8,7 +8,7 @@
 // │ │ │ │ │ │
 // * * * * * *
 
-use crate::{ban, init, BEGIN, COMMIT};
+use crate::{BEGIN, COMMIT, ban, init};
 use tokio_cron_scheduler::Job;
 
 pub fn scrub_ips() -> Job {

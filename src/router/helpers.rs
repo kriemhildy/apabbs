@@ -3,8 +3,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 use super::{
-    ban, init, Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method, Post,
-    PostStatus, Response, StatusCode, User, Uuid,
+    Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method, Post, PostStatus,
+    Response, StatusCode, User, Uuid, ban, init,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;

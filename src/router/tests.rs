@@ -1,12 +1,12 @@
 use super::*;
 use crate::{post::PostMediaCategory, user::AccountRole};
 use axum::{
+    Router,
     body::Body,
     http::{
-        header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
         Method, Request, Response, StatusCode,
+        header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
     },
-    Router,
 };
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
@@ -721,10 +721,12 @@ async fn update_password() {
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
         .unwrap();
-    assert!(credentials
-        .authenticate(&mut tx)
-        .await
-        .is_some_and(|a| a.id == updated_account.id));
+    assert!(
+        credentials
+            .authenticate(&mut tx)
+            .await
+            .is_some_and(|a| a.id == updated_account.id)
+    );
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
