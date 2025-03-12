@@ -1,7 +1,7 @@
 [package]
 name = "apabbs"
 version = "0.28.0"
-edition = "2021"
+edition = "2024"
 
 [profile.release]
 opt-level = "z" # Optimize for size
