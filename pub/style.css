@@ -289,10 +289,6 @@ div.checkbox-container label {
     margin-left: 2px;
 }
 
-main#login label {
-    display: block;
-}
-
 form.grid {
     display: grid;
     grid-template-columns: max-content max-content;
@@ -316,4 +312,8 @@ input[type="password"] {
 
 input#username {
     width: 17ch;
+}
+
+main.wide {
+    width: 95vw;
 }
