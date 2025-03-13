@@ -570,18 +570,18 @@ impl PostReview {
     pub async fn handle_decrypt_media(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
         let media_bytes = post.decrypt_media_file().await;
         let published_media_path = post.published_media_path();
-        PostReview::write_media_file(&published_media_path, media_bytes);
+        Self::write_media_file(&published_media_path, media_bytes);
         if post
             .media_category
             .as_ref()
             .is_some_and(|c| *c == PostMediaCategory::Image)
         {
-            PostReview::generate_thumbnail(&published_media_path).await;
-            let (thumbnail_file_name, thumbnail_path) = PostReview::new_thumbnail_info(&post);
+            Self::generate_thumbnail(&published_media_path).await;
+            let (thumbnail_file_name, thumbnail_path) = Self::new_thumbnail_info(&post);
             if !thumbnail_path.exists() {
                 return Err("thumbnail not created successfully".to_owned());
             }
-            if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+            if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                 std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
             } else {
                 post.update_thumbnail(tx, &thumbnail_file_name).await;
