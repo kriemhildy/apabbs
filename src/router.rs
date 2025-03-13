@@ -578,7 +578,7 @@ async fn review_post(
         Err(ModOnly) => return unauthorized("only mods can report posts"),
         Err(AdminOnly) => return unauthorized("only admins can ban or reject posts"),
         Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
-        Ok(DecryptMedia) | Ok(DeleteEncryptedMedia) => {
+        Ok(DecryptMedia | DeleteEncryptedMedia) => {
             if post.media_file_name.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
