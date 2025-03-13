@@ -32,14 +32,11 @@ html {
     }
 }
 
-html {
-    margin: 0 8px;
-}
-
 body {
     overflow-wrap: break-word;
     margin: 0 auto;
     width: fit-content;
+    max-width: calc(100% - 16px);
 }
 
 textarea {
