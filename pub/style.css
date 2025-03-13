@@ -32,8 +32,14 @@ html {
     }
 }
 
+html {
+    margin: 0 8px;
+}
+
 body {
     overflow-wrap: break-word;
+    margin: 0 auto;
+    width: fit-content;
 }
 
 textarea {
@@ -152,7 +158,7 @@ div#posts.solo details.review {
 }
 
 div.post {
-    flex: clamp(300px, 40vh, 400px);
+    flex: clamp(300px, 58vh, 800px);
     break-inside: avoid;
 }
 
@@ -161,7 +167,7 @@ div.delisted,
 div.reported,
 div.rejected,
 div.banned {
-    padding: 8px;
+    padding: 8px 0;
 }
 
 div.pending {
@@ -182,6 +188,12 @@ div.rejected {
 
 div.banned {
     background: var(--banned);
+}
+
+div.content {
+    margin: 0 auto;
+    min-width: 250px;
+    max-width: max-content;
 }
 
 div.body {

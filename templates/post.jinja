@@ -1,125 +1,127 @@
             <div class="post {{ post.status }}" id="post-{{ post.key }}">
-                {###################################################################################}
-                {# Body #}
-                {###################################################################################}
-                {% if post.body|length > 0 and post.status != "banned" %}
-                <div class="body">
-                    {{ post.body }}
-                </div>
-                {% endif %}
-                {###################################################################################}
-                {# Media #}
-                {###################################################################################}
-                {% if post.media_file_name %}
-                {% if post.status in ["approved", "delisted"] %}
-                {% set optimal_file_name =
-                    post.thumbnail_file_name if not solo and post.thumbnail_file_name
-                    else post.media_file_name %}
-                {% set media_path = "/m/" + post.key + "/" + optimal_file_name|urlencode %}
-                {% include "media.jinja" %}
-                {% elif (user.account.role in ["admin", "mod"] and post.status == "pending")
-                    or (user.account.role == "admin" and post.status == "reported") %}
-                {% set media_path = "/decrypt-media/" + post.key %}
-                {% include "media.jinja" %}
-                {% endif %}
-                {% endif %}
-                {###################################################################################}
-                {# Status #}
-                {###################################################################################}
-                {% if post.status != "approved" %}
-                <div class="status">
-                    Author:
-                    {% if post.username %}
-                    <a href="/user/{{ post.username }}">{{ post.username }}</a>
-                    {% else %}
-                    Anon
-                    {% if post.ip_hash %}
-                    ({{ post.ip_hash[0:8] }})
+                <div class="content">
+                    {###################################################################################}
+                    {# Body #}
+                    {###################################################################################}
+                    {% if post.body|length > 0 and post.status != "banned" %}
+                    <div class="body">
+                        {{ post.body }}
+                    </div>
+                    {% endif %}
+                    {###################################################################################}
+                    {# Media #}
+                    {###################################################################################}
+                    {% if post.media_file_name %}
+                    {% if post.status in ["approved", "delisted"] %}
+                    {% set optimal_file_name =
+                        post.thumbnail_file_name if not solo and post.thumbnail_file_name
+                        else post.media_file_name %}
+                    {% set media_path = "/m/" + post.key + "/" + optimal_file_name|urlencode %}
+                    {% include "media.jinja" %}
+                    {% elif (user.account.role in ["admin", "mod"] and post.status == "pending")
+                        or (user.account.role == "admin" and post.status == "reported") %}
+                    {% set media_path = "/decrypt-media/" + post.key %}
+                    {% include "media.jinja" %}
                     {% endif %}
                     {% endif %}
-                </div>
-                {% if post.media_file_name %}
-                <div class="status">File: {{ post.media_file_name|escape }}</div>
-                {% endif %}
-                <div class="status">Status: {{ post.status|capitalize }}</div>
-                {% endif %}
-                {###################################################################################}
-                {# Info #}
-                {###################################################################################}
-                {% if solo %}
-                {% if post.status == "approved" %}
-                <p id="user">
-                    {% if post.username %}
-                    <a href="/user/{{ post.username }}">{{ post.username }}</a>
-                    {% else %}
-                    Anon
+                    {###################################################################################}
+                    {# Status #}
+                    {###################################################################################}
+                    {% if post.status != "approved" %}
+                    <div class="status">
+                        Author:
+                        {% if post.username %}
+                        <a href="/user/{{ post.username }}">{{ post.username }}</a>
+                        {% else %}
+                        Anon
+                        {% if post.ip_hash %}
+                        ({{ post.ip_hash[0:8] }})
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    {% if post.media_file_name %}
+                    <div class="status">File: {{ post.media_file_name|escape }}</div>
                     {% endif %}
-                </p>
-                {% endif %}
-                <p id="created-at">{{ post.created_at_str }}</p>
-                {% endif %}
-                {###################################################################################}
-                {# Arrow #}
-                {###################################################################################}
-                {% if not solo
-                    and post.status not in ["rejected", "banned"]
-                    and (post.media_category != "image"
-                        or (post.status in ["pending", "reported"]
-                            and user.account.role not in ["admin", "mod"])) %}
-                <div class="arrow">
-                    <a href="/{{ post.key }}">&rarr;</a>
+                    <div class="status">Status: {{ post.status|capitalize }}</div>
+                    {% endif %}
+                    {###################################################################################}
+                    {# Info #}
+                    {###################################################################################}
+                    {% if solo %}
+                    {% if post.status == "approved" %}
+                    <p id="user">
+                        {% if post.username %}
+                        <a href="/user/{{ post.username }}">{{ post.username }}</a>
+                        {% else %}
+                        Anon
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                    <p id="created-at">{{ post.created_at_str }}</p>
+                    {% endif %}
+                    {###################################################################################}
+                    {# Arrow #}
+                    {###################################################################################}
+                    {% if not solo
+                        and post.status not in ["rejected", "banned"]
+                        and (post.media_category != "image"
+                            or (post.status in ["pending", "reported"]
+                                and user.account.role not in ["admin", "mod"])) %}
+                    <div class="arrow">
+                        <a href="/{{ post.key }}">&rarr;</a>
+                    </div>
+                    {% endif %}
+                    {###################################################################################}
+                    {# Mod #}
+                    {###################################################################################}
+                    {% if (user.account.role == "admin" and post.status in ["pending", "delisted", "reported"])
+                        or (user.account.role == "mod" and post.status in ["pending", "delisted"])
+                        or (user.account.role in ["admin", "mod"] and post.status == "approved" and solo) %}
+                    <details class="review">
+                        <summary>Review</summary>
+                        <form action="/review/{{ post.key }}" method="post" class="approve" data-fetch>
+                            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                            <input type="hidden" name="status" value="approved">
+                            <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
+                        </form>
+                        <form action="/review/{{ post.key }}" method="post" class="delist" data-fetch>
+                            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                            <input type="hidden" name="status" value="delisted">
+                            <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }} id="delist-{{ post.key }}-submit">
+                        </form>
+                    {% if user.account.role == "mod" %}
+                        <form action="/review/{{ post.key }}" method="post" class="reported" data-fetch data-confirm>
+                            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                            <input type="hidden" name="status" value="reported">
+                            <input type="submit" value="Report"{{ " disabled" if post.status == "reported" }} id="report-{{ post.key }}-submit">
+                        </form>
+                    {% elif user.account.role == "admin" %}
+                        <form action="/review/{{ post.key }}" method="post" class="reject" data-fetch data-confirm>
+                            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                            <input type="hidden" name="status" value="rejected">
+                            <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.key }}-submit">
+                        </form>
+                        <form action="/review/{{ post.key }}" method="post" class="ban" data-fetch data-confirm>
+                            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                            <input type="hidden" name="status" value="banned">
+                            <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }} id="ban-{{ post.key }}-submit">
+                        </form>
+                    {% endif %}
+                    </details>
+                    {% endif %}
+                    {###################################################################################}
+                    {# Hide #}
+                    {###################################################################################}
+                    {% if post.status == "rejected" and
+                        (post.session_token == user.session_token or post.account_id == user.account.id) %}
+                    <form action="/hide-post" method="post" data-fetch>
+                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                        <input type="hidden" name="key" value="{{ post.key }}">
+                        <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
+                    </form>
+                    {% elif post.status in ["rejected", "banned"]
+                        or (post.status == "reported" and user.account.role == "mod") %}
+                    <button onclick="this.parentElement.remove()">Hide</button>
+                    {% endif %}
                 </div>
-                {% endif %}
-                {###################################################################################}
-                {# Mod #}
-                {###################################################################################}
-                {% if (user.account.role == "admin" and post.status in ["pending", "delisted", "reported"])
-                    or (user.account.role == "mod" and post.status in ["pending", "delisted"])
-                    or (user.account.role in ["admin", "mod"] and post.status == "approved" and solo) %}
-                <details class="review">
-                    <summary>Review</summary>
-                    <form action="/review/{{ post.key }}" method="post" class="approve" data-fetch>
-                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                        <input type="hidden" name="status" value="approved">
-                        <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }} id="approve-{{ post.key }}-submit">
-                    </form>
-                    <form action="/review/{{ post.key }}" method="post" class="delist" data-fetch>
-                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                        <input type="hidden" name="status" value="delisted">
-                        <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }} id="delist-{{ post.key }}-submit">
-                    </form>
-                {% if user.account.role == "mod" %}
-                    <form action="/review/{{ post.key }}" method="post" class="reported" data-fetch data-confirm>
-                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                        <input type="hidden" name="status" value="reported">
-                        <input type="submit" value="Report"{{ " disabled" if post.status == "reported" }} id="report-{{ post.key }}-submit">
-                    </form>
-                {% elif user.account.role == "admin" %}
-                    <form action="/review/{{ post.key }}" method="post" class="reject" data-fetch data-confirm>
-                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                        <input type="hidden" name="status" value="rejected">
-                        <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }} id="reject-{{ post.key }}-submit">
-                    </form>
-                    <form action="/review/{{ post.key }}" method="post" class="ban" data-fetch data-confirm>
-                        <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                        <input type="hidden" name="status" value="banned">
-                        <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }} id="ban-{{ post.key }}-submit">
-                    </form>
-                {% endif %}
-                </details>
-                {% endif %}
-                {###################################################################################}
-                {# Hide #}
-                {###################################################################################}
-                {% if post.status == "rejected" and
-                    (post.session_token == user.session_token or post.account_id == user.account.id) %}
-                <form action="/hide-post" method="post" data-fetch>
-                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                    <input type="hidden" name="key" value="{{ post.key }}">
-                    <input type="submit" value="Hide" id="hide-{{ post.key }}-submit">
-                </form>
-                {% elif post.status in ["rejected", "banned"]
-                    or (post.status == "reported" and user.account.role == "mod") %}
-                <button onclick="this.parentElement.remove()">Hide</button>
-                {% endif %}
             </div>
