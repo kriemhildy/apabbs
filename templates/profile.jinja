@@ -10,7 +10,7 @@
         {% if user.account.username == account.username %}
         <p>You are logged in as this user. <a href="/settings">Settings</a></p>
         {% endif %}
-        <div id="posts">
+        <div id="posts" class="index">
             {% for post in posts %}
             {% include "post.jinja" %}
             {% endfor %}
