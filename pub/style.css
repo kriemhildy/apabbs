@@ -34,7 +34,7 @@
 
 body {
     overflow-wrap: break-word;
-    margin: 0 auto;
+    margin: 8px auto;
     width: fit-content;
     max-width: calc(100% - 16px);
 }
