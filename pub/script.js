@@ -207,7 +207,7 @@ function handleFormSubmit(event) {
                     this.reset();
                     break;
                 case "/hide-post":
-                    this.parentElement.remove();
+                    this.parentElement.parentElement.remove();
                     break;
             }
         } else {
