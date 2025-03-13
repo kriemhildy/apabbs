@@ -64,6 +64,7 @@ function initUnseenPosts() {
 
 let template, postsDiv, spinner;
 
+// these get unloaded upon turbo
 function initDomElements() {
     template = document.createElement("template");
     postsDiv = document.querySelector("div#posts");
@@ -71,6 +72,11 @@ function initDomElements() {
 }
 
 function updatePost(key, html) {
+    const url = new URL(window.location.href);
+    if (url.pathname !== "/") {
+        incrementUnseenPosts();
+        return;
+    }
     console.log("updating post", key);
     const post = document.querySelector(`div#post-${key}`);
     template.innerHTML = html;
@@ -98,6 +104,14 @@ function latestPostKey() {
 }
 
 function checkInterim() {
+    const url = new URL(window.location.href);
+    if (url.pathname !== "/") {
+        return;
+    }
+    if (firstRequest) {
+        firstRequest = false;
+        return;
+    }
     const key = latestPostKey();
     console.log("fetching interim post data since", key);
     fetch(`/interim/${key}`).then((response) => {
@@ -221,6 +235,10 @@ function handleFormSubmit(event) {
 }
 
 function addFetchToForms(_event, element = document) {
+    const url = new URL(window.location.href);
+    if (url.pathname !== "/") {
+        return;
+    }
     const forms = element.querySelectorAll("form[data-fetch]");
     for (const form of forms) {
         console.log("adding fetch to form", form);
@@ -233,9 +251,13 @@ function addFetchToForms(_event, element = document) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const url = new URL(window.location.href);
+let firstRequest = true;
 
 if (url.pathname === "/") {
-    for (fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
+    for (fn of [initUnseenPosts, initWebSocket]) {
         document.addEventListener("DOMContentLoaded", fn);
+    }
+    for (fn of [initDomElements, addFetchToForms, checkInterim]) {
+        document.addEventListener("turbo:load", fn);
     }
 }
