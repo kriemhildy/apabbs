@@ -304,13 +304,12 @@ impl PostSubmission {
             .replace(">", "&gt;")
             .replace("  ", " &nbsp;");
         let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
-        let anchor_tag = r#"<a href="$1" target="_blank">$1</a>"#;
+        let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         let youtube_link_pattern = concat!(
             r#"(?m)^\ *<a href=""#,
             r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*"#,
-            r#"" target="_blank">\S+</a>\ *$"#,
+            r#"([^&\s\?]+)\S*">\S+</a>\ *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
@@ -355,7 +354,7 @@ impl PostSubmission {
             let youtube_thumbnail_link = format!(
                 concat!(
                     r#"<div class="youtube">"#,
-                    r#"<a href="https://www.youtube.com/{url_path}{video_id}" target="_blank">"#,
+                    r#"<a href="https://www.youtube.com/{url_path}{video_id}">"#,
                     r#"<img src="/youtube.svg" alt>"#,
                     r#"</a><br>"#,
                     r#"<img src="{thumbnail_url}" alt="YouTube {video_id}">"#,
@@ -640,37 +639,37 @@ mod tests {
             submission.body_to_html(),
             concat!(
                 r#"&lt;&amp;test body コンピューター<br><br>"#,
-                r#"<a href="https://example.com" target="_blank">https://example.com</a>"#,
+                r#"<a href="https://example.com">https://example.com</a>"#,
                 r#"<br>"#,
                 r#"<div class="youtube">"#,
-                r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
+                r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw">"#,
                 r#"<img src="/youtube.svg" alt>"#,
                 r#"</a><br>"#,
                 r#"<img src="/youtube/jNQXAC9IVRw/hqdefault.jpg" alt="YouTube jNQXAC9IVRw">"#,
                 r#"</div><br>"#,
                 r#"<div class="youtube">"#,
-                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc" target="_blank">"#,
+                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc">"#,
                 r#"<img src="/youtube.svg" alt>"#,
                 r#"</a><br>"#,
                 r#"<img src="/youtube/kixirmHePCc/maxresdefault.jpg" alt="YouTube kixirmHePCc">"#,
                 r#"</div><br>"#,
                 r#"<div class="youtube">"#,
-                r#"<a href="https://www.youtube.com/shorts/cHMCGCWit6U" target="_blank">"#,
+                r#"<a href="https://www.youtube.com/shorts/cHMCGCWit6U">"#,
                 r#"<img src="/youtube.svg" alt>"#,
                 r#"</a><br>"#,
                 r#"<img src="/youtube/cHMCGCWit6U/oar2.jpg" alt="YouTube cHMCGCWit6U">"#,
                 r#"</div><br>"#,
-                r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw" target="_blank">"#,
+                r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw">"#,
                 r#"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw"#,
                 r#"</a><br>foo "#,
-                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ" target="_blank">"#,
+                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ">"#,
                 r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ"#,
                 r#"</a><br><br>"#,
-                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ" target="_blank">"#,
+                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ">"#,
                 r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ"#,
                 r#"</a> bar<br>"#,
                 r#"<div class="youtube">"#,
-                r#"<a href="https://www.youtube.com/watch?v=28jr-6-XDPM" target="_blank">"#,
+                r#"<a href="https://www.youtube.com/watch?v=28jr-6-XDPM">"#,
                 r#"<img src="/youtube.svg" alt>"#,
                 r#"</a><br>"#,
                 r#"<img src="/youtube/28jr-6-XDPM/hqdefault.jpg" alt="YouTube 28jr-6-XDPM">"#,
