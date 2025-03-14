@@ -4,7 +4,7 @@
         {% if page_post %}
         <p class="system">Page beginning at "{{ page_post.key }}"</p>
         {% else %}
-        <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch data-turbo="false">
+        <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body" id="post-body"></textarea>
             <div id="post-submit-container">
