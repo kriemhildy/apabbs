@@ -192,6 +192,10 @@ div.banned {
     background: var(--banned);
 }
 
+div.body {
+    overflow: hidden;
+}
+
 div.media {
     margin: 0 auto;
     width: fit-content;
