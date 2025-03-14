@@ -418,6 +418,9 @@ async fn interim(
         Ok(post) => post,
     };
     let new_posts = Post::select(&mut tx, &user, Some(since_post.id), true).await;
+    if new_posts.is_empty() {
+        return (jar, StatusCode::NO_CONTENT).into_response();
+    }
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
     for post in new_posts {
         let html = render(&state, "post.jinja", minijinja::context!(post, user));
