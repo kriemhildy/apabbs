@@ -154,28 +154,20 @@ function initWebSocket() {
 // temporarily disable submit buttons when fetching
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-let priorDisabledStatuses = {};
-
 function disableSubmitButtons() {
     console.log("disabling submit buttons");
     document.querySelectorAll("input[type=submit]").forEach((input) => {
-        if (!input.id) {
-            alert("submit button is missing id");
-        }
-        priorDisabledStatuses[input.id] = input.disabled;
+        input.dataset.wasDisabled = input.disabled;
         input.disabled = true;
     });
 }
 
 function restoreSubmitButtons() {
     console.log("restoring submit buttons to previous state");
-    for (const id of Object.keys(priorDisabledStatuses)) {
-        let input = document.querySelector(`input#${id}`);
-        if (input !== null) {
-            input.disabled = priorDisabledStatuses[id];
-        }
-    }
-    priorDisabledStatuses = {};
+    document.querySelectorAll("input[type=submit]").forEach((input) => {
+        input.disabled = input.dataset.wasDisabled === "true";
+        delete input.dataset.wasDisabled;
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
