@@ -1,5 +1,4 @@
             <div class="post {{ post.status }}" id="post-{{ post.key }}">
-                <div class="content">
                     {###################################################################################}
                     {# Body #}
                     {###################################################################################}
@@ -38,26 +37,28 @@
                         ({{ post.ip_hash[0:8] }})
                         {% endif %}
                         {% endif %}
+                        <br>
+                        {% if post.media_file_name %}
+                        File: {{ post.media_file_name|escape }}
+                        <br>
+                        {% endif %}
+                        Status: {{ post.status|capitalize }}
                     </div>
-                    {% if post.media_file_name %}
-                    <div class="status">File: {{ post.media_file_name|escape }}</div>
-                    {% endif %}
-                    <div class="status">Status: {{ post.status|capitalize }}</div>
                     {% endif %}
                     {###################################################################################}
                     {# Info #}
                     {###################################################################################}
                     {% if solo %}
                     {% if post.status == "approved" %}
-                    <p id="user">
+                    <div id="user">
                         {% if post.username %}
                         <a href="/user/{{ post.username }}">{{ post.username }}</a>
                         {% else %}
                         Anon
                         {% endif %}
-                    </p>
+                    </div>
                     {% endif %}
-                    <p id="created-at">{{ post.created_at_str }}</p>
+                    <div id="created-at">{{ post.created_at_str }}</div>
                     {% endif %}
                     {###################################################################################}
                     {# Arrow #}
@@ -121,7 +122,6 @@
                     </form>
                     {% elif post.status in ["rejected", "banned"]
                         or (post.status == "reported" and user.account.role == "mod") %}
-                    <button onclick="this.parentElement.parentElement.remove()">Hide</button>
+                    <button onclick="this.parentElement.remove()">Hide</button>
                     {% endif %}
-                </div>
             </div>

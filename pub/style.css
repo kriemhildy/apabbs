@@ -157,6 +157,9 @@ div#posts.solo details.review {
 div.post {
     flex: clamp(300px, 58vh, 800px);
     break-inside: avoid;
+    display: grid;
+    justify-content: center;
+    gap: 8px;
 }
 
 div.pending,
@@ -187,17 +190,6 @@ div.banned {
     background: var(--banned);
 }
 
-div.content {
-    margin: 0 auto;
-    min-width: 250px;
-    max-width: max-content;
-}
-
-div.body {
-    max-width: 1264px;
-    margin-bottom: 4px;
-}
-
 div.media {
     margin: 0 auto;
     width: fit-content;
@@ -220,7 +212,7 @@ div.arrow a {
     font-size: 1.2em;
 }
 
-p#user a {
+div#user a {
     text-decoration: none;
     color: var(--system);
 }
