@@ -302,7 +302,3 @@ input[type="password"] {
 input#username {
     width: 17ch;
 }
-
-main.wide {
-    width: 95vw;
-}
