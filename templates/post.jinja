@@ -49,15 +49,6 @@
                 {# Info #}
                 {###################################################################################}
                 {% if solo %}
-                {% if post.status == "approved" %}
-                <div id="user">
-                    {% if post.username %}
-                    <a href="/user/{{ post.username }}">{{ post.username }}</a>
-                    {% else %}
-                    Anon
-                    {% endif %}
-                </div>
-                {% endif %}
                 <div id="created-at">{{ post.created_at_str }}</div>
                 {% endif %}
                 {###################################################################################}
