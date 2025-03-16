@@ -574,13 +574,14 @@ async fn review_post(
         None => return not_found("post does not exist"),
         Some(post) => post,
     };
-    let review_action = post_review.determine_action(&post.status, &account.role);
+    let review_action = post_review.determine_action(&post, &account.role);
     match review_action {
         Err(SameStatus) => return bad_request("post already has this status"),
         Err(ReturnToPending) => return bad_request("cannot return post to pending"),
         Err(ModOnly) => return unauthorized("only mods can report posts"),
         Err(AdminOnly) => return unauthorized("only admins can ban or reject posts"),
         Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
+        Err(RecentOnly) => return bad_request("mods can only review approved posts for two days"),
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
             if post.media_file_name.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();

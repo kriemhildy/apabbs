@@ -51,6 +51,8 @@ pub struct Post {
     #[sqlx(default)]
     pub created_at_str: Option<String>,
     pub thumbnail_file_name: Option<String>,
+    #[sqlx(default)]
+    pub recent: Option<bool>,
 }
 
 impl Post {
@@ -120,7 +122,8 @@ impl Post {
 
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_str FROM posts WHERE key = $2"
+            "SELECT *, to_char(created_at, $1) AS created_at_str, ",
+            "now() - interval '2 days' < created_at AS recent FROM posts WHERE key = $2"
         ))
         .bind(POSTGRES_TIMESTAMP_FORMAT)
         .bind(key)
@@ -449,6 +452,7 @@ pub enum ReviewError {
     ModOnly,
     AdminOnly,
     RejectedOrBanned,
+    RecentOnly,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -527,31 +531,39 @@ impl PostReview {
 
     pub fn determine_action(
         &self,
-        post_status: &PostStatus,
+        post: &Post,
         reviewer_role: &AccountRole,
     ) -> Result<ReviewAction, ReviewError> {
         use AccountRole::*;
         use PostStatus::*;
         use ReviewAction::*;
         use ReviewError::*;
-        match post_status {
+        match post.status {
             Pending => match self.status {
                 Pending => Err(SameStatus),
                 Approved | Delisted => Ok(DecryptMedia),
                 Reported => Ok(NoAction),
                 Rejected | Banned => Ok(DeleteEncryptedMedia),
             },
-            Approved | Delisted => match self.status {
-                Pending => Err(ReturnToPending),
-                Approved | Delisted => Ok(NoAction),
-                Reported => {
-                    if *reviewer_role != Mod {
-                        return Err(ModOnly);
-                    }
-                    Ok(ReencryptMedia)
+            Approved | Delisted => {
+                if post.status == Approved
+                    && *reviewer_role == Mod
+                    && !post.recent.expect("recent is set")
+                {
+                    return Err(RecentOnly);
                 }
-                Rejected | Banned => Ok(DeletePublishedMedia),
-            },
+                match self.status {
+                    Pending => Err(ReturnToPending),
+                    Approved | Delisted => Ok(NoAction),
+                    Reported => {
+                        if *reviewer_role != Mod {
+                            return Err(ModOnly);
+                        }
+                        Ok(ReencryptMedia)
+                    }
+                    Rejected | Banned => Ok(DeletePublishedMedia),
+                }
+            }
             Reported => {
                 if *reviewer_role != Admin {
                     return Err(AdminOnly);

@@ -58,7 +58,8 @@
                 {###################################################################################}
                 {% if (user.account.role == "admin" and post.status in ["pending", "delisted", "reported"])
                     or (user.account.role == "mod" and post.status in ["pending", "delisted"])
-                    or (user.account.role in ["admin", "mod"] and post.status == "approved" and solo) %}
+                    or ((user.account.role == "admin" or (user.account.role == "mod" and post.recent))
+                        and post.status == "approved" and solo) %}
                 <details class="review">
                     <summary>Review</summary>
                     <form action="/review/{{ post.key }}" method="post" class="approve" data-fetch>
