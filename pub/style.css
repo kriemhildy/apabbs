@@ -193,7 +193,7 @@ div.banned {
 }
 
 div.body {
-    overflow: hidden;
+    overflow-y: clip;
 }
 
 div.media {
