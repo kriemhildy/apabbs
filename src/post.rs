@@ -52,6 +52,7 @@ pub struct Post {
     pub thumbnail_file_name: Option<String>,
     #[sqlx(default)]
     pub recent: Option<bool>,
+    pub youtube: bool,
 }
 
 impl Post {
@@ -261,19 +262,22 @@ impl PostSubmission {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
+        let html_body = self.body_to_html(key);
+        let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
-            "media_file_name, media_category, media_mime_type) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+            "media_file_name, media_category, media_mime_type, youtube) ",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
         ))
         .bind(key)
         .bind(session_token)
         .bind(account_id)
-        .bind(&self.body_to_html(key))
+        .bind(&html_body)
         .bind(ip_hash)
         .bind(self.media_file_name.as_deref())
         .bind(media_category)
         .bind(media_mime_type.as_deref())
+        .bind(youtube)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post")

@@ -41,18 +41,23 @@ mod init {
         sched.start().await.expect("start scheduler");
     }
 
-    fn remove_key_links(body: &str, key: &str) -> String {
-        body.replace(&format!(r#"<a href="/{key}">"#), "")
-            .replace(r#"</a></div>"#, "</div>")
-    }
-
     pub fn jinja() -> Arc<RwLock<Environment<'static>>> {
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("templates"));
         env.set_keep_trailing_newline(true);
         env.set_lstrip_blocks(true);
         env.set_trim_blocks(true);
-        env.add_filter("remove_key_links", remove_key_links);
+        fn remove_youtube_thumbnail_links(body: &str, key: &str) -> String {
+            body.replace(
+                &format!(r#"<a href="/{key}"><img src="/youtube/"#),
+                r#"<img src="/youtube/"#,
+            )
+            .replace(r#"</a></div>"#, "</div>")
+        }
+        env.add_filter(
+            "remove_youtube_thumbnail_links",
+            remove_youtube_thumbnail_links,
+        );
         Arc::new(RwLock::new(env))
     }
 

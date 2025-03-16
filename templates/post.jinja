@@ -4,8 +4,8 @@
                 {###################################################################################}
                 {% if post.body|length > 0 and post.status != "banned" %}
                 <div class="body">
-                    {% if solo %}
-                    {{ post.body|remove_key_links(post.key) }}
+                    {% if solo and post.youtube %}
+                    {{ post.body|remove_youtube_thumbnail_links(post.key) }}
                     {% else %}
                     {{ post.body }}
                     {% endif %}
@@ -52,7 +52,8 @@
                     and post.status not in ["rejected", "banned"]
                     and (post.media_category != "image"
                         or (post.status in ["pending", "reported"]
-                            and user.account.role not in ["admin", "mod"])) %}
+                            and user.account.role not in ["admin", "mod"]))
+                    and not post.youtube %}
                 <div class="arrow">
                     <a href="/{{ post.key }}">&rarr;</a>
                 </div>
