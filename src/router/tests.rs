@@ -110,7 +110,8 @@ async fn create_test_post(
         media_file_name: media_file_name.clone(),
         media_bytes,
     };
-    let post = post_submission.insert(tx, &user, &local_ip_hash()).await;
+    let key = PostSubmission::generate_key(tx).await;
+    let post = post_submission.insert(tx, &user, &local_ip_hash(), &key).await;
     if media_file_name.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             eprintln!("{msg}");
@@ -377,14 +378,16 @@ async fn autoban() {
     };
     for _ in 0..5 {
         post_submission.session_token = Uuid::new_v4();
-        post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
+        let key = PostSubmission::generate_key(&mut tx).await;
+        post_submission.insert(&mut tx, &user, &ban_ip_hash(), &key).await;
     }
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 5);
     assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());
     assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
     post_submission.session_token = Uuid::new_v4();
-    post_submission.insert(&mut tx, &user, &ban_ip_hash()).await;
+    let key = PostSubmission::generate_key(&mut tx).await;
+    post_submission.insert(&mut tx, &user, &ban_ip_hash(), &key).await;
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 6);
     assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());

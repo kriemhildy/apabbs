@@ -4,7 +4,11 @@
                 {###################################################################################}
                 {% if post.body|length > 0 and post.status != "banned" %}
                 <div class="body">
+                    {% if solo %}
+                    {{ post.body|replace('<a href="/' + post.key + '">', '')|replace('</a></div>', '</div>') }}
+                    {% else %}
                     {{ post.body }}
+                    {% endif %}
                 </div>
                 {% endif %}
                 {###################################################################################}

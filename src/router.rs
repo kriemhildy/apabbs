@@ -179,7 +179,8 @@ async fn submit_post(
     if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
-    let post = post_submission.insert(&mut tx, &user, &ip_hash).await;
+    let key = PostSubmission::generate_key(&mut tx).await;
+    let post = post_submission.insert(&mut tx, &user, &ip_hash, &key).await;
     if post_submission.media_file_name.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             return internal_server_error(&msg);

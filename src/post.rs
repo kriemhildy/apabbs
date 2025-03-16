@@ -247,7 +247,14 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
-    pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
+    pub async fn generate_key(tx: &mut PgConnection) -> String {
+        sqlx::query_scalar("SELECT alphanumeric(8)")
+            .fetch_one(&mut *tx)
+            .await
+            .expect("key is generated")
+    }
+
+    pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str, key: &str) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
         let (session_token, account_id) = match user.account {
@@ -255,13 +262,14 @@ impl PostSubmission {
             None => (Some(self.session_token), None),
         };
         sqlx::query_as(concat!(
-            "INSERT INTO posts (session_token, account_id, body, ip_hash, ",
+            "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
             "media_file_name, media_category, media_mime_type) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         ))
+        .bind(key)
         .bind(session_token)
         .bind(account_id)
-        .bind(&self.body_to_html())
+        .bind(&self.body_to_html(key))
         .bind(ip_hash)
         .bind(self.media_file_name.as_deref())
         .bind(media_category)
@@ -294,7 +302,7 @@ impl PostSubmission {
         }
     }
 
-    fn body_to_html(&self) -> String {
+    fn body_to_html(&self, key: &str) -> String {
         let mut html = self
             .body
             .trim_end()
@@ -356,14 +364,16 @@ impl PostSubmission {
                 concat!(
                     r#"<div class="youtube">"#,
                     r#"<a href="https://www.youtube.com/{url_path}{video_id}">"#,
-                    r#"<img src="/youtube.svg" alt>"#,
+                    r#"<img src="/youtube.svg" class="logo" alt>"#,
                     r#"</a><br>"#,
+                    r#"<a href="/{key}">"#,
                     r#"<img src="{thumbnail_url}" alt="YouTube {video_id}">"#,
-                    r#"</div>"#,
+                    r#"</a></div>"#,
                 ),
                 url_path = youtube_url_path,
                 video_id = youtube_video_id,
-                thumbnail_url = local_thumbnail_url
+                thumbnail_url = local_thumbnail_url,
+                key = key,
             );
             html = youtube_link_regex
                 .replace(&html, youtube_thumbnail_link)
@@ -645,30 +655,34 @@ mod tests {
                 existing_ids.push(id);
             }
         }
+        let key = "testkey1";
         assert_eq!(
-            submission.body_to_html(),
+            submission.body_to_html(key),
             concat!(
                 r#"&lt;&amp;test body コンピューター<br><br>"#,
                 r#"<a href="https://example.com">https://example.com</a>"#,
                 r#"<br>"#,
                 r#"<div class="youtube">"#,
                 r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw">"#,
-                r#"<img src="/youtube.svg" alt>"#,
+                r#"<img src="/youtube.svg" class="logo" alt>"#,
                 r#"</a><br>"#,
+                r#"<a href="/testkey1">"#,
                 r#"<img src="/youtube/jNQXAC9IVRw/hqdefault.jpg" alt="YouTube jNQXAC9IVRw">"#,
-                r#"</div><br>"#,
+                r#"</a></div><br>"#,
                 r#"<div class="youtube">"#,
                 r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc">"#,
-                r#"<img src="/youtube.svg" alt>"#,
+                r#"<img src="/youtube.svg" class="logo" alt>"#,
                 r#"</a><br>"#,
+                r#"<a href="/testkey1">"#,
                 r#"<img src="/youtube/kixirmHePCc/maxresdefault.jpg" alt="YouTube kixirmHePCc">"#,
-                r#"</div><br>"#,
+                r#"</a></div><br>"#,
                 r#"<div class="youtube">"#,
                 r#"<a href="https://www.youtube.com/shorts/cHMCGCWit6U">"#,
-                r#"<img src="/youtube.svg" alt>"#,
+                r#"<img src="/youtube.svg" class="logo" alt>"#,
                 r#"</a><br>"#,
+                r#"<a href="/testkey1">"#,
                 r#"<img src="/youtube/cHMCGCWit6U/oar2.jpg" alt="YouTube cHMCGCWit6U">"#,
-                r#"</div><br>"#,
+                r#"</a></div><br>"#,
                 r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw">"#,
                 r#"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw"#,
                 r#"</a><br>foo "#,
@@ -680,10 +694,11 @@ mod tests {
                 r#"</a> bar<br>"#,
                 r#"<div class="youtube">"#,
                 r#"<a href="https://www.youtube.com/watch?v=28jr-6-XDPM">"#,
-                r#"<img src="/youtube.svg" alt>"#,
+                r#"<img src="/youtube.svg" class="logo" alt>"#,
                 r#"</a><br>"#,
+                r#"<a href="/testkey1">"#,
                 r#"<img src="/youtube/28jr-6-XDPM/hqdefault.jpg" alt="YouTube 28jr-6-XDPM">"#,
-                r#"</div>"#,
+                r#"</a></div>"#,
             )
         );
         for id in test_ids {
