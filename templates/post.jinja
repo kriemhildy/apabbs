@@ -5,7 +5,7 @@
                 {% if post.body|length > 0 and post.status != "banned" %}
                 <div class="body">
                     {% if solo %}
-                    {{ post.body|replace('<a href="/' + post.key + '">', '')|replace('</a></div>', '</div>') }}
+                    {{ post.body|remove_key_links(post.key) }}
                     {% else %}
                     {{ post.body }}
                     {% endif %}
