@@ -28,16 +28,6 @@
                 {###################################################################################}
                 {% if post.status != "approved" %}
                 <div class="status">
-                    Author:
-                    {% if post.username %}
-                    <a href="/user/{{ post.username }}">{{ post.username }}</a>
-                    {% else %}
-                    Anon
-                    {% if post.ip_hash %}
-                    ({{ post.ip_hash[0:8] }})
-                    {% endif %}
-                    {% endif %}
-                    <br>
                     {% if post.media_file_name %}
                     File: {{ post.media_file_name|escape }}
                     <br>
