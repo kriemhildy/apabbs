@@ -40,7 +40,6 @@ pub struct Post {
     pub id: i32,
     pub body: String,
     pub account_id: Option<i32>,
-    pub username: Option<String>, // cache
     pub session_token: Option<Uuid>,
     pub status: PostStatus,
     pub key: String,
@@ -251,18 +250,17 @@ impl PostSubmission {
     pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
-        let (session_token, account_id, username) = match user.account {
-            Some(ref account) => (None, Some(account.id), Some(&account.username)),
-            None => (Some(self.session_token), None, None),
+        let (session_token, account_id) = match user.account {
+            Some(ref account) => (None, Some(account.id)),
+            None => (Some(self.session_token), None),
         };
         sqlx::query_as(concat!(
-            "INSERT INTO posts (session_token, account_id, username, body, ip_hash, ",
+            "INSERT INTO posts (session_token, account_id, body, ip_hash, ",
             "media_file_name, media_category, media_mime_type) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
         ))
         .bind(session_token)
         .bind(account_id)
-        .bind(username)
         .bind(&self.body_to_html())
         .bind(ip_hash)
         .bind(self.media_file_name.as_deref())

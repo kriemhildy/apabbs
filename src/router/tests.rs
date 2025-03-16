@@ -159,9 +159,9 @@ async fn select_latest_post_by_session_token(
         .expect("select post")
 }
 
-async fn select_latest_post_by_username(tx: &mut PgConnection, username: &str) -> Option<Post> {
-    sqlx::query_as("SELECT * FROM posts WHERE username = $1 ORDER BY id DESC LIMIT 1")
-        .bind(username)
+async fn select_latest_post_by_account_id(tx: &mut PgConnection, account_id: i32) -> Option<Post> {
+    sqlx::query_as("SELECT * FROM posts WHERE account_id = $1 ORDER BY id DESC LIMIT 1")
+        .bind(account_id)
         .fetch_optional(&mut *tx)
         .await
         .expect("select post")
@@ -281,7 +281,6 @@ async fn submit_post() {
     assert_eq!(post.media_mime_type, None);
     assert_eq!(post.session_token, Some(user.session_token));
     assert_eq!(post.account_id, None);
-    assert_eq!(post.username, None);
     assert_eq!(post.status, PostStatus::Pending);
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
@@ -347,7 +346,7 @@ async fn submit_post_with_account() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let account_post = select_latest_post_by_username(&mut tx, &account.username)
+    let account_post = select_latest_post_by_account_id(&mut tx, account.id)
         .await
         .unwrap();
     let anon_post = select_latest_post_by_session_token(&mut tx, &user.session_token).await;
