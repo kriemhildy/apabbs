@@ -255,7 +255,13 @@ impl PostSubmission {
             .expect("key is generated")
     }
 
-    pub async fn insert(&self, tx: &mut PgConnection, user: &User, ip_hash: &str, key: &str) -> Post {
+    pub async fn insert(
+        &self,
+        tx: &mut PgConnection,
+        user: &User,
+        ip_hash: &str,
+        key: &str,
+    ) -> Post {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_file_name.as_deref());
         let (session_token, account_id) = match user.account {
