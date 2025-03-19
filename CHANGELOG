@@ -1,3 +1,16 @@
+0.29.0
+
+Center everything.
+Add margins when the browser is wide.
+Restrict mod ability to review approved posts over two days old.
+Upgrade to Rust 2024 edition.
+Link Youtube thumbnails to solo page and remove arrow.
+Prevent extended ASCII from appearing outside its container.
+Remove post author from solo display.
+Improve review button display.
+Improve submit button disabling code.
+Return 204 from /interim if no new posts.
+
 0.28.0
 
 Track post review activity.
