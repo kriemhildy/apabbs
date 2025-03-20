@@ -22,8 +22,10 @@
     <header>
         <h1><a href="/">{{ title }}</a></h1>
     </header>
-    {% block main %}
-    {% endblock %}
+    {% filter indent(4) %}
+    {%+ block main %}
+    {% endblock +%}
+    {% endfilter %}
 </body>
 
 </html>

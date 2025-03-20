@@ -145,12 +145,16 @@ div#posts {
     align-items: center;
 }
 
-div#posts.index {
+div#posts {
     margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
 }
 
-div#posts.solo details.review {
+details.review {
     height: 45px;
+}
+
+div#posts details.review {
+    height: unset;
 }
 
 div.post {
@@ -207,8 +211,8 @@ div.post video {
     margin: 0 -8px;
 }
 
-div#posts.index div.post img,
-div#posts.index div.post video {
+div#posts div.post img,
+div#posts div.post video {
     max-height: clamp(300px, 90vh, 1200px);
 }
 

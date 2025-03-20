@@ -1,19 +1,19 @@
-    {% extends "layout.jinja" %}
-    {% block main %}
-    <main>
-        <h2>Log in</h2>
-        <form method="post" class="grid">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <label for="username">Username:</label>
-            <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
-            <label for="password">Password:</label>
-            <input id="password" type="password" name="password" maxlength="64" autocomplete="current-password">
-            <div class="checkbox-container">
-                <input type="checkbox" checked name="year" id="login-year">
-                <label for="login-year">Stay logged in for a year</label>
-            </div>
-            <input type="submit" value="Log in">
-        </form>
-        <p>If you don't have an account, you can <a href="/register">register</a> one.</p>
-    </main>
-    {% endblock %}
+{% extends "layout.jinja" %}
+{% block main %}
+<main>
+    <h2>Log in</h2>
+    <form method="post" class="grid">
+        <input type="hidden" name="session_token" value="{{ user.session_token }}">
+        <label for="username">Username:</label>
+        <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
+        <label for="password">Password:</label>
+        <input id="password" type="password" name="password" maxlength="64" autocomplete="current-password">
+        <div class="checkbox-container">
+            <input type="checkbox" checked name="year" id="login-year">
+            <label for="login-year">Stay logged in for a year</label>
+        </div>
+        <input type="submit" value="Log in">
+    </form>
+    <p>If you don't have an account, you can <a href="/register">register</a> one.</p>
+</main>
+{% endblock %}

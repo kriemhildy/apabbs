@@ -1,19 +1,21 @@
-    {% extends "layout.jinja" %}
-    {% block main %}
-    <main>
-        {% if notice is not none %}
-        <p id="notice">{{ notice }}</p>
-        {% endif %}
-        <h2>{{ account.username }}</h2>
-        <p>{{ account.role|capitalize }}</p>
-        <p>Created {{ account.created_at_str }}</p>
-        {% if user.account_opt.username == account.username %}
-        <p>You are logged in as this user. <a href="/settings">Settings</a></p>
-        {% endif %}
-        <div id="posts" class="index">
-            {% for post in posts %}
-            {% include "post.jinja" %}
-            {% endfor %}
-        </div>
-    </main>
-    {% endblock %}
+{% extends "layout.jinja" %}
+{% block main %}
+<main>
+    {% if notice is not none %}
+    <p id="notice">{{ notice }}</p>
+    {% endif %}
+    <h2>{{ account.username }}</h2>
+    <p>{{ account.role|capitalize }}</p>
+    <p>Created {{ account.created_at_str }}</p>
+    {% if user.account_opt.username == account.username %}
+    <p>You are logged in as this user. <a href="/settings">Settings</a></p>
+    {% endif %}
+    <div id="posts">
+        {% filter indent(8, true) %}
+        {% for post in posts %}
+        {% include "post.jinja" %}
+        {% endfor +%}
+        {% endfilter %}
+    </div>
+</main>
+{% endblock %}

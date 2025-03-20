@@ -1,24 +1,24 @@
-    {% extends "layout.jinja" %}
-    {% block main %}
-    <main>
-        <h2>Registration</h2>
-        <ul>
-            <li>Registering will give you a username and profile.</li>
-            <li>You will be able to set a time zone.</li>
-        </ul>
-        <form method="post" class="grid">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <label for="username">Username:</label>
-            <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
-            <label for="password">Password:</label>
-            <input id="password" type="password" name="password" maxlength="64" autocomplete="new-password">
-            <label for="confirm-password">Confirm password:</label>
-            <input id="confirm-password" type="password" name="confirm_password" maxlength="64" autocomplete="new-password">
-            <div class="checkbox-container">
-                <input type="checkbox" checked name="year" id="login-year">
-                <label for="login-year">Stay logged in for a year</label>
-            </div>
-            <input type="submit" value="Register">
-        </form>
-    </main>
-    {% endblock %}
+{% extends "layout.jinja" %}
+{% block main %}
+<main>
+    <h2>Registration</h2>
+    <ul>
+        <li>Registering will give you a username and profile.</li>
+        <li>You will be able to set a time zone.</li>
+    </ul>
+    <form method="post" class="grid">
+        <input type="hidden" name="session_token" value="{{ user.session_token }}">
+        <label for="username">Username:</label>
+        <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
+        <label for="password">Password:</label>
+        <input id="password" type="password" name="password" maxlength="64" autocomplete="new-password">
+        <label for="confirm-password">Confirm password:</label>
+        <input id="confirm-password" type="password" name="confirm_password" maxlength="64" autocomplete="new-password">
+        <div class="checkbox-container">
+            <input type="checkbox" checked name="year" id="login-year">
+            <label for="login-year">Stay logged in for a year</label>
+        </div>
+        <input type="submit" value="Register">
+    </form>
+</main>
+{% endblock %}

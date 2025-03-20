@@ -1,26 +1,28 @@
-    {% extends "layout.jinja" %}
-    {% block main %}
-    <main>
-        {% if page_post_opt is not none %}
-        <p class="system">Page beginning at "{{ page_post_opt.key }}"</p>
-        {% else %}
-        <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <textarea name="body" id="post-body"></textarea>
-            <div id="post-submit-container">
-                <input type="file" name="media">
-                <input type="submit" value="Post">
-                <div id="spinner"></div>
-            </div>
-        </form>
-        {% endif %}
-        <div id="posts" class="index">
-            {% for post in posts %}
-            {% include "post.jinja" %}
-            {% endfor %}
+{% extends "layout.jinja" %}
+{% block main %}
+<main>
+    {% if page_post_opt is not none %}
+    <p class="system">Page beginning at "{{ page_post_opt.key }}"</p>
+    {% else %}
+    <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
+        <input type="hidden" name="session_token" value="{{ user.session_token }}">
+        <textarea name="body" id="post-body"></textarea>
+        <div id="post-submit-container">
+            <input type="file" name="media">
+            <input type="submit" value="Post">
+            <div id="spinner"></div>
         </div>
-        {% if prior_page_post_opt is not none %}
-        <p><a href="/page/{{ prior_page_post_opt.key }}" class="system">Prior page</a></p>
-        {% endif %}
-    </main>
-    {% endblock %}
+    </form>
+    {% endif %}
+    <div id="posts">
+        {% filter indent(8, true) %}
+        {% for post in posts %}
+        {% include "post.jinja" %}
+        {% endfor +%}
+        {% endfilter %}
+    </div>
+    {% if prior_page_post_opt is not none %}
+    <p><a href="/page/{{ prior_page_post_opt.key }}" class="system">Prior page</a></p>
+    {% endif %}
+</main>
+{% endblock %}

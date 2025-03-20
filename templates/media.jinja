@@ -1,22 +1,22 @@
-                <div class="media">
-                    {% if post.media_category_opt == "image" %}
-                    {% set solo_path = "/" + post.key %}
-                    {% if solo %}
-                    <img src="{{ media_path }}" alt="{{ post.media_file_name_opt }}">
-                    {% else %}
-                    <a href="{{ solo_path }}">
-                        <img src="{{ media_path }}" alt="{{ post.key }}">
-                    </a>
-                    {% endif %}
-                    {% elif post.media_category_opt == "video" %}
-                    <video controls>
-                        <source src="{{ media_path }}" type="{{ post.media_mime_type_opt }}">
-                        {{ post.media_file_name_opt }}
-                    </video>
-                    {% elif post.media_category_opt == "audio" %}
-                    <audio controls>
-                        <source src="{{ media_path }}" type="{{ post.media_mime_type_opt }}">
-                        {{ post.media_file_name_opt }}
-                    </audio>
-                    {% endif %}
-                </div>
+<div class="media">
+    {% if post.media_category_opt == "image" %}
+    {% set solo_path = "/" + post.key %}
+    {% if solo %}
+    <img src="{{ media_path }}" alt="{{ post.media_file_name_opt }}">
+    {% else %}
+    <a href="{{ solo_path }}">
+        <img src="{{ media_path }}" alt="{{ post.key }}">
+    </a>
+    {% endif %}
+    {% elif post.media_category_opt == "video" %}
+    <video controls>
+        <source src="{{ media_path }}" type="{{ post.media_mime_type_opt }}">
+        {{ post.media_file_name_opt }}
+    </video>
+    {% elif post.media_category_opt == "audio" %}
+    <audio controls>
+        <source src="{{ media_path }}" type="{{ post.media_mime_type_opt }}">
+        {{ post.media_file_name_opt }}
+    </audio>
+    {% endif %}
+</div>

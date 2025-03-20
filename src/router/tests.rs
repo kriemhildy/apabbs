@@ -202,7 +202,7 @@ async fn index() {
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(body_str.contains(r#"<div id="posts" class="index">"#));
+    assert!(body_str.contains(r#"<div id="posts">"#));
     assert!(body_str.contains(&init::site_name()));
 }
 
@@ -219,7 +219,7 @@ async fn solo_post() {
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body_str = response_body_str(response).await;
-    assert!(body_str.contains(r#"<div id="posts" class="solo">"#));
+    assert!(!body_str.contains(r#"<div id="posts">"#));
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);

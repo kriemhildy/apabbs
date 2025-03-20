@@ -1,8 +1,8 @@
-    {% extends "layout.jinja" %}
-    {% block main %}
-    <main>
-        <div id="posts" class="solo">
-            {% include "post.jinja" %}
-        </div>
-    </main>
-    {% endblock %}
+{% extends "layout.jinja" %}
+{% block main %}
+<main>
+    {% filter indent(4) %}
+    {%+ include "post.jinja" +%}
+    {% endfilter %}
+</main>
+{% endblock %}
