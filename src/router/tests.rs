@@ -35,10 +35,10 @@ async fn init_test() -> (Router, AppState) {
 fn test_credentials(user: &User) -> Credentials {
     Credentials {
         session_token: user.session_token,
-        username: Uuid::new_v4().simple().to_string()[..16].to_string(),
+        username: Uuid::new_v4().simple().to_string()[..16].to_owned(),
         password: String::from("test_passw0rd"),
         confirm_password_opt: Some(String::from("test_passw0rd")),
-        year_opt: Some("on".to_string()),
+        year_opt: Some("on".to_owned()),
     }
 }
 
@@ -370,7 +370,7 @@ async fn autoban() {
     let mut credentials = test_credentials(&user);
     for _ in 0..3 {
         credentials.session_token = Uuid::new_v4();
-        credentials.username = Uuid::new_v4().simple().to_string()[..16].to_string();
+        credentials.username = Uuid::new_v4().simple().to_string()[..16].to_owned();
         credentials.register(&mut tx, &ban_ip_hash()).await;
     }
     let mut post_submission = PostSubmission {
@@ -712,7 +712,7 @@ async fn update_password() {
         username: account.username.clone(),
         password: String::from("new_passw0rd"),
         confirm_password_opt: Some(String::from("new_passw0rd")),
-        year_opt: Some("on".to_string()),
+        year_opt: Some("on".to_owned()),
     };
     let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()

@@ -137,7 +137,7 @@ async fn submit_post(
     let mut tx = state.db.begin().await.expect(BEGIN);
     let mut post_submission = PostSubmission::default();
     while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap().to_string();
+        let name = field.name().unwrap().to_owned();
         match name.as_str() {
             "session_token" => {
                 post_submission.session_token = match Uuid::try_parse(&field.text().await.unwrap())
