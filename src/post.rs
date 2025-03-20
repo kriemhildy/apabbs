@@ -333,19 +333,32 @@ impl PostSubmission {
     fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
             r#"(?m)^\ *<a href=""#,
-            r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*">\S+</a>\ *$"#,
+            r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*(?:\?|&amp;)v=|shorts/))"#,
+            r#"([^&\s\?]+)\S*)">\S+</a>\ *$"#,
         );
+        // check if YT url is valid, then parse it, then analyze based on parsed object
+        // still three different fundamental possibilities: standard, short, and youtu.be
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
                 None => break,
                 Some(captures) => captures,
             };
-            // youtu.be has no match for 1, but is always not a short
-            let youtube_short = captures.get(1).is_some_and(|m| m.as_str() == "shorts/");
-            let youtube_video_id = &captures[2];
+            // youtu.be has no match for 2, but is always not a short
+            let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
+            let youtube_video_id = &captures[3];
+            let full_url = &captures[1].replace("&amp;", "&");
+            let url = url::Url::parse(&full_url).expect("parse youtube url");
+            let youtube_timestamp_opt = if youtube_short {
+                None
+            } else {
+                url.query_pairs()
+                    .find(|(k, _)| k == "t")
+                    .map(|(_, v)| v.to_string())
+            };
+            println!("youtube url: {}", &full_url);
             println!("youtube_video_id: {}", youtube_video_id);
+            println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
             let thumbnail_sizes = if youtube_short {
                 vec!["oar2"]
             } else {
@@ -379,7 +392,7 @@ impl PostSubmission {
             let youtube_thumbnail_link = format!(
                 concat!(
                     r#"<div class="youtube">"#,
-                    r#"<a href="https://www.youtube.com/{url_path}{video_id}">"#,
+                    r#"<a href="https://www.youtube.com/{url_path}{video_id}{timestamp}">"#,
                     r#"<img src="/youtube.svg" class="logo" alt>"#,
                     r#"</a><br>"#,
                     r#"<a href="/{key}">"#,
@@ -390,6 +403,9 @@ impl PostSubmission {
                 video_id = youtube_video_id,
                 thumbnail_url = local_thumbnail_url,
                 key = key,
+                timestamp = youtube_timestamp_opt
+                    .map(|t| format!("&amp;t={}", t))
+                    .unwrap_or_default(),
             );
             html = youtube_link_regex
                 .replace(&html, youtube_thumbnail_link)
@@ -654,12 +670,12 @@ mod tests {
                 "<&test body コンピューター\n\n",
                 "https://example.com\n",
                 " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
-                "https://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg\n",
+                "https://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg&t=3\n",
                 "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg \n",
                 "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\n",
-                "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ\n\n",
+                "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ&t=2m1s\n\n",
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar\n",
-                "https://www.youtube.com/watch?app=desktop&v=28jr-6-XDPM",
+                "https://www.youtube.com/watch?t=10s&app=desktop&v=28jr-6-XDPM",
             )
             .to_owned(),
             ..Default::default()
@@ -686,7 +702,7 @@ mod tests {
                 r#"<img src="/youtube/jNQXAC9IVRw/hqdefault.jpg" alt="YouTube jNQXAC9IVRw">"#,
                 r#"</a></div><br>"#,
                 r#"<div class="youtube">"#,
-                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc">"#,
+                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3">"#,
                 r#"<img src="/youtube.svg" class="logo" alt>"#,
                 r#"</a><br>"#,
                 r#"<a href="/testkey1">"#,
@@ -702,14 +718,14 @@ mod tests {
                 r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw">"#,
                 r#"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw"#,
                 r#"</a><br>foo "#,
-                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ">"#,
-                r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ"#,
+                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s">"#,
+                r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s"#,
                 r#"</a><br><br>"#,
                 r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ">"#,
                 r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ"#,
                 r#"</a> bar<br>"#,
                 r#"<div class="youtube">"#,
-                r#"<a href="https://www.youtube.com/watch?v=28jr-6-XDPM">"#,
+                r#"<a href="https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s">"#,
                 r#"<img src="/youtube.svg" class="logo" alt>"#,
                 r#"</a><br>"#,
                 r#"<a href="/testkey1">"#,

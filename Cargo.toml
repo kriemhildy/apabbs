@@ -35,6 +35,7 @@ uuid = { version = "*", features = [
 sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
+url = "*"
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
