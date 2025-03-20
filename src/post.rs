@@ -326,6 +326,11 @@ impl PostSubmission {
         let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
+        html = Self::embed_youtube(html, key);
+        html.replace("\n", "<br>")
+    }
+
+    fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
             r#"(?m)^\ *<a href=""#,
             r#"https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*(?:\?|&amp;)v=|shorts/))"#,
@@ -390,7 +395,7 @@ impl PostSubmission {
                 .replace(&html, youtube_thumbnail_link)
                 .to_string();
         }
-        html.replace("\n", "<br>")
+        html
     }
 
     fn determine_media_type(
