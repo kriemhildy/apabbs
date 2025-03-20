@@ -1,9 +1,6 @@
 {% extends "layout.jinja" %}
 {% block main %}
 <main>
-    {% if notice is not none %}
-    <p id="notice">{{ notice }}</p>
-    {% endif %}
     <h2>{{ account.username }}</h2>
     <p>{{ account.role|capitalize }}</p>
     <p>Created {{ account.created_at_str }}</p>
