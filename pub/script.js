@@ -157,7 +157,9 @@ function initWebSocket() {
 function disableSubmitButtons() {
     console.log("disabling submit buttons");
     document.querySelectorAll("input[type=submit]").forEach((input) => {
-        input.dataset.wasDisabled = input.disabled;
+        if (input.disabled) {
+            input.dataset.keepDisabled = '';
+        }
         input.disabled = true;
     });
 }
@@ -165,8 +167,11 @@ function disableSubmitButtons() {
 function restoreSubmitButtons() {
     console.log("restoring submit buttons to previous state");
     document.querySelectorAll("input[type=submit]").forEach((input) => {
-        input.disabled = input.dataset.wasDisabled === "true";
-        delete input.dataset.wasDisabled;
+        if (input.dataset.keepDisabled === undefined) {
+            input.disabled = false;
+        } else {
+            delete input.dataset.keepDisabled;
+        }
     });
 }
 
