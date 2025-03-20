@@ -347,7 +347,7 @@ impl PostSubmission {
                 vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
             };
             let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(&youtube_video_id);
-            let local_thumbnail_path = if video_id_dir.exists() {
+            let local_thumbnail_path_opt = if video_id_dir.exists() {
                 Some(
                     video_id_dir
                         .read_dir()
@@ -362,7 +362,7 @@ impl PostSubmission {
                     Self::download_youtube_thumbnail(&youtube_video_id, &video_id_dir, s)
                 })
             };
-            let local_thumbnail_url = match local_thumbnail_path {
+            let local_thumbnail_url = match local_thumbnail_path_opt {
                 None => break,
                 Some(path) => path
                     .to_str()
