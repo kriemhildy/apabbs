@@ -90,7 +90,8 @@ impl Post {
             query_builder.push(&format!(" AND id {} ", operator));
             query_builder.push_bind(post_id);
         }
-        query_builder.push(&format!(" ORDER BY id {} LIMIT {}", order, limit));
+        query_builder.push(&format!(" ORDER BY id {} LIMIT ", order));
+        query_builder.push_bind(limit as i32);
         query_builder
             .build_query_as()
             .fetch_all(&mut *tx)
