@@ -59,7 +59,7 @@ impl Post {
     pub async fn select(
         tx: &mut PgConnection,
         user: &User,
-        page_post_id_opt: Option<i32>,
+        post_id_opt: Option<i32>,
         invert: bool,
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
@@ -86,7 +86,7 @@ impl Post {
         } else {
             ("<=", "DESC", init::per_page() + 1)
         };
-        if let Some(post_id) = page_post_id_opt {
+        if let Some(post_id) = post_id_opt {
             query_builder.push(&format!(" AND id {} ", operator));
             query_builder.push_bind(post_id);
         }
