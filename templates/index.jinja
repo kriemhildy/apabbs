@@ -15,8 +15,8 @@
     </form>
     {% endif %}
     <div id="posts">
-        {% filter indent(8, true) %}
-        {% for post in posts %}
+        {% filter indent(8) %}
+        {%+ for post in posts %}
         {% include "post.jinja" %}
         {% endfor +%}
         {% endfilter %}
