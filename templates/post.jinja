@@ -1,8 +1,10 @@
-<div class="post {{ post.status }}" id="post-{{ post.key }}">
+<div class="post {{ status }}" id="post-{{ post.key }}">
+    {% set role = user.account_opt.role %}
+    {% set status = post.status %}
     {###################################################################################}
     {# Body #}
     {###################################################################################}
-    {% if post.body|length > 0 and post.status != "banned" %}
+    {% if post.body|length > 0 and status != "banned" %}
     <div class="body">
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links(post.key) }}
@@ -15,13 +17,13 @@
     {# Media #}
     {###################################################################################}
     {% if post.media_file_name_opt is not none %}
-    {% if post.status in ["approved", "delisted"] %}
+    {% if status in ["approved", "delisted"] %}
     {% set optimal_file_name =
         post.thumbnail_file_name_opt if not solo and post.thumbnail_file_name_opt is not none
         else post.media_file_name_opt %}
     {% set media_path = "/m/" + post.key + "/" + optimal_file_name|urlencode %}
-    {% elif (user.account_opt.role in ["admin", "mod"] and post.status == "pending")
-        or (user.account_opt.role == "admin" and post.status == "reported") %}
+    {% elif (role in ["admin", "mod"] and status == "pending")
+        or (role == "admin" and status == "reported") %}
     {% set media_path = "/decrypt-media/" + post.key %}
     {% endif %}
     {% filter indent(4) %}
@@ -31,13 +33,13 @@
     {###################################################################################}
     {# Status #}
     {###################################################################################}
-    {% if post.status != "approved" %}
+    {% if status != "approved" %}
     <div class="status">
         {% if post.media_file_name_opt is not none %}
         File: {{ post.media_file_name_opt|escape }}
         <br>
         {% endif %}
-        Status: {{ post.status|capitalize }}
+        Status: {{ status|capitalize }}
     </div>
     {% endif %}
     {###################################################################################}
@@ -50,10 +52,10 @@
     {# Arrow #}
     {###################################################################################}
     {% if not solo
-        and post.status not in ["rejected", "banned"]
+        and status not in ["rejected", "banned"]
         and (post.media_category_opt != "image"
-            or (post.status in ["pending", "reported"]
-                and user.account_opt.role not in ["admin", "mod"]))
+            or (status in ["pending", "reported"]
+                and role not in ["admin", "mod"]))
         and not post.youtube %}
     <div class="arrow">
         <a href="/{{ post.key }}">&rarr;</a>
@@ -62,38 +64,38 @@
     {###################################################################################}
     {# Review #}
     {###################################################################################}
-    {% if (user.account_opt.role == "admin" and post.status in ["pending", "delisted", "reported"])
-        or (user.account_opt.role == "mod" and post.status in ["pending", "delisted"])
-        or ((user.account_opt.role == "admin" or (user.account_opt.role == "mod" and post.recent_opt))
-            and post.status == "approved" and solo) %}
+    {% if (role == "admin" and status in ["pending", "delisted", "reported"])
+        or (role == "mod" and status in ["pending", "delisted"])
+        or ((role == "admin" or (role == "mod" and post.recent_opt))
+            and status == "approved" and solo) %}
     <details class="review">
         <summary>Review</summary>
         <form action="/review/{{ post.key }}" method="post" class="approve" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="approved">
-            <input type="submit" value="Approve"{{ " disabled" if post.status == "approved" }}>
+            <input type="submit" value="Approve"{{ " disabled" if status == "approved" }}>
         </form>
         <form action="/review/{{ post.key }}" method="post" class="delist" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="delisted">
-            <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }}>
+            <input type="submit" value="Delist"{{ " disabled" if status == "delisted" }}>
         </form>
-    {% if user.account_opt.role == "mod" %}
+    {% if role == "mod" %}
         <form action="/review/{{ post.key }}" method="post" class="reported" data-fetch data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="reported">
-            <input type="submit" value="Report"{{ " disabled" if post.status == "reported" }}>
+            <input type="submit" value="Report"{{ " disabled" if status == "reported" }}>
         </form>
-    {% elif user.account_opt.role == "admin" %}
+    {% elif role == "admin" %}
         <form action="/review/{{ post.key }}" method="post" class="reject" data-fetch data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="rejected">
-            <input type="submit" value="Reject"{{ " disabled" if post.status == "rejected" }}>
+            <input type="submit" value="Reject"{{ " disabled" if status == "rejected" }}>
         </form>
         <form action="/review/{{ post.key }}" method="post" class="ban" data-fetch data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="banned">
-            <input type="submit" value="Ban"{{ " disabled" if post.status == "banned" }}>
+            <input type="submit" value="Ban"{{ " disabled" if status == "banned" }}>
         </form>
     {% endif %}
     </details>
@@ -101,15 +103,15 @@
     {###################################################################################}
     {# Hide #}
     {###################################################################################}
-    {% if post.status == "rejected" and
+    {% if status == "rejected" and
         (post.session_token_opt == user.session_token or post.account_id_opt == user.account_opt.id) %}
     <form action="/hide-post" method="post" data-fetch>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="key" value="{{ post.key }}">
         <input type="submit" value="Hide">
     </form>
-    {% elif post.status in ["rejected", "banned"]
-        or (post.status == "reported" and user.account_opt.role == "mod") %}
+    {% elif status in ["rejected", "banned"]
+        or (status == "reported" and role == "mod") %}
     <button onclick="this.parentElement.remove()">Hide</button>
     {% endif %}
 </div>
