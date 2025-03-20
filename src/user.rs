@@ -17,25 +17,25 @@ pub enum AccountRole {
 
 #[derive(serde::Serialize)]
 pub struct User {
-    pub account: Option<Account>,
+    pub account_opt: Option<Account>,
     pub session_token: Uuid,
 }
 
 impl User {
     pub fn mod_or_admin(&self) -> bool {
-        self.account
+        self.account_opt
             .as_ref()
             .is_some_and(|a| [AccountRole::Admin, AccountRole::Mod].contains(&a.role))
     }
 
     pub fn admin(&self) -> bool {
-        self.account
+        self.account_opt
             .as_ref()
             .is_some_and(|a| a.role == AccountRole::Admin)
     }
 
     pub fn time_zone(&self) -> &str {
-        match self.account {
+        match self.account_opt {
             Some(ref account) => &account.time_zone,
             None => "UTC",
         }
@@ -51,7 +51,7 @@ pub struct Account {
     pub role: AccountRole,
     pub time_zone: String,
     #[sqlx(default)]
-    pub created_at_str: Option<String>,
+    pub created_at_str_opt: Option<String>,
 }
 
 impl Account {
@@ -65,7 +65,7 @@ impl Account {
 
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_str ",
+            "SELECT *, to_char(created_at, $1) AS created_at_str_opt ",
             "FROM accounts WHERE username = $2",
         ))
         .bind(POSTGRES_TIMESTAMP_FORMAT)
@@ -117,8 +117,10 @@ pub struct Credentials {
     pub session_token: Uuid,
     pub username: String,
     pub password: String,
-    pub confirm_password: Option<String>,
-    pub year: Option<String>,
+    #[serde(rename = "confirm_password")]
+    pub confirm_password_opt: Option<String>,
+    #[serde(rename = "year")]
+    pub year_opt: Option<String>,
 }
 
 impl Credentials {
@@ -150,7 +152,7 @@ impl Credentials {
         if lowercase_password.contains("password") {
             errors.push(r#"password cannot contain "password""#);
         }
-        match self.confirm_password {
+        match self.confirm_password_opt {
             None => errors.push("password confirmation is required"),
             Some(ref confirm_password) => {
                 if &self.password != confirm_password {
@@ -163,7 +165,7 @@ impl Credentials {
 
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         sqlx::query_as(concat!(
-            "INSERT INTO accounts (username, password_hash, ip_hash) ",
+            "INSERT INTO accounts (username, password_hash, ip_hash_opt) ",
             "VALUES ($1, crypt($2, gen_salt('bf', $3)), $4) RETURNING *"
         ))
         .bind(&self.username)
@@ -201,7 +203,7 @@ impl Credentials {
     }
 
     pub fn year_checked(&self) -> bool {
-        match self.year {
+        match self.year_opt {
             Some(ref year) => year == "on",
             None => false,
         }
@@ -219,7 +221,7 @@ mod tests {
 
     fn set_password_and_confirmation(credentials: &mut Credentials, password: &str) {
         credentials.password = password.to_owned();
-        credentials.confirm_password = Some(password.to_owned());
+        credentials.confirm_password_opt = Some(password.to_owned());
     }
 
     #[test]
@@ -228,8 +230,8 @@ mod tests {
             session_token: Uuid::new_v4(),
             username: "username".to_owned(),
             password: "passw0rd".to_owned(),
-            confirm_password: Some("passw0rd".to_owned()),
-            year: None,
+            confirm_password_opt: Some("passw0rd".to_owned()),
+            year_opt: None,
         };
         assert_eq!(credentials.validate().len(), 0);
         credentials.username = "bob".to_owned();
@@ -251,9 +253,9 @@ mod tests {
         assert_eq!(credentials.validate().len(), 1);
         set_password_and_confirmation(&mut credentials, "passw0rd");
         assert_eq!(credentials.validate().len(), 0);
-        credentials.confirm_password = Some("pass".to_owned());
+        credentials.confirm_password_opt = Some("pass".to_owned());
         assert_eq!(credentials.validate().len(), 1);
-        credentials.confirm_password = Some("passw0rd".to_owned());
+        credentials.confirm_password_opt = Some("passw0rd".to_owned());
         assert_eq!(credentials.validate().len(), 0);
         set_password_and_confirmation(&mut credentials, "password1");
         assert_eq!(credentials.validate().len(), 1);

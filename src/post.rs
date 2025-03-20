@@ -39,19 +39,19 @@ pub enum PostMediaCategory {
 pub struct Post {
     pub id: i32,
     pub body: String,
-    pub account_id: Option<i32>,
-    pub session_token: Option<Uuid>,
+    pub account_id_opt: Option<i32>,
+    pub session_token_opt: Option<Uuid>,
     pub status: PostStatus,
     pub key: String,
-    pub media_file_name: Option<String>,
-    pub media_category: Option<PostMediaCategory>,
-    pub media_mime_type: Option<String>,
-    pub ip_hash: Option<String>,
+    pub media_file_name_opt: Option<String>,
+    pub media_category_opt: Option<PostMediaCategory>,
+    pub media_mime_type_opt: Option<String>,
+    pub ip_hash_opt: Option<String>,
     #[sqlx(default)]
-    pub created_at_str: Option<String>,
-    pub thumbnail_file_name: Option<String>,
+    pub created_at_str_opt: Option<String>,
+    pub thumbnail_file_name_opt: Option<String>,
     #[sqlx(default)]
-    pub recent: Option<bool>,
+    pub recent_opt: Option<bool>,
     pub youtube: bool,
 }
 
@@ -64,7 +64,7 @@ impl Post {
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
-        match user.account {
+        match user.account_opt {
             Some(ref account) => match account.role {
                 AccountRole::Admin => query_builder.push("status <> 'rejected' "),
                 AccountRole::Mod => query_builder.push("status NOT IN ('rejected', 'reported') "),
@@ -72,10 +72,10 @@ impl Post {
             },
             None => query_builder.push("status = 'approved' "),
         };
-        query_builder.push("OR session_token = ");
+        query_builder.push("OR session_token_opt = ");
         query_builder.push_bind(&user.session_token);
-        if let Some(ref account) = user.account {
-            query_builder.push(" OR account_id = ");
+        if let Some(ref account) = user.account_opt {
+            query_builder.push(" OR account_id_opt = ");
             query_builder.push_bind(account.id);
         }
         query_builder.push(") AND hidden = false");
@@ -101,7 +101,7 @@ impl Post {
 
     pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE account_id = $1 ",
+            "SELECT * FROM posts WHERE account_id_opt = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
         ))
         .bind(account_id)
@@ -112,19 +112,19 @@ impl Post {
     }
 
     pub fn author(&self, user: &User) -> bool {
-        self.session_token
+        self.session_token_opt
             .as_ref()
             .is_some_and(|uuid| uuid == &user.session_token)
             || user
-                .account
+                .account_opt
                 .as_ref()
-                .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
+                .is_some_and(|a| self.account_id_opt.is_some_and(|id| id == a.id))
     }
 
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_str, ",
-            "now() - interval '2 days' < created_at AS recent FROM posts WHERE key = $2"
+            "SELECT *, to_char(created_at, $1) AS created_at_str_opt, ",
+            "now() - interval '2 days' < created_at AS recent_opt FROM posts WHERE key = $2"
         ))
         .bind(POSTGRES_TIMESTAMP_FORMAT)
         .bind(key)
@@ -152,7 +152,7 @@ impl Post {
     }
 
     pub fn encrypted_media_path(&self) -> PathBuf {
-        let encrypted_file_name = self.media_file_name.as_ref().unwrap().to_owned() + ".gpg";
+        let encrypted_file_name = self.media_file_name_opt.as_ref().unwrap().to_owned() + ".gpg";
         std::path::Path::new(UPLOADS_DIR)
             .join(&self.key)
             .join(encrypted_file_name)
@@ -161,15 +161,15 @@ impl Post {
     pub fn published_media_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(&self.media_file_name.as_ref().unwrap())
+            .join(&self.media_file_name_opt.as_ref().unwrap())
     }
 
     pub fn thumbnail_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR).join(&self.key).join(
             &self
-                .thumbnail_file_name
+                .thumbnail_file_name_opt
                 .as_ref()
-                .expect("thumbnail_file_name exists"),
+                .expect("thumbnail_file_name is some"),
         )
     }
 
@@ -214,7 +214,7 @@ impl Post {
     }
 
     pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_file_name: &str) {
-        sqlx::query("UPDATE posts SET thumbnail_file_name = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET thumbnail_file_name_opt = $1 WHERE id = $2")
             .bind(thumbnail_file_name)
             .bind(self.id)
             .execute(&mut *tx)
@@ -244,8 +244,8 @@ impl Post {
 pub struct PostSubmission {
     pub session_token: Uuid,
     pub body: String,
-    pub media_file_name: Option<String>,
-    pub media_bytes: Option<Vec<u8>>,
+    pub media_file_name_opt: Option<String>,
+    pub media_bytes_opt: Option<Vec<u8>>,
 }
 
 impl PostSubmission {
@@ -263,27 +263,27 @@ impl PostSubmission {
         ip_hash: &str,
         key: &str,
     ) -> Post {
-        let (media_category, media_mime_type) =
-            Self::determine_media_type(self.media_file_name.as_deref());
-        let (session_token, account_id) = match user.account {
+        let (media_category_opt, media_mime_type_opt) =
+            Self::determine_media_type(self.media_file_name_opt.as_deref());
+        let (session_token_opt, account_id_opt) = match user.account_opt {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
         let html_body = self.body_to_html(key);
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         sqlx::query_as(concat!(
-            "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
-            "media_file_name, media_category, media_mime_type, youtube) ",
+            "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
+            "media_file_name_opt, media_category_opt, media_mime_type_opt, youtube) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
         ))
         .bind(key)
-        .bind(session_token)
-        .bind(account_id)
+        .bind(session_token_opt)
+        .bind(account_id_opt)
         .bind(&html_body)
         .bind(ip_hash)
-        .bind(self.media_file_name.as_deref())
-        .bind(media_category)
-        .bind(media_mime_type.as_deref())
+        .bind(self.media_file_name_opt.as_deref())
+        .bind(media_category_opt)
+        .bind(media_mime_type_opt.as_deref())
         .bind(youtube)
         .fetch_one(&mut *tx)
         .await
@@ -394,15 +394,15 @@ impl PostSubmission {
     }
 
     fn determine_media_type(
-        media_file_name: Option<&str>,
+        media_file_name_opt: Option<&str>,
     ) -> (Option<PostMediaCategory>, Option<String>) {
-        let media_file_name = match media_file_name {
+        let media_file_name = match media_file_name_opt {
             None => return (None, None),
             Some(media_file_name) => media_file_name,
         };
         use PostMediaCategory::*;
         let extension = media_file_name.split('.').last();
-        let (media_category, media_mime_type_str) = match extension {
+        let (media_category_opt, media_mime_type_str) = match extension {
             Some(extension) => match extension.to_lowercase().as_str() {
                 "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
                 "gif" => (Some(Image), "image/gif"),
@@ -437,17 +437,17 @@ impl PostSubmission {
             },
             None => (None, APPLICATION_OCTET_STREAM),
         };
-        (media_category, Some(media_mime_type_str.to_owned()))
+        (media_category_opt, Some(media_mime_type_str.to_owned()))
     }
 
     pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
-        if self.media_bytes.is_none() {
+        if self.media_bytes_opt.is_none() {
             return Err("no media bytes");
         }
         let encrypted_file_path = post.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
         std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
-        let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
+        let result = post.gpg_encrypt(self.media_bytes_opt.unwrap()).await;
         if result.is_err() {
             std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
         }
@@ -509,9 +509,9 @@ impl PostReview {
 
     pub fn new_thumbnail_info(post: &Post) -> (String, PathBuf) {
         let media_file_name = post
-            .media_file_name
+            .media_file_name_opt
             .as_ref()
-            .expect("media_file_name exists");
+            .expect("media_file_name is some");
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
         let thumbnail_file_name =
             String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp");
@@ -567,7 +567,7 @@ impl PostReview {
             Approved | Delisted => {
                 if post.status == Approved
                     && *reviewer_role == Mod
-                    && !post.recent.expect("recent is set")
+                    && !post.recent_opt.expect("recent is some")
                 {
                     return Err(RecentOnly);
                 }
@@ -603,7 +603,7 @@ impl PostReview {
         let published_media_path = post.published_media_path();
         Self::write_media_file(&published_media_path, media_bytes);
         if post
-            .media_category
+            .media_category_opt
             .as_ref()
             .is_some_and(|c| *c == PostMediaCategory::Image)
         {

@@ -1,8 +1,8 @@
     {% extends "layout.jinja" %}
     {% block main %}
     <main>
-        {% if page_post %}
-        <p class="system">Page beginning at "{{ page_post.key }}"</p>
+        {% if page_post_opt is not none %}
+        <p class="system">Page beginning at "{{ page_post_opt.key }}"</p>
         {% else %}
         <form action="/submit-post" method="post" enctype="multipart/form-data" data-fetch>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
@@ -19,8 +19,8 @@
             {% include "post.jinja" %}
             {% endfor %}
         </div>
-        {% if prior_page_post %}
-        <p><a href="/page/{{ prior_page_post.key }}" class="system">Prior page</a></p>
+        {% if prior_page_post_opt is not none %}
+        <p><a href="/page/{{ prior_page_post_opt.key }}" class="system">Prior page</a></p>
         {% endif %}
     </main>
     {% endblock %}

@@ -37,14 +37,14 @@ fn test_credentials(user: &User) -> Credentials {
         session_token: user.session_token,
         username: Uuid::new_v4().simple().to_string()[..16].to_string(),
         password: String::from("test_passw0rd"),
-        confirm_password: Some(String::from("test_passw0rd")),
-        year: Some("on".to_string()),
+        confirm_password_opt: Some(String::from("test_passw0rd")),
+        year_opt: Some("on".to_string()),
     }
 }
 
-fn test_user(account: Option<Account>) -> User {
+fn test_user(account_opt: Option<Account>) -> User {
     User {
-        account,
+        account_opt,
         session_token: Uuid::new_v4(),
     }
 }
@@ -70,12 +70,12 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
             .expect("set account as role");
         Account::select_by_username(&mut *tx, &account.username)
             .await
-            .expect("select account")
+            .expect("account is some")
     } else {
         account
     };
     User {
-        account: Some(account),
+        account_opt: Some(account),
         session_token: user.session_token,
     }
 }
@@ -91,10 +91,10 @@ async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
 async fn create_test_post(
     tx: &mut PgConnection,
     user: &User,
-    media_file_name: Option<&str>,
+    media_file_name_opt: Option<&str>,
     status: PostStatus,
 ) -> Post {
-    let (media_file_name, media_bytes) = match media_file_name {
+    let (media_file_name_opt, media_bytes_opt) = match media_file_name_opt {
         Some(media_file_name) => {
             let path = Path::new(TEST_MEDIA_DIR).join(media_file_name);
             (
@@ -107,14 +107,14 @@ async fn create_test_post(
     let post_submission = PostSubmission {
         session_token: user.session_token,
         body: String::from("<&test body"),
-        media_file_name: media_file_name.clone(),
-        media_bytes,
+        media_file_name_opt: media_file_name_opt.clone(),
+        media_bytes_opt,
     };
     let key = PostSubmission::generate_key(tx).await;
     let post = post_submission
         .insert(tx, &user, &local_ip_hash(), &key)
         .await;
-    if media_file_name.is_some() {
+    if media_file_name_opt.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             eprintln!("{msg}");
             std::process::exit(1);
@@ -126,7 +126,7 @@ async fn create_test_post(
             post.update_status(tx, &status).await;
             Post::select_by_key(tx, &post.key)
                 .await
-                .expect("select post")
+                .expect("post is some")
         }
     }
 }
@@ -155,7 +155,7 @@ async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
     session_token: &Uuid,
 ) -> Option<Post> {
-    sqlx::query_as("SELECT * FROM posts WHERE session_token = $1 ORDER BY id DESC LIMIT 1")
+    sqlx::query_as("SELECT * FROM posts WHERE session_token_opt = $1 ORDER BY id DESC LIMIT 1")
         .bind(session_token)
         .fetch_optional(&mut *tx)
         .await
@@ -163,7 +163,7 @@ async fn select_latest_post_by_session_token(
 }
 
 async fn select_latest_post_by_account_id(tx: &mut PgConnection, account_id: i32) -> Option<Post> {
-    sqlx::query_as("SELECT * FROM posts WHERE account_id = $1 ORDER BY id DESC LIMIT 1")
+    sqlx::query_as("SELECT * FROM posts WHERE account_id_opt = $1 ORDER BY id DESC LIMIT 1")
         .bind(account_id)
         .fetch_optional(&mut *tx)
         .await
@@ -279,11 +279,11 @@ async fn submit_post() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "&lt;&amp;test body");
-    assert_eq!(post.media_file_name, None);
-    assert_eq!(post.media_category, None);
-    assert_eq!(post.media_mime_type, None);
-    assert_eq!(post.session_token, Some(user.session_token));
-    assert_eq!(post.account_id, None);
+    assert_eq!(post.media_file_name_opt, None);
+    assert_eq!(post.media_category_opt, None);
+    assert_eq!(post.media_mime_type_opt, None);
+    assert_eq!(post.session_token_opt, Some(user.session_token));
+    assert_eq!(post.account_id_opt, None);
     assert_eq!(post.status, PostStatus::Pending);
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
@@ -318,9 +318,9 @@ async fn submit_post_with_media() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "");
-    assert_eq!(post.media_file_name, Some(String::from("image.jpeg")));
-    assert_eq!(post.media_category, Some(PostMediaCategory::Image));
-    assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert_eq!(post.media_file_name_opt, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_category_opt, Some(PostMediaCategory::Image));
+    assert_eq!(post.media_mime_type_opt, Some(String::from("image/jpeg")));
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
@@ -333,7 +333,7 @@ async fn submit_post_with_account() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     tx.commit().await.expect(COMMIT);
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     let mut form = FormData::new(Vec::new());
     form.write_field("session_token", &user.session_token.to_string())
         .unwrap();
@@ -355,8 +355,8 @@ async fn submit_post_with_account() {
     let anon_post = select_latest_post_by_session_token(&mut tx, &user.session_token).await;
     assert!(anon_post.is_none());
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    assert_eq!(account_post.account_id, Some(account.id));
-    assert_eq!(account_post.session_token, None);
+    assert_eq!(account_post.account_id_opt, Some(account.id));
+    assert_eq!(account_post.session_token_opt, None);
     account_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
@@ -512,7 +512,7 @@ async fn logout() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
         session_token: user.session_token,
@@ -539,7 +539,7 @@ async fn reset_account_token() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let logout = Logout {
         session_token: user.session_token,
@@ -572,7 +572,7 @@ async fn hide_post() {
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
-    let account = admin_user.account.as_ref().unwrap();
+    let account = admin_user.account_opt.as_ref().unwrap();
     post.update_status(&mut tx, &PostStatus::Rejected).await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
@@ -632,7 +632,7 @@ async fn user_profile() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .uri(&format!("/user/{}", &account.username))
@@ -652,7 +652,7 @@ async fn settings() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let request = Request::builder()
         .uri("/settings")
@@ -674,7 +674,7 @@ async fn update_time_zone() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let time_zone_update = TimeZoneUpdate {
         session_token: user.session_token,
@@ -705,14 +705,14 @@ async fn update_password() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let credentials = Credentials {
         session_token: user.session_token,
         username: account.username.clone(),
         password: String::from("new_passw0rd"),
-        confirm_password: Some(String::from("new_passw0rd")),
-        year: Some("on".to_string()),
+        confirm_password_opt: Some(String::from("new_passw0rd")),
+        year_opt: Some("on".to_string()),
     };
     let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()
@@ -747,7 +747,7 @@ async fn review_post() {
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
         session_token: user.session_token,
@@ -766,7 +766,7 @@ async fn review_post() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("select post");
+        .expect("post is some");
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
     let published_media_path = post.published_media_path();
@@ -787,7 +787,7 @@ async fn review_post_with_small_media() {
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let post_review = PostReview {
         session_token: user.session_token,
@@ -806,12 +806,12 @@ async fn review_post_with_small_media() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("select post");
+        .expect("post is some");
     let encrypted_media_path = post.encrypted_media_path();
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
     assert!(post.published_media_path().exists());
-    assert!(post.thumbnail_file_name.is_none());
+    assert!(post.thumbnail_file_name_opt.is_none());
     let (_thumbnail_file_name, thumbnail_path) = PostReview::new_thumbnail_info(&post);
     assert!(!thumbnail_path.exists());
     PostReview::delete_media_key_dir(&post.key);
@@ -829,7 +829,7 @@ async fn decrypt_media() {
     let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
-    let account = user.account.as_ref().unwrap();
+    let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
     let key = format!("/decrypt-media/{}", &post.key);
     let request = Request::builder()

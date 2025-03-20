@@ -12,8 +12,8 @@
 <body>
     {% if nav %}
     <nav>
-        {% if user.account %}
-        <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
+        {% if user.account_opt is not none %}
+        <a href="/user/{{ user.account_opt.username }}">{{ user.account_opt.username }}</a>
         {% else %}
         <a href="/login">log in</a>
         {% endif %}

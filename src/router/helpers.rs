@@ -109,7 +109,7 @@ pub async fn init_user(
     method: Method,
     csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), Response> {
-    let account = match jar.get(ACCOUNT_COOKIE) {
+    let account_opt = match jar.get(ACCOUNT_COOKIE) {
         None => None,
         Some(cookie) => {
             let token = match Uuid::try_parse(cookie.value()) {
@@ -165,7 +165,7 @@ pub async fn init_user(
         }
     }
     let user = User {
-        account,
+        account_opt,
         session_token,
     };
     set_session_time_zone(tx, user.time_zone()).await;

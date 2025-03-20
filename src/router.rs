@@ -74,16 +74,16 @@ async fn index(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let page_post = match path.get("key") {
+    let page_post_opt = match path.get("key") {
         Some(key) => match init_post(&mut tx, key, &user).await {
             Err(response) => return response,
             Ok(post) => Some(post),
         },
         None => None,
     };
-    let page_post_id_opt = page_post.as_ref().map(|p| p.id);
+    let page_post_id_opt = page_post_opt.as_ref().map(|p| p.id);
     let mut posts = Post::select(&mut tx, &user, page_post_id_opt, false).await;
-    let prior_page_post = if posts.len() <= init::per_page() {
+    let prior_page_post_opt = if posts.len() <= init::per_page() {
         None
     } else {
         posts.pop()
@@ -96,8 +96,8 @@ async fn index(
             nav => true,
             user,
             posts,
-            page_post,
-            prior_page_post,
+            page_post_opt,
+            prior_page_post_opt,
             solo => false
         ),
     ));
@@ -148,7 +148,7 @@ async fn submit_post(
             }
             "body" => post_submission.body = field.text().await.unwrap(),
             "media" => {
-                if post_submission.media_file_name.is_some() {
+                if post_submission.media_file_name_opt.is_some() {
                     return bad_request("only upload one media file");
                 }
                 let file_name = match field.file_name() {
@@ -158,8 +158,8 @@ async fn submit_post(
                 if file_name.is_empty() {
                     continue;
                 }
-                post_submission.media_file_name = Some(file_name);
-                post_submission.media_bytes = Some(field.bytes().await.unwrap().to_vec());
+                post_submission.media_file_name_opt = Some(file_name);
+                post_submission.media_bytes_opt = Some(field.bytes().await.unwrap().to_vec());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
@@ -170,18 +170,23 @@ async fn submit_post(
             Err(response) => return response,
             Ok(tuple) => tuple,
         };
-    if let Some(response) =
-        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
+    if let Some(response) = check_for_ban(
+        &mut tx,
+        &ip_hash,
+        user.account_opt.as_ref().map(|a| a.id),
+        None,
+    )
+    .await
     {
         tx.commit().await.expect(COMMIT);
         return response;
     }
-    if post_submission.body.is_empty() && post_submission.media_file_name.is_none() {
+    if post_submission.body.is_empty() && post_submission.media_file_name_opt.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
     let key = PostSubmission::generate_key(&mut tx).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash, &key).await;
-    if post_submission.media_file_name.is_some() {
+    if post_submission.media_file_name_opt.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             return internal_server_error(&msg);
         }
@@ -294,7 +299,7 @@ async fn logout(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if user.account.is_none() {
+    if user.account_opt.is_none() {
         return bad_request("not logged in");
     }
     let jar = remove_account_cookie(jar);
@@ -313,7 +318,7 @@ async fn reset_account_token(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let jar = match user.account {
+    let jar = match user.account_opt {
         None => return bad_request("not logged in"),
         Some(account) => {
             account.reset_token(&mut tx).await;
@@ -375,7 +380,7 @@ async fn web_socket(
         use PostStatus::*;
         while let Ok(post) = receiver.recv().await {
             let should_send = post.author(&user)
-                || match user.account {
+                || match user.account_opt {
                     None => post.status == Approved,
                     Some(ref account) => match account.role {
                         Admin => true,
@@ -418,7 +423,8 @@ async fn interim(
         Err(response) => return response,
         Ok(post) => post,
     };
-    let new_posts = Post::select(&mut tx, &user, Some(since_post.id), true).await;
+    let since_post_id_opt = Some(since_post.id);
+    let new_posts = Post::select(&mut tx, &user, since_post_id_opt, true).await;
     if new_posts.is_empty() {
         return (jar, StatusCode::NO_CONTENT).into_response();
     }
@@ -469,11 +475,11 @@ async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar)
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    if user.account.is_none() {
+    if user.account_opt.is_none() {
         return unauthorized("not logged in");
     }
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
-    let (jar, notice) = remove_notice_cookie(jar);
+    let (jar, notice_opt) = remove_notice_cookie(jar);
     let html = Html(render(
         &state,
         "settings.jinja",
@@ -481,7 +487,7 @@ async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar)
             title => init::site_name(),
             user,
             time_zones,
-            notice,
+            notice_opt,
         ),
     ));
     (jar, html).into_response()
@@ -499,7 +505,7 @@ async fn update_time_zone(
             Err(response) => return response,
             Ok(tuple) => tuple,
         };
-    let account = match user.account {
+    let account = match user.account_opt {
         None => return unauthorized("not logged in"),
         Some(account) => account,
     };
@@ -525,7 +531,7 @@ async fn update_password(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    match user.account {
+    match user.account_opt {
         None => return unauthorized("not logged in"),
         Some(account) => {
             if account.username != credentials.username {
@@ -563,7 +569,7 @@ async fn review_post(
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
-    let account = match user.account {
+    let account = match user.account_opt {
         None => return unauthorized("not logged in"),
         Some(account) => account,
     };
@@ -584,7 +590,7 @@ async fn review_post(
         Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
         Err(RecentOnly) => return unauthorized("mods can only review approved posts for two days"),
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
-            if post.media_file_name.is_some() {
+            if post.media_file_name_opt.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
                     return not_found("encrypted media file does not exist");
@@ -598,7 +604,7 @@ async fn review_post(
             }
         }
         Ok(DeletePublishedMedia) => {
-            if post.media_file_name.as_ref().is_some() && post.published_media_path().exists() {
+            if post.media_file_name_opt.as_ref().is_some() && post.published_media_path().exists() {
                 PostReview::delete_media_key_dir(&post.key);
             }
         }
@@ -613,15 +619,15 @@ async fn review_post(
     post_review.insert(&mut tx, account.id, post.id).await;
     let post = Post::select_by_key(&mut tx, &key)
         .await
-        .expect("select post");
+        .expect("post is some");
     if post.status == Banned {
-        if let Some(ip_hash) = post.ip_hash.as_ref() {
-            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await;
+        if let Some(ip_hash) = post.ip_hash_opt.as_ref() {
+            ban::insert(&mut tx, ip_hash, post.account_id_opt, Some(account.id)).await;
         }
         post.delete(&mut tx).await;
     }
     if post.status == Approved
-        && post.thumbnail_file_name.is_some()
+        && post.thumbnail_file_name_opt.is_some()
         && !post.thumbnail_path().exists()
     {
         return internal_server_error("error setting post thumbnail");
@@ -657,9 +663,12 @@ async fn decrypt_media(
     if !post.encrypted_media_path().exists() {
         return not_found("encrypted media file does not exist");
     }
-    let media_file_name = post.media_file_name.as_ref().expect("read media file_name");
+    let media_file_name = post
+        .media_file_name_opt
+        .as_ref()
+        .expect("read media file_name");
     let media_bytes = post.decrypt_media_file().await;
-    let content_type = post.media_mime_type.expect("read mime type");
+    let content_type = post.media_mime_type_opt.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
         (
