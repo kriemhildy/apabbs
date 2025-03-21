@@ -142,11 +142,8 @@ div#posts {
     flex-wrap: wrap;
     gap: calc(3vh + 3vw + 16px);
     margin-top: 12px;
-    align-items: center;
-}
-
-div#posts {
     margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
+    align-items: center;
 }
 
 details.review {
@@ -157,9 +154,11 @@ div#posts details.review {
     height: unset;
 }
 
-div.post {
+div#posts div.post {
     flex: clamp(300px, 53vh, 800px);
-    break-inside: avoid;
+}
+
+div.post {
     display: grid;
     justify-content: center;
     gap: 8px;
