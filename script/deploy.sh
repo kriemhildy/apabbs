@@ -9,7 +9,9 @@ else
         echo "Not on main branch"
         exit 1
     fi
-    if ! git diff --quiet || ! git diff --cached --quiet; then
+    if ! git diff --quiet || \
+       ! git diff --cached --quiet || \
+       [[ $(git ls-files --other --exclude-standard) ]]; then
         echo "Uncommitted changes"
         exit 1
     fi
