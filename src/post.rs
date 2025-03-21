@@ -29,8 +29,8 @@ pub enum PostStatus {
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "post_media_category", rename_all = "snake_case")]
-pub enum PostMediaCategory {
+#[sqlx(type_name = "media_category", rename_all = "snake_case")]
+pub enum MediaCategory {
     Image,
     Video,
     Audio,
@@ -45,7 +45,7 @@ pub struct Post {
     pub status: PostStatus,
     pub key: String,
     pub media_file_name_opt: Option<String>,
-    pub media_category_opt: Option<PostMediaCategory>,
+    pub media_category_opt: Option<MediaCategory>,
     pub media_mime_type_opt: Option<String>,
     pub ip_hash_opt: Option<String>,
     #[sqlx(default)]
@@ -415,12 +415,12 @@ impl PostSubmission {
 
     fn determine_media_type(
         media_file_name_opt: Option<&str>,
-    ) -> (Option<PostMediaCategory>, Option<String>) {
+    ) -> (Option<MediaCategory>, Option<String>) {
         let media_file_name = match media_file_name_opt {
             None => return (None, None),
             Some(media_file_name) => media_file_name,
         };
-        use PostMediaCategory::*;
+        use MediaCategory::*;
         let extension = media_file_name.split('.').last();
         let (media_category_opt, media_mime_type_str) = match extension {
             Some(extension) => match extension.to_lowercase().as_str() {
@@ -625,7 +625,7 @@ impl PostReview {
         if post
             .media_category_opt
             .as_ref()
-            .is_some_and(|c| *c == PostMediaCategory::Image)
+            .is_some_and(|c| *c == MediaCategory::Image)
         {
             Self::generate_thumbnail(&published_media_path).await;
             let (thumbnail_file_name, thumbnail_path) = Self::new_thumbnail_info(&post);

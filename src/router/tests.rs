@@ -1,5 +1,5 @@
 use super::*;
-use crate::{post::PostMediaCategory, user::AccountRole};
+use crate::{post::MediaCategory, user::AccountRole};
 use axum::{
     Router,
     body::Body,
@@ -319,7 +319,7 @@ async fn submit_post_with_media() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "");
     assert_eq!(post.media_file_name_opt, Some(String::from("image.jpeg")));
-    assert_eq!(post.media_category_opt, Some(PostMediaCategory::Image));
+    assert_eq!(post.media_category_opt, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type_opt, Some(String::from("image/jpeg")));
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
