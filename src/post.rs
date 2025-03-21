@@ -336,8 +336,6 @@ impl PostSubmission {
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*)">\S+</a>\ *$"#,
         );
-        // check if YT url is valid, then parse it, then analyze based on parsed object
-        // still three different fundamental possibilities: standard, short, and youtu.be
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
