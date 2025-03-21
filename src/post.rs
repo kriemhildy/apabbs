@@ -345,16 +345,15 @@ impl PostSubmission {
             // youtu.be has no match for 2, but is always not a short
             let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
             let youtube_video_id = &captures[3];
-            let full_url = &captures[1].replace("&amp;", "&");
-            let url = url::Url::parse(&full_url).expect("parse youtube url");
             let youtube_timestamp_opt = if youtube_short {
                 None
             } else {
+                let full_url = &captures[1].replace("&amp;", "&");
+                let url = url::Url::parse(&full_url).expect("parse youtube url");
                 url.query_pairs()
                     .find(|(k, _)| k == "t")
                     .map(|(_, v)| v.to_string())
             };
-            println!("youtube url: {}", &full_url);
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
             let thumbnail_sizes = if youtube_short {
