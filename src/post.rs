@@ -44,13 +44,13 @@ pub struct Post {
     pub session_token_opt: Option<Uuid>,
     pub status: PostStatus,
     pub key: String,
-    pub media_file_name_opt: Option<String>,
+    pub media_filename_opt: Option<String>,
     pub media_category_opt: Option<MediaCategory>,
     pub media_mime_type_opt: Option<String>,
     pub ip_hash_opt: Option<String>,
     #[sqlx(default)]
     pub created_at_str_opt: Option<String>,
-    pub thumbnail_file_name_opt: Option<String>,
+    pub thumbnail_opt: Option<String>,
     #[sqlx(default)]
     pub recent_opt: Option<bool>,
     pub youtube: bool,
@@ -153,24 +153,24 @@ impl Post {
     }
 
     pub fn encrypted_media_path(&self) -> PathBuf {
-        let encrypted_file_name = self.media_file_name_opt.as_ref().unwrap().to_owned() + ".gpg";
+        let encrypted_filename = self.media_filename_opt.as_ref().unwrap().to_owned() + ".gpg";
         std::path::Path::new(UPLOADS_DIR)
             .join(&self.key)
-            .join(encrypted_file_name)
+            .join(encrypted_filename)
     }
 
     pub fn published_media_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(&self.media_file_name_opt.as_ref().unwrap())
+            .join(&self.media_filename_opt.as_ref().unwrap())
     }
 
     pub fn thumbnail_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR).join(&self.key).join(
             &self
-                .thumbnail_file_name_opt
+                .thumbnail_opt
                 .as_ref()
-                .expect("thumbnail_file_name is some"),
+                .expect("thumbnail_filename is some"),
         )
     }
 
@@ -214,9 +214,9 @@ impl Post {
             .expect("update post status");
     }
 
-    pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_file_name: &str) {
-        sqlx::query("UPDATE posts SET thumbnail_file_name_opt = $1 WHERE id = $2")
-            .bind(thumbnail_file_name)
+    pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
+        sqlx::query("UPDATE posts SET thumbnail_opt = $1 WHERE id = $2")
+            .bind(thumbnail_filename)
             .bind(self.id)
             .execute(&mut *tx)
             .await
@@ -245,7 +245,7 @@ impl Post {
 pub struct PostSubmission {
     pub session_token: Uuid,
     pub body: String,
-    pub media_file_name_opt: Option<String>,
+    pub media_filename_opt: Option<String>,
     pub media_bytes_opt: Option<Vec<u8>>,
 }
 
@@ -265,7 +265,7 @@ impl PostSubmission {
         key: &str,
     ) -> Post {
         let (media_category_opt, media_mime_type_opt) =
-            Self::determine_media_type(self.media_file_name_opt.as_deref());
+            Self::determine_media_type(self.media_filename_opt.as_deref());
         let (session_token_opt, account_id_opt) = match user.account_opt {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
@@ -274,7 +274,7 @@ impl PostSubmission {
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
-            "media_file_name_opt, media_category_opt, media_mime_type_opt, youtube) ",
+            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
         ))
         .bind(key)
@@ -282,7 +282,7 @@ impl PostSubmission {
         .bind(account_id_opt)
         .bind(&html_body)
         .bind(ip_hash)
-        .bind(self.media_file_name_opt.as_deref())
+        .bind(self.media_filename_opt.as_deref())
         .bind(media_category_opt)
         .bind(media_mime_type_opt.as_deref())
         .bind(youtube)
@@ -415,14 +415,14 @@ impl PostSubmission {
     }
 
     fn determine_media_type(
-        media_file_name_opt: Option<&str>,
+        media_filename_opt: Option<&str>,
     ) -> (Option<MediaCategory>, Option<String>) {
-        let media_file_name = match media_file_name_opt {
+        let media_filename = match media_filename_opt {
             None => return (None, None),
-            Some(media_file_name) => media_file_name,
+            Some(media_filename) => media_filename,
         };
         use MediaCategory::*;
-        let extension = media_file_name.split('.').last();
+        let extension = media_filename.split('.').last();
         let (media_category_opt, media_mime_type_str) = match extension {
             Some(extension) => match extension.to_lowercase().as_str() {
                 "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
@@ -529,17 +529,17 @@ impl PostReview {
     }
 
     pub fn new_thumbnail_info(post: &Post) -> (String, PathBuf) {
-        let media_file_name = post
-            .media_file_name_opt
+        let media_filename = post
+            .media_filename_opt
             .as_ref()
-            .expect("media_file_name is some");
+            .expect("media_filename is some");
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
-        let thumbnail_file_name =
-            String::from("tn_") + &extension_pattern.replace(media_file_name, ".webp");
+        let thumbnail_filename =
+            String::from("tn_") + &extension_pattern.replace(media_filename, ".webp");
         let thumbnail_path = std::path::Path::new(MEDIA_DIR)
             .join(&post.key)
-            .join(&thumbnail_file_name);
-        (thumbnail_file_name, thumbnail_path)
+            .join(&thumbnail_filename);
+        (thumbnail_filename, thumbnail_path)
     }
 
     pub fn thumbnail_is_larger(thumbnail_path: &PathBuf, published_media_path: &PathBuf) -> bool {
@@ -629,14 +629,14 @@ impl PostReview {
             .is_some_and(|c| *c == MediaCategory::Image)
         {
             Self::generate_thumbnail(&published_media_path).await;
-            let (thumbnail_file_name, thumbnail_path) = Self::new_thumbnail_info(&post);
+            let (thumbnail_filename, thumbnail_path) = Self::new_thumbnail_info(&post);
             if !thumbnail_path.exists() {
                 return Err("thumbnail not created successfully".to_owned());
             }
             if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                 std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
             } else {
-                post.update_thumbnail(tx, &thumbnail_file_name).await;
+                post.update_thumbnail(tx, &thumbnail_filename).await;
             }
         }
         Ok(())

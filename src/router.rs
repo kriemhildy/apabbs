@@ -148,17 +148,17 @@ async fn submit_post(
             }
             "body" => post_submission.body = field.text().await.unwrap(),
             "media" => {
-                if post_submission.media_file_name_opt.is_some() {
+                if post_submission.media_filename_opt.is_some() {
                     return bad_request("only upload one media file");
                 }
-                let file_name = match field.file_name() {
-                    None => return bad_request("media file has no file_name"),
-                    Some(file_name) => file_name.to_owned(),
+                let filename = match field.file_name() {
+                    None => return bad_request("media file has no filename"),
+                    Some(filename) => filename.to_owned(),
                 };
-                if file_name.is_empty() {
+                if filename.is_empty() {
                     continue;
                 }
-                post_submission.media_file_name_opt = Some(file_name);
+                post_submission.media_filename_opt = Some(filename);
                 post_submission.media_bytes_opt = Some(field.bytes().await.unwrap().to_vec());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
@@ -181,12 +181,12 @@ async fn submit_post(
         tx.commit().await.expect(COMMIT);
         return response;
     }
-    if post_submission.body.is_empty() && post_submission.media_file_name_opt.is_none() {
+    if post_submission.body.is_empty() && post_submission.media_filename_opt.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
     let key = PostSubmission::generate_key(&mut tx).await;
     let post = post_submission.insert(&mut tx, &user, &ip_hash, &key).await;
-    if post_submission.media_file_name_opt.is_some() {
+    if post_submission.media_filename_opt.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             return internal_server_error(&msg);
         }
@@ -590,7 +590,7 @@ async fn review_post(
         Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
         Err(RecentOnly) => return unauthorized("mods can only review approved posts for two days"),
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
-            if post.media_file_name_opt.is_some() {
+            if post.media_filename_opt.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
                     return not_found("encrypted media file does not exist");
@@ -604,7 +604,7 @@ async fn review_post(
             }
         }
         Ok(DeletePublishedMedia) => {
-            if post.media_file_name_opt.as_ref().is_some() && post.published_media_path().exists() {
+            if post.media_filename_opt.as_ref().is_some() && post.published_media_path().exists() {
                 PostReview::delete_media_key_dir(&post.key);
             }
         }
@@ -626,10 +626,7 @@ async fn review_post(
         }
         post.delete(&mut tx).await;
     }
-    if post.status == Approved
-        && post.thumbnail_file_name_opt.is_some()
-        && !post.thumbnail_path().exists()
-    {
+    if post.status == Approved && post.thumbnail_opt.is_some() && !post.thumbnail_path().exists() {
         return internal_server_error("error setting post thumbnail");
     }
     tx.commit().await.expect(COMMIT);
@@ -663,17 +660,17 @@ async fn decrypt_media(
     if !post.encrypted_media_path().exists() {
         return not_found("encrypted media file does not exist");
     }
-    let media_file_name = post
-        .media_file_name_opt
+    let media_filename = post
+        .media_filename_opt
         .as_ref()
-        .expect("read media file_name");
+        .expect("read media filename");
     let media_bytes = post.decrypt_media_file().await;
     let content_type = post.media_mime_type_opt.expect("read mime type");
     let headers = [
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; file_name="{}""#, media_file_name),
+            &format!(r#"inline; filename="{}""#, media_filename),
         ),
     ];
     (jar, headers, media_bytes).into_response()

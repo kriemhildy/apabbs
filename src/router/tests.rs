@@ -91,12 +91,12 @@ async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
 async fn create_test_post(
     tx: &mut PgConnection,
     user: &User,
-    media_file_name_opt: Option<&str>,
+    media_filename_opt: Option<&str>,
     status: PostStatus,
 ) -> Post {
-    let (media_file_name_opt, media_bytes_opt) = match media_file_name_opt {
-        Some(media_file_name) => {
-            let path = Path::new(TEST_MEDIA_DIR).join(media_file_name);
+    let (media_filename_opt, media_bytes_opt) = match media_filename_opt {
+        Some(media_filename) => {
+            let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
             (
                 Some(path.file_name().unwrap().to_str().unwrap().to_owned()),
                 Some(std::fs::read(path).expect("read test image file")),
@@ -107,14 +107,14 @@ async fn create_test_post(
     let post_submission = PostSubmission {
         session_token: user.session_token,
         body: String::from("<&test body"),
-        media_file_name_opt: media_file_name_opt.clone(),
+        media_filename_opt: media_filename_opt.clone(),
         media_bytes_opt,
     };
     let key = PostSubmission::generate_key(tx).await;
     let post = post_submission
         .insert(tx, &user, &local_ip_hash(), &key)
         .await;
-    if media_file_name_opt.is_some() {
+    if media_filename_opt.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             eprintln!("{msg}");
             std::process::exit(1);
@@ -279,7 +279,7 @@ async fn submit_post() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "&lt;&amp;test body");
-    assert_eq!(post.media_file_name_opt, None);
+    assert_eq!(post.media_filename_opt, None);
     assert_eq!(post.media_category_opt, None);
     assert_eq!(post.media_mime_type_opt, None);
     assert_eq!(post.session_token_opt, Some(user.session_token));
@@ -318,7 +318,7 @@ async fn submit_post_with_media() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "");
-    assert_eq!(post.media_file_name_opt, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_filename_opt, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category_opt, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type_opt, Some(String::from("image/jpeg")));
     post.delete(&mut tx).await;
@@ -811,8 +811,8 @@ async fn review_post_with_small_media() {
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
     assert!(post.published_media_path().exists());
-    assert!(post.thumbnail_file_name_opt.is_none());
-    let (_thumbnail_file_name, thumbnail_path) = PostReview::new_thumbnail_info(&post);
+    assert!(post.thumbnail_opt.is_none());
+    let (_thumbnail_filename, thumbnail_path) = PostReview::new_thumbnail_info(&post);
     assert!(!thumbnail_path.exists());
     PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;
@@ -842,7 +842,7 @@ async fn decrypt_media() {
     let content_type = response.headers().get(CONTENT_TYPE).unwrap();
     assert_eq!(content_type, "image/jpeg");
     let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
-    assert_eq!(content_disposition, r#"inline; file_name="image.jpeg""#);
+    assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
     let mut tx = state.db.begin().await.expect(BEGIN);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
