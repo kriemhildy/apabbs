@@ -350,9 +350,10 @@ impl PostSubmission {
             let youtube_timestamp_opt = if youtube_short {
                 None
             } else {
-                let full_url = &captures[1].replace("&amp;", "&");
-                let url = Url::parse(&full_url).expect("parse youtube url");
-                url.query_pairs()
+                let url_str = &captures[1].replace("&amp;", "&");
+                let parsed_url = Url::parse(&url_str).expect("parse youtube url");
+                parsed_url
+                    .query_pairs()
                     .find(|(k, _)| k == "t")
                     .map(|(_, v)| v.to_string())
             };
