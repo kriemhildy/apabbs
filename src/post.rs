@@ -6,6 +6,7 @@ use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
+use url::Url;
 use uuid::Uuid;
 
 const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
@@ -350,7 +351,7 @@ impl PostSubmission {
                 None
             } else {
                 let full_url = &captures[1].replace("&amp;", "&");
-                let url = url::Url::parse(&full_url).expect("parse youtube url");
+                let url = Url::parse(&full_url).expect("parse youtube url");
                 url.query_pairs()
                     .find(|(k, _)| k == "t")
                     .map(|(_, v)| v.to_string())
