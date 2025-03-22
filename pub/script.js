@@ -218,7 +218,7 @@ function handleFormSubmit(event) {
 }
 
 function addFetchToForms(_event, element = document) {
-    const forms = element.querySelectorAll("form[data-fetch]");
+    const forms = element.querySelectorAll("form");
     for (const form of forms) {
         console.log("adding fetch to form", form);
         form.addEventListener("submit", handleFormSubmit);
