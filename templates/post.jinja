@@ -112,6 +112,6 @@
     </form>
     {% elif status in ["rejected", "banned"]
         or (status == "reported" and role == "mod") %}
-    <button onclick="this.parentElement.remove()">Hide</button>
+    <button onclick="removeHiddenPost(this)">Hide</button>
     {% endif %}
 </div>

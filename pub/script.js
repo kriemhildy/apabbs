@@ -197,16 +197,8 @@ function handleFormSubmit(event) {
     }).then((response) => {
         console.log("response", response);
         let actionUrl = new URL(this.action);
-        console.log("actionUrl.pathname", actionUrl.pathname);
         if ([200, 201, 204].includes(response.status)) {
-            switch (actionUrl.pathname) {
-                case "/submit-post":
-                    this.reset();
-                    break;
-                case "/hide-post":
-                    this.parentElement.remove();
-                    break;
-            }
+            handleFetchResponse(this, actionUrl.pathname);
         } else {
             response.text().then((text) => {
                 alert(text);
@@ -215,6 +207,23 @@ function handleFormSubmit(event) {
         restoreSubmitButtons();
         spinner.style.display = "none";
     });
+}
+
+function handleFetchResponse(form, pathname) {
+    switch (pathname) {
+        case "/submit-post":
+            console.log("reset post form");
+            form.reset();
+            break;
+        case "/hide-post":
+            removeHiddenPost(form);
+            break;
+    }
+}
+
+function removeHiddenPost(element) {
+    console.log("remove hidden post");
+    element.parentElement.remove();
 }
 
 function addFetchToForms(_event, element = document) {
