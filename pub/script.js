@@ -198,7 +198,7 @@ function handleFormSubmit(event) {
         console.log("response", response);
         let actionUrl = new URL(this.action);
         if (response.ok) {
-            handleFetchResponse(this, actionUrl.pathname);
+            afterSuccessfulFetch(this, actionUrl.pathname);
         } else {
             response.text().then((text) => {
                 alert(text);
@@ -209,7 +209,7 @@ function handleFormSubmit(event) {
     });
 }
 
-function handleFetchResponse(form, pathname) {
+function afterSuccessfulFetch(form, pathname) {
     switch (pathname) {
         case "/submit-post":
             console.log("reset post form");
