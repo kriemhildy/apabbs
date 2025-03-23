@@ -131,16 +131,6 @@ pub async fn init_user(
             }
         }
     };
-    // temporary migrations to remove after a reasonable period
-    if jar.get("anon").is_some() {
-        jar = jar.remove(removal_cookie("anon"));
-    }
-    if jar.get("csrf").is_some() {
-        jar = jar.remove(removal_cookie("csrf"));
-    }
-    if jar.get("user").is_some() {
-        jar = jar.remove(removal_cookie("user"));
-    }
     let session_token_opt = match jar.get(SESSION_COOKIE) {
         None => None,
         Some(cookie) => match Uuid::try_parse(cookie.value()) {
