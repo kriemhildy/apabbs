@@ -50,7 +50,7 @@ mod init {
         env.set_trim_blocks(true);
         fn remove_youtube_thumbnail_links(body: &str, key: &str) -> String {
             body.replace(
-                &format!(r#"<a href="/{key}"><img src="/youtube/"#),
+                &format!(r#"<a href="/post/{key}"><img src="/youtube/"#),
                 r#"<img src="/youtube/"#,
             )
             .replace(r#"</a></div>"#, "</div>")
