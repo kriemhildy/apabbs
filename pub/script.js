@@ -197,7 +197,7 @@ function handleFormSubmit(event) {
     }).then((response) => {
         console.log("response", response);
         let actionUrl = new URL(this.action);
-        if ([200, 201, 204].includes(response.status)) {
+        if (response.ok) {
             handleFetchResponse(this, actionUrl.pathname);
         } else {
             response.text().then((text) => {
