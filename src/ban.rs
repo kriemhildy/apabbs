@@ -1,4 +1,4 @@
-use crate::POSTGRES_TIMESTAMP_FORMAT;
+use crate::POSTGRES_RFC5322_DATETIME;
 use sqlx::PgConnection;
 
 pub async fn insert(
@@ -14,7 +14,7 @@ pub async fn insert(
     .bind(ip_hash)
     .bind(banned_account_id_opt)
     .bind(admin_account_id_opt)
-    .bind(POSTGRES_TIMESTAMP_FORMAT)
+    .bind(POSTGRES_RFC5322_DATETIME)
     .fetch_one(&mut *tx)
     .await
     .expect("insert ban")
@@ -29,7 +29,7 @@ pub async fn exists(
         "SELECT to_char(expires_at, $1) FROM bans ",
         "WHERE expires_at > now() AND (ip_hash = $2 OR banned_account_id_opt = $3)",
     ))
-    .bind(POSTGRES_TIMESTAMP_FORMAT)
+    .bind(POSTGRES_RFC5322_DATETIME)
     .bind(ip_hash)
     .bind(banned_account_id_opt)
     .fetch_optional(&mut *tx)

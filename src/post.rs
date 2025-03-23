@@ -1,5 +1,5 @@
 use crate::{
-    POSTGRES_TIMESTAMP_FORMAT, init,
+    POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME, init,
     user::{AccountRole, User},
 };
 use regex::Regex;
@@ -49,7 +49,9 @@ pub struct Post {
     pub media_mime_type_opt: Option<String>,
     pub ip_hash_opt: Option<String>,
     #[sqlx(default)]
-    pub created_at_str_opt: Option<String>,
+    pub created_at_rfc5322_opt: Option<String>,
+    #[sqlx(default)]
+    pub created_at_html_opt: Option<String>,
     pub thumbnail_opt: Option<String>,
     #[sqlx(default)]
     pub recent_opt: Option<bool>,
@@ -124,10 +126,12 @@ impl Post {
 
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_str_opt, ",
-            "now() - interval '2 days' < created_at AS recent_opt FROM posts WHERE key = $2"
+            "SELECT *, to_char(created_at, $1) AS created_at_rfc5322_opt, ",
+            "to_char(created_at, $2) AS created_at_html_opt, ",
+            "now() - interval '2 days' < created_at AS recent_opt FROM posts WHERE key = $3"
         ))
-        .bind(POSTGRES_TIMESTAMP_FORMAT)
+        .bind(POSTGRES_RFC5322_DATETIME)
+        .bind(POSTGRES_HTML_DATETIME)
         .bind(key)
         .fetch_optional(&mut *tx)
         .await

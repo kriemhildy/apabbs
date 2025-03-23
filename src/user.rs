@@ -1,4 +1,4 @@
-use crate::POSTGRES_TIMESTAMP_FORMAT;
+use crate::POSTGRES_RFC5322_DATETIME;
 use regex::Regex;
 use sqlx::PgConnection;
 use uuid::Uuid;
@@ -68,7 +68,7 @@ impl Account {
             "SELECT *, to_char(created_at, $1) AS created_at_str_opt ",
             "FROM accounts WHERE username = $2",
         ))
-        .bind(POSTGRES_TIMESTAMP_FORMAT)
+        .bind(POSTGRES_RFC5322_DATETIME)
         .bind(username)
         .fetch_optional(&mut *tx)
         .await

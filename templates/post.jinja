@@ -46,7 +46,9 @@
     {# Info #}
     {###################################################################################}
     {% if solo %}
-    <div id="created-at">{{ post.created_at_str_opt }}</div>
+    <div id="created-at">
+        <time datetime="{{ post.created_at_html_opt }}">{{ post.created_at_rfc5322_opt }}</time>
+    </div>
     {% endif %}
     {###################################################################################}
     {# Arrow #}
