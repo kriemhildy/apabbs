@@ -211,7 +211,7 @@ function handleFormSubmit(event) {
 }
 
 function afterSuccessfulFetch(form) {
-    let actionUrl = new URL(form.action);
+    const actionUrl = new URL(form.action);
     switch (actionUrl.pathname) {
         case "/submit-post":
             console.log("reset post form");
