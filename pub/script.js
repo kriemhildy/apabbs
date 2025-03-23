@@ -27,8 +27,8 @@ function confirmSubmit(event) {
     }
 }
 
-function addSubmitConfirmations(_event, element = document) {
-    element.querySelectorAll("form[data-confirm]").forEach((form) => {
+function addSubmitConfirmations(event) {
+    event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
         form.addEventListener("submit", confirmSubmit);
     });
 }
@@ -68,14 +68,16 @@ function initDomElements() {
     template = document.createElement("template");
     postsDiv = document.querySelector("div#posts");
     spinner = document.querySelector("div#spinner");
+    template.content.addEventListener("templateUpdated", addSubmitConfirmations);
+    template.content.addEventListener("templateUpdated", addFetchToForms);
 }
 
 function updatePost(key, html) {
     console.log("updating post", key);
     const post = document.querySelector(`div#post-${key}`);
     template.innerHTML = html;
-    addSubmitConfirmations(null, template.content);
-    addFetchToForms(null, template.content);
+    const event = new Event("templateUpdated");
+    template.content.dispatchEvent(event);
     if (post) {
         post.replaceWith(template.content);
     } else {
@@ -226,8 +228,8 @@ function removeHiddenPost(element) {
     element.parentElement.remove();
 }
 
-function addFetchToForms(_event, element = document) {
-    const forms = element.querySelectorAll("form");
+function addFetchToForms(event) {
+    const forms = event.target.querySelectorAll("form");
     for (const form of forms) {
         console.log("adding fetch to form", form);
         form.addEventListener("submit", handleFormSubmit);
