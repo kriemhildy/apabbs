@@ -49,7 +49,8 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/settings/update-password", post(update_password))
         .route("/review/{key}", post(review_post))
         .route("/decrypt-media/{key}", get(decrypt_media))
-        .route("/{key}", get(solo_post))
+        .route("/post/{key}", get(solo_post))
+        .route("/{key}", get(solo_post)) // temporary for backwards compatibility
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
         router.layer(init::trace_layer())
