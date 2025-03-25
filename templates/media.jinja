@@ -1,11 +1,11 @@
 <div class="media">
     {% if post.media_category_opt == "image" %}
-    {% set solo_path = "/post/" + post.key %}
+    {% set solo_path = "/post/" + key %}
     {% if solo %}
     <img src="{{ media_path }}" alt="{{ post.media_filename_opt }}">
     {% else %}
     <a href="{{ solo_path }}">
-        <img src="{{ media_path }}" alt="{{ post.key }}">
+        <img src="{{ media_path }}" alt="{{ key }}">
     </a>
     {% endif %}
     {% elif post.media_category_opt == "video" %}

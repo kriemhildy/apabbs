@@ -1,13 +1,15 @@
 {% set role = user.account_opt.role %}
 {% set status = post.status %}
-<div class="post{{ " " + status if status != "approved" }}" id="post-{{ post.key }}">
+{% set key = post.key %}
+{% set media_path = none %}
+<div class="post{{ " " + status if status != "approved" }}" id="post-{{ key }}">
     {###################################################################################}
     {# Body #}
     {###################################################################################}
     {% if post.body|length > 0 and status != "banned" %}
     <div class="body">
         {% if solo and post.youtube %}
-        {{ post.body|remove_youtube_thumbnail_links(post.key) }}
+        {{ post.body|remove_youtube_thumbnail_links(key) }}
         {% else %}
         {{ post.body }}
         {% endif %}
@@ -16,16 +18,15 @@
     {###################################################################################}
     {# Media #}
     {###################################################################################}
-    {% set media_path = none %}
     {% if post.media_filename_opt is not none %}
     {% if status in ["approved", "delisted"] %}
     {% set optimal_filename =
         post.thumbnail_opt if not solo and post.thumbnail_opt is not none
         else post.media_filename_opt %}
-    {% set media_path = "/m/" + post.key + "/" + optimal_filename|urlencode %}
+    {% set media_path = "/m/" + key + "/" + optimal_filename|urlencode %}
     {% elif (role in ["admin", "mod"] and status == "pending")
         or (role == "admin" and status == "reported") %}
-    {% set media_path = "/decrypt-media/" + post.key %}
+    {% set media_path = "/decrypt-media/" + key %}
     {% endif %}
     {% if media_path is not none %}
     {% filter indent(4) %}
@@ -63,7 +64,7 @@
                 and role not in ["admin", "mod"]))
         and not post.youtube %}
     <div class="arrow">
-        <a href="/post/{{ post.key }}">&rarr;</a>
+        <a href="/post/{{ key }}">&rarr;</a>
     </div>
     {% endif %}
     {###################################################################################}
@@ -75,29 +76,29 @@
             and status == "approved" and solo) %}
     <details class="review">
         <summary>Review</summary>
-        <form action="/review/{{ post.key }}" method="post" class="approve">
+        <form action="/review/{{ key }}" method="post" class="approve">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="approved">
             <input type="submit" value="Approve"{{ " disabled" if status == "approved" }}>
         </form>
-        <form action="/review/{{ post.key }}" method="post" class="delist">
+        <form action="/review/{{ key }}" method="post" class="delist">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="delisted">
             <input type="submit" value="Delist"{{ " disabled" if status == "delisted" }}>
         </form>
     {% if role == "mod" %}
-        <form action="/review/{{ post.key }}" method="post" class="reported" data-confirm>
+        <form action="/review/{{ key }}" method="post" class="reported" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="reported">
             <input type="submit" value="Report"{{ " disabled" if status == "reported" }}>
         </form>
     {% elif role == "admin" %}
-        <form action="/review/{{ post.key }}" method="post" class="reject" data-confirm>
+        <form action="/review/{{ key }}" method="post" class="reject" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="rejected">
             <input type="submit" value="Reject"{{ " disabled" if status == "rejected" }}>
         </form>
-        <form action="/review/{{ post.key }}" method="post" class="ban" data-confirm>
+        <form action="/review/{{ key }}" method="post" class="ban" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="banned">
             <input type="submit" value="Ban"{{ " disabled" if status == "banned" }}>
@@ -113,7 +114,7 @@
             post.account_id_opt == user.account_opt.id) %}
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
-        <input type="hidden" name="key" value="{{ post.key }}">
+        <input type="hidden" name="key" value="{{ key }}">
         <input type="submit" value="Hide">
     </form>
     {% elif status in ["rejected", "banned"]
