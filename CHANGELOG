@@ -1,3 +1,13 @@
+0.30.0
+
+Fix rendering bug in Safari on solo pages.
+Support Youtube timestamps.
+Use /post/{key} urls for solo pages.
+Define internal variables as _opt for Options.
+Add <time> tag with datetime.
+Remove data-fetch attribute.
+Clean up JS, CSS, and templates a bit.
+
 0.29.0
 
 Center everything.
