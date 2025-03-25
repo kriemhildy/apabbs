@@ -206,7 +206,8 @@ div.media {
 
 div.post img,
 div.post video {
-    max-width: max(300px, calc(100% + 16px));
+    min-width: 300px;
+    max-width: calc(100% + 16px);
     margin: 0 -8px;
 }
 
