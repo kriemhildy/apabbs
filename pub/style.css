@@ -35,7 +35,7 @@
 body {
     overflow-wrap: break-word;
     margin: 8px auto;
-    width: fit-content;
+    width: max-content;
     max-width: min(calc(100% - 16px), calc(110px + 88%));
 }
 
