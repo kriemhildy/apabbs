@@ -201,13 +201,14 @@ div.body {
 
 div.media {
     margin: 0 auto;
-    width: fit-content;
+    min-width: 300px;
+    max-width: max-content;
+    text-align: center;
 }
 
 div.post img,
 div.post video {
-    min-width: 300px;
-    max-width: calc(100% + 16px);
+    max-width: max(300px, calc(100% + 16px));
     margin: 0 -8px;
 }
 
@@ -263,7 +264,6 @@ div.youtube {
 }
 
 div.youtube img.logo {
-    min-width: unset;
     height: 1.7em;
     filter: brightness(0.2) invert(1);
     margin: unset;
