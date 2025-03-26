@@ -482,18 +482,19 @@ impl PostSubmission {
         result
     }
 
-    pub fn intro_limit(html: &str) -> Option<i32> {
+    fn intro_limit(html: &str) -> Option<i32> {
         // we WANT 1500 chars (two lorem ipsum paragraphs)
         // if body is less than 1500 chars, return none
         if html.len() < 1500 {
             return None;
         }
         // if a youtube is found within first 1500 chars, stop immediately after it.
+        // caveats:
         // what if a youtube is found at char 1499?
         // more than 1500 is allowed to facilitate a youtube
         // i do NOT want two youtubes on the list page
         let youtube_div_pattern =
-            Regex::new(r#"<div class="youtube">.*?</div>"#).expect("build regex pattern");
+            Regex::new(r#"<div class="youtube">.*?</div>"#).expect("regex builds");
         if let Some(mat) = youtube_div_pattern.find(html) {
             if mat.start() < 1500 {
                 if mat.end() == html.len() - 1 {
@@ -503,7 +504,8 @@ impl PostSubmission {
             }
         }
         // if a link is found between chars 800 and 1500, stop immediately after it.
-        let link_pattern = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("build regex pattern");
+        // we will include text after early links.
+        let link_pattern = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("regex builds");
         if let Some(mat) = link_pattern.find(html) {
             if (800..1500).contains(&mat.start()) {
                 if mat.end() == html.len() - 1 {
@@ -512,15 +514,13 @@ impl PostSubmission {
                 return Some(mat.end() as i32);
             }
         }
-        // if a break is found between chars 1000 and 1500, stop immediately before it.
-        if let Some(pos) = html.find("<br>") {
-            if (1000..1500).contains(&pos) {
-                // a break can never be at the very end of the string due to trimming
-                return Some(pos as i32);
-            }
+        // stop immediately before the last break found before 1500 chars.
+        if let Some(pos) = html[..1500].rfind("<br>") {
+            // a break can never be at the very end of the string due to trimming
+            return Some(pos as i32);
         }
         // truncate to the last space character before 1500 chars.
-        // if no space found, return 1500
+        // if no space found, return 1500 and hard limit to that character.
         Some(html[..1500].rfind(' ').unwrap_or(1500) as i32)
     }
 }

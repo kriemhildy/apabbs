@@ -4,7 +4,6 @@
     --border: #777;
     --system: #9cdcda;
     --review: #bebebe;
-    --arrow: #777777;
     --pending: #111111;
     --delisted: #051d3a;
     --reported: rgb(75, 10, 75);
@@ -21,7 +20,6 @@
         --border: #ccc;
         --system: black;
         --review: rgb(63, 63, 63);
-        --arrow: black;
         --pending: #eeeeee;
         --delisted: rgb(97, 156, 223);
         --reported: rgb(243, 186, 243);
@@ -33,7 +31,6 @@
 }
 
 body {
-    overflow-wrap: break-word;
     margin: 8px auto;
     width: max-content;
     max-width: min(calc(100% - 16px), calc(70px + 89%));
@@ -196,6 +193,7 @@ div.banned {
 
 div.body {
     overflow-y: clip;
+    word-break: break-word;
 }
 
 div.media {
@@ -218,7 +216,6 @@ div#posts div.post video {
 
 div.arrow a {
     text-decoration: none;
-    color: var(--arrow);
     font-size: 1.2em;
 }
 
@@ -305,10 +302,6 @@ input[type="password"] {
 
 input#username {
     width: 17ch;
-}
-
-div.see-more {
-    margin-top: 8px;
 }
 
 div.see-more a {

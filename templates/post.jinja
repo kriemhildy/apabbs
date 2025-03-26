@@ -14,11 +14,13 @@
         {{ post.body }}
         {% else %}
         {{ post.body[:post.intro_limit_opt] }}
-        <div class="see-more">
-            <a href="/post/{{ key }}">[See more&hellip;]</a>
-        </div>
         {% endif %}
     </div>
+    {% if not solo and post.intro_limit_opt is not none %}
+    <div class="see-more">
+        <a href="/post/{{ key }}">[See more&hellip;]</a>
+    </div>
+    {% endif %}
     {% endif %}
     {###################################################################################}
     {# Media #}
