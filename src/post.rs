@@ -513,6 +513,7 @@ impl PostSubmission {
             return None;
         }
         // what if we hard-stop in the middle of a link tag?
+        // could also possibly hard-stop in a break tag.
         let re = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("regex builds");
         if let Some(mat) = re.find_iter(&html[..1500]).last() {
             if mat.end() == html.len() {
