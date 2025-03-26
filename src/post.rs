@@ -486,41 +486,39 @@ impl PostSubmission {
     }
 
     fn intro_limit(html: &str) -> Option<i32> {
+        // if a youtube is found within first 1500 chars, stop immediately after it.
+        // caveats:
+        // what if a youtube is found at char 1499?
+        // more than 1500 is allowed to facilitate a youtube
+        // i do NOT want two youtubes in one post on the list page
+        let re = Regex::new(r#"<div class="youtube">.*?</div>.*?</div>"#).expect("regex builds");
+        if let Some(mat) = re.find(html) {
+            if mat.start() < 1500 {
+                if mat.end() == html.len() {
+                    return None;
+                }
+                return Some(mat.end() as i32);
+            }
+        }
+        // allow a maximum of 4 breaks in the first 1500 chars.
+        let re = Regex::new("<br>").expect("regex builds");
+        if let Some(mat) = re.find_iter(html).nth(4) {
+            if mat.start() < 1500 {
+                return Some(mat.start() as i32);
+            }
+        }
         // we WANT 1500 chars (two lorem ipsum paragraphs)
         // if body is less than 1500 chars, return none
         if html.len() < 1500 {
             return None;
         }
-        // if a youtube is found within first 1500 chars, stop immediately after it.
-        // caveats:
-        // what if a youtube is found at char 1499?
-        // more than 1500 is allowed to facilitate a youtube
-        // i do NOT want two youtubes on the list page
-        let youtube_div_pattern =
-            Regex::new(r#"<div class="youtube">.*?</div>"#).expect("regex builds");
-        if let Some(mat) = youtube_div_pattern.find(html) {
-            if mat.start() < 1500 {
-                if mat.end() == html.len() - 1 {
-                    return None;
-                }
-                return Some(mat.end() as i32);
+        // what if we hard-stop in the middle of a link tag?
+        let re = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("regex builds");
+        if let Some(mat) = re.find_iter(&html[..1500]).last() {
+            if mat.end() == html.len() {
+                return None;
             }
-        }
-        // if a link is found between chars 800 and 1500, stop immediately after it.
-        // we will include text after early links.
-        let link_pattern = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("regex builds");
-        if let Some(mat) = link_pattern.find(html) {
-            if (800..1500).contains(&mat.start()) {
-                if mat.end() == html.len() - 1 {
-                    return None;
-                }
-                return Some(mat.end() as i32);
-            }
-        }
-        // stop immediately before the last break found before 1500 chars.
-        if let Some(pos) = html[..1500].rfind("<br>") {
-            // a break can never be at the very end of the string due to trimming
-            return Some(pos as i32);
+            return Some(mat.end() as i32);
         }
         // truncate to the last space character before 1500 chars.
         // if no space found, return 1500 and hard limit to that character.

@@ -9,7 +9,7 @@
     {% if post.body|length > 0 and status != "banned" %}
     <div class="body">
         {% if solo and post.youtube %}
-        {{ post.body|remove_youtube_thumbnail_links(key) }}
+        {{ post.body|remove_youtube_thumbnail_links }}
         {% elif solo or post.intro_limit_opt is none %}
         {{ post.body }}
         {% else %}
