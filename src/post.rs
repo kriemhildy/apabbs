@@ -330,21 +330,20 @@ impl PostSubmission {
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
-            .replace("  ", " &nbsp;")
-            .replace("\n", "<br>");
-        let url_pattern = Regex::new(r#"\b(https?://[^(?:<br>|\s)]+)"#).expect("build regex pattern");
+            .replace("  ", " &nbsp;");
+        let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        html
+        html.replace("\n", "<br>")
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
-            r#"(?:\A|<br>)+\s*<a href=""#,
+            r#"(?m)^\ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*)">\S+</a>\s*(?:<br>|\z)+"#,
+            r#"([^&\s\?]+)\S*)">\S+</a>\ *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
