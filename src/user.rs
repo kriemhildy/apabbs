@@ -1,4 +1,4 @@
-use crate::POSTGRES_RFC5322_DATETIME;
+use crate::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
 use regex::Regex;
 use sqlx::PgConnection;
 use uuid::Uuid;
@@ -51,7 +51,9 @@ pub struct Account {
     pub role: AccountRole,
     pub time_zone: String,
     #[sqlx(default)]
-    pub created_at_str_opt: Option<String>,
+    pub created_at_rfc5322_opt: Option<String>,
+    #[sqlx(default)]
+    pub created_at_html_opt: Option<String>,
 }
 
 impl Account {
@@ -65,10 +67,12 @@ impl Account {
 
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_str_opt ",
-            "FROM accounts WHERE username = $2",
+            "SELECT *, to_char(created_at, $1) AS created_at_rfc5322_opt, ",
+            "to_char(created_at, $2) AS created_at_html_opt ",
+            "FROM accounts WHERE username = $3",
         ))
         .bind(POSTGRES_RFC5322_DATETIME)
+        .bind(POSTGRES_HTML_DATETIME)
         .bind(username)
         .fetch_optional(&mut *tx)
         .await

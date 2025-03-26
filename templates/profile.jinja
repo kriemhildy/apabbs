@@ -3,7 +3,12 @@
 <main>
     <h2>{{ account.username }}</h2>
     <p>{{ account.role|capitalize }}</p>
-    <p>Created {{ account.created_at_str }}</p>
+    <p>
+        Created
+        <time datetime="{{ account.created_at_html_opt }}">
+            {{ account.created_at_rfc5322_opt }}
+        </time>
+    </p>
     {% if user.account_opt.username == account.username %}
     <p>You are logged in as this user. <a href="/settings">Settings</a></p>
     {% endif %}

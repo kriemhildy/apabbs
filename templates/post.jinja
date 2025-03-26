@@ -51,7 +51,9 @@
     {###################################################################################}
     {% if solo %}
     <div id="created-at">
-        <time datetime="{{ post.created_at_html_opt }}">{{ post.created_at_rfc5322_opt }}</time>
+        <time datetime="{{ post.created_at_html_opt }}">
+            {{ post.created_at_rfc5322_opt }}
+        </time>
     </div>
     {% endif %}
     {###################################################################################}
