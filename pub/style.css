@@ -258,14 +258,14 @@ div.youtube {
     width: fit-content;
 }
 
-div.youtube img.logo {
+div.youtube div.logo img {
     height: 1.7em;
     filter: brightness(0.2) invert(1);
     margin: unset;
 }
 
 @media (prefers-color-scheme: light) {
-    div.youtube img.logo {
+    div.youtube div.logo img {
         filter: saturate(0) brightness(0.2);
     }
 }
