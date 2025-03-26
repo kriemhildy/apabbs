@@ -56,6 +56,7 @@ pub struct Post {
     #[sqlx(default)]
     pub recent_opt: Option<bool>,
     pub youtube: bool,
+    pub body_intro: String,
 }
 
 impl Post {
@@ -276,10 +277,11 @@ impl PostSubmission {
         };
         let html_body = self.body_to_html(key);
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
+        let body_intro = Self::body_intro(&html_body, key);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
-            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, body_intro) ",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
         ))
         .bind(key)
         .bind(session_token_opt)
@@ -290,6 +292,7 @@ impl PostSubmission {
         .bind(media_category_opt)
         .bind(media_mime_type_opt.as_deref())
         .bind(youtube)
+        .bind(&body_intro)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post")
@@ -477,6 +480,41 @@ impl PostSubmission {
             std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
         }
         result
+    }
+
+    pub fn body_intro(html: &str, key: &str) -> String {
+        // this should perhaps be a bool that is added in the template, to help in arrow logic
+        let see_more_link = format!(r#"<a href="/post/{key}">[See more]</a>"#);
+        // if a youtube is found within first 700 chars, stop immediately after it.
+        let youtube_div_pattern =
+            Regex::new(r#"<div class="youtube">.*?</div>"#).expect("build regex pattern");
+        if let Some(mat) = youtube_div_pattern.find(html) {
+            if mat.start() < 700 {
+                return html[..mat.end()].to_owned();
+            }
+        }
+        // if a link is found between chars 400 and 800, stop immediately after it.
+        let link_pattern = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("build regex pattern");
+        if let Some(mat) = link_pattern.find(html) {
+            if (400..800).contains(&mat.start()) {
+                return html[..mat.end()].to_owned();
+            }
+        }
+        // if body is less than 700 chars, return the entire string.
+        if html.len() < 700 {
+            return html.to_owned();
+        }
+        // if a break is found between chars 500 and 900, stop immediately before it.
+        if let Some(pos) = html.find("<br>") {
+            if (500..900).contains(&pos) {
+                return html[..pos].to_owned();
+            }
+        }
+        // truncate to the last space character before 700 chars and add an ellipsis.
+        // note: we need to validate that the body contains spaces.
+        // can also validate curse words and such.
+        let pos = html[..700].rfind(' ').unwrap_or(700);
+        html[..pos].to_owned() + "&hellip;"
     }
 }
 

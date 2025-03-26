@@ -10,8 +10,10 @@
     <div class="body">
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links(key) }}
-        {% else %}
+        {% elif solo %}
         {{ post.body }}
+        {% else %}
+        {{ post.body_intro }}
         {% endif %}
     </div>
     {% endif %}
