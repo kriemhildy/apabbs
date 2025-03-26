@@ -10,10 +10,13 @@
     <div class="body">
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links(key) }}
-        {% elif solo %}
+        {% elif solo or post.intro_limit_opt is none %}
         {{ post.body }}
         {% else %}
-        {{ post.body_intro }}
+        {{ post.body[:post.intro_limit_opt] }}
+        <div class="see-more">
+            <a href="/post/{{ key }}">[See more&hellip;]</a>
+        </div>
         {% endif %}
     </div>
     {% endif %}
@@ -66,7 +69,8 @@
         and (post.media_category_opt != "image"
             or (status in ["pending", "reported"]
                 and role not in ["admin", "mod"]))
-        and not post.youtube %}
+        and not post.youtube
+        and post.intro_limit_opt is none %}
     <div class="arrow">
         <a href="/post/{{ key }}">&rarr;</a>
     </div>

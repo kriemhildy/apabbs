@@ -1,9 +1,2 @@
-BEGIN;
-
-ALTER TABLE posts ADD COLUMN body_intro text;
-
-UPDATE posts SET body_intro = body;
-
-ALTER TABLE posts ALTER COLUMN body_intro SET NOT NULL;
-
-COMMIT;
+ALTER TABLE posts ADD COLUMN intro_limit_opt int
+    CHECK (intro_limit_opt >= 300 AND intro_limit_opt <= 2000);

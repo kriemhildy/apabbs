@@ -56,7 +56,7 @@ pub struct Post {
     #[sqlx(default)]
     pub recent_opt: Option<bool>,
     pub youtube: bool,
-    pub body_intro: String,
+    pub intro_limit_opt: Option<i32>,
 }
 
 impl Post {
@@ -277,10 +277,10 @@ impl PostSubmission {
         };
         let html_body = self.body_to_html(key);
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
-        let body_intro = Self::body_intro(&html_body, key);
+        let intro_limit_opt = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
-            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, body_intro) ",
+            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, intro_limit_opt) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
         ))
         .bind(key)
@@ -292,7 +292,7 @@ impl PostSubmission {
         .bind(media_category_opt)
         .bind(media_mime_type_opt.as_deref())
         .bind(youtube)
-        .bind(&body_intro)
+        .bind(intro_limit_opt)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post")
@@ -482,39 +482,46 @@ impl PostSubmission {
         result
     }
 
-    pub fn body_intro(html: &str, key: &str) -> String {
-        // this should perhaps be a bool that is added in the template, to help in arrow logic
-        let see_more_link = format!(r#"<a href="/post/{key}">[See more]</a>"#);
-        // if a youtube is found within first 700 chars, stop immediately after it.
+    pub fn intro_limit(html: &str) -> Option<i32> {
+        // we WANT 1500 chars (two lorem ipsum paragraphs)
+        // if body is less than 1500 chars, return none
+        if html.len() < 1500 {
+            return None;
+        }
+        // if a youtube is found within first 1500 chars, stop immediately after it.
+        // what if a youtube is found at char 1499?
+        // more than 1500 is allowed to facilitate a youtube
+        // i do NOT want two youtubes on the list page
         let youtube_div_pattern =
             Regex::new(r#"<div class="youtube">.*?</div>"#).expect("build regex pattern");
         if let Some(mat) = youtube_div_pattern.find(html) {
-            if mat.start() < 700 {
-                return html[..mat.end()].to_owned();
+            if mat.start() < 1500 {
+                if mat.end() == html.len() - 1 {
+                    return None;
+                }
+                return Some(mat.end() as i32);
             }
         }
-        // if a link is found between chars 400 and 800, stop immediately after it.
+        // if a link is found between chars 800 and 1500, stop immediately after it.
         let link_pattern = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("build regex pattern");
         if let Some(mat) = link_pattern.find(html) {
-            if (400..800).contains(&mat.start()) {
-                return html[..mat.end()].to_owned();
+            if (800..1500).contains(&mat.start()) {
+                if mat.end() == html.len() - 1 {
+                    return None;
+                }
+                return Some(mat.end() as i32);
             }
         }
-        // if body is less than 700 chars, return the entire string.
-        if html.len() < 700 {
-            return html.to_owned();
-        }
-        // if a break is found between chars 500 and 900, stop immediately before it.
+        // if a break is found between chars 1000 and 1500, stop immediately before it.
         if let Some(pos) = html.find("<br>") {
-            if (500..900).contains(&pos) {
-                return html[..pos].to_owned();
+            if (1000..1500).contains(&pos) {
+                // a break can never be at the very end of the string due to trimming
+                return Some(pos as i32);
             }
         }
-        // truncate to the last space character before 700 chars and add an ellipsis.
-        // note: we need to validate that the body contains spaces.
-        // can also validate curse words and such.
-        let pos = html[..700].rfind(' ').unwrap_or(700);
-        html[..pos].to_owned() + "&hellip;"
+        // truncate to the last space character before 1500 chars.
+        // if no space found, return 1500
+        Some(html[..1500].rfind(' ').unwrap_or(1500) as i32)
     }
 }
 

@@ -306,3 +306,11 @@ input[type="password"] {
 input#username {
     width: 17ch;
 }
+
+div.see-more {
+    margin-top: 8px;
+}
+
+div.see-more a {
+    text-decoration: none;
+}
