@@ -275,8 +275,9 @@ impl PostSubmission {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
-        let (html_body, intro_limit_opt) = self.process_body(key);
+        let html_body = self.body_to_html(key);
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
+        let intro_limit_opt = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
             "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, ",
@@ -321,7 +322,7 @@ impl PostSubmission {
         }
     }
 
-    fn process_body(&self, key: &str) -> (String, Option<i32>) {
+    fn body_to_html(&self, key: &str) -> String {
         let mut html = self
             .body
             .trim_end()
@@ -335,9 +336,7 @@ impl PostSubmission {
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        let intro_limit_opt = Self::intro_limit(&html);
-        html = html.replace("</div>\n", "</div>").replace("\n", "<br>");
-        (html, intro_limit_opt)
+        html.replace("</div>\n", "</div>").replace("\n", "<br>")
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {
@@ -738,7 +737,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn process_body() {
+    async fn body_to_html() {
         let submission = PostSubmission {
             body: concat!(
                 "<&test body コンピューター\n\n",
@@ -762,10 +761,8 @@ mod tests {
             }
         }
         let key = "testkey1";
-        let (body_html, intro_limit_opt) = submission.process_body(key);
-        println!("intro_limit_opt: {:?}", intro_limit_opt);
         assert_eq!(
-            body_html,
+            submission.body_to_html(key),
             concat!(
                 r#"&lt;&amp;test body コンピューター<br><br>"#,
                 r#"<a href="https://example.com">https://example.com</a>"#,
@@ -821,7 +818,6 @@ mod tests {
                 r#"</div>"#,
             )
         );
-        assert_eq!(intro_limit_opt, Some(334));
         for id in test_ids {
             if !existing_ids.contains(&id) {
                 std::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
