@@ -341,7 +341,7 @@ impl PostSubmission {
 
     fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
-            r#"(?:^|\n) *<a href=""#,
+            r#"(^|\n) *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*)">\S+</a> *(?:\n|$)"#,
@@ -352,13 +352,14 @@ impl PostSubmission {
                 None => break,
                 Some(captures) => captures,
             };
-            // youtu.be has no match for 2, but is always not a short
-            let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
-            let youtube_video_id = &captures[3];
+            let newline = captures.get(1).map_or("", |m| m.as_str());
+            // youtu.be has no match for 3, but is always not a short
+            let youtube_short = captures.get(3).is_some_and(|m| m.as_str() == "shorts/");
+            let youtube_video_id = &captures[4];
             let youtube_timestamp_opt = if youtube_short {
                 None
             } else {
-                let url_str = &captures[1].replace("&amp;", "&");
+                let url_str = &captures[2].replace("&amp;", "&");
                 let parsed_url = Url::parse(&url_str).expect("parse youtube url");
                 parsed_url
                     .query_pairs()
@@ -399,6 +400,7 @@ impl PostSubmission {
             let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(
                 concat!(
+                    r#"{newline}"#,
                     r#"<div class="youtube">"#,
                     r#"<div class="logo">"#,
                     r#"<a href="https://www.youtube.com/{url_path}{video_id}{timestamp}">"#,
@@ -410,6 +412,7 @@ impl PostSubmission {
                     r#"</a>"#,
                     r#"</div>"#,
                 ),
+                newline = newline,
                 url_path = youtube_url_path,
                 video_id = youtube_video_id,
                 thumbnail_url = local_thumbnail_url,
