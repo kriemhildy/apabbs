@@ -280,7 +280,8 @@ impl PostSubmission {
         let intro_limit_opt = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
-            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, intro_limit_opt) ",
+            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, ",
+            "intro_limit_opt) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
         ))
         .bind(key)
@@ -340,10 +341,10 @@ impl PostSubmission {
 
     fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
-            r#"(?m)^\ *<a href=""#,
+            r#"(?m)^\s*<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*)">\S+</a>\ *$"#,
+            r#"([^&\s\?]+)\S*)">\S+</a>\s*$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
