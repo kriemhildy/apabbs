@@ -109,7 +109,6 @@ nav {
 
 nav a {
     text-decoration: none;
-    color: var(--system);
 }
 
 h1 a {
@@ -225,7 +224,6 @@ div.arrow a {
 
 div#user a {
     text-decoration: none;
-    color: var(--system);
 }
 
 p#notice {
