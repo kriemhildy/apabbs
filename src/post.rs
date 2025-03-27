@@ -341,10 +341,10 @@ impl PostSubmission {
 
     fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
-            r#"(?m)^\s*<a href=""#,
+            r#"(?:^|\n) *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*)">\S+</a>\s*$"#,
+            r#"([^&\s\?]+)\S*)">\S+</a> *(?:\n|$)"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
