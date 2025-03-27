@@ -495,6 +495,7 @@ impl PostSubmission {
         // what if a youtube is found at char 1499?
         // more than 1500 is allowed to facilitate a youtube
         // i do NOT want two youtubes in one post on the list page
+        // i actually do want one newline worth of text after the youtube
         let re = Regex::new(r#"<div class="youtube">.*?</div>.*?</div>"#).expect("regex builds");
         if let Some(mat) = re.find(html) {
             if mat.start() < 1500 {
@@ -759,7 +760,6 @@ mod tests {
                 r#"<img src="/youtube/jNQXAC9IVRw/hqdefault.jpg" alt="YouTube jNQXAC9IVRw">"#,
                 r#"</a>"#,
                 r#"</div>"#,
-                r#"<br>"#,
                 r#"<div class="youtube">"#,
                 r#"<div class="logo">"#,
                 r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3">"#,
@@ -770,7 +770,6 @@ mod tests {
                 r#"<img src="/youtube/kixirmHePCc/maxresdefault.jpg" alt="YouTube kixirmHePCc">"#,
                 r#"</a>"#,
                 r#"</div>"#,
-                r#"<br>"#,
                 r#"<div class="youtube">"#,
                 r#"<div class="logo">"#,
                 r#"<a href="https://www.youtube.com/shorts/cHMCGCWit6U">"#,
@@ -781,7 +780,6 @@ mod tests {
                 r#"<img src="/youtube/cHMCGCWit6U/oar2.jpg" alt="YouTube cHMCGCWit6U">"#,
                 r#"</a>"#,
                 r#"</div>"#,
-                r#"<br>"#,
                 r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw">"#,
                 r#"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw"#,
                 r#"</a><br>foo "#,
