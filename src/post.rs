@@ -336,15 +336,15 @@ impl PostSubmission {
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        html.replace("\n", "<br>")
+        html.replace("</div>\n", "</div>").replace("\n", "<br>")
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
-            r#"(^|\n) *<a href=""#,
+            r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*)">\S+</a> *(?:\n|$)"#,
+            r#"([^&\s\?]+)\S*)">\S+</a> *$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
@@ -352,14 +352,13 @@ impl PostSubmission {
                 None => break,
                 Some(captures) => captures,
             };
-            let newline = captures.get(1).map_or("", |m| m.as_str());
-            // youtu.be has no match for 3, but is always not a short
-            let youtube_short = captures.get(3).is_some_and(|m| m.as_str() == "shorts/");
-            let youtube_video_id = &captures[4];
+            // youtu.be has no match for 2, but is always not a short
+            let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
+            let youtube_video_id = &captures[3];
             let youtube_timestamp_opt = if youtube_short {
                 None
             } else {
-                let url_str = &captures[2].replace("&amp;", "&");
+                let url_str = &captures[1].replace("&amp;", "&");
                 let parsed_url = Url::parse(&url_str).expect("parse youtube url");
                 parsed_url
                     .query_pairs()
@@ -400,7 +399,6 @@ impl PostSubmission {
             let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(
                 concat!(
-                    r#"{newline}"#,
                     r#"<div class="youtube">"#,
                     r#"<div class="logo">"#,
                     r#"<a href="https://www.youtube.com/{url_path}{video_id}{timestamp}">"#,
@@ -412,7 +410,6 @@ impl PostSubmission {
                     r#"</a>"#,
                     r#"</div>"#,
                 ),
-                newline = newline,
                 url_path = youtube_url_path,
                 video_id = youtube_video_id,
                 thumbnail_url = local_thumbnail_url,
