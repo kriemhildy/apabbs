@@ -275,9 +275,8 @@ impl PostSubmission {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
-        let html_body = self.body_to_html(key);
+        let (html_body, intro_limit_opt) = self.process_body(key);
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
-        let intro_limit_opt = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
             "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, ",
@@ -322,7 +321,7 @@ impl PostSubmission {
         }
     }
 
-    fn body_to_html(&self, key: &str) -> String {
+    fn process_body(&self, key: &str) -> (String, Option<i32>) {
         let mut html = self
             .body
             .trim_end()
@@ -332,11 +331,13 @@ impl PostSubmission {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("  ", " &nbsp;");
-        let url_pattern = Regex::new(r#"\b(https?://\S+)"#).expect("build regex pattern");
+        let url_pattern = Regex::new(r#"\b(https?://\S{4,256})\b"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        html.replace("</div>\n", "</div>").replace("\n", "<br>")
+        let intro_limit_opt = Self::intro_limit(&html);
+        html = html.replace("</div>\n", "</div>").replace("\n", "<br>");
+        (html, intro_limit_opt)
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {
@@ -493,39 +494,59 @@ impl PostSubmission {
         // more than 1500 is allowed to facilitate a youtube
         // i do NOT want two youtubes in one post on the list page
         // i actually do want one newline worth of text after the youtube
-        let re = Regex::new(r#"<div class="youtube">.*?</div>.*?</div>"#).expect("regex builds");
-        if let Some(mat) = re.find(html) {
-            if mat.start() < 1500 {
-                if mat.end() == html.len() {
-                    return None;
+        // possibility of spamming breaks here. again would be nice to have pre-trimmed breaks.
+        let re = Regex::new(r#"<div class="youtube"><div class="logo">.*?</div>.*?</div>"#)
+            .expect("regex builds");
+        let youtube_limit_opt = match re.find(html) {
+            None => None,
+            Some(mat) => {
+                if mat.start() > 1500 || mat.end() == html.len() {
+                    None
+                } else {
+                    Some(mat.end() as i32)
                 }
-                return Some(mat.end() as i32);
             }
-        }
-        // allow a maximum of 4 breaks in the first 1500 chars.
-        let re = Regex::new("<br>").expect("regex builds");
-        if let Some(mat) = re.find_iter(html).nth(4) {
-            if mat.start() < 1500 {
-                return Some(mat.start() as i32);
+        };
+        // allow a maximum of 4 newlines in the first 1500 chars.
+        // maybe get multiple possible positions and take the minimum at the end.
+        let re = Regex::new("\n").expect("regex builds");
+        let newline_limit_opt = match re.find_iter(html).nth(4) {
+            None => None,
+            Some(mat) => {
+                if mat.start() > 1500 {
+                    None
+                } else {
+                    Some(mat.start() as i32)
+                }
             }
+        };
+        // take the smallest of youtube and newline limits
+        let min_limit_opt = match (youtube_limit_opt, newline_limit_opt) {
+            (None, None) => None,
+            (Some(y), None) => Some(y),
+            (None, Some(n)) => Some(n),
+            (Some(y), Some(n)) => Some(y.min(n)),
+        };
+        if min_limit_opt.is_some() {
+            return min_limit_opt;
         }
         // we WANT 1500 chars (two lorem ipsum paragraphs)
-        // if body is less than 1500 chars, return none
-        if html.len() < 1500 {
+        // if body is less than or equal to 1500 chars, return none
+        if html.len() <= 1500 {
             return None;
         }
-        // what if we hard-stop in the middle of a link tag?
-        // could also possibly hard-stop in a break tag.
-        let re = Regex::new(r#"<a href="[^"]*">.*?</a>"#).expect("regex builds");
-        if let Some(mat) = re.find_iter(&html[..1500]).last() {
-            if mat.end() == html.len() {
-                return None;
-            }
-            return Some(mat.end() as i32);
-        }
-        // truncate to the last space character before 1500 chars.
+        // truncate to the last newline character within 1500 chars.
+        // if no newlines, truncate to the last space character.
         // if no space found, return 1500 and hard limit to that character.
-        Some(html[..1500].rfind(' ').unwrap_or(1500) as i32)
+        // it should be impossible for this hard limit to be mid-html, as no html would have been
+        // inserted if there were no spaces.
+        let slice = &html[..1500];
+        Some(
+            slice
+                .rfind("\n")
+                .unwrap_or(slice.rfind(' ').unwrap_or(1500)) as i32,
+        )
+        // should trim the end here
     }
 }
 
@@ -717,7 +738,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn body_to_html() {
+    async fn process_body() {
         let submission = PostSubmission {
             body: concat!(
                 "<&test body コンピューター\n\n",
@@ -741,8 +762,10 @@ mod tests {
             }
         }
         let key = "testkey1";
+        let (body_html, intro_limit_opt) = submission.process_body(key);
+        println!("intro_limit_opt: {:?}", intro_limit_opt);
         assert_eq!(
-            submission.body_to_html(key),
+            body_html,
             concat!(
                 r#"&lt;&amp;test body コンピューター<br><br>"#,
                 r#"<a href="https://example.com">https://example.com</a>"#,
@@ -798,6 +821,7 @@ mod tests {
                 r#"</div>"#,
             )
         );
+        assert_eq!(intro_limit_opt, Some(334));
         for id in test_ids {
             if !existing_ids.contains(&id) {
                 std::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
