@@ -514,27 +514,41 @@ impl PostSubmission {
             Some(mat) => Some(mat.start() as i32),
         };
         // take the smallest of youtube and break limits
+        println!(
+            "youtube_limit_opt: {:?}, break_limit_opt: {:?}",
+            youtube_limit_opt, break_limit_opt
+        );
         let min_limit_opt = match (youtube_limit_opt, break_limit_opt) {
             (None, None) => None,
             (Some(y), None) => Some(y),
-            (None, Some(n)) => Some(n),
-            (Some(y), Some(n)) => Some(y.min(n)),
+            (None, Some(b)) => Some(b),
+            (Some(y), Some(b)) => Some(y.min(b)),
         };
+        println!("min_limit_opt: {:?}", min_limit_opt);
         if min_limit_opt.is_some() {
+            println!("intro: {}", &html[..min_limit_opt.unwrap() as usize]);
+            // 345 returns 329 chars... jinja however interprets 345 normally.
+            // unicode related?
+            // as_bytes? or escape all possible entities?
             return min_limit_opt;
         }
         // we want 1500 chars (two lorem ipsum paragraphs)
+        println!("html.len(): {}", html.len());
         if html.len() <= 1500 {
             return None;
         }
         // truncate to the last break(s) within 1500 chars.
         let multiple_breaks_pattern = Regex::new("(?:<br>)+").expect("regex builds");
         if let Some(mat) = multiple_breaks_pattern.find_iter(first_1500).last() {
+            println!("found last break: {}", mat.start());
             return Some(mat.start() as i32);
         }
         // if no breaks, truncate to the last space character.
         // if no space found, return 1400 and hard limit to that character.
+        // 1400 can be an &nbsp; or other html code! (should find a space first)
+        // do we need to do all of this BEFORE html conversion? (but then pos would be wrong)
         Some(first_1500.rfind(' ').unwrap_or(1400) as i32)
+        // need to strip any (possibly incomplete) html tags or entities at the end
     }
 }
 
@@ -813,5 +827,11 @@ mod tests {
                     .expect("remove dir and its contents");
             }
         }
+    }
+
+    #[tokio::test]
+    async fn intro_limit() {
+        let html = "<br><br><br><br>foo<br>";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(19));
     }
 }

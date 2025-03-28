@@ -13,7 +13,7 @@
         {% elif solo or post.intro_limit_opt is none %}
         {{ post.body }}
         {% else %}
-        {{ post.body[:post.intro_limit_opt] }}
+        {{ post.body|byte_slice(post.intro_limit_opt) }}
         {% endif %}
     </div>
     {% if not solo and post.intro_limit_opt is not none %}

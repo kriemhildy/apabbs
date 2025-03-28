@@ -59,6 +59,10 @@ mod init {
             "remove_youtube_thumbnail_links",
             remove_youtube_thumbnail_links,
         );
+        fn byte_slice(body: &str, end: usize) -> String {
+            body[..end].to_owned()
+        }
+        env.add_filter("byte_slice", byte_slice);
         Arc::new(RwLock::new(env))
     }
 
