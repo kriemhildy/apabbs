@@ -13,7 +13,7 @@ const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
 const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
 const YOUTUBE_DIR: &'static str = "pub/youtube";
-const MAX_YOUTUBE_EMBEDS: usize = 4;
+const MAX_YOUTUBE_EMBEDS: usize = 16;
 const MAX_INTRO_BYTES: usize = 1600;
 const MAX_INTRO_BREAKS: usize = 24;
 
