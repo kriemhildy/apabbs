@@ -332,7 +332,7 @@ impl PostSubmission {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("  ", " &nbsp;");
-        let url_pattern = Regex::new(r#"\b(https?://\S{4,256})\b"#).expect("build regex pattern");
+        let url_pattern = Regex::new(r#"(?:^|\s)(https?://\S{4,256})(?:\s|$)"#).expect("build regex pattern");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
@@ -487,40 +487,33 @@ impl PostSubmission {
     }
 
     fn intro_limit(html: &str) -> Option<i32> {
-        // if a youtube is found within first 1500 chars, stop immediately after it.
-        // caveats:
-        // what if a youtube is found at char 1499?
-        // more than 1500 is allowed to facilitate a youtube
-        // i do NOT want two youtubes in one post on the list page
-        // i actually do want one newline worth of text after the youtube
-        // possibility of spamming breaks here. again would be nice to have pre-trimmed breaks.
-        let re = Regex::new(r#"<div class="youtube"><div class="logo">.*?</div>.*?</div>"#)
-            .expect("regex builds");
-        let youtube_limit_opt = match re.find(html) {
+        let first_1500 = if html.len() > 1500 {
+            &html[..1500]
+        } else {
+            html
+        };
+        // stop before a second youtube video
+        let youtube_pattern =
+            Regex::new(r#"<div class="youtube"><div class="logo">.*?</div>.*?</div>"#)
+                .expect("regex builds");
+        let youtube_limit_opt = match youtube_pattern.find_iter(first_1500).nth(1) {
             None => None,
             Some(mat) => {
-                if mat.start() > 1500 || mat.end() == html.len() {
-                    None
-                } else {
-                    Some(mat.end() as i32)
-                }
+                let before_second_youtube = &first_1500[..mat.start()];
+                // strip any breaks or whitespace that might be present at the end
+                let strip_breaks_pattern = Regex::new(r#"(?:<br>)+$"#).expect("regex builds");
+                let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
+                Some(stripped.trim_end().len() as i32)
             }
         };
-        // allow a maximum of 4 newlines in the first 1500 chars.
-        // maybe get multiple possible positions and take the minimum at the end.
-        let re = Regex::new("\n").expect("regex builds");
-        let newline_limit_opt = match re.find_iter(html).nth(4) {
+        // allow a maximum of 7 breaks in the first 1500 chars.
+        let single_break_pattern = Regex::new("<br>").expect("regex builds");
+        let break_limit_opt = match single_break_pattern.find_iter(first_1500).nth(7) {
             None => None,
-            Some(mat) => {
-                if mat.start() > 1500 {
-                    None
-                } else {
-                    Some(mat.start() as i32)
-                }
-            }
+            Some(mat) => Some(mat.start() as i32),
         };
-        // take the smallest of youtube and newline limits
-        let min_limit_opt = match (youtube_limit_opt, newline_limit_opt) {
+        // take the smallest of youtube and break limits
+        let min_limit_opt = match (youtube_limit_opt, break_limit_opt) {
             (None, None) => None,
             (Some(y), None) => Some(y),
             (None, Some(n)) => Some(n),
@@ -529,23 +522,18 @@ impl PostSubmission {
         if min_limit_opt.is_some() {
             return min_limit_opt;
         }
-        // we WANT 1500 chars (two lorem ipsum paragraphs)
-        // if body is less than or equal to 1500 chars, return none
+        // we want 1500 chars (two lorem ipsum paragraphs)
         if html.len() <= 1500 {
             return None;
         }
-        // truncate to the last newline character within 1500 chars.
-        // if no newlines, truncate to the last space character.
-        // if no space found, return 1500 and hard limit to that character.
-        // it should be impossible for this hard limit to be mid-html, as no html would have been
-        // inserted if there were no spaces.
-        let slice = &html[..1500];
-        Some(
-            slice
-                .rfind("\n")
-                .unwrap_or(slice.rfind(' ').unwrap_or(1500)) as i32,
-        )
-        // should trim the end here
+        // truncate to the last break(s) within 1500 chars.
+        let multiple_breaks_pattern = Regex::new("(?:<br>)+").expect("regex builds");
+        if let Some(mat) = multiple_breaks_pattern.find_iter(first_1500).last() {
+            return Some(mat.start() as i32);
+        }
+        // if no breaks, truncate to the last space character.
+        // if no space found, return 1400 and hard limit to that character.
+        Some(first_1500.rfind(' ').unwrap_or(1400) as i32)
     }
 }
 
