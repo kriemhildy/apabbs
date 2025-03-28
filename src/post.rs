@@ -845,15 +845,19 @@ mod tests {
             r#"<br><br><br><br><br><br>quuz<br>"#,
         );
         assert_eq!(PostSubmission::intro_limit(&html), Some(62));
+        let html = str::repeat("foo ", 300);
+        assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)
             + "<br>"
             + &str::repeat("bar ", 200)
             + "<br>"
             + &str::repeat("baz ", 100);
         assert_eq!(PostSubmission::intro_limit(&html), Some(1204));
-        let html = str::repeat("x", 1499) + " " + &str::repeat("y", 100);
+        let html = str::repeat("x", 1499) + " y";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
-        let html = str::repeat("x", 1500) + " " + &str::repeat("y", 100);
+        let html = str::repeat("x", 1500) + " y";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1400));
+        let html = str::repeat("x", 1398) + "&nbsp;" + &str::repeat("y", 100);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1398));
     }
 }
