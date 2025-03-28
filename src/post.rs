@@ -14,6 +14,8 @@ const UPLOADS_DIR: &'static str = "uploads";
 const MEDIA_DIR: &'static str = "pub/media";
 const YOUTUBE_DIR: &'static str = "pub/youtube";
 const MAX_YOUTUBE_EMBEDS: usize = 4;
+const MAX_INTRO_BYTES: usize = 1600;
+const MAX_INTRO_BREAKS: usize = 24;
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -490,8 +492,14 @@ impl PostSubmission {
     }
 
     fn intro_limit(html: &str) -> Option<i32> {
-        let first_1500 = if html.len() > 1500 {
-            &html[..1500]
+        // get a slice of the maximum intro bytes limited to the last valid utf8 character
+        let last_valid_utf8_index = html
+            .char_indices()
+            .take_while(|&(idx, _)| idx < MAX_INTRO_BYTES)
+            .last()
+            .map_or(0, |(idx, _)| idx);
+        let slice = if html.len() > last_valid_utf8_index {
+            &html[..last_valid_utf8_index]
         } else {
             html
         };
@@ -499,19 +507,19 @@ impl PostSubmission {
         let youtube_pattern =
             Regex::new(r#"<div class="youtube"><div class="logo">.*?</div>.*?</div>"#)
                 .expect("regex builds");
-        let youtube_limit_opt = match youtube_pattern.find_iter(first_1500).nth(1) {
+        let youtube_limit_opt = match youtube_pattern.find_iter(slice).nth(1) {
             None => None,
             Some(mat) => {
-                let before_second_youtube = &first_1500[..mat.start()];
+                let before_second_youtube = &slice[..mat.start()];
                 // strip any breaks or whitespace that might be present at the end
                 let strip_breaks_pattern = Regex::new(r#"(?:<br>)+$"#).expect("regex builds");
                 let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
                 Some(stripped.trim_end().len() as i32)
             }
         };
-        // allow a maximum of 7 breaks in the first 1500 bytes.
+        // check for the maximum breaks
         let single_break_pattern = Regex::new("<br>").expect("regex builds");
-        let break_limit_opt = match single_break_pattern.find_iter(first_1500).nth(7) {
+        let break_limit_opt = match single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS) {
             None => None,
             Some(mat) => Some(mat.start() as i32),
         };
@@ -531,33 +539,33 @@ impl PostSubmission {
             println!("intro: {}", &html[..min_limit_opt.unwrap() as usize]);
             return min_limit_opt;
         }
-        // we want 1500 bytes (two lorem ipsum paragraphs)
+        // do not truncate if beneath the maximum intro length
         println!("html.len(): {}", html.len());
-        if html.len() <= 1500 {
+        if html.len() <= MAX_INTRO_BYTES {
             return None;
         }
-        // truncate to the last break(s) within 1500 bytes.
+        // truncate to the last break(s)
         let multiple_breaks_pattern = Regex::new("(?:<br>)+").expect("regex builds");
-        if let Some(mat) = multiple_breaks_pattern.find_iter(first_1500).last() {
+        if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
             println!("found last break: {}", mat.start());
             return Some(mat.start() as i32);
         }
         // if no breaks, truncate to the last space byte.
-        let last_space = first_1500.rfind(' ');
+        let last_space = slice.rfind(' ');
         if last_space.is_some() {
             return last_space.map(|p| p as i32);
         }
-        // if no space found, default to a 1500 byte limit.
-        // need to strip incomplete html entities in the case of a hard limit
+        // if no space found, use the last utf8 character index
+        // need to strip incomplete html entities
         // check for & which is not terminated by a ;
         let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("regex builds");
-        if let Some(mat) = incomplete_entity_pattern.find(first_1500) {
+        if let Some(mat) = incomplete_entity_pattern.find(slice) {
             println!("found incomplete entity: {}", mat.start());
             return Some(mat.start() as i32);
         }
-        // no incomplete entity, return hard limit of 1500 bytes
-        println!("hard limit");
-        Some(1500 as i32)
+        // no incomplete entity, return last valid utf8 character index.
+        println!("last valid utf8 index: {}", last_valid_utf8_index);
+        Some(last_valid_utf8_index as i32)
     }
 }
 
@@ -840,20 +848,14 @@ mod tests {
 
     #[tokio::test]
     async fn intro_limit() {
-        let html = concat!(
-            r#"<br><br><br><br><br><br><br>foo<br>"#,
+        let two_youtubes = concat!(
             r#"<div class="youtube"><div class="logo">foo</div>bar</div>"#,
-            r#"howdy<br>"#,
-            r#"<div class="youtube"><div class="logo">baz</div>quux</div>"#
-        );
-        assert_eq!(PostSubmission::intro_limit(&html), Some(31));
-        let html = concat!(
-            r#"<div class="youtube"><div class="logo">foo</div>bar</div>"#,
-            r#"howdy<br>"#,
             r#"<div class="youtube"><div class="logo">baz</div>quux</div>"#,
-            r#"<br><br><br><br><br><br>quuz<br>"#,
         );
-        assert_eq!(PostSubmission::intro_limit(&html), Some(62));
+        let html = str::repeat("<br>", MAX_INTRO_BREAKS + 1) + two_youtubes;
+        assert_eq!(PostSubmission::intro_limit(&html), Some(28));
+        let html = two_youtubes.to_owned() + &str::repeat("<br>", MAX_INTRO_BREAKS + 1);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(57));
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)
@@ -862,11 +864,13 @@ mod tests {
             + "<br>"
             + &str::repeat("baz ", 100);
         assert_eq!(PostSubmission::intro_limit(&html), Some(1204));
-        let html = str::repeat("x", 1499) + " y";
+        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1498));
+        let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
-        let html = str::repeat("x", 1500) + " y";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1500));
-        let html = str::repeat("x", 1499) + "&quot;";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
+        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1498));
+        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1498));
     }
 }
