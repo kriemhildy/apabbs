@@ -853,7 +853,7 @@ mod tests {
             r#"<div class="youtube"><div class="logo">baz</div>quux</div>"#,
         );
         let html = str::repeat("<br>", MAX_INTRO_BREAKS + 1) + two_youtubes;
-        assert_eq!(PostSubmission::intro_limit(&html), Some(28));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(96));
         let html = two_youtubes.to_owned() + &str::repeat("<br>", MAX_INTRO_BREAKS + 1);
         assert_eq!(PostSubmission::intro_limit(&html), Some(57));
         let html = str::repeat("foo ", 300);
@@ -865,12 +865,12 @@ mod tests {
             + &str::repeat("baz ", 100);
         assert_eq!(PostSubmission::intro_limit(&html), Some(1204));
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1498));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
         let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1599));
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1498));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1498));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
     }
 }
