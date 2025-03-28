@@ -332,8 +332,9 @@ impl PostSubmission {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("  ", " &nbsp;");
-        let url_pattern = Regex::new(r#"(?:^|\s)(https?://\S{4,256})(?:\s|$)"#).expect("build regex pattern");
-        let anchor_tag = r#"<a href="$1">$1</a>"#;
+        let url_pattern =
+            Regex::new(r#"(?m)(^|\s)(https?://\S{4,256})(\s|$)"#).expect("build regex pattern");
+        let anchor_tag = r#"$1<a href="$2">$2</a>$3"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
         html.replace("</div>\n", "</div>").replace("\n", "<br>")
