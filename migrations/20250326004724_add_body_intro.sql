@@ -9,4 +9,8 @@ UPDATE posts SET body = regexp_replace(
     '<div class="youtube"><div class="logo">\1 alt></a></div>'
 );
 
+ALTER TABLE posts DROP CONSTRAINT posts_body_check;
+ALTER TABLE posts ADD CONSTRAINT posts_body_check
+    CHECK (length(body) < 65536);
+
 COMMIT;
