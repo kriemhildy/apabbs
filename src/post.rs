@@ -509,7 +509,7 @@ impl PostSubmission {
                 Some(stripped.trim_end().len() as i32)
             }
         };
-        // allow a maximum of 7 breaks in the first 1500 chars.
+        // allow a maximum of 7 breaks in the first 1500 bytes.
         let single_break_pattern = Regex::new("<br>").expect("regex builds");
         let break_limit_opt = match single_break_pattern.find_iter(first_1500).nth(7) {
             None => None,
@@ -529,29 +529,35 @@ impl PostSubmission {
         println!("min_limit_opt: {:?}", min_limit_opt);
         if min_limit_opt.is_some() {
             println!("intro: {}", &html[..min_limit_opt.unwrap() as usize]);
-            // 345 returns 329 chars... jinja however interprets 345 normally.
-            // unicode related?
-            // as_bytes? or escape all possible entities?
             return min_limit_opt;
         }
-        // we want 1500 chars (two lorem ipsum paragraphs)
+        // we want 1500 bytes (two lorem ipsum paragraphs)
         println!("html.len(): {}", html.len());
         if html.len() <= 1500 {
             return None;
         }
-        // truncate to the last break(s) within 1500 chars.
+        // truncate to the last break(s) within 1500 bytes.
         let multiple_breaks_pattern = Regex::new("(?:<br>)+").expect("regex builds");
         if let Some(mat) = multiple_breaks_pattern.find_iter(first_1500).last() {
             println!("found last break: {}", mat.start());
             return Some(mat.start() as i32);
         }
-        // if no breaks, truncate to the last space character.
-        // if no space found, return 1400 and hard limit to that character.
-        // 1400 can be an &nbsp; or other html code! (should find a space first)
-        // do we need to do all of this BEFORE html conversion? (but then pos would be wrong)
-        Some(first_1500.rfind(' ').unwrap_or(1400) as i32)
-        // need to strip any (possibly incomplete) html tags or entities at the end
-        // ONLY in the case of a hard limit.
+        // if no breaks, truncate to the last space byte.
+        let last_space = first_1500.rfind(' ');
+        if last_space.is_some() {
+            return last_space.map(|p| p as i32);
+        }
+        // if no space found, default to a 1500 byte limit.
+        // need to strip incomplete html entities in the case of a hard limit
+        // check for & which is not terminated by a ;
+        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("regex builds");
+        if let Some(mat) = incomplete_entity_pattern.find(first_1500) {
+            println!("found incomplete entity: {}", mat.start());
+            return Some(mat.start() as i32);
+        }
+        // no incomplete entity, return hard limit of 1500 bytes
+        println!("hard limit");
+        Some(1500 as i32)
     }
 }
 
@@ -859,8 +865,8 @@ mod tests {
         let html = str::repeat("x", 1499) + " y";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
         let html = str::repeat("x", 1500) + " y";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1400));
-        let html = str::repeat("x", 1398) + "&nbsp;" + &str::repeat("y", 100);
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1398));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1500));
+        let html = str::repeat("x", 1499) + "&quot;";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
     }
 }
