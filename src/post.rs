@@ -831,7 +831,29 @@ mod tests {
 
     #[tokio::test]
     async fn intro_limit() {
-        let html = "<br><br><br><br>foo<br>";
-        assert_eq!(PostSubmission::intro_limit(&html), Some(19));
+        let html = concat!(
+            r#"<br><br><br><br><br><br><br>foo<br>"#,
+            r#"<div class="youtube"><div class="logo">foo</div>bar</div>"#,
+            r#"howdy<br>"#,
+            r#"<div class="youtube"><div class="logo">baz</div>quux</div>"#
+        );
+        assert_eq!(PostSubmission::intro_limit(&html), Some(31));
+        let html = concat!(
+            r#"<div class="youtube"><div class="logo">foo</div>bar</div>"#,
+            r#"howdy<br>"#,
+            r#"<div class="youtube"><div class="logo">baz</div>quux</div>"#,
+            r#"<br><br><br><br><br><br>quuz<br>"#,
+        );
+        assert_eq!(PostSubmission::intro_limit(&html), Some(62));
+        let html = str::repeat("foo ", 100)
+            + "<br>"
+            + &str::repeat("bar ", 200)
+            + "<br>"
+            + &str::repeat("baz ", 100);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1204));
+        let html = str::repeat("x", 1499) + " " + &str::repeat("y", 100);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1499));
+        let html = str::repeat("x", 1500) + " " + &str::repeat("y", 100);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1400));
     }
 }
