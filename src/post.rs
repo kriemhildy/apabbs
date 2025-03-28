@@ -331,6 +331,8 @@ impl PostSubmission {
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
             .replace("  ", " &nbsp;");
         let url_pattern =
             Regex::new(r#"(?m)(^|\s)(https?://\S{4,256})(\s|$)"#).expect("build regex pattern");
@@ -549,6 +551,7 @@ impl PostSubmission {
         // do we need to do all of this BEFORE html conversion? (but then pos would be wrong)
         Some(first_1500.rfind(' ').unwrap_or(1400) as i32)
         // need to strip any (possibly incomplete) html tags or entities at the end
+        // ONLY in the case of a hard limit.
     }
 }
 
@@ -743,7 +746,7 @@ mod tests {
     async fn body_to_html() {
         let submission = PostSubmission {
             body: concat!(
-                "<&test body コンピューター\n\n",
+                "<&test body\"' コンピューター\n\n",
                 "https://example.com\n",
                 " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
                 "https://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg&t=3\n",
@@ -767,7 +770,7 @@ mod tests {
         assert_eq!(
             submission.body_to_html(key),
             concat!(
-                r#"&lt;&amp;test body コンピューター<br><br>"#,
+                r#"&lt;&amp;test body&quot;&apos; コンピューター<br><br>"#,
                 r#"<a href="https://example.com">https://example.com</a>"#,
                 r#"<br>"#,
                 r#"<div class="youtube">"#,
