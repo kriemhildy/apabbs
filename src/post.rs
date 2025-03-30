@@ -508,7 +508,7 @@ impl PostSubmission {
         };
         // stop before a second youtube video
         let youtube_pattern =
-            Regex::new(r#"<div class="youtube"><div class="logo">.*?</div>.*?</div>"#)
+            Regex::new(r#"<div class="youtube">\s+<div class="logo">.*?</div>.*?</div>"#)
                 .expect("regex builds");
         let youtube_limit_opt = match youtube_pattern.find_iter(slice).nth(1) {
             None => None,
@@ -866,13 +866,13 @@ mod tests {
     #[tokio::test]
     async fn intro_limit() {
         let two_youtubes = concat!(
-            r#"<div class="youtube"><div class="logo">foo</div>bar</div>"#,
-            r#"<div class="youtube"><div class="logo">baz</div>quux</div>"#,
+            "<div class=\"youtube\">\n    <div class=\"logo\">foo</div>bar</div>",
+            "<div class=\"youtube\">\n    <div class=\"logo\">baz</div>quux</div>",
         );
         let html = str::repeat("<br>", MAX_INTRO_BREAKS + 1) + two_youtubes;
         assert_eq!(PostSubmission::intro_limit(&html), Some(96));
         let html = two_youtubes.to_owned() + &str::repeat("<br>", MAX_INTRO_BREAKS + 1);
-        assert_eq!(PostSubmission::intro_limit(&html), Some(57));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(62));
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)
