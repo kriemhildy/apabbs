@@ -339,19 +339,21 @@ impl PostSubmission {
             .replace("\n", "\n<br>\n")
             .replace("\n\n", "\n");
         let url_pattern =
-            Regex::new(r#"(?m)(^|\s)(https?://\S{4,256})(\s|$)"#).expect("build regex pattern");
+            Regex::new(r#"(?m)(^|\s)(https?://\S{4,256})(\s|$)"#).expect("builds regex pattern");
         let anchor_tag = r#"$1<a href="$2">$2</a>$3"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        let sentence_pattern = Regex::new(concat!(
-            r#"([\.!\?,;:\-"#,
-            "\u{2013}\u{2014}",
-            "][\"'",
-            "\u{201d}\u{2019}",
-            "]?) +"
-        ))
-        .expect("build regex pattern");
-        sentence_pattern.replace_all(&html, "$1\n").to_string()
+        // probably will have to iterate here.
+        let long_line_pattern = Regex::new(r#"(?m)^.{100,}? "#).expect("builds regex pattern");
+        while let Some(mat) = long_line_pattern.find(&html) {
+            println!("found long line: {}", mat.as_str());
+            let wrap_pos = match html[mat.start()..mat.end() - 1].rfind(' ') {
+                Some(space_pos) => mat.start() + space_pos,
+                None => mat.end() - 1,
+            };
+            html.replace_range(wrap_pos..wrap_pos + 1, "\n");
+        }
+        html
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {

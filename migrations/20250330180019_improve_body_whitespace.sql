@@ -29,9 +29,9 @@ UPDATE posts SET body = replace(
 
 UPDATE posts SET body = regexp_replace(
     body,
-    '([\.!\?,;:\-' || E'\u2013\u2014' || ']["''' || E'\u201d\u2019' || ']?) +',
+    '(.{80,}?) ',
     '\1' || E'\n',
     'g'
-) WHERE body ~ concat('[\.!\?]["''', E'\u201d\u2019', ']? +');
+) WHERE body ~ '.{80,}? ';
 
 COMMIT;
