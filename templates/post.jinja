@@ -8,6 +8,7 @@
     {###################################################################################}
     {% if post.body|length > 0 and status != "banned" %}
     <div class="body">
+        {% filter indent(8) %}
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links }}
         {% elif solo or post.intro_limit_opt is none %}
@@ -15,10 +16,11 @@
         {% else %}
         {{ post.body|byte_slice(post.intro_limit_opt) }}
         {% endif %}
+        {% endfilter +%}
     </div>
     {% if not solo and post.intro_limit_opt is not none %}
     <div class="see-more">
-        <a href="/post/{{ key }}">[See more&hellip;]</a>
+        <a href="/post/{{ key }}">[See more…]</a>
     </div>
     {% endif %}
     {% endif %}

@@ -328,20 +328,23 @@ impl PostSubmission {
         let mut html = self
             .body
             .trim_end()
-            .replace("\r\n", "\n")
-            .replace("\r", "\n")
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
             .replace("'", "&apos;")
-            .replace("  ", " &nbsp;");
+            .replace("  ", " &nbsp;")
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("\n", "\n<br>\n")
+            .replace("\n\n", "\n");
         let url_pattern =
             Regex::new(r#"(?m)(^|\s)(https?://\S{4,256})(\s|$)"#).expect("build regex pattern");
         let anchor_tag = r#"$1<a href="$2">$2</a>$3"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        html.replace("</div>\n", "</div>").replace("\n", "<br>")
+        let sentence_pattern = Regex::new(r"([\.!\?]) +").expect("build regex pattern");
+        sentence_pattern.replace_all(&html, "$1\n").to_string()
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {
@@ -404,16 +407,16 @@ impl PostSubmission {
             let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(
                 concat!(
-                    r#"<div class="youtube">"#,
-                    r#"<div class="logo">"#,
-                    r#"<a href="https://www.youtube.com/{url_path}{video_id}{timestamp}">"#,
-                    r#"<img src="/youtube.svg" alt>"#,
-                    r#"</a>"#,
-                    r#"</div>"#,
-                    r#"<a href="/post/{key}">"#,
-                    r#"<img src="{thumbnail_url}" alt="YouTube {video_id}">"#,
-                    r#"</a>"#,
-                    r#"</div>"#,
+                    "<div class=\"youtube\">\n",
+                    "    <div class=\"logo\">\n",
+                    "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">\n",
+                    "            <img src=\"/youtube.svg\" alt>\n",
+                    "        </a>\n",
+                    "    </div>\n",
+                    "    <a href=\"/post/{key}\">\n",
+                    "        <img src=\"{thumbnail_url}\" alt=\"YouTube {video_id}\">\n",
+                    "    </a>\n",
+                    "</div>",
                 ),
                 url_path = youtube_url_path,
                 video_id = youtube_video_id,
@@ -784,58 +787,72 @@ mod tests {
         assert_eq!(
             submission.body_to_html(key),
             concat!(
-                r#"&lt;&amp;test body&quot;&apos; コンピューター<br><br>"#,
-                r#"<a href="https://example.com">https://example.com</a>"#,
-                r#"<br>"#,
-                r#"<div class="youtube">"#,
-                r#"<div class="logo">"#,
-                r#"<a href="https://www.youtube.com/watch?v=jNQXAC9IVRw">"#,
-                r#"<img src="/youtube.svg" alt>"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<a href="/post/testkey1">"#,
-                r#"<img src="/youtube/jNQXAC9IVRw/hqdefault.jpg" alt="YouTube jNQXAC9IVRw">"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<div class="youtube">"#,
-                r#"<div class="logo">"#,
-                r#"<a href="https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3">"#,
-                r#"<img src="/youtube.svg" alt>"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<a href="/post/testkey1">"#,
-                r#"<img src="/youtube/kixirmHePCc/maxresdefault.jpg" alt="YouTube kixirmHePCc">"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<div class="youtube">"#,
-                r#"<div class="logo">"#,
-                r#"<a href="https://www.youtube.com/shorts/cHMCGCWit6U">"#,
-                r#"<img src="/youtube.svg" alt>"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<a href="/post/testkey1">"#,
-                r#"<img src="/youtube/cHMCGCWit6U/oar2.jpg" alt="YouTube cHMCGCWit6U">"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<a href="https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw">"#,
-                r#"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw"#,
-                r#"</a><br>foo "#,
-                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s">"#,
-                r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s"#,
-                r#"</a><br><br>"#,
-                r#"<a href="https://www.youtube.com/watch?v=ySrBS4ulbmQ">"#,
-                r#"https://www.youtube.com/watch?v=ySrBS4ulbmQ"#,
-                r#"</a> bar<br>"#,
-                r#"<div class="youtube">"#,
-                r#"<div class="logo">"#,
-                r#"<a href="https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s">"#,
-                r#"<img src="/youtube.svg" alt>"#,
-                r#"</a>"#,
-                r#"</div>"#,
-                r#"<a href="/post/testkey1">"#,
-                r#"<img src="/youtube/28jr-6-XDPM/hqdefault.jpg" alt="YouTube 28jr-6-XDPM">"#,
-                r#"</a>"#,
-                r#"</div>"#,
+                "&lt;&amp;test body&quot;&apos; コンピューター\n",
+                "<br>\n",
+                "<br>\n",
+                "<a href=\"https://example.com\">https://example.com</a>\n",
+                "<br>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"logo\">\n",
+                "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\">\n",
+                "            <img src=\"/youtube.svg\" alt>\n",
+                "        </a>\n",
+                "    </div>\n",
+                "    <a href=\"/post/testkey1\">\n",
+                "        <img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\"",
+                " alt=\"YouTube jNQXAC9IVRw\">\n",
+                "    </a>\n",
+                "</div>\n",
+                "<br>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"logo\">\n",
+                "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\">\n",
+                "            <img src=\"/youtube.svg\" alt>\n",
+                "        </a>\n",
+                "    </div>\n",
+                "    <a href=\"/post/testkey1\">\n",
+                "        <img src=\"/youtube/kixirmHePCc/maxresdefault.jpg\"",
+                " alt=\"YouTube kixirmHePCc\">\n",
+                "    </a>\n",
+                "</div>\n",
+                "<br>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"logo\">\n",
+                "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\">\n",
+                "            <img src=\"/youtube.svg\" alt>\n",
+                "        </a>\n",
+                "    </div>\n",
+                "    <a href=\"/post/testkey1\">\n",
+                "        <img src=\"/youtube/cHMCGCWit6U/oar2.jpg\"",
+                " alt=\"YouTube cHMCGCWit6U\">\n",
+                "    </a>\n",
+                "</div>\n",
+                "<br>\n",
+                "<a href=\"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\">",
+                "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw",
+                "</a>\n",
+                "<br>\n",
+                "foo ",
+                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s\">",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s",
+                "</a>\n",
+                "<br>\n",
+                "<br>\n",
+                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ\">",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ",
+                "</a> bar\n",
+                "<br>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"logo\">\n",
+                "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\">\n",
+                "            <img src=\"/youtube.svg\" alt>\n",
+                "        </a>\n",
+                "    </div>\n",
+                "    <a href=\"/post/testkey1\">\n",
+                "        <img src=\"/youtube/28jr-6-XDPM/hqdefault.jpg\"",
+                " alt=\"YouTube 28jr-6-XDPM\">\n",
+                "    </a>\n",
+                "</div>",
             )
         );
         for id in test_ids {
