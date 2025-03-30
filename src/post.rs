@@ -343,7 +343,14 @@ impl PostSubmission {
         let anchor_tag = r#"$1<a href="$2">$2</a>$3"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         html = Self::embed_youtube(html, key);
-        let sentence_pattern = Regex::new(r"([\.!\?]) +").expect("build regex pattern");
+        let sentence_pattern = Regex::new(concat!(
+            r#"([\.!\?,;:\-"#,
+            "\u{2013}\u{2014}",
+            "][\"'",
+            "\u{201d}\u{2019}",
+            "]?) +"
+        ))
+        .expect("build regex pattern");
         sentence_pattern.replace_all(&html, "$1\n").to_string()
     }
 
