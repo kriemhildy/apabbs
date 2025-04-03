@@ -1,3 +1,9 @@
+0.31.0
+
+Improve long text display.
+Show an intro for a long body on the list page.
+More thorough HTML escaping.
+
 0.30.0
 
 Fix rendering bug in Safari on solo pages.
