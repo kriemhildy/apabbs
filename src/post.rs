@@ -181,7 +181,7 @@ impl Post {
         )
     }
 
-    pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
+    async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
         let encrypted_media_path = self.encrypted_media_path();
         let mut child = tokio::process::Command::new("gpg")
             .args([
@@ -221,7 +221,7 @@ impl Post {
             .expect("update post status");
     }
 
-    pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
+    async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
         sqlx::query("UPDATE posts SET thumbnail_opt = $1 WHERE id = $2")
             .bind(thumbnail_filename)
             .bind(self.id)
@@ -601,7 +601,7 @@ impl PostReview {
         std::fs::write(&published_media_path, media_bytes).expect("write media file");
     }
 
-    pub async fn generate_thumbnail(published_media_path: &PathBuf) {
+    async fn generate_thumbnail(published_media_path: &PathBuf) {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')
