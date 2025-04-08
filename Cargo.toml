@@ -2,13 +2,10 @@
 name = "apabbs"
 version = "0.31.0"
 edition = "2024"
+default-run = "apabbs"
 
 [profile.release]
 opt-level = "z" # Optimize for size
-
-[[bin]]
-name = "apabbs"  # Main server binary
-path = "src/main.rs"
 
 [[bin]]
 name = "migrate"  # Migration binary
