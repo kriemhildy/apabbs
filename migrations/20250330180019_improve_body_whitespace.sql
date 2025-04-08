@@ -27,11 +27,4 @@ UPDATE posts SET body = replace(
     E'\n'
 ) WHERE body LIKE '%<br>%';
 
-UPDATE posts SET body = regexp_replace(
-    body,
-    '(.{80,}?) ',
-    '\1' || E'\n',
-    'g'
-) WHERE body ~ '.{80,}? ';
-
 COMMIT;
