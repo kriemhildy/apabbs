@@ -39,11 +39,10 @@ fn per_page() -> usize {
 }
 
 fn site_name() -> String {
-    format!(
-        "{}{}",
-        if dev() { "[dev] " } else { "" },
-        std::env::var("SITE_NAME").expect("read SITE_NAME env")
-    )
+    let name = std::env::var("SITE_NAME")
+        .expect("read SITE_NAME env")
+        .to_string();
+    if dev() { format!("[dev] {name}") } else { name }
 }
 
 fn secret_key() -> String {
