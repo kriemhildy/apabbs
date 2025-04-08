@@ -353,6 +353,7 @@ impl PostSubmission {
             };
             html.replace_range(wrap_pos..wrap_pos + 1, "\n");
         }
+        // we need a final wrap like we used to have in the sql query
         html
     }
 
@@ -503,7 +504,7 @@ impl PostSubmission {
         result
     }
 
-    fn intro_limit(html: &str) -> Option<i32> {
+    pub fn intro_limit(html: &str) -> Option<i32> {
         // get a slice of the maximum intro bytes limited to the last valid utf8 character
         let last_valid_utf8_index = html
             .char_indices()

@@ -31,6 +31,19 @@ async fn main() {
     }
 }
 
-async fn word_wrap_and_limit(_tx: &mut PgConnection) {
-    println!("word wrap and limit migration");
+async fn word_wrap_and_limit(tx: &mut PgConnection) {
+    use apabbs::post::{Post, PostSubmission};
+    let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit_opt IS NOT NULL")
+        .fetch_all(&mut *tx)
+        .await
+        .expect("fetch posts for migration");
+    for post in posts {
+        let intro_limit_opt = PostSubmission::intro_limit(&post.body);
+        sqlx::query("UPDATE posts SET intro_limit_opt = $1 WHERE id = $2")
+            .bind(intro_limit_opt)
+            .bind(post.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post intro limit");
+    }
 }
