@@ -51,7 +51,8 @@ fn secret_key() -> String {
 }
 
 async fn app_state() -> AppState {
-    fn jinja() -> Arc<RwLock<Environment<'static>>> {
+    let db = db().await;
+    let jinja = {
         use regex::Regex;
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("templates"));
@@ -73,35 +74,24 @@ async fn app_state() -> AppState {
         }
         env.add_filter("byte_slice", byte_slice);
         Arc::new(RwLock::new(env))
-    }
-    fn sender() -> Arc<Sender<Post>> {
-        Arc::new(tokio::sync::broadcast::channel(100).0)
-    }
-    let db = db().await;
-    let jinja = jinja();
-    let sender = sender();
+    };
+    let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
     AppState { db, jinja, sender }
 }
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    fn validate_secret_key() {
-        if secret_key().len() < 16 {
-            panic!("SECRET_KEY env must be at least 16 chars");
-        }
+    if secret_key().len() < 16 {
+        panic!("SECRET_KEY env must be at least 16 chars");
     }
-    validate_secret_key();
+    jobs::init().await;
     let state = app_state().await;
     let router = router::router(state, true);
-    fn port() -> u16 {
-        match std::env::var("PORT") {
-            Ok(port) => port.parse().expect("parse PORT env"),
-            Err(_) => 7878,
-        }
-    }
-    let port = port();
-    jobs::init().await;
+    let port = match std::env::var("PORT") {
+        Ok(port) => port.parse().expect("parse PORT env"),
+        Err(_) => 7878,
+    };
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .expect(&format!("listen on port {port}"));

@@ -32,12 +32,8 @@ const ROOT: &'static str = "/";
 
 pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
-    use tower_http::{
-        classify::{ServerErrorsAsFailures, SharedClassifier},
-        trace::TraceLayer,
-    };
-    fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
-        use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse};
+    let trace_layer = {
+        use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
         use tracing::Level;
         tracing_subscriber::fmt()
             .with_max_level(Level::DEBUG)
@@ -46,7 +42,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         TraceLayer::new_for_http()
             .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
             .on_response(DefaultOnResponse::new().level(Level::DEBUG))
-    }
+    };
     let router = axum::Router::new()
         .route("/", get(index))
         .route("/page/{key}", get(index))
@@ -68,7 +64,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/{key}", get(solo_post)) // temporary for backwards compatibility
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
-        router.layer(trace_layer())
+        router.layer(trace_layer)
     } else {
         router
     };
