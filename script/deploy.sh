@@ -16,7 +16,7 @@ else
         exit 1
     fi
     nice rustup update
-    nice cargo test --lib
+    nice cargo test
     git push
     ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/deploy.sh"
     ssh $SSH_SUDO_USER "sudo systemctl stop $SSH_SERVICE"

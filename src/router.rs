@@ -2,7 +2,7 @@ mod helpers;
 #[cfg(test)]
 mod tests;
 
-use crate::{
+use apabbs::{
     AppState, BEGIN, COMMIT, ban,
     post::{Post, PostHiding, PostReview, PostStatus, PostSubmission, ReviewAction, ReviewError},
     user::{Account, AccountRole, Credentials, Logout, TimeZoneUpdate, User},
@@ -95,7 +95,7 @@ async fn index(
     };
     let page_post_id_opt = page_post_opt.as_ref().map(|p| p.id);
     let mut posts = Post::select(&mut tx, &user, page_post_id_opt, false).await;
-    let prior_page_post_opt = if posts.len() <= crate::per_page() {
+    let prior_page_post_opt = if posts.len() <= apabbs::per_page() {
         None
     } else {
         posts.pop()
@@ -104,7 +104,7 @@ async fn index(
         &state,
         "index.jinja",
         minijinja::context!(
-            title => crate::site_name(),
+            title => apabbs::site_name(),
             nav => true,
             user,
             posts,
@@ -134,7 +134,7 @@ async fn solo_post(
     let html = Html(render(
         &state,
         "solo.jinja",
-        minijinja::context!(title => crate::site_name(), user, post, solo => true),
+        minijinja::context!(title => apabbs::site_name(), user, post, solo => true),
     ));
     (jar, html).into_response()
 }
@@ -222,7 +222,7 @@ async fn login_form(method: Method, State(state): State<AppState>, jar: CookieJa
     let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => crate::site_name(), user),
+        minijinja::context!(title => apabbs::site_name(), user),
     ));
     (jar, html).into_response()
 }
@@ -263,7 +263,7 @@ async fn registration_form(
     let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => crate::site_name(), user),
+        minijinja::context!(title => apabbs::site_name(), user),
     ));
     (jar, html).into_response()
 }
@@ -472,7 +472,7 @@ async fn user_profile(
         &state,
         "profile.jinja",
         minijinja::context!(
-            title => crate::site_name(),
+            title => apabbs::site_name(),
             user,
             account,
             posts,
@@ -496,7 +496,7 @@ async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar)
         &state,
         "settings.jinja",
         minijinja::context!(
-            title => crate::site_name(),
+            title => apabbs::site_name(),
             user,
             time_zones,
             notice_opt,

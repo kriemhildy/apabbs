@@ -58,7 +58,7 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
         .expect("get IP header")
         .to_str()
         .expect("convert header to str");
-    sha256::digest(crate::secret_key() + ip)
+    sha256::digest(apabbs::secret_key() + ip)
 }
 
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
@@ -70,7 +70,7 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
 
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!crate::dev())
+        .secure(!apabbs::dev())
         .http_only(true)
         .path("/")
         .same_site(SameSite::Lax) // Strict prevents linking to our site (yes really)
@@ -86,7 +86,7 @@ pub fn removal_cookie(name: &str) -> Cookie<'static> {
 }
 
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
-    if crate::dev() {
+    if apabbs::dev() {
         let mut env = state.jinja.write().expect("write jinja env");
         env.clear_templates();
     }

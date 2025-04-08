@@ -1,12 +1,15 @@
+mod router;
+mod jobs;
+
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
     if apabbs::secret_key().len() < 16 {
         panic!("SECRET_KEY env must be at least 16 chars");
     }
-    apabbs::jobs::init().await;
+    jobs::init().await;
     let state = apabbs::app_state().await;
-    let router = apabbs::router::router(state, true);
+    let router = router::router(state, true);
     let port = match std::env::var("PORT") {
         Ok(port) => port.parse().expect("parse PORT env"),
         Err(_) => 7878,
