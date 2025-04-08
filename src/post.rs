@@ -1,5 +1,5 @@
 use crate::{
-    POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME, init,
+    POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME,
     user::{AccountRole, User},
 };
 use regex::Regex;
@@ -88,9 +88,9 @@ impl Post {
         // invert interim order
         // add one to "until" limit to check if there are more pages
         let (operator, order, limit) = if invert {
-            (">", "ASC", init::per_page()) // sanity limit
+            (">", "ASC", crate::per_page()) // sanity limit
         } else {
-            ("<=", "DESC", init::per_page() + 1)
+            ("<=", "DESC", crate::per_page() + 1)
         };
         if let Some(post_id) = post_id_opt {
             query_builder.push(&format!(" AND id {} ", operator));
@@ -111,7 +111,7 @@ impl Post {
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
         ))
         .bind(account_id)
-        .bind(init::per_page() as i32)
+        .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
         .expect("select posts by account")

@@ -24,10 +24,10 @@ const TEST_MEDIA_DIR: &'static str = "tests/media";
 //-------------------------------------------------------------------------------------------------
 
 async fn init_test() -> (Router, AppState) {
-    if !init::dev() {
+    if !crate::dev() {
         panic!("not in dev mode");
     }
-    let state = init::app_state().await;
+    let state = crate::app_state().await;
     let router = router(state.clone(), false);
     (router, state)
 }
@@ -50,11 +50,11 @@ fn test_user(account_opt: Option<Account>) -> User {
 }
 
 fn local_ip_hash() -> String {
-    sha256::digest(init::secret_key() + LOCAL_IP)
+    sha256::digest(crate::secret_key() + LOCAL_IP)
 }
 
 fn ban_ip_hash() -> String {
-    sha256::digest(init::secret_key() + BAN_IP)
+    sha256::digest(crate::secret_key() + BAN_IP)
 }
 
 async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
@@ -203,7 +203,7 @@ async fn index() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(r#"<div id="posts">"#));
-    assert!(body_str.contains(&init::site_name()));
+    assert!(body_str.contains(&crate::site_name()));
 }
 
 #[tokio::test]

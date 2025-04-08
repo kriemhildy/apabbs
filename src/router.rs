@@ -3,7 +3,7 @@ mod helpers;
 mod tests;
 
 use crate::{
-    AppState, BEGIN, COMMIT, ban, init,
+    AppState, BEGIN, COMMIT, ban,
     post::{Post, PostHiding, PostReview, PostStatus, PostSubmission, ReviewAction, ReviewError},
     user::{Account, AccountRole, Credentials, Logout, TimeZoneUpdate, User},
 };
@@ -32,6 +32,21 @@ const ROOT: &'static str = "/";
 
 pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
+    use tower_http::{
+        classify::{ServerErrorsAsFailures, SharedClassifier},
+        trace::TraceLayer,
+    };
+    fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
+        use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse};
+        use tracing::Level;
+        tracing_subscriber::fmt()
+            .with_max_level(Level::DEBUG)
+            .try_init()
+            .ok();
+        TraceLayer::new_for_http()
+            .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
+            .on_response(DefaultOnResponse::new().level(Level::DEBUG))
+    }
     let router = axum::Router::new()
         .route("/", get(index))
         .route("/page/{key}", get(index))
@@ -53,7 +68,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/{key}", get(solo_post)) // temporary for backwards compatibility
         .layer(DefaultBodyLimit::max(20_000_000));
     let router = if trace {
-        router.layer(init::trace_layer())
+        router.layer(trace_layer())
     } else {
         router
     };
@@ -84,7 +99,7 @@ async fn index(
     };
     let page_post_id_opt = page_post_opt.as_ref().map(|p| p.id);
     let mut posts = Post::select(&mut tx, &user, page_post_id_opt, false).await;
-    let prior_page_post_opt = if posts.len() <= init::per_page() {
+    let prior_page_post_opt = if posts.len() <= crate::per_page() {
         None
     } else {
         posts.pop()
@@ -93,7 +108,7 @@ async fn index(
         &state,
         "index.jinja",
         minijinja::context!(
-            title => init::site_name(),
+            title => crate::site_name(),
             nav => true,
             user,
             posts,
@@ -123,7 +138,7 @@ async fn solo_post(
     let html = Html(render(
         &state,
         "solo.jinja",
-        minijinja::context!(title => init::site_name(), user, post, solo => true),
+        minijinja::context!(title => crate::site_name(), user, post, solo => true),
     ));
     (jar, html).into_response()
 }
@@ -211,7 +226,7 @@ async fn login_form(method: Method, State(state): State<AppState>, jar: CookieJa
     let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => init::site_name(), user),
+        minijinja::context!(title => crate::site_name(), user),
     ));
     (jar, html).into_response()
 }
@@ -252,7 +267,7 @@ async fn registration_form(
     let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => init::site_name(), user),
+        minijinja::context!(title => crate::site_name(), user),
     ));
     (jar, html).into_response()
 }
@@ -461,7 +476,7 @@ async fn user_profile(
         &state,
         "profile.jinja",
         minijinja::context!(
-            title => init::site_name(),
+            title => crate::site_name(),
             user,
             account,
             posts,
@@ -485,7 +500,7 @@ async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar)
         &state,
         "settings.jinja",
         minijinja::context!(
-            title => init::site_name(),
+            title => crate::site_name(),
             user,
             time_zones,
             notice_opt,
