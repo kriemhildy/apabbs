@@ -19,7 +19,7 @@ pub async fn init() {
     sched.start().await.expect("start scheduler");
 }
 
-pub fn scrub_ips() -> Job {
+fn scrub_ips() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
             let db = crate::db().await;
