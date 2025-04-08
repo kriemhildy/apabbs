@@ -27,49 +27,6 @@ async fn db() -> PgPool {
     PgPool::connect(&url).await.expect("connect postgres")
 }
 
-async fn cron_jobs() {
-    use tokio_cron_scheduler::JobScheduler;
-    let sched = JobScheduler::new().await.expect("make new job scheduler");
-    let job = jobs::scrub_ips();
-    sched.add(job).await.expect("add job to scheduler");
-    sched.start().await.expect("start scheduler");
-}
-
-fn jinja() -> Arc<RwLock<Environment<'static>>> {
-    use regex::Regex;
-    let mut env = Environment::new();
-    env.set_loader(minijinja::path_loader("templates"));
-    env.set_keep_trailing_newline(true);
-    env.set_lstrip_blocks(true);
-    env.set_trim_blocks(true);
-    fn remove_youtube_thumbnail_links(body: &str) -> String {
-        let re = Regex::new(r#"<a href="/post/\w+"><img src="/youtube/(.*?)</a></div>"#)
-            .expect("regex builds");
-        re.replace_all(body, r#"<img src="/youtube/$1</div>"#)
-            .to_string()
-    }
-    env.add_filter(
-        "remove_youtube_thumbnail_links",
-        remove_youtube_thumbnail_links,
-    );
-    fn byte_slice(body: &str, end: usize) -> String {
-        body[..end].to_owned()
-    }
-    env.add_filter("byte_slice", byte_slice);
-    Arc::new(RwLock::new(env))
-}
-
-fn sender() -> Arc<Sender<Post>> {
-    Arc::new(tokio::sync::broadcast::channel(100).0)
-}
-
-fn port() -> u16 {
-    match std::env::var("PORT") {
-        Ok(port) => port.parse().expect("parse PORT env"),
-        Err(_) => 7878,
-    }
-}
-
 fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
 }
@@ -94,25 +51,57 @@ fn secret_key() -> String {
 }
 
 async fn app_state() -> AppState {
-    let (db, _) = tokio::join!(db(), cron_jobs());
+    fn jinja() -> Arc<RwLock<Environment<'static>>> {
+        use regex::Regex;
+        let mut env = Environment::new();
+        env.set_loader(minijinja::path_loader("templates"));
+        env.set_keep_trailing_newline(true);
+        env.set_lstrip_blocks(true);
+        env.set_trim_blocks(true);
+        fn remove_youtube_thumbnail_links(body: &str) -> String {
+            let re = Regex::new(r#"<a href="/post/\w+"><img src="/youtube/(.*?)</a></div>"#)
+                .expect("regex builds");
+            re.replace_all(body, r#"<img src="/youtube/$1</div>"#)
+                .to_string()
+        }
+        env.add_filter(
+            "remove_youtube_thumbnail_links",
+            remove_youtube_thumbnail_links,
+        );
+        fn byte_slice(body: &str, end: usize) -> String {
+            body[..end].to_owned()
+        }
+        env.add_filter("byte_slice", byte_slice);
+        Arc::new(RwLock::new(env))
+    }
+    fn sender() -> Arc<Sender<Post>> {
+        Arc::new(tokio::sync::broadcast::channel(100).0)
+    }
+    let db = db().await;
     let jinja = jinja();
     let sender = sender();
     AppState { db, jinja, sender }
 }
 
-fn validate_secret_key() {
-    if secret_key().len() < 16 {
-        panic!("SECRET_KEY env must be at least 16 chars");
-    }
-}
-
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
+    fn validate_secret_key() {
+        if secret_key().len() < 16 {
+            panic!("SECRET_KEY env must be at least 16 chars");
+        }
+    }
     validate_secret_key();
     let state = app_state().await;
     let router = router::router(state, true);
+    fn port() -> u16 {
+        match std::env::var("PORT") {
+            Ok(port) => port.parse().expect("parse PORT env"),
+            Err(_) => 7878,
+        }
+    }
     let port = port();
+    jobs::init().await;
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .expect(&format!("listen on port {port}"));

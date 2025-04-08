@@ -11,6 +11,14 @@
 use crate::{BEGIN, COMMIT, ban};
 use tokio_cron_scheduler::Job;
 
+pub async fn init() {
+    use tokio_cron_scheduler::JobScheduler;
+    let sched = JobScheduler::new().await.expect("make new job scheduler");
+    let job = scrub_ips();
+    sched.add(job).await.expect("add job to scheduler");
+    sched.start().await.expect("start scheduler");
+}
+
 pub fn scrub_ips() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
