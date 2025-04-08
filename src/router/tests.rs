@@ -27,7 +27,7 @@ async fn init_test() -> (Router, AppState) {
     if !apabbs::dev() {
         panic!("not in dev mode");
     }
-    let state = apabbs::app_state().await;
+    let state = crate::app_state().await;
     let router = router(state.clone(), false);
     (router, state)
 }

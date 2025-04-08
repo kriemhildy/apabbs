@@ -1,24 +1,13 @@
 pub mod ban;
-pub mod user;
 pub mod post;
+pub mod user;
 
-use minijinja::Environment;
-use post::Post;
 use sqlx::PgPool;
-use std::sync::{Arc, RwLock};
-use tokio::sync::broadcast::Sender;
 
 pub const BEGIN: &'static str = "begin transaction";
 pub const COMMIT: &'static str = "commit transaction";
 const POSTGRES_RFC5322_DATETIME: &'static str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 const POSTGRES_HTML_DATETIME: &'static str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM""#;
-
-#[derive(Clone)]
-pub struct AppState {
-    pub db: PgPool,
-    pub jinja: Arc<RwLock<Environment<'static>>>,
-    pub sender: Arc<Sender<Post>>,
-}
 
 pub async fn db() -> PgPool {
     let url = std::env::var("DATABASE_URL").expect("read DATABASE_URL env");
@@ -45,33 +34,4 @@ pub fn site_name() -> String {
 
 pub fn secret_key() -> String {
     std::env::var("SECRET_KEY").expect("read SECRET_KEY env")
-}
-
-pub async fn app_state() -> AppState {
-    let db = db().await;
-    let jinja = {
-        use regex::Regex;
-        let mut env = Environment::new();
-        env.set_loader(minijinja::path_loader("templates"));
-        env.set_keep_trailing_newline(true);
-        env.set_lstrip_blocks(true);
-        env.set_trim_blocks(true);
-        fn remove_youtube_thumbnail_links(body: &str) -> String {
-            let re = Regex::new(r#"<a href="/post/\w+"><img src="/youtube/(.*?)</a></div>"#)
-                .expect("regex builds");
-            re.replace_all(body, r#"<img src="/youtube/$1</div>"#)
-                .to_string()
-        }
-        env.add_filter(
-            "remove_youtube_thumbnail_links",
-            remove_youtube_thumbnail_links,
-        );
-        fn byte_slice(body: &str, end: usize) -> String {
-            body[..end].to_owned()
-        }
-        env.add_filter("byte_slice", byte_slice);
-        Arc::new(RwLock::new(env))
-    };
-    let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
-    AppState { db, jinja, sender }
 }
