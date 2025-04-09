@@ -1,3 +1,11 @@
+0.32.0
+
+Add Rust migration system with separate binary.
+Split main.rs and lib.rs.
+Remove "init" mod.
+Improve whitespace display.
+Fix some intro limit issues.
+
 0.31.0
 
 Improve long text display.
