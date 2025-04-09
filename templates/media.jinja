@@ -4,9 +4,7 @@
     {% if solo %}
     <img src="{{ media_path }}" alt="{{ post.media_filename_opt }}">
     {% else %}
-    <a href="{{ solo_path }}">
-        <img src="{{ media_path }}" alt="{{ key }}">
-    </a>
+    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="{{ key }}"></a>
     {% endif %}
     {% elif post.media_category_opt == "video" %}
     <video controls>

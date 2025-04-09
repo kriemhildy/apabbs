@@ -6,25 +6,21 @@ UPDATE posts SET body = regexp_replace(
     '</div><a href="([^"]+)"><img src="([^"]+)" alt="([^"]+)"></a></div>',
     '<div class="youtube">' || E'\n' ||
     '    <div class="logo">' || E'\n' ||
-    '        <a href="\1">' || E'\n' ||
-    '            <img src="/youtube.svg" alt>' || E'\n' ||
-    '        </a>' || E'\n' ||
+    '        <a href="\1">' ||
+    '<img src="/youtube.svg" alt>' ||
+    '</a>' || E'\n' ||
     '    </div>' || E'\n' ||
-    '    <a href="\2">' || E'\n' ||
-    '        <img src="\3" alt="\4">' || E'\n' ||
-    '    </a>' || E'\n' ||
+    '    <a href="\2">' ||
+    '<img src="\3" alt="\4">' ||
+    '</a>' || E'\n' ||
     '</div>',
     'g'
 ) WHERE body LIKE '%<div class="youtube">%';
 
 UPDATE posts SET body = replace(
-    replace(
-        body,
-        '<br>',
-        E'\n<br>\n'
-    ),
-    E'\n\n',
-    E'\n'
+    body,
+    '<br>',
+    E'<br>\n'
 ) WHERE body LIKE '%<br>%';
 
 COMMIT;

@@ -336,25 +336,12 @@ impl PostSubmission {
             .replace("  ", " &nbsp;")
             .replace("\r\n", "\n")
             .replace("\r", "\n")
-            .replace("\n", "\n<br>\n")
-            .replace("\n\n", "\n");
+            .replace("\n", "<br>\n");
         let url_pattern =
-            Regex::new(r#"(?m)(^|\s)(https?://\S{4,256})(\s|$)"#).expect("builds regex pattern");
-        let anchor_tag = r#"$1<a href="$2">$2</a>$3"#;
+            Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex pattern");
+        let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
-        html = Self::embed_youtube(html, key);
-        // probably will have to iterate here.
-        let long_line_pattern = Regex::new(r#"(?m)^.{100,}? "#).expect("builds regex pattern");
-        while let Some(mat) = long_line_pattern.find(&html) {
-            println!("found long line: {}", mat.as_str());
-            let wrap_pos = match html[mat.start()..mat.end() - 1].rfind(' ') {
-                Some(space_pos) => mat.start() + space_pos,
-                None => mat.end() - 1,
-            };
-            html.replace_range(wrap_pos..wrap_pos + 1, "\n");
-        }
-        // we need a final wrap like we used to have in the sql query
-        html
+        Self::embed_youtube(html, key)
     }
 
     fn embed_youtube(mut html: String, key: &str) -> String {
@@ -362,7 +349,7 @@ impl PostSubmission {
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*)">\S+</a> *$"#,
+            r#"([^&\s\?]+)\S*)">\S+</a> *(?:<br>)?$"#,
         );
         let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
@@ -373,6 +360,7 @@ impl PostSubmission {
             // youtu.be has no match for 2, but is always not a short
             let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
             let youtube_video_id = &captures[3];
+            println!("captures: {:?}", captures);
             let youtube_timestamp_opt = if youtube_short {
                 None
             } else {
@@ -419,13 +407,13 @@ impl PostSubmission {
                 concat!(
                     "<div class=\"youtube\">\n",
                     "    <div class=\"logo\">\n",
-                    "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">\n",
-                    "            <img src=\"/youtube.svg\" alt>\n",
-                    "        </a>\n",
+                    "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">",
+                    "<img src=\"/youtube.svg\" alt>",
+                    "</a>\n",
                     "    </div>\n",
-                    "    <a href=\"/post/{key}\">\n",
-                    "        <img src=\"{thumbnail_url}\" alt=\"YouTube {video_id}\">\n",
-                    "    </a>\n",
+                    "    <a href=\"/post/{key}\">",
+                    "<img src=\"{thumbnail_url}\" alt=\"YouTube {video_id}\">",
+                    "</a>\n",
                     "</div>",
                 ),
                 url_path = youtube_url_path,
@@ -525,13 +513,13 @@ impl PostSubmission {
             Some(mat) => {
                 let before_second_youtube = &slice[..mat.start()];
                 // strip any breaks or whitespace that might be present at the end
-                let strip_breaks_pattern = Regex::new(r#"(?:<br>)+$"#).expect("regex builds");
+                let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("regex builds");
                 let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
                 Some(stripped.trim_end().len() as i32)
             }
         };
         // check for the maximum breaks
-        let single_break_pattern = Regex::new("<br>").expect("regex builds");
+        let single_break_pattern = Regex::new("<br>\n").expect("regex builds");
         let break_limit_opt = match single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS) {
             None => None,
             Some(mat) => Some(mat.start() as i32),
@@ -558,9 +546,9 @@ impl PostSubmission {
             return None;
         }
         // truncate to the last break(s)
-        let multiple_breaks_pattern = Regex::new("(?:<br>)+").expect("regex builds");
+        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("regex builds");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
-            println!("found last break: {}", mat.start());
+            println!("found last break(s): {}", mat.start());
             return Some(mat.start() as i32);
         }
         // if no breaks, truncate to the last space byte.
@@ -797,71 +785,59 @@ mod tests {
         assert_eq!(
             submission.body_to_html(key),
             concat!(
-                "&lt;&amp;test body&quot;&apos; コンピューター\n",
+                "&lt;&amp;test body&quot;&apos; コンピューター<br>\n",
                 "<br>\n",
-                "<br>\n",
-                "<a href=\"https://example.com\">https://example.com</a>\n",
-                "<br>\n",
+                "<a href=\"https://example.com\">https://example.com</a><br>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"logo\">\n",
-                "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\">\n",
-                "            <img src=\"/youtube.svg\" alt>\n",
-                "        </a>\n",
+                "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\">",
+                "<img src=\"/youtube.svg\" alt>",
+                "</a>\n",
                 "    </div>\n",
-                "    <a href=\"/post/testkey1\">\n",
-                "        <img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\"",
-                " alt=\"YouTube jNQXAC9IVRw\">\n",
-                "    </a>\n",
+                "    <a href=\"/post/testkey1\">",
+                "<img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\" alt=\"YouTube jNQXAC9IVRw\">",
+                "</a>\n",
                 "</div>\n",
-                "<br>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"logo\">\n",
-                "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\">\n",
-                "            <img src=\"/youtube.svg\" alt>\n",
-                "        </a>\n",
+                "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\">",
+                "<img src=\"/youtube.svg\" alt>",
+                "</a>\n",
                 "    </div>\n",
-                "    <a href=\"/post/testkey1\">\n",
-                "        <img src=\"/youtube/kixirmHePCc/maxresdefault.jpg\"",
-                " alt=\"YouTube kixirmHePCc\">\n",
-                "    </a>\n",
+                "    <a href=\"/post/testkey1\">",
+                "<img src=\"/youtube/kixirmHePCc/maxresdefault.jpg\" alt=\"YouTube kixirmHePCc\">",
+                "</a>\n",
                 "</div>\n",
-                "<br>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"logo\">\n",
-                "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\">\n",
-                "            <img src=\"/youtube.svg\" alt>\n",
-                "        </a>\n",
+                "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\">",
+                "<img src=\"/youtube.svg\" alt>",
+                "</a>\n",
                 "    </div>\n",
-                "    <a href=\"/post/testkey1\">\n",
-                "        <img src=\"/youtube/cHMCGCWit6U/oar2.jpg\"",
-                " alt=\"YouTube cHMCGCWit6U\">\n",
-                "    </a>\n",
+                "    <a href=\"/post/testkey1\">",
+                "<img src=\"/youtube/cHMCGCWit6U/oar2.jpg\" alt=\"YouTube cHMCGCWit6U\">",
+                "</a>\n",
                 "</div>\n",
-                "<br>\n",
                 "<a href=\"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\">",
                 "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw",
-                "</a>\n",
-                "<br>\n",
+                "</a><br>\n",
                 "foo ",
                 "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s\">",
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s",
-                "</a>\n",
-                "<br>\n",
+                "</a><br>\n",
                 "<br>\n",
                 "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ\">",
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ",
-                "</a> bar\n",
-                "<br>\n",
+                "</a> bar<br>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"logo\">\n",
-                "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\">\n",
-                "            <img src=\"/youtube.svg\" alt>\n",
-                "        </a>\n",
+                "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\">",
+                "<img src=\"/youtube.svg\" alt>",
+                "</a>\n",
                 "    </div>\n",
-                "    <a href=\"/post/testkey1\">\n",
-                "        <img src=\"/youtube/28jr-6-XDPM/hqdefault.jpg\"",
-                " alt=\"YouTube 28jr-6-XDPM\">\n",
-                "    </a>\n",
+                "    <a href=\"/post/testkey1\">",
+                "<img src=\"/youtube/28jr-6-XDPM/hqdefault.jpg\" alt=\"YouTube 28jr-6-XDPM\">",
+                "</a>\n",
                 "</div>",
             )
         );
@@ -876,21 +852,21 @@ mod tests {
     #[tokio::test]
     async fn intro_limit() {
         let two_youtubes = concat!(
-            "<div class=\"youtube\">\n    <div class=\"logo\">foo</div>bar</div>",
+            "<div class=\"youtube\">\n    <div class=\"logo\">foo</div>bar</div>\n",
             "<div class=\"youtube\">\n    <div class=\"logo\">baz</div>quux</div>",
         );
-        let html = str::repeat("<br>", MAX_INTRO_BREAKS + 1) + two_youtubes;
-        assert_eq!(PostSubmission::intro_limit(&html), Some(96));
-        let html = two_youtubes.to_owned() + &str::repeat("<br>", MAX_INTRO_BREAKS + 1);
+        let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
+        assert_eq!(PostSubmission::intro_limit(&html), Some(120));
+        let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
         assert_eq!(PostSubmission::intro_limit(&html), Some(62));
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)
-            + "<br>"
+            + "<br>\n"
             + &str::repeat("bar ", 200)
-            + "<br>"
+            + "<br>\n"
             + &str::repeat("baz ", 100);
-        assert_eq!(PostSubmission::intro_limit(&html), Some(1204));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1205));
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
         let html = str::repeat("x", MAX_INTRO_BYTES) + " y";

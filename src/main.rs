@@ -24,9 +24,9 @@ async fn app_state() -> AppState {
         env.set_lstrip_blocks(true);
         env.set_trim_blocks(true);
         fn remove_youtube_thumbnail_links(body: &str) -> String {
-            let re = Regex::new(r#"<a href="/post/\w+"><img src="/youtube/(.*?)</a></div>"#)
+            let re = Regex::new(r#"<a href="/post/\w+"><img src="/youtube/([^>]+)"></a>"#)
                 .expect("regex builds");
-            re.replace_all(body, r#"<img src="/youtube/$1</div>"#)
+            re.replace_all(body, r#"<img src="/youtube/$1">"#)
                 .to_string()
         }
         env.add_filter(
