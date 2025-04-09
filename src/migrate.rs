@@ -6,24 +6,24 @@ use std::collections::HashMap;
 async fn main() {
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
-    let migrations = HashMap::from([("update intro limit", update_intro_limit)]);
-    for (desc, func) in migrations {
-        println!("checking migration: {desc}");
+    let migrations = HashMap::from([("update_intro_limit", update_intro_limit)]);
+    for (name, func) in migrations {
+        println!("checking migration: {name}");
         let mut tx = db.begin().await.expect(BEGIN);
         let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM _rust_migrations WHERE description = $1)",
+            "SELECT EXISTS (SELECT 1 FROM _rust_migrations WHERE name = $1)",
         )
-        .bind(desc)
+        .bind(name)
         .fetch_one(&mut *tx)
         .await
         .expect("check if migration needed");
         if exists {
             continue;
         }
-        println!("migrating: {desc}");
+        println!("migrating: {name}");
         func(&mut *tx).await;
-        sqlx::query("INSERT INTO _rust_migrations (description) VALUES ($1)")
-            .bind(desc)
+        sqlx::query("INSERT INTO _rust_migrations (name) VALUES ($1)")
+            .bind(name)
             .execute(&mut *tx)
             .await
             .expect("insert migration record");
