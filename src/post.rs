@@ -493,24 +493,31 @@ impl PostSubmission {
     }
 
     pub fn intro_limit(html: &str) -> Option<i32> {
+        println!("html.len(): {}", html.len());
         // get a slice of the maximum intro bytes limited to the last valid utf8 character
         let last_valid_utf8_index = html
             .char_indices()
             .take_while(|&(idx, _)| idx < MAX_INTRO_BYTES)
             .last()
             .map_or(0, |(idx, _)| idx);
-        let slice = if html.len() > last_valid_utf8_index {
+        println!("last valid utf8 index: {}", last_valid_utf8_index);
+        let slice = if html.len() - 1 > last_valid_utf8_index {
             &html[..last_valid_utf8_index]
         } else {
             html
         };
+        println!("slice: {}", slice);
         // stop before a second youtube video
         let youtube_pattern =
-            Regex::new(r#"<div class="youtube">\s+<div class="logo">.*?</div>.*?</div>"#)
+            Regex::new(r#"(?s)<div class="youtube">\s+<div class="logo">.*?</div>.*?</div>"#)
                 .expect("regex builds");
-        let youtube_limit_opt = match youtube_pattern.find_iter(slice).nth(1) {
+        // debug
+        let mut youtube_iter = youtube_pattern.find_iter(slice);
+        println!("first youtube_pattern match: {:?}", youtube_iter.next());
+        let youtube_limit_opt = match youtube_iter.next() {
             None => None,
             Some(mat) => {
+                println!("second youtube_pattern match: {:?}", mat);
                 let before_second_youtube = &slice[..mat.start()];
                 // strip any breaks or whitespace that might be present at the end
                 let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("regex builds");
@@ -541,7 +548,6 @@ impl PostSubmission {
             return min_limit_opt;
         }
         // do not truncate if beneath the maximum intro length
-        println!("html.len(): {}", html.len());
         if html.len() <= MAX_INTRO_BYTES {
             return None;
         }
@@ -565,7 +571,6 @@ impl PostSubmission {
             return Some(mat.start() as i32);
         }
         // no incomplete entity, return last valid utf8 character index.
-        println!("last valid utf8 index: {}", last_valid_utf8_index);
         Some(last_valid_utf8_index as i32)
     }
 }
@@ -852,13 +857,15 @@ mod tests {
     #[tokio::test]
     async fn intro_limit() {
         let two_youtubes = concat!(
-            "<div class=\"youtube\">\n    <div class=\"logo\">foo</div>bar</div>\n",
-            "<div class=\"youtube\">\n    <div class=\"logo\">baz</div>quux</div>",
+            "<div class=\"youtube\">\n    <div class=\"logo\">\n",
+            "        foo\n    </div>\n    bar\n</div>\n",
+            "<div class=\"youtube\">\n    <div class=\"logo\">\n",
+            "        baz\n    </div>\n    quux\n</div>",
         );
         let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
         assert_eq!(PostSubmission::intro_limit(&html), Some(120));
         let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
-        assert_eq!(PostSubmission::intro_limit(&html), Some(62));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(82));
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)

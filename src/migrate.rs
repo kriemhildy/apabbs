@@ -6,7 +6,7 @@ use std::collections::HashMap;
 async fn main() {
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
-    let migrations = HashMap::from([("word wrap and limit", word_wrap_and_limit)]);
+    let migrations = HashMap::from([("update intro limit", update_intro_limit)]);
     for (desc, func) in migrations {
         println!("checking migration: {desc}");
         let mut tx = db.begin().await.expect(BEGIN);
@@ -31,7 +31,7 @@ async fn main() {
     }
 }
 
-async fn word_wrap_and_limit(tx: &mut PgConnection) {
+async fn update_intro_limit(tx: &mut PgConnection) {
     use apabbs::post::{Post, PostSubmission};
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit_opt IS NOT NULL")
         .fetch_all(&mut *tx)
