@@ -494,6 +494,9 @@ impl PostSubmission {
 
     pub fn intro_limit(html: &str) -> Option<i32> {
         println!("html.len(): {}", html.len());
+        if html.len() == 0 {
+            return None;
+        }
         // get a slice of the maximum intro bytes limited to the last valid utf8 character
         let last_valid_utf8_index = html
             .char_indices()
