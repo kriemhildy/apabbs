@@ -301,16 +301,17 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    fn download_youtube_thumbnail(
-        video_id: &str,
-        video_id_dir: &PathBuf,
-        size: &str,
-    ) -> Option<PathBuf> {
-        let remote_thumbnail_url = format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
+    pub fn download_youtube_thumbnail(video_id: &str, size: &str) -> Option<PathBuf> {
+        let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
+        // move this check out of lib code? is it ever necessary?
+        if local_thumbnail_path.exists() {
+            return Some(local_thumbnail_path);
+        }
         if !video_id_dir.exists() {
             std::fs::create_dir(&video_id_dir).expect("create youtube video id dir");
         }
+        let remote_thumbnail_url = format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
         let curl_status = std::process::Command::new("curl")
             .args(["--silent", "--fail", "--output"])
             .arg(&local_thumbnail_path)
@@ -373,11 +374,6 @@ impl PostSubmission {
             };
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
-            let thumbnail_sizes = if youtube_short {
-                vec!["oar2"]
-            } else {
-                vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
-            };
             let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(&youtube_video_id);
             let local_thumbnail_path_opt = if video_id_dir.exists() {
                 Some(
@@ -390,9 +386,14 @@ impl PostSubmission {
                         .path(),
                 )
             } else {
-                thumbnail_sizes.iter().find_map(|s| {
-                    Self::download_youtube_thumbnail(&youtube_video_id, &video_id_dir, s)
-                })
+                let thumbnail_sizes = if youtube_short {
+                    vec!["oar2"]
+                } else {
+                    vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
+                };
+                thumbnail_sizes
+                    .iter()
+                    .find_map(|s| Self::download_youtube_thumbnail(&youtube_video_id, s))
             };
             let local_thumbnail_url = match local_thumbnail_path_opt {
                 None => break,
