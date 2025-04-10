@@ -10,13 +10,12 @@ async fn main() {
     for (name, func) in migrations {
         println!("checking migration: {name}");
         let mut tx = db.begin().await.expect(BEGIN);
-        let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM _rust_migrations WHERE name = $1)",
-        )
-        .bind(name)
-        .fetch_one(&mut *tx)
-        .await
-        .expect("check if migration needed");
+        let exists: bool =
+            sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM _rust_migrations WHERE name = $1)")
+                .bind(name)
+                .fetch_one(&mut *tx)
+                .await
+                .expect("check if migration needed");
         if exists {
             continue;
         }
