@@ -3,19 +3,19 @@ use sqlx::PgPool;
 use std::future::Future;
 use std::pin::Pin;
 
-// Define a type alias for the migration function
 type MigrationFn = fn(PgPool) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+
+macro_rules! migrations {
+    ($($func:ident),* $(,)?) => {
+        [$(
+            (stringify!($func), (|db| Box::pin($func(db))) as MigrationFn)
+        ),*]
+    };
+}
 
 #[tokio::main]
 async fn main() {
-    let migrations: [(&str, MigrationFn); 2] = [
-        ("update_intro_limit", |pool| {
-            Box::pin(update_intro_limit(pool))
-        }),
-        ("download_youtube_thumbnails", |pool| {
-            Box::pin(download_youtube_thumbnails(pool))
-        }),
-    ];
+    let migrations = migrations![update_intro_limit, download_youtube_thumbnails];
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
     for (name, func) in migrations {
@@ -60,13 +60,13 @@ async fn update_intro_limit(db: PgPool) {
 
 async fn download_youtube_thumbnails(db: PgPool) {
     let mut tx = db.begin().await.expect(BEGIN);
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx::FromRow, Debug)]
     struct ThumbnailLink {
         post_id: i32,
         video_id: String,
         size: String,
     }
-    use apabbs::post::{Post, PostSubmission};
+    use apabbs::post::PostSubmission;
     let thumbnail_links: Vec<ThumbnailLink> = sqlx::query_as(concat!(
         r"SELECT id AS post_id, substring(body from 'vi\/([a-zA-z0-9\-_]+)\/') AS video_id, ",
         r"substring(body from 'vi\/[a-zA-z0-9\-_]+/(\w+)\.jpg') AS size ",
@@ -77,15 +77,19 @@ async fn download_youtube_thumbnails(db: PgPool) {
     .await
     .expect("fetch posts");
     for link in thumbnail_links {
-        if let Some(thumbnail_url) =
-            PostSubmission::download_youtube_thumbnail(&link.video_id, &link.size)
-        {
-            // sqlx::query("UPDATE posts SET thumbnail_url = $1 WHERE id = $2")
-            //     .bind(thumbnail_url)
-            //     .bind(post.id)
-            //     .execute(&mut *tx)
-            //     .await
-            //     .expect("update post thumbnail URL");
+        println!("downloading youtube thumbnail for link: {:?}", link);
+        if PostSubmission::download_youtube_thumbnail(&link.video_id, &link.size).is_some() {
+            sqlx::query(concat!(
+                "UPDATE posts SET body = ",
+                r#"replace(body, '<img src="https://img.youtube.com/vi/$1/$2.jpg', "#,
+                r#"'<img src="/youtube/$1/$2.jpg') WHERE id = $3"#
+            ))
+            .bind(&link.video_id)
+            .bind(&link.size)
+            .bind(link.post_id)
+            .execute(&mut *tx)
+            .await
+            .expect("update youtube thumbnail url");
         }
     }
     tx.commit().await.expect(COMMIT);
