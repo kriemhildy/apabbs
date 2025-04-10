@@ -19,7 +19,6 @@ async fn main() {
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
     for (name, func) in migrations {
-        println!("checking migration: {name}");
         let exists: bool =
             sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM _rust_migrations WHERE name = $1)")
                 .bind(name)

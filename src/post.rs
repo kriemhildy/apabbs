@@ -304,7 +304,6 @@ impl PostSubmission {
     pub fn download_youtube_thumbnail(video_id: &str, size: &str) -> Option<PathBuf> {
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
-        // move this check out of lib code? is it ever necessary?
         if local_thumbnail_path.exists() {
             return Some(local_thumbnail_path);
         }
