@@ -58,6 +58,7 @@ async fn update_intro_limit(db: PgPool) {
 }
 
 async fn download_youtube_thumbnails(db: PgPool) {
+    use apabbs::post::PostSubmission;
     let mut tx = db.begin().await.expect(BEGIN);
     #[derive(sqlx::FromRow, Debug)]
     struct ThumbnailLink {
@@ -65,7 +66,6 @@ async fn download_youtube_thumbnails(db: PgPool) {
         video_id: String,
         size: String,
     }
-    use apabbs::post::PostSubmission;
     let thumbnail_links: Vec<ThumbnailLink> = sqlx::query_as(concat!(
         r"SELECT id AS post_id, substring(body from 'vi\/([a-zA-z0-9\-_]+)\/') AS video_id, ",
         r"substring(body from 'vi\/[a-zA-z0-9\-_]+/(\w+)\.jpg') AS size ",
@@ -90,6 +90,41 @@ async fn download_youtube_thumbnails(db: PgPool) {
             .await
             .expect("update youtube thumbnail url");
         }
+    }
+    tx.commit().await.expect(COMMIT);
+}
+
+// this is tricky because we went from uuid to uri, then old_uri to uri, then uri to key.
+// we would need each one to have a rust migration, and each one to run only after the relevant
+// sqlx migration.
+// if we just update schizo land for example to current code, and run sqlx migrate, it would
+// delete all the uuid information and make moving the media files impossible.
+// perhaps set a timestamp of the sqlx migration these must execute after.
+// however without running both sqlx and rust migrations as part of the same system,
+// we can't control which migration it ends at.
+// move away from sqlx migrate altogether? just run this binary?
+// looks like we can get an iterator of all known sqlx migrations. that way we can hard-code
+// stopping points to run rust migrations.
+async fn uuid_to_uri(db: PgPool) {
+    use apabbs::post::Post;
+    let mut tx = db.begin().await.expect(BEGIN);
+    #[derive(sqlx::FromRow, Debug)]
+    struct UuidUriPair {
+        uuid: String,
+        uri: String,
+    }
+    let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE key_opt IS NULL")
+        .fetch_all(&mut *tx)
+        .await
+        .expect("fetch posts for migration");
+    for post in posts {
+        let key = uuid::Uuid::new_v4().to_string();
+        sqlx::query("UPDATE posts SET key_opt = $1 WHERE id = $2")
+            .bind(key)
+            .bind(post.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post key");
     }
     tx.commit().await.expect(COMMIT);
 }
