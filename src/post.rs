@@ -221,7 +221,7 @@ impl Post {
             .expect("update post status");
     }
 
-    async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
+    pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
         sqlx::query("UPDATE posts SET thumbnail_opt = $1 WHERE id = $2")
             .bind(thumbnail_filename)
             .bind(self.id)
@@ -602,7 +602,7 @@ impl PostReview {
         std::fs::write(&published_media_path, media_bytes).expect("write media file");
     }
 
-    async fn generate_thumbnail(published_media_path: &PathBuf) {
+    pub async fn generate_thumbnail(published_media_path: &PathBuf) {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')

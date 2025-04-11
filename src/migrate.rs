@@ -15,7 +15,12 @@ macro_rules! migrations {
 
 #[tokio::main]
 async fn main() {
-    let migrations = migrations![uuid_to_key, download_youtube_thumbnails, update_intro_limit];
+    let migrations = migrations![
+        uuid_to_key,
+        download_youtube_thumbnails,
+        generate_media_thumbnails,
+        update_intro_limit
+    ];
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
     for (name, func) in migrations {
@@ -186,5 +191,39 @@ async fn uuid_to_key(db: PgPool) {
         .execute(&mut *tx)
         .await
         .expect("drop uuid column");
+    tx.commit().await.expect(COMMIT);
+}
+
+async fn generate_media_thumbnails(db: PgPool) {
+    use apabbs::post::{Post, PostReview};
+    let mut tx = db.begin().await.expect(BEGIN);
+    let posts: Vec<Post> = sqlx::query_as(concat!(
+        "SELECT * FROM posts WHERE media_filename_opt IS NOT NULL ",
+        "AND media_category_opt = 'image' AND status = 'approved'",
+    ))
+    .fetch_all(&mut *tx)
+    .await
+    .expect("selects posts with media");
+    for post in posts {
+        let published_media_path = post.published_media_path();
+        println!(
+            "generating thumbnail for media {}",
+            published_media_path.to_str().unwrap()
+        );
+        PostReview::generate_thumbnail(&published_media_path).await;
+        // update posts with new thumbnail filename
+        let (thumbnail_filename, thumbnail_path) = PostReview::new_thumbnail_info(&post);
+        if !thumbnail_path.exists() {
+            eprintln!("thumbnail not created successfully");
+            std::process::exit(1);
+        }
+        if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+            println!("thumbnail is larger, deleting");
+            std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+            continue;
+        }
+        println!("setting thumbnail_filename_opt");
+        post.update_thumbnail(&mut *tx, &thumbnail_filename).await;
+    }
     tx.commit().await.expect(COMMIT);
 }
