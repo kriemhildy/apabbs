@@ -1,3 +1,11 @@
+0.33.0
+
+Add Rust migrations to modernize legacy dataset.
+Fix historical SQL migration inconsistencies.
+Remove all shell script migrations.
+Use Rust-based alphanumeric algorithm and check for existing keys.
+Add image dimensions on the solo page to reduce jitteriness.
+
 0.32.0
 
 Add Rust migration system with separate binary.
