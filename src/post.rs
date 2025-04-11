@@ -764,7 +764,7 @@ impl PostReview {
         Ok(())
     }
 
-    fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
+    pub fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
         let image_path_str = image_path.to_str().unwrap();
         let vipsheader = |field: &str| -> i32 {
             let output = std::process::Command::new("vipsheader")
