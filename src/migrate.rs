@@ -146,6 +146,18 @@ async fn download_youtube_thumbnails(db: PgPool) {
 async fn uuid_to_key(db: PgPool) {
     use uuid::Uuid;
     let mut tx = db.begin().await.expect(BEGIN);
+    // check to see if uuid column exists
+    let exists: bool = sqlx::query_scalar(concat!(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns ",
+        "WHERE table_name = 'posts' AND column_name = 'uuid')"
+    ))
+    .fetch_one(&mut *tx)
+    .await
+    .expect("check if uuid column exists");
+    if !exists {
+        println!("uuid column does not exist, skipping migration");
+        return;
+    }
     #[derive(sqlx::FromRow, Debug)]
     struct UuidKeyPair {
         uuid: Uuid,
