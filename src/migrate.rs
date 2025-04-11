@@ -15,7 +15,7 @@ macro_rules! migrations {
 
 #[tokio::main]
 async fn main() {
-    let migrations = migrations![update_intro_limit];
+    let migrations = migrations![update_intro_limit, download_youtube_thumbnails];
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
     for (name, func) in migrations {
@@ -57,7 +57,6 @@ async fn update_intro_limit(db: PgPool) {
     tx.commit().await.expect(COMMIT);
 }
 
-#[allow(dead_code)]
 async fn download_youtube_thumbnails(db: PgPool) {
     use apabbs::post::PostSubmission;
     let mut tx = db.begin().await.expect(BEGIN);
