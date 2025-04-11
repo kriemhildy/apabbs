@@ -773,6 +773,8 @@ async fn review_post() {
     assert!(published_media_path.exists());
     let thumbnail_path = post.thumbnail_path();
     assert!(thumbnail_path.exists());
+    assert!(post.media_width_opt.is_some());
+    assert!(post.media_height_opt.is_some());
     PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
