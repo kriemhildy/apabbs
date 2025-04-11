@@ -60,6 +60,8 @@ pub struct Post {
     pub recent_opt: Option<bool>,
     pub youtube: bool,
     pub intro_limit_opt: Option<i32>,
+    pub media_width_opt: Option<i32>,
+    pub media_height_opt: Option<i32>,
 }
 
 impl Post {
@@ -246,6 +248,16 @@ impl Post {
             }
         }
         result
+    }
+
+    pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) {
+        sqlx::query("UPDATE posts SET media_width_opt = $1, media_height_opt = $2 WHERE id = $3")
+            .bind(width)
+            .bind(height)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update media dimensions");
     }
 }
 
@@ -746,8 +758,27 @@ impl PostReview {
             } else {
                 post.update_thumbnail(tx, &thumbnail_filename).await;
             }
+            let (width, height) = Self::image_dimensions(&published_media_path);
+            post.update_media_dimensions(tx, width, height).await;
         }
         Ok(())
+    }
+
+    fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
+        let image_path_str = image_path.to_str().unwrap();
+        let vipsheader = |field: &str| -> i32 {
+            let output = std::process::Command::new("vipsheader")
+                .args(["-f", field, image_path_str])
+                .output()
+                .expect("get image dimension");
+            String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .parse()
+                .expect("parses as i32")
+        };
+        let width = vipsheader("width");
+        let height = vipsheader("height");
+        (width, height)
     }
 }
 

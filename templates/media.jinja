@@ -2,7 +2,7 @@
     {% if post.media_category_opt == "image" %}
     {% set solo_path = "/post/" + key %}
     {% if solo %}
-    <img src="{{ media_path }}" alt="{{ post.media_filename_opt }}">
+    <img src="{{ media_path }}" alt="{{ post.media_filename_opt }}" width="{{ post.media_width_opt }}" height="{{ post.media_height_opt }}">
     {% else %}
     <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="{{ key }}"></a>
     {% endif %}
