@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE posts ALTER COLUMN key DROP DEFAULT;
+
+DROP FUNCTION alphanumeric;
+
+COMMIT;

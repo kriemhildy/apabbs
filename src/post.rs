@@ -16,6 +16,7 @@ const YOUTUBE_DIR: &'static str = "pub/youtube";
 const MAX_YOUTUBE_EMBEDS: usize = 16;
 const MAX_INTRO_BYTES: usize = 1600;
 const MAX_INTRO_BREAKS: usize = 24;
+const KEY_LENGTH: usize = 8;
 
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -258,10 +259,23 @@ pub struct PostSubmission {
 
 impl PostSubmission {
     pub async fn generate_key(tx: &mut PgConnection) -> String {
-        sqlx::query_scalar("SELECT alphanumeric(8)")
-            .fetch_one(&mut *tx)
-            .await
-            .expect("key is generated")
+        use rand::{Rng, distr::Alphanumeric};
+        loop {
+            let key = rand::rng()
+                .sample_iter(&Alphanumeric)
+                .take(KEY_LENGTH)
+                .map(char::from)
+                .collect();
+            let exists: bool =
+                sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE key = $1)")
+                    .bind(&key)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .expect("check if key exists");
+            if !exists {
+                return key;
+            }
+        }
     }
 
     pub async fn insert(

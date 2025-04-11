@@ -41,6 +41,7 @@ sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
 url = "*"
+rand = "*"
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
