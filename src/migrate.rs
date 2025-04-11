@@ -15,7 +15,7 @@ macro_rules! migrations {
 
 #[tokio::main]
 async fn main() {
-    let migrations = migrations![update_intro_limit, download_youtube_thumbnails];
+    let migrations = migrations![update_intro_limit];
     dotenv::dotenv().ok();
     let db = apabbs::db().await;
     for (name, func) in migrations {
@@ -57,6 +57,7 @@ async fn update_intro_limit(db: PgPool) {
     tx.commit().await.expect(COMMIT);
 }
 
+#[allow(dead_code)]
 async fn download_youtube_thumbnails(db: PgPool) {
     use apabbs::post::PostSubmission;
     let mut tx = db.begin().await.expect(BEGIN);
@@ -105,6 +106,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
 // move away from sqlx migrate altogether? just run this binary?
 // looks like we can get an iterator of all known sqlx migrations. that way we can hard-code
 // stopping points to run rust migrations.
+#[allow(dead_code)]
 async fn uuid_to_uri(db: PgPool) {
     use apabbs::post::Post;
     let mut tx = db.begin().await.expect(BEGIN);
