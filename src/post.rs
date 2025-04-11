@@ -301,27 +301,38 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    pub fn download_youtube_thumbnail(video_id: &str, size: &str) -> Option<PathBuf> {
+    pub fn download_youtube_thumbnail(video_id: &str, youtube_short: bool) -> Option<PathBuf> {
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
-        let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
-        if local_thumbnail_path.exists() {
-            return Some(local_thumbnail_path);
-        }
-        if !video_id_dir.exists() {
+        if video_id_dir.exists() {
+            if let Some(first_entry) = video_id_dir.read_dir().expect("reads video id dir").next() {
+                return Some(first_entry.unwrap().path());
+            }
+        } else {
             std::fs::create_dir(&video_id_dir).expect("create youtube video id dir");
         }
-        let remote_thumbnail_url = format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
-        let curl_status = std::process::Command::new("curl")
-            .args(["--silent", "--fail", "--output"])
-            .arg(&local_thumbnail_path)
-            .arg(&remote_thumbnail_url)
-            .status()
-            .expect("download youtube thumbnail");
-        if curl_status.success() {
-            Some(local_thumbnail_path)
+        let thumbnail_sizes = if youtube_short {
+            vec!["oar2"]
         } else {
-            None
+            vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
+        };
+        for size in thumbnail_sizes {
+            let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
+            if local_thumbnail_path.exists() {
+                return Some(local_thumbnail_path);
+            }
+            let remote_thumbnail_url =
+                format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
+            let curl_status = std::process::Command::new("curl")
+                .args(["--silent", "--fail", "--output"])
+                .arg(&local_thumbnail_path)
+                .arg(&remote_thumbnail_url)
+                .status()
+                .expect("download youtube thumbnail");
+            if curl_status.success() {
+                return Some(local_thumbnail_path);
+            }
         }
+        None
     }
 
     fn body_to_html(&self, key: &str) -> String {
@@ -373,27 +384,8 @@ impl PostSubmission {
             };
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
-            let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(&youtube_video_id);
-            let local_thumbnail_path_opt = if video_id_dir.exists() {
-                Some(
-                    video_id_dir
-                        .read_dir()
-                        .expect("read video id dir")
-                        .next()
-                        .expect("get first entry")
-                        .expect("unwrap entry")
-                        .path(),
-                )
-            } else {
-                let thumbnail_sizes = if youtube_short {
-                    vec!["oar2"]
-                } else {
-                    vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
-                };
-                thumbnail_sizes
-                    .iter()
-                    .find_map(|s| Self::download_youtube_thumbnail(&youtube_video_id, s))
-            };
+            let local_thumbnail_path_opt =
+                Self::download_youtube_thumbnail(&youtube_video_id, youtube_short);
             let local_thumbnail_url = match local_thumbnail_path_opt {
                 None => break,
                 Some(path) => path
