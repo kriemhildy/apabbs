@@ -163,17 +163,21 @@ async fn uuid_to_key(db: PgPool) {
         uuid: Uuid,
         key: String,
     }
-    let pairs: Vec<UuidKeyPair> = sqlx::query_as(concat!(
-        "SELECT uuid, key FROM posts WHERE uuid IS NOT NULL AND media_filename_opt IS NOT NULL ",
-        "AND status = 'approved'"
-    ))
+    let pairs: Vec<UuidKeyPair> = sqlx::query_as(
+        "SELECT uuid, key FROM posts WHERE uuid IS NOT NULL AND media_filename_opt IS NOT NULL "
+    )
     .fetch_all(&mut *tx)
     .await
     .expect("fetch posts for migration");
     for pair in pairs {
         println!("migrating {} to {}", pair.uuid, pair.key);
+        let uuid_dir = format!("pub/media/{}", pair.uuid);
+        if !std::path::Path::new(&uuid_dir).exists() {
+            println!("media directory for uuid does not exist, skipping");
+            continue;
+        }
         std::fs::rename(
-            format!("pub/media/{}", pair.uuid),
+            uuid_dir,
             format!("pub/media/{}", pair.key),
         )
         .expect("rename media directory");
