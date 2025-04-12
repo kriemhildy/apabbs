@@ -214,6 +214,7 @@ div.post video {
 div#posts div.post img,
 div#posts div.post video {
     max-height: clamp(300px, 80vh, 1200px);
+    height: unset;
 }
 
 div.arrow a {
