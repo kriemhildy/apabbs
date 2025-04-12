@@ -424,7 +424,7 @@ impl PostSubmission {
             let youtube_thumbnail_link = format!(
                 concat!(
                     "<div class=\"youtube\">\n",
-                    "    <div class=\"logo\">\n",
+                    "    <div class=\"youtube-logo\">\n",
                     "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">",
                     "<img src=\"/youtube.svg\" alt=\"YouTube {video_id}\">",
                     "</a>\n",
@@ -530,7 +530,7 @@ impl PostSubmission {
         println!("slice: {}", slice);
         // stop before a second youtube video
         let youtube_pattern =
-            Regex::new(r#"(?s)<div class="youtube">\s+<div class="logo">.*?</div>.*?</div>"#)
+            Regex::new(r#"(?s)<div class="youtube">\s+<div class="youtube-logo">.*?</div>.*?</div>"#)
                 .expect("regex builds");
         // debug
         let mut youtube_iter = youtube_pattern.find_iter(slice);
@@ -834,7 +834,7 @@ mod tests {
                 "<br>\n",
                 "<a href=\"https://example.com\">https://example.com</a><br>\n",
                 "<div class=\"youtube\">\n",
-                "    <div class=\"logo\">\n",
+                "    <div class=\"youtube-logo\">\n",
                 "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube jNQXAC9IVRw\">",
                 "</a>\n",
@@ -844,7 +844,7 @@ mod tests {
                 "</a>\n",
                 "</div>\n",
                 "<div class=\"youtube\">\n",
-                "    <div class=\"logo\">\n",
+                "    <div class=\"youtube-logo\">\n",
                 "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube kixirmHePCc\">",
                 "</a>\n",
@@ -854,7 +854,7 @@ mod tests {
                 "</a>\n",
                 "</div>\n",
                 "<div class=\"youtube\">\n",
-                "    <div class=\"logo\">\n",
+                "    <div class=\"youtube-logo\">\n",
                 "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube cHMCGCWit6U\">",
                 "</a>\n",
@@ -875,7 +875,7 @@ mod tests {
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ",
                 "</a> bar<br>\n",
                 "<div class=\"youtube\">\n",
-                "    <div class=\"logo\">\n",
+                "    <div class=\"youtube-logo\">\n",
                 "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube 28jr-6-XDPM\">",
                 "</a>\n",
@@ -897,15 +897,15 @@ mod tests {
     #[tokio::test]
     async fn intro_limit() {
         let two_youtubes = concat!(
-            "<div class=\"youtube\">\n    <div class=\"logo\">\n",
+            "<div class=\"youtube\">\n    <div class=\"youtube-logo\">\n",
             "        foo\n    </div>\n    bar\n</div>\n",
-            "<div class=\"youtube\">\n    <div class=\"logo\">\n",
+            "<div class=\"youtube\">\n    <div class=\"youtube-logo\">\n",
             "        baz\n    </div>\n    quux\n</div>",
         );
         let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
         assert_eq!(PostSubmission::intro_limit(&html), Some(120));
         let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
-        assert_eq!(PostSubmission::intro_limit(&html), Some(82));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(90));
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)
