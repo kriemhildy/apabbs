@@ -1,5 +1,15 @@
 /* Only applied on non-Mac operating systems to WebKit browsers */
 
+:root {
+    --thumb: #ccc;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --thumb: #666;
+    }
+}
+
 html {
     scrollbar-color: var(--thumb) var(--back);
 }
