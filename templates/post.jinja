@@ -1,7 +1,7 @@
-{% set role = user.account_opt.role %}
+{% set role_opt = user.account_opt.role %}
 {% set status = post.status %}
 {% set key = post.key %}
-{% set media_path = none %}
+{% set media_path_opt = none %}
 <div class="post {{ status }}" id="post-{{ key }}">
     {###################################################################################}
     {# Body #}
@@ -32,12 +32,12 @@
     {% set optimal_filename =
         post.thumbnail_opt if not solo and post.thumbnail_opt is not none
         else post.media_filename_opt %}
-    {% set media_path = "/m/" + key + "/" + optimal_filename|urlencode %}
-    {% elif (role in ["admin", "mod"] and status == "pending")
-        or (role == "admin" and status == "reported") %}
-    {% set media_path = "/decrypt-media/" + key %}
+    {% set media_path_opt = "/m/" + key + "/" + optimal_filename|urlencode %}
+    {% elif (role_opt in ["admin", "mod"] and status == "pending")
+        or (role_opt == "admin" and status == "reported") %}
+    {% set media_path_opt = "/decrypt-media/" + key %}
     {% endif %}
-    {% if media_path is not none %}
+    {% if media_path_opt is not none %}
     {% filter indent(4) %}
     {%+ include "media.jinja" +%}
     {% endfilter %}
@@ -69,7 +69,7 @@
         and status not in ["rejected", "banned"]
         and (post.media_category_opt != "image"
             or (status in ["pending", "reported"]
-                and role not in ["admin", "mod"]))
+                and role_opt not in ["admin", "mod"]))
         and not post.youtube
         and post.intro_limit_opt is none %}
     <div class="arrow">
@@ -79,9 +79,9 @@
     {###################################################################################}
     {# Review #}
     {###################################################################################}
-    {% if (role == "admin" and status in ["pending", "delisted", "reported"])
-        or (role == "mod" and status in ["pending", "delisted"])
-        or ((role == "admin" or (role == "mod" and post.recent_opt))
+    {% if (role_opt == "admin" and status in ["pending", "delisted", "reported"])
+        or (role_opt == "mod" and status in ["pending", "delisted"])
+        or ((role_opt == "admin" or (role_opt == "mod" and post.recent_opt))
             and status == "approved" and solo) %}
     <details class="review">
         <summary>Review</summary>
@@ -95,13 +95,13 @@
             <input type="hidden" name="status" value="delisted">
             <input type="submit" value="Delist"{{ " disabled" if status == "delisted" }}>
         </form>
-    {% if role == "mod" %}
+    {% if role_opt == "mod" %}
         <form action="/review/{{ key }}" method="post" class="reported" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="reported">
             <input type="submit" value="Report"{{ " disabled" if status == "reported" }}>
         </form>
-    {% elif role == "admin" %}
+    {% elif role_opt == "admin" %}
         <form action="/review/{{ key }}" method="post" class="reject" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="rejected">
@@ -120,14 +120,14 @@
     {###################################################################################}
     {% if status == "rejected" and
         (post.session_token_opt == user.session_token or
-            post.account_id_opt == user.account_opt.id) %}
+            (post.account_id_opt is not none and post.account_id_opt == user.account_opt.id)) %}
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="key" value="{{ key }}">
         <input type="submit" value="Hide">
     </form>
     {% elif status in ["rejected", "banned"]
-        or (status == "reported" and role == "mod") %}
+        or (status == "reported" and role_opt == "mod") %}
     <button onclick="removeHiddenPost(this)">Hide</button>
     {% endif %}
 </div>

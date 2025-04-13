@@ -2,18 +2,18 @@
     {% if post.media_category_opt == "image" %}
     {% set solo_path = "/post/" + key %}
     {% if solo %}
-    <img src="{{ media_path }}" alt="Image {{ post.media_filename_opt }}" width="{{ post.media_width_opt }}" height="{{ post.media_height_opt }}">
+    <img src="{{ media_path_opt }}" alt="Image {{ post.media_filename_opt }}" width="{{ post.media_width_opt }}" height="{{ post.media_height_opt }}">
     {% else %}
-    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}"></a>
+    <a href="{{ solo_path }}"><img src="{{ media_path_opt }}" alt="Post {{ key }}"></a>
     {% endif %}
     {% elif post.media_category_opt == "video" %}
     <video controls>
-        <source src="{{ media_path }}" type="{{ post.media_mime_type_opt }}">
+        <source src="{{ media_path_opt }}" type="{{ post.media_mime_type_opt }}">
         Video {{ post.media_filename_opt }}
     </video>
     {% elif post.media_category_opt == "audio" %}
     <audio controls>
-        <source src="{{ media_path }}" type="{{ post.media_mime_type_opt }}">
+        <source src="{{ media_path_opt }}" type="{{ post.media_mime_type_opt }}">
         Audio {{ post.media_filename_opt }}
     </audio>
     {% endif %}
