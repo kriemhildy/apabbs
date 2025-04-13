@@ -94,10 +94,9 @@ function latestPostKey() {
     const postOpt = document.querySelector("div.post.approved");
     if (postOpt === null) {
         return null;
-    } else {
-        const post = postOpt;
-        return post.id.replace("post-", "");
     }
+    const post = postOpt;
+    return post.id.replace("post-", "");
 }
 
 function checkInterim() {
