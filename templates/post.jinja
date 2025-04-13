@@ -92,37 +92,9 @@
         (role == "admin" and status in ["pending", "delisted", "reported"])
         or (role == "mod" and status in ["pending", "delisted"])
         or ((role == "admin" or (role == "mod" and recent)) and status == "approved" and solo)) %}
-    <details class="review">
-        <summary>Review</summary>
-        <form action="/review/{{ key }}" method="post" class="approve">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <input type="hidden" name="status" value="approved">
-            <input type="submit" value="Approve"{{ " disabled" if status == "approved" }}>
-        </form>
-        <form action="/review/{{ key }}" method="post" class="delist">
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <input type="hidden" name="status" value="delisted">
-            <input type="submit" value="Delist"{{ " disabled" if status == "delisted" }}>
-        </form>
-    {% if role == "mod" %}
-        <form action="/review/{{ key }}" method="post" class="reported" data-confirm>
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <input type="hidden" name="status" value="reported">
-            <input type="submit" value="Report"{{ " disabled" if status == "reported" }}>
-        </form>
-    {% elif role == "admin" %}
-        <form action="/review/{{ key }}" method="post" class="reject" data-confirm>
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <input type="hidden" name="status" value="rejected">
-            <input type="submit" value="Reject"{{ " disabled" if status == "rejected" }}>
-        </form>
-        <form action="/review/{{ key }}" method="post" class="ban" data-confirm>
-            <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <input type="hidden" name="status" value="banned">
-            <input type="submit" value="Ban"{{ " disabled" if status == "banned" }}>
-        </form>
-    {% endif %}
-    </details>
+    {% filter indent(4) %}
+    {%+ include "review.jinja" +%}
+    {% endfilter %}
     {% endif %}
     {###################################################################################}
     {# Hide #}
