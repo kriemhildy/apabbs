@@ -2,7 +2,7 @@
 {% set status = post.status %}
 {% set key = post.key %}
 {% set media_path = none %}
-<div class="post{{ " " + status if status != "approved" }}" id="post-{{ key }}">
+<div class="post {{ status }}" id="post-{{ key }}">
     {###################################################################################}
     {# Body #}
     {###################################################################################}

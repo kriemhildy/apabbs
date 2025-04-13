@@ -91,7 +91,7 @@ function updatePost(key, html) {
 //-------------------------------------------------------------------------------------------------
 
 function latestPostKey() {
-    const post = document.querySelector("div.post:not(.banned)");
+    const post = document.querySelector("div.post.approved");
     if (post !== null) {
         return post.id.replace("post-", "");
     } else {
@@ -107,7 +107,6 @@ function checkInterim() {
         if (response.status === 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
-                    console.log("updating interim post", post.key);
                     updatePost(post.key, post.html);
                 }
             });
