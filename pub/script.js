@@ -91,9 +91,9 @@ function updatePost(key, html) {
 //-------------------------------------------------------------------------------------------------
 
 function latestPostKey() {
-    const post_opt = document.querySelector("div.post.approved");
-    if (post_opt !== null) {
-        return post_opt.id.replace("post-", "");
+    const postOpt = document.querySelector("div.post.approved");
+    if (postOpt !== null) {
+        return postOpt.id.replace("post-", "");
     } else {
         return null;
     }
