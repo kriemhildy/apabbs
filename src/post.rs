@@ -529,9 +529,10 @@ impl PostSubmission {
         };
         println!("slice: {}", slice);
         // stop before a second youtube video
-        let youtube_pattern =
-            Regex::new(r#"(?s)<div class="youtube">\s+<div class="youtube-logo">.*?</div>.*?</div>"#)
-                .expect("regex builds");
+        let youtube_pattern = Regex::new(
+            r#"(?s)<div class="youtube">\s+<div class="youtube-logo">.*?</div>.*?</div>"#,
+        )
+        .expect("regex builds");
         // debug
         let mut youtube_iter = youtube_pattern.find_iter(slice);
         println!("first youtube_pattern match: {:?}", youtube_iter.next());

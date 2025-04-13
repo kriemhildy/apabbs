@@ -170,7 +170,7 @@ async fn uuid_to_key(db: PgPool) {
         key: String,
     }
     let pairs: Vec<UuidKeyPair> = sqlx::query_as(
-        "SELECT uuid, key FROM posts WHERE uuid IS NOT NULL AND media_filename_opt IS NOT NULL "
+        "SELECT uuid, key FROM posts WHERE uuid IS NOT NULL AND media_filename_opt IS NOT NULL ",
     )
     .fetch_all(&mut *tx)
     .await
@@ -182,11 +182,8 @@ async fn uuid_to_key(db: PgPool) {
             println!("media directory for uuid does not exist, skipping");
             continue;
         }
-        std::fs::rename(
-            uuid_dir,
-            format!("pub/media/{}", pair.key),
-        )
-        .expect("rename media directory");
+        std::fs::rename(uuid_dir, format!("pub/media/{}", pair.key))
+            .expect("rename media directory");
     }
     sqlx::query("ALTER TABLE posts DROP COLUMN uuid")
         .execute(&mut *tx)
