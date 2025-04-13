@@ -207,6 +207,8 @@ function handleFormSubmit(event) {
             response.text().then((text) => {
                 alert(text);
             });
+        } else if (response.status === 413) {
+            alert("File must be under 20MB");
         } else {
             alert(`${response.status} ${response.statusText}`);
         }

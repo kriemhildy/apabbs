@@ -6,14 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="/style.css?189">
-    <script src="/script.js?61"></script>
+    <script src="/script.js?62"></script>
 </head>
 
 <body>
     {% if nav %}
     <nav>
         {% if user.account_opt is not none %}
-        <a href="/user/{{ user.account_opt.username }}">{{ user.account_opt.username }}</a>
+        {% set account = user.account_opt %}
+        <a href="/user/{{ account.username }}">{{ account.username }}</a>
         {% else %}
         <a href="/login">log in</a>
         {% endif %}
