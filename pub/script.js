@@ -200,10 +200,12 @@ function handleFormSubmit(event) {
         console.log("response", response);
         if (response.ok) {
             afterSuccessfulFetch(this);
-        } else {
+        } else if ([400, 401, 403].includes(response.status)) {
             response.text().then((text) => {
                 alert(text);
             });
+        } else {
+            alert(`${response.status} ${response.statusText}`);
         }
         restoreSubmitButtons();
         spinner.style.display = "none";
