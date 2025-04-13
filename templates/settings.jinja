@@ -1,8 +1,10 @@
 {% extends "layout.jinja" %}
+{% set account = user.account_opt %}
 {% block main %}
 <main>
     {% if notice_opt is not none %}
-    <p id="notice">{{ notice_opt }}</p>
+    {% set notice = notice_opt %}
+    <p id="notice">{{ notice }}</p>
     {% endif %}
     <h2>Settings</h2>
     <h3>Authentication</h3>
@@ -21,7 +23,7 @@
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <select name="time_zone">
             {% for tz in time_zones %}
-            <option value="{{ tz }}"{{ " selected" if tz == user.account_opt.time_zone }}>{{ tz }}</option>
+            <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
             {% endfor %}
         </select>
         <input type="submit" value="Update">
@@ -29,7 +31,7 @@
     <h3>Password</h3>
     <form action="/settings/update-password" method="post" class="grid">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
-        <input type="hidden" name="username" value="{{ user.account_opt.username }}">
+        <input type="hidden" name="username" value="{{ account.username }}">
         <label for="new-password">New password:</label>
         <input id="new-password" type="password" name="password" maxlength="64" autocomplete="new-password">
         <label for="confirm-password">Confirm new password:</label>

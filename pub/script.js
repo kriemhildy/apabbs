@@ -92,15 +92,20 @@ function updatePost(key, html) {
 
 function latestPostKey() {
     const postOpt = document.querySelector("div.post.approved");
-    if (postOpt !== null) {
-        return postOpt.id.replace("post-", "");
-    } else {
+    if (postOpt === null) {
         return null;
+    } else {
+        const post = postOpt;
+        return post.id.replace("post-", "");
     }
 }
 
 function checkInterim() {
-    const key = latestPostKey();
+    const keyOpt = latestPostKey();
+    if (keyOpt === null) {
+        return;
+    }
+    const key = keyOpt;
     console.log("fetching interim post data since", key);
     fetch(`/interim/${key}`).then((response) => {
         console.log("interim response", response);

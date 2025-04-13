@@ -1,20 +1,26 @@
+{% set category = post.media_category_opt %}
+{% set filename = post.media_filename_opt %}
+{% set width = post.media_width_opt %}
+{% set height = post.media_width_opt %}
+{% set media_path = media_path_opt %}
+{% set mime_type = post.media_mime_type_opt %}
 <div class="media">
-    {% if post.media_category_opt == "image" %}
+    {% if category == "image" %}
     {% set solo_path = "/post/" + key %}
     {% if solo %}
-    <img src="{{ media_path_opt }}" alt="Image {{ post.media_filename_opt }}" width="{{ post.media_width_opt }}" height="{{ post.media_height_opt }}">
+    <img src="{{ media_path }}" alt="Image {{ filename }}" width="{{ width }}" height="{{ height }}">
     {% else %}
-    <a href="{{ solo_path }}"><img src="{{ media_path_opt }}" alt="Post {{ key }}"></a>
+    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}"></a>
     {% endif %}
-    {% elif post.media_category_opt == "video" %}
+    {% elif category == "video" %}
     <video controls>
-        <source src="{{ media_path_opt }}" type="{{ post.media_mime_type_opt }}">
-        Video {{ post.media_filename_opt }}
+        <source src="{{ media_path }}" type="{{ mime_type }}">
+        Video {{ filename }}
     </video>
-    {% elif post.media_category_opt == "audio" %}
+    {% elif category == "audio" %}
     <audio controls>
-        <source src="{{ media_path_opt }}" type="{{ post.media_mime_type_opt }}">
-        Audio {{ post.media_filename_opt }}
+        <source src="{{ media_path }}" type="{{ mime_type }}">
+        Audio {{ filename }}
     </audio>
     {% endif %}
 </div>

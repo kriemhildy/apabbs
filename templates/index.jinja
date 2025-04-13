@@ -2,7 +2,8 @@
 {% block main %}
 <main>
     {% if page_post_opt is not none %}
-    <p class="system">Page beginning at "{{ page_post_opt.key }}"</p>
+    {% set page_post = page_post_opt %}
+    <p class="system">Page beginning at "{{ page_post.key }}"</p>
     {% else %}
     <form action="/submit-post" method="post" enctype="multipart/form-data">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
@@ -22,7 +23,8 @@
         {% endfilter %}
     </div>
     {% if prior_page_post_opt is not none %}
-    <p><a href="/page/{{ prior_page_post_opt.key }}" class="system">Prior page</a></p>
+    {% set prior_page_post = prior_page_post_opt %}
+    <p><a href="/page/{{ prior_page_post.key }}" class="system">Prior page</a></p>
     {% endif %}
 </main>
 {% endblock %}

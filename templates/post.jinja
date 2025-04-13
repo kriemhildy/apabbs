@@ -1,7 +1,9 @@
-{% set role_opt = user.account_opt.role %}
+{% set user_account = user.account_opt if user.account_opt is not none %}
+{% set role = user_account.role if user.account_opt is not none %}
 {% set status = post.status %}
 {% set key = post.key %}
 {% set media_path_opt = none %}
+{% set recent = post.recent_opt %}
 <div class="post {{ status }}" id="post-{{ key }}">
     {###################################################################################}
     {# Body #}
@@ -14,7 +16,8 @@
         {% elif solo or post.intro_limit_opt is none %}
         {{ post.body }}
         {% else %}
-        {{ post.body|byte_slice(post.intro_limit_opt) }}
+        {% set intro_limit = post.intro_limit_opt %}
+        {{ post.body|byte_slice(intro_limit) }}
         {% endif %}
         {% endfilter +%}
     </div>
@@ -28,13 +31,16 @@
     {# Media #}
     {###################################################################################}
     {% if post.media_filename_opt is not none %}
+    {% set media_filename = post.media_filename_opt %}
     {% if status in ["approved", "delisted"] %}
+    {% set thumbnail = post.thumbnail_opt if post.thumbnail_opt is not none %}
     {% set optimal_filename =
-        post.thumbnail_opt if not solo and post.thumbnail_opt is not none
-        else post.media_filename_opt %}
+        thumbnail if not solo and post.thumbnail_opt is not none
+        else media_filename %}
     {% set media_path_opt = "/m/" + key + "/" + optimal_filename|urlencode %}
-    {% elif (role_opt in ["admin", "mod"] and status == "pending")
-        or (role_opt == "admin" and status == "reported") %}
+    {% elif user.account_opt is not none and (
+        (role in ["admin", "mod"] and status == "pending")
+        or (role == "admin" and status == "reported")) %}
     {% set media_path_opt = "/decrypt-media/" + key %}
     {% endif %}
     {% if media_path_opt is not none %}
@@ -49,7 +55,7 @@
     {% if status != "approved" %}
     <div class="status">
         {% if post.media_filename_opt is not none %}
-        File: {{ post.media_filename_opt|escape }}<br>
+        File: {{ media_filename|escape }}<br>
         {% endif %}
         Status: {{ status|capitalize }}
     </div>
@@ -58,18 +64,21 @@
     {# Info #}
     {###################################################################################}
     {% if solo %}
+    {% set created_at_html = post.created_at_html_opt %}
+    {% set created_at_rfc5322 = post.created_at_rfc5322_opt %}
     <div id="created-at">
-        <time datetime="{{ post.created_at_html_opt }}">{{ post.created_at_rfc5322_opt }}</time>
+        <time datetime="{{ created_at_html }}">{{ created_at_rfc5322 }}</time>
     </div>
     {% endif %}
     {###################################################################################}
     {# Arrow #}
     {###################################################################################}
+    {% set media_category = post.media_category_opt if post.media_category_opt is not none %}
     {% if not solo
         and status not in ["rejected", "banned"]
-        and (post.media_category_opt != "image"
+        and (post.media_category_opt is not none and media_category != "image"
             or (status in ["pending", "reported"]
-                and role_opt not in ["admin", "mod"]))
+                and user.account_opt is not none and role not in ["admin", "mod"]))
         and not post.youtube
         and post.intro_limit_opt is none %}
     <div class="arrow">
@@ -79,10 +88,10 @@
     {###################################################################################}
     {# Review #}
     {###################################################################################}
-    {% if (role_opt == "admin" and status in ["pending", "delisted", "reported"])
-        or (role_opt == "mod" and status in ["pending", "delisted"])
-        or ((role_opt == "admin" or (role_opt == "mod" and post.recent_opt))
-            and status == "approved" and solo) %}
+    {% if user.account_opt is not none and (
+        (role == "admin" and status in ["pending", "delisted", "reported"])
+        or (role == "mod" and status in ["pending", "delisted"])
+        or ((role == "admin" or (role == "mod" and recent)) and status == "approved" and solo)) %}
     <details class="review">
         <summary>Review</summary>
         <form action="/review/{{ key }}" method="post" class="approve">
@@ -95,13 +104,13 @@
             <input type="hidden" name="status" value="delisted">
             <input type="submit" value="Delist"{{ " disabled" if status == "delisted" }}>
         </form>
-    {% if role_opt == "mod" %}
+    {% if role == "mod" %}
         <form action="/review/{{ key }}" method="post" class="reported" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="reported">
             <input type="submit" value="Report"{{ " disabled" if status == "reported" }}>
         </form>
-    {% elif role_opt == "admin" %}
+    {% elif role == "admin" %}
         <form action="/review/{{ key }}" method="post" class="reject" data-confirm>
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="status" value="rejected">
@@ -118,16 +127,19 @@
     {###################################################################################}
     {# Hide #}
     {###################################################################################}
+    {% set session_token = post.session_token_opt if post.session_token_opt is not none %}
+    {% set post_account_id = post.account_id_opt if post.account_id_opt is not none %}
     {% if status == "rejected" and
-        (post.session_token_opt == user.session_token or
-            (post.account_id_opt is not none and post.account_id_opt == user.account_opt.id)) %}
+        (post.session_token_opt is not none and session_token == user.session_token
+            or (post.account_id_opt is not none and user.account_opt is not none
+                and post_account_id == user_account.id)) %}
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="key" value="{{ key }}">
         <input type="submit" value="Hide">
     </form>
     {% elif status in ["rejected", "banned"]
-        or (status == "reported" and role_opt == "mod") %}
+        or (status == "reported" and user.account_opt is not none and role == "mod") %}
     <button onclick="removeHiddenPost(this)">Hide</button>
     {% endif %}
 </div>
