@@ -68,13 +68,8 @@ async fn download_youtube_thumbnails(db: PgPool) {
     use std::thread;
     use tokio::time::Duration;
     let mut tx = db.begin().await.expect(BEGIN);
-    #[derive(sqlx::FromRow, Debug)]
-    struct YoutubeLink {
-        video_id: String,
-    }
     // we need all matches, possibly multiple per post
-    // need to detect short status as well
-    let youtube_links: Vec<YoutubeLink> = sqlx::query_as(concat!(
+    let video_ids: Vec<String> = sqlx::query_scalar(concat!(
         "SELECT matches[1] AS video_id FROM ",
         "(SELECT regexp_matches(body, ",
         r#"'<a href="https://www\.youtube\.com/(?:watch\?v=|shorts/)([\w\-]{11})', 'g') "#,
@@ -86,8 +81,8 @@ async fn download_youtube_thumbnails(db: PgPool) {
     .expect("selects youtube links");
     // because old links were assumed to be mqdefault, and later maxresdefault, this will
     // re-determine the optimal size, and as such we need to update the database afterwards
-    for link in youtube_links {
-        println!("downloading thumbnail for video {}", link.video_id);
+    for video_id in video_ids {
+        println!("downloading thumbnail for video {}", video_id);
         // detect whether or not the youtube is a short by checking the response code of the short url
         let response_code = std::process::Command::new("curl")
             .args([
@@ -97,7 +92,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
                 "--write-out",
                 "'%{http_code}'",
             ])
-            .arg(format!("https://www.youtube.com/shorts/{}", link.video_id))
+            .arg(format!("https://www.youtube.com/shorts/{}", video_id))
             .output()
             .expect("checks response code for youtube short")
             .stdout;
@@ -112,14 +107,14 @@ async fn download_youtube_thumbnails(db: PgPool) {
                     r#"'https://www.youtube.com/shorts/{video_id}') WHERE body LIKE "#,
                     r#"'%https://www.youtube.com/watch?v={video_id}%'"#
                 ),
-                video_id = link.video_id
+                video_id = video_id
             ))
             .execute(&mut *tx)
             .await
             .expect("updates youtube link to be short");
         }
         if let Some(local_thumbnail_path) =
-            PostSubmission::download_youtube_thumbnail(&link.video_id, short)
+            PostSubmission::download_youtube_thumbnail(&video_id, short)
         {
             // remove pub prefix
             let thumbnail_url = local_thumbnail_path
@@ -136,7 +131,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
                     r#"'<img src="{thumbnail_url}"') WHERE body LIKE "#,
                     r#"'%<img src="/youtube/{video_id}/%'"#
                 ),
-                video_id = link.video_id,
+                video_id = video_id,
                 thumbnail_url = thumbnail_url
             ))
             .execute(&mut *tx)
