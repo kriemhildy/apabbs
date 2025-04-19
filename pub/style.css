@@ -187,7 +187,7 @@ div.banned {
 
 div.body {
     overflow-y: clip;
-    word-break: break-word;
+    overflow-wrap: anywhere;
     max-width: 600px;
 }
 
