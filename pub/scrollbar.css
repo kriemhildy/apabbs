@@ -2,14 +2,11 @@
 
 :root {
     --thumb: #ccc;
+    scrollbar-color: var(--thumb) var(--back);
 }
 
 @media (prefers-color-scheme: light) {
     :root {
         --thumb: #666;
     }
-}
-
-html {
-    scrollbar-color: var(--thumb) var(--back);
 }
