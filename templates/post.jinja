@@ -4,7 +4,7 @@
 {% set key = post.key %}
 {% set media_path_opt = none %}
 {% set recent = post.recent_opt %}
-<div class="post {{ status }}" id="post-{{ key }}">
+<div class="post {{ status }}{{ " solo" if solo }}" id="post-{{ key }}">
     {###################################################################################}
     {# Body #}
     {###################################################################################}

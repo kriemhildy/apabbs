@@ -140,12 +140,8 @@ div#posts {
     align-items: center;
 }
 
-details.review {
+div.post.solo details.review {
     height: 45px;
-}
-
-div#posts details.review {
-    height: unset;
 }
 
 div#posts div.post {
