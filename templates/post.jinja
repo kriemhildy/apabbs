@@ -76,7 +76,8 @@
     {% set media_category = post.media_category_opt if post.media_category_opt is not none %}
     {% if not solo
         and status not in ["rejected", "banned"]
-        and (post.media_category_opt is not none and media_category != "image"
+        and (post.media_category_opt is none
+            or media_category != "image"
             or (status in ["pending", "reported"]
                 and user.account_opt is not none and role not in ["admin", "mod"]))
         and not post.youtube
