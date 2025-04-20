@@ -630,9 +630,10 @@ async fn review_post(
     }
     post.update_status(&mut tx, &post_review.status).await;
     post_review.insert(&mut tx, account.id, post.id).await;
-    let post = Post::select_by_key(&mut tx, &key)
-        .await
-        .expect("post is some");
+    let post = match Post::select_by_key(&mut tx, &key).await {
+        None => return not_found("post does not exist"),
+        Some(post) => post,
+    };
     if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash_opt.as_ref() {
             ban::insert(&mut tx, ip_hash, post.account_id_opt, Some(account.id)).await;
