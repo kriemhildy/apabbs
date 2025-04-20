@@ -165,14 +165,15 @@ pub async fn init_user(
 pub async fn check_for_ban(
     tx: &mut PgConnection,
     ip_hash: &str,
-    banned_account_id: Option<i32>,
-    admin_account_id: Option<i32>,
+    banned_account_id_opt: Option<i32>,
+    admin_account_id_opt: Option<i32>,
 ) -> Option<Response> {
-    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await {
+    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id_opt).await {
         return Some(ban_message(&expires_at_str));
     }
     if ban::flooding(tx, ip_hash).await {
-        let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await;
+        let expires_at_str =
+            ban::insert(tx, ip_hash, banned_account_id_opt, admin_account_id_opt).await;
         ban::prune(tx, ip_hash).await;
         return Some(ban_message(&expires_at_str));
     }
