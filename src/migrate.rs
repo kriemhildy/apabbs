@@ -22,7 +22,10 @@ async fn main() {
         update_intro_limit,
         add_image_dimensions
     ];
-    dotenv::dotenv().ok();
+    if let Err(error) = dotenv::dotenv() {
+        eprintln!("Error loading .env file: {}", error);
+        std::process::exit(1);
+    }
     let db = apabbs::db().await;
     for (name, func) in migrations {
         let exists: bool =

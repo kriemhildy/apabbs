@@ -51,7 +51,10 @@ async fn app_state() -> AppState {
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
+    if let Err(error) = dotenv::dotenv() {
+        eprintln!("Error loading .env file: {}", error);
+        std::process::exit(1);
+    }
     if apabbs::secret_key().len() < 16 {
         panic!("SECRET_KEY env must be at least 16 chars");
     }
