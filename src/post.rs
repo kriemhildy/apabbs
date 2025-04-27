@@ -337,7 +337,7 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    pub fn download_youtube_thumbnail(video_id: &str, youtube_short: bool) -> Option<PathBuf> {
+    pub fn download_youtube_thumbnail(video_id: &str, youtube_short: bool) -> Option<(PathBuf, i32, i32)> {
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         if video_id_dir.exists() {
             if let Some(first_entry) = video_id_dir.read_dir().expect("reads video id dir").next() {
@@ -349,9 +349,18 @@ impl PostSubmission {
         let thumbnail_sizes = if youtube_short {
             vec!["oar2"]
         } else {
-            vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
+            vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault", "default"]
         };
         for size in thumbnail_sizes {
+            let (width, height) = match size {
+                "maxresdefault" => (1280, 720),
+                "sddefault" => (640, 480),
+                "hqdefault" => (480, 360),
+                "mqdefault" => (320, 180),
+                "default" => (120, 90),
+                "oar2" => (1080, 1920),
+                _ => (0, 0),
+            };
             let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
             if local_thumbnail_path.exists() {
                 return Some(local_thumbnail_path);
