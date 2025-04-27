@@ -33,9 +33,9 @@
     {% if post.media_filename_opt is not none %}
     {% set media_filename = post.media_filename_opt %}
     {% if status in ["approved", "delisted"] %}
-    {% set thumbnail = post.thumbnail_opt if post.thumbnail_opt is not none %}
+    {% set thumbnail = post.thumb_filename_opt if post.thumb_filename_opt is not none %}
     {% set optimal_filename =
-        thumbnail if not solo and post.thumbnail_opt is not none
+        thumbnail if not solo and post.thumb_filename_opt is not none
         else media_filename %}
     {% set media_path_opt = "/m/" + key + "/" + optimal_filename|urlencode %}
     {% elif user.account_opt is not none and (

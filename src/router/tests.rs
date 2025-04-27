@@ -813,7 +813,7 @@ async fn review_post_with_small_media() {
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
     assert!(post.published_media_path().exists());
-    assert!(post.thumbnail_opt.is_none());
+    assert!(post.thumb_filename_opt.is_none());
     let (_thumbnail_filename, thumbnail_path) = PostReview::new_thumbnail_info(&post);
     assert!(!thumbnail_path.exists());
     PostReview::delete_media_key_dir(&post.key);

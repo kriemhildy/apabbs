@@ -55,7 +55,7 @@ pub struct Post {
     pub created_at_rfc5322_opt: Option<String>,
     #[sqlx(default)]
     pub created_at_html_opt: Option<String>,
-    pub thumbnail_opt: Option<String>,
+    pub thumb_filename_opt: Option<String>,
     #[sqlx(default)]
     pub recent_opt: Option<bool>,
     pub youtube: bool,
@@ -178,7 +178,7 @@ impl Post {
     pub fn thumbnail_path(&self) -> PathBuf {
         std::path::Path::new(MEDIA_DIR).join(&self.key).join(
             &self
-                .thumbnail_opt
+                .thumb_filename_opt
                 .as_ref()
                 .expect("thumbnail_filename is some"),
         )
@@ -225,7 +225,7 @@ impl Post {
     }
 
     pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
-        sqlx::query("UPDATE posts SET thumbnail_opt = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET thumb_filename_opt = $1 WHERE id = $2")
             .bind(thumbnail_filename)
             .bind(self.id)
             .execute(&mut *tx)
