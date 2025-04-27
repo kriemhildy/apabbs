@@ -203,7 +203,7 @@ div.post video {
     max-width: max(300px, calc(100% + 16px));
     margin: 0 -8px;
     height: 100%;
-    width: calc(100% + 16px);
+    width: auto;
 }
 
 div#posts div.post img,
@@ -257,7 +257,6 @@ div.youtube {
 
 div.youtube-logo img {
     height: 1.7em;
-    width: auto;
     filter: brightness(0.2) invert(1);
     margin: unset;
 }
