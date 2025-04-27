@@ -257,6 +257,7 @@ div.youtube {
 
 div.youtube-logo img {
     height: 1.7em;
+    width: auto;
     filter: brightness(0.2) invert(1);
     margin: unset;
 }
