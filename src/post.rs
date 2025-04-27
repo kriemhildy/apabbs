@@ -337,11 +337,35 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    pub fn download_youtube_thumbnail(video_id: &str, youtube_short: bool) -> Option<(PathBuf, i32, i32)> {
+    pub fn download_youtube_thumbnail(
+        video_id: &str,
+        youtube_short: bool,
+    ) -> Option<(PathBuf, i32, i32)> {
+        fn dimensions(size: &str) -> (i32, i32) {
+            match size {
+                "maxresdefault" => (1280, 720),
+                "sddefault" => (640, 480),
+                "hqdefault" => (480, 360),
+                "mqdefault" => (320, 180),
+                "default" => (120, 90),
+                "oar2" => (1080, 1920),
+                _ => panic!("invalid thumbnail size"),
+            }
+        }
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         if video_id_dir.exists() {
             if let Some(first_entry) = video_id_dir.read_dir().expect("reads video id dir").next() {
-                return Some(first_entry.unwrap().path());
+                let existing_thumbnail_path = first_entry.expect("get first entry").path();
+                let size = existing_thumbnail_path
+                    .file_name()
+                    .expect("get file name")
+                    .to_str()
+                    .expect("file name to str")
+                    .split('.')
+                    .next()
+                    .expect("get file name without extension");
+                let (width, height) = dimensions(size);
+                return Some((existing_thumbnail_path, width, height));
             }
         } else {
             std::fs::create_dir(&video_id_dir).expect("create youtube video id dir");
@@ -349,22 +373,16 @@ impl PostSubmission {
         let thumbnail_sizes = if youtube_short {
             vec!["oar2"]
         } else {
-            vec!["maxresdefault", "sddefault", "hqdefault", "mqdefault", "default"]
+            vec![
+                "maxresdefault",
+                "sddefault",
+                "hqdefault",
+                "mqdefault",
+                "default",
+            ]
         };
         for size in thumbnail_sizes {
-            let (width, height) = match size {
-                "maxresdefault" => (1280, 720),
-                "sddefault" => (640, 480),
-                "hqdefault" => (480, 360),
-                "mqdefault" => (320, 180),
-                "default" => (120, 90),
-                "oar2" => (1080, 1920),
-                _ => (0, 0),
-            };
             let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
-            if local_thumbnail_path.exists() {
-                return Some(local_thumbnail_path);
-            }
             let remote_thumbnail_url =
                 format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
             let curl_status = std::process::Command::new("curl")
@@ -374,7 +392,8 @@ impl PostSubmission {
                 .status()
                 .expect("download youtube thumbnail");
             if curl_status.success() {
-                return Some(local_thumbnail_path);
+                let (width, height) = dimensions(size);
+                return Some((local_thumbnail_path, width, height));
             }
         }
         None
@@ -429,15 +448,18 @@ impl PostSubmission {
             };
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
-            let local_thumbnail_path_opt =
+            let thumbnail_tuple_opt =
                 Self::download_youtube_thumbnail(&youtube_video_id, youtube_short);
-            let local_thumbnail_url = match local_thumbnail_path_opt {
+            let (local_thumbnail_url, width, height) = match thumbnail_tuple_opt {
                 None => break,
-                Some(path) => path
-                    .to_str()
-                    .expect("path to str")
-                    .to_owned()
-                    .replacen("pub", "", 1),
+                Some((path, width, height)) => (
+                    path.to_str()
+                        .expect("path to str")
+                        .to_owned()
+                        .replacen("pub", "", 1),
+                    width,
+                    height,
+                ),
             };
             let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
             let youtube_thumbnail_link = format!(
@@ -445,11 +467,13 @@ impl PostSubmission {
                     "<div class=\"youtube\">\n",
                     "    <div class=\"youtube-logo\">\n",
                     "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">",
-                    "<img src=\"/youtube.svg\" alt=\"YouTube {video_id}\" width=\"20\" height=\"20\">",
+                    "<img src=\"/youtube.svg\" alt=\"YouTube {video_id}\" ",
+                    "width=\"20\" height=\"20\">",
                     "</a>\n",
                     "    </div>\n",
                     "    <a href=\"/post/{key}\">",
-                    "<img src=\"{thumbnail_url}\" alt=\"Post {key}\">",
+                    "<img src=\"{thumbnail_url}\" alt=\"Post {key}\" ",
+                    "width=\"{width}\" height=\"{height}\">",
                     "</a>\n",
                     "</div>",
                 ),
@@ -460,6 +484,8 @@ impl PostSubmission {
                 timestamp = youtube_timestamp_opt
                     .map(|t| format!("&amp;t={}", t))
                     .unwrap_or_default(),
+                width = width,
+                height = height,
             );
             html = youtube_link_regex
                 .replace(&html, youtube_thumbnail_link)
@@ -892,7 +918,8 @@ mod tests {
                 "</a>\n",
                 "    </div>\n",
                 "    <a href=\"/post/testkey1\">",
-                "<img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\" alt=\"Post testkey1\">",
+                "<img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\" alt=\"Post testkey1\"",
+                "width=\"480\" height=\"360\">",
                 "</a>\n",
                 "</div>\n",
                 "<div class=\"youtube\">\n",
@@ -902,7 +929,8 @@ mod tests {
                 "</a>\n",
                 "    </div>\n",
                 "    <a href=\"/post/testkey1\">",
-                "<img src=\"/youtube/kixirmHePCc/maxresdefault.jpg\" alt=\"Post testkey1\">",
+                "<img src=\"/youtube/kixirmHePCc/maxresdefault.jpg\" alt=\"Post testkey1\" ",
+                "width=\"1280\" height=\"720\">",
                 "</a>\n",
                 "</div>\n",
                 "<div class=\"youtube\">\n",
@@ -912,7 +940,8 @@ mod tests {
                 "</a>\n",
                 "    </div>\n",
                 "    <a href=\"/post/testkey1\">",
-                "<img src=\"/youtube/cHMCGCWit6U/oar2.jpg\" alt=\"Post testkey1\">",
+                "<img src=\"/youtube/cHMCGCWit6U/oar2.jpg\" alt=\"Post testkey1\" ",
+                "width=\"1080\" height=\"1920\">",
                 "</a>\n",
                 "</div>\n",
                 "<a href=\"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\">",
@@ -933,7 +962,8 @@ mod tests {
                 "</a>\n",
                 "    </div>\n",
                 "    <a href=\"/post/testkey1\">",
-                "<img src=\"/youtube/28jr-6-XDPM/hqdefault.jpg\" alt=\"Post testkey1\">",
+                "<img src=\"/youtube/28jr-6-XDPM/hqdefault.jpg\" alt=\"Post testkey1\" ",
+                "width=\"480\" height=\"360\">",
                 "</a>\n",
                 "</div>",
             )
