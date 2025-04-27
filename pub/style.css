@@ -31,7 +31,7 @@
 body {
     margin: 8px auto;
     width: max-content;
-    max-width: min(calc(100% - 16px), calc(70px + 89%));
+    max-width: calc(100% - 16px);
 }
 
 textarea {
@@ -134,7 +134,7 @@ details.review form {
 div#posts {
     display: flex;
     flex-wrap: wrap;
-    gap: calc(3vh + 3vw + 16px);
+    gap: calc(1vh + 1vw + 16px);
     margin-top: 12px;
     margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
     align-items: center;
@@ -202,14 +202,8 @@ div.post img,
 div.post video {
     max-width: max(300px, calc(100% + 16px));
     margin: 0 -8px;
-}
-
-img[height], video[height] {
     height: 100%;
-}
-
-img[width], video[width] {
-    width: 100%;
+    width: calc(100% + 16px);
 }
 
 div#posts div.post img,
