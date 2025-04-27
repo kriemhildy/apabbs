@@ -7,7 +7,7 @@ function styleScrollbar() {
         const primaryLink = document.querySelector("link[rel=stylesheet]");
         const scrollbarLink = document.createElement("link");
         scrollbarLink.rel = "stylesheet";
-        scrollbarLink.href = "/scrollbar.css?5";
+        scrollbarLink.href = "/scrollbar.css?6";
         console.log("non-mac webkit scrollbar");
         primaryLink.after(scrollbarLink);
     }

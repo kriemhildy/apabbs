@@ -1,12 +1,14 @@
 /* Only applied on non-Mac operating systems to WebKit browsers */
 
 :root {
+    --track: #0f0f0f;
     --thumb: #ccc;
-    scrollbar-color: var(--thumb) var(--back);
+    scrollbar-color: var(--thumb) var(--track);
 }
 
 @media (prefers-color-scheme: light) {
     :root {
+        --track: #f2f2f2;
         --thumb: #666;
     }
 }
