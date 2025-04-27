@@ -202,8 +202,8 @@ div.post img,
 div.post video {
     max-width: max(300px, calc(100% + 16px));
     margin: 0 -8px;
-    height: auto;
-    width: auto;
+    height: min-content;
+    width: min-content;
 }
 
 div#posts div.post img,
