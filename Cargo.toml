@@ -1,6 +1,6 @@
 [package]
 name = "apabbs"
-version = "0.33.0"
+version = "0.34.0"
 edition = "2024"
 default-run = "apabbs"
 
@@ -41,7 +41,7 @@ sha256 = "*"
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
 url = "*"
-rand = "*"
+rand = ">0.9.0"
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }

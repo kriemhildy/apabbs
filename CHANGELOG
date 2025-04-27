@@ -1,3 +1,7 @@
+0.34.0
+
+Add thumbnail and video dimensions.
+
 0.33.0
 
 Add Rust migrations to modernize legacy dataset.
