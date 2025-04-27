@@ -754,25 +754,28 @@ impl PostReview {
         let media_bytes = post.decrypt_media_file().await;
         let published_media_path = post.published_media_path();
         Self::write_media_file(&published_media_path, media_bytes);
-        if post
-            .media_category_opt
-            .as_ref()
-            .is_some_and(|c| *c == MediaCategory::Image)
-        {
-            Self::generate_thumbnail(&published_media_path).await;
-            let (thumbnail_filename, thumbnail_path) = Self::new_thumbnail_info(&post);
-            if !thumbnail_path.exists() {
-                return Err("thumbnail not created successfully".to_owned());
+        match post.media_category_opt {
+            Some(MediaCategory::Image) => {
+                Self::generate_thumbnail(&published_media_path).await;
+                let (thumbnail_filename, thumbnail_path) = Self::new_thumbnail_info(&post);
+                if !thumbnail_path.exists() {
+                    return Err("thumbnail not created successfully".to_owned());
+                }
+                if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+                    std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+                } else {
+                    let (width, height) = Self::image_dimensions(&thumbnail_path);
+                    post.update_thumbnail(tx, &thumbnail_filename, width, height)
+                        .await;
+                }
+                let (width, height) = Self::image_dimensions(&published_media_path);
+                post.update_media_dimensions(tx, width, height).await;
             }
-            if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-                std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
-            } else {
-                let (width, height) = Self::image_dimensions(&thumbnail_path);
-                post.update_thumbnail(tx, &thumbnail_filename, width, height)
-                    .await;
+            Some(MediaCategory::Video) => {
+                let (width, height) = Self::video_dimensions(&published_media_path);
+                post.update_media_dimensions(tx, width, height).await;
             }
-            let (width, height) = Self::image_dimensions(&published_media_path);
-            post.update_media_dimensions(tx, width, height).await;
+            Some(MediaCategory::Audio) | None => (),
         }
         Ok(())
     }
@@ -792,6 +795,33 @@ impl PostReview {
         let width = vipsheader("width");
         let height = vipsheader("height");
         (width, height)
+    }
+
+    pub fn video_dimensions(video_path: &PathBuf) -> (i32, i32) {
+        let video_path_str = video_path.to_str().unwrap();
+        let ffprobe_output = std::process::Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(video_path_str)
+            .output()
+            .expect("get video dimensions");
+        let output_str = String::from_utf8_lossy(&ffprobe_output.stdout);
+        println!("ffprobe output: {}", output_str);
+        let dimensions: Vec<i32> = output_str
+            .trim()
+            .split(',')
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        println!("video dimensions: {:?}", dimensions);
+        (dimensions[0], dimensions[1])
     }
 }
 

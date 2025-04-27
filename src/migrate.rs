@@ -20,7 +20,8 @@ async fn main() {
         download_youtube_thumbnails,
         generate_media_thumbnails,
         update_intro_limit,
-        add_image_dimensions
+        add_image_dimensions,
+        add_video_dimensions,
     ];
     if let Err(error) = dotenv::dotenv() {
         eprintln!("Error loading .env file: {}", error);
@@ -253,6 +254,29 @@ async fn add_image_dimensions(db: PgPool) {
                 .await;
         }
 
+    }
+    tx.commit().await.expect(COMMIT);
+}
+
+async fn add_video_dimensions(db: PgPool) {
+    use apabbs::post::{Post, PostReview};
+    let mut tx = db.begin().await.expect(BEGIN);
+    let posts: Vec<Post> = sqlx::query_as(concat!(
+        "SELECT * FROM posts WHERE media_filename_opt IS NOT NULL ",
+        "AND media_category_opt = 'video' AND status = 'approved'",
+    ))
+    .fetch_all(&mut *tx)
+    .await
+    .expect("selects posts with videos");
+    for post in posts {
+        let published_media_path = post.published_media_path();
+        println!(
+            "adding dimensions for media {}",
+            published_media_path.to_str().unwrap()
+        );
+        let (width, height) = PostReview::video_dimensions(&published_media_path);
+        println!("setting video dimensions: {}x{}", width, height);
+        post.update_media_dimensions(&mut *tx, width, height).await;
     }
     tx.commit().await.expect(COMMIT);
 }
