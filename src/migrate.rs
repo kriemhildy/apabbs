@@ -117,7 +117,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
             .await
             .expect("updates youtube link to be short");
         }
-        if let Some(local_thumbnail_path) =
+        if let Some((local_thumbnail_path, width, height)) =
             PostSubmission::download_youtube_thumbnail(&video_id, short)
         {
             // remove pub prefix
@@ -126,17 +126,20 @@ async fn download_youtube_thumbnails(db: PgPool) {
                 .unwrap()
                 .strip_prefix("pub")
                 .expect("strips pub prefix");
-            println!("saved to {}", thumbnail_url);
+            println!("saved to {thumbnail_url} ({width}x{height})");
             // update body of posts with new thumbnail url
             sqlx::query(&format!(
                 concat!(
                     r#"UPDATE posts SET body = regexp_replace(body, "#,
-                    r#"'<img src="/youtube/{video_id}/\w+\.jpg"', "#,
-                    r#"'<img src="{thumbnail_url}"') WHERE body LIKE "#,
+                    r#"'<img src="/youtube/{video_id}/\w+\.jpg" ?(alt="Post \w+")?[^>]*>', "#,
+                    r#"'<img src="{thumbnail_url}" \1 width="{width}" height="{height}">')"#,
+                    r#"WHERE body LIKE "#,
                     r#"'%<img src="/youtube/{video_id}/%'"#
                 ),
                 video_id = video_id,
-                thumbnail_url = thumbnail_url
+                thumbnail_url = thumbnail_url,
+                width = width,
+                height = height
             ))
             .execute(&mut *tx)
             .await
