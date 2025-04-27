@@ -918,7 +918,7 @@ mod tests {
                 "</a>\n",
                 "    </div>\n",
                 "    <a href=\"/post/testkey1\">",
-                "<img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\" alt=\"Post testkey1\"",
+                "<img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\" alt=\"Post testkey1\" ",
                 "width=\"480\" height=\"360\">",
                 "</a>\n",
                 "</div>\n",
