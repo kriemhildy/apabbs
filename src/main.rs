@@ -26,12 +26,15 @@ async fn app_state() -> AppState {
         fn remove_youtube_thumbnail_links(body: &str) -> String {
             let re = Regex::new(concat!(
                 r#"<a href="/post/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
-                r#"alt="Post \w{8,}"></a>"#
+                r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
             ))
             .expect("regex builds");
             re.replace_all(
                 body,
-                r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1">"#,
+                concat!(
+                    r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
+                    r#"width="$3" height="$4">"#,
+                )
             )
             .to_string()
         }
