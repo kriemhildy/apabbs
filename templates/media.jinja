@@ -10,7 +10,7 @@
     {% if solo %}
     <img src="{{ media_path }}" alt="Image {{ filename }}" width="{{ width }}" height="{{ height }}">
     {% else %}
-    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}"></a>
+    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}" width="{{ width }}" height="{{ height }}"></a>
     {% endif %}
     {% elif category == "video" %}
     <video controls>

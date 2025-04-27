@@ -208,6 +208,10 @@ img[height] {
     height: 100%;
 }
 
+img[width] {
+    width: 100%;
+}
+
 div#posts div.post img,
 div#posts div.post video {
     max-height: clamp(300px, 80vh, 1200px);
