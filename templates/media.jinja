@@ -1,7 +1,7 @@
 {% set category = post.media_category_opt %}
 {% set filename = post.media_filename_opt %}
-{% set width = post.media_width_opt %}
-{% set height = post.media_width_opt %}
+{% set width = post.media_width_opt if solo or post.thumb_filename_opt is none else post.thumb_width_opt %}
+{% set height = post.media_height_opt if solo or post.thumb_filename_opt is none else post.thumb_height_opt %}
 {% set media_path = media_path_opt %}
 {% set mime_type = post.media_mime_type_opt %}
 <div class="media">
@@ -10,7 +10,7 @@
     {% if solo %}
     <img src="{{ media_path }}" alt="Image {{ filename }}" width="{{ width }}" height="{{ height }}">
     {% else %}
-    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}"></a>
+    <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}" width="{{ width }}" height="{{ height }}"></a>
     {% endif %}
     {% elif category == "video" %}
     <video controls>

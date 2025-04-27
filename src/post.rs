@@ -62,6 +62,8 @@ pub struct Post {
     pub intro_limit_opt: Option<i32>,
     pub media_width_opt: Option<i32>,
     pub media_height_opt: Option<i32>,
+    pub thumb_width_opt: Option<i32>,
+    pub thumb_height_opt: Option<i32>,
 }
 
 impl Post {
@@ -176,12 +178,9 @@ impl Post {
     }
 
     pub fn thumbnail_path(&self) -> PathBuf {
-        std::path::Path::new(MEDIA_DIR).join(&self.key).join(
-            &self
-                .thumb_filename_opt
-                .as_ref()
-                .expect("thumbnail_filename is some"),
-        )
+        std::path::Path::new(MEDIA_DIR)
+            .join(&self.key)
+            .join(&self.thumb_filename_opt.as_ref().unwrap())
     }
 
     async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
@@ -224,13 +223,24 @@ impl Post {
             .expect("update post status");
     }
 
-    pub async fn update_thumbnail(&self, tx: &mut PgConnection, thumbnail_filename: &str) {
-        sqlx::query("UPDATE posts SET thumb_filename_opt = $1 WHERE id = $2")
-            .bind(thumbnail_filename)
-            .bind(self.id)
-            .execute(&mut *tx)
-            .await
-            .expect("update post thumbnail");
+    pub async fn update_thumbnail(
+        &self,
+        tx: &mut PgConnection,
+        thumbnail_filename: &str,
+        width: i32,
+        height: i32,
+    ) {
+        sqlx::query(concat!(
+            "UPDATE posts SET thumb_filename_opt = $1, thumb_width_opt = $2, ",
+            "thumb_height_opt = $3 WHERE id = $4"
+        ))
+        .bind(thumbnail_filename)
+        .bind(width)
+        .bind(height)
+        .bind(self.id)
+        .execute(&mut *tx)
+        .await
+        .expect("update post thumbnail");
     }
 
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
@@ -757,7 +767,9 @@ impl PostReview {
             if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                 std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
             } else {
-                post.update_thumbnail(tx, &thumbnail_filename).await;
+                let (width, height) = Self::image_dimensions(&thumbnail_path);
+                post.update_thumbnail(tx, &thumbnail_filename, width, height)
+                    .await;
             }
             let (width, height) = Self::image_dimensions(&published_media_path);
             post.update_media_dimensions(tx, width, height).await;

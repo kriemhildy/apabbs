@@ -218,8 +218,10 @@ async fn generate_media_thumbnails(db: PgPool) {
             std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
             continue;
         }
-        println!("setting thumbnail_filename_opt");
-        post.update_thumbnail(&mut *tx, &thumbnail_filename).await;
+        println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
+        let (width, height) = PostReview::image_dimensions(&thumbnail_path);
+        post.update_thumbnail(&mut *tx, &thumbnail_filename, width, height)
+            .await;
     }
     tx.commit().await.expect(COMMIT);
 }
@@ -241,8 +243,16 @@ async fn add_image_dimensions(db: PgPool) {
             published_media_path.to_str().unwrap()
         );
         let (width, height) = PostReview::image_dimensions(&published_media_path);
-        println!("setting image dimensions: {}x{}", width, height);
+        println!("setting media image dimensions: {}x{}", width, height);
         post.update_media_dimensions(&mut *tx, width, height).await;
+        if let Some(ref thumb_filename) = post.thumb_filename_opt {
+            let thumbnail_path = post.thumbnail_path();
+            let (width, height) = PostReview::image_dimensions(&thumbnail_path);
+            println!("setting thumbnail image dimensions: {}x{}", width, height);
+            post.update_thumbnail(&mut *tx, thumb_filename, width, height)
+                .await;
+        }
+
     }
     tx.commit().await.expect(COMMIT);
 }

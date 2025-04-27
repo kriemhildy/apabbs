@@ -8,4 +8,6 @@ ALTER TABLE posts ADD COLUMN thumb_width_opt integer CHECK (thumb_width_opt > 0)
 
 ALTER TABLE posts ADD COLUMN thumb_height_opt integer CHECK (thumb_height_opt > 0);
 
+DELETE FROM _rust_migrations WHERE name = 'add_image_dimensions';
+
 COMMIT;
