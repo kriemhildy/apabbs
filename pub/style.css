@@ -240,13 +240,13 @@ div#spinner {
     }
 }
 
-div#post-submit-container {
+div.row {
     display: flex;
     gap: 6px;
     align-items: center;
 }
 
-div#post-submit-container input[type="submit"] {
+div.row input[type="submit"] {
     margin: unset;
 }
 
