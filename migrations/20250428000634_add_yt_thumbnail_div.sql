@@ -1,3 +1,5 @@
+BEGIN;
+
 UPDATE posts SET body = regexp_replace(
     body,
     concat(
@@ -21,3 +23,7 @@ UPDATE posts SET body = regexp_replace(
     'g'
 )
 WHERE body LIKE '%<div class="youtube">%';
+
+DELETE FROM _rust_migrations WHERE name = 'update_intro_limit';
+
+COMMIT;

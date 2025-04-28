@@ -576,10 +576,8 @@ impl PostSubmission {
         };
         println!("slice: {}", slice);
         // stop before a second youtube video
-        let youtube_pattern = Regex::new(
-            r#"(?s)<div class="youtube-logo">.*?</div>\n<div class="youtube-thumbnail">.*?</div>"#,
-        )
-        .expect("regex builds");
+        let youtube_pattern =
+            Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("regex builds");
         // debug
         let mut youtube_iter = youtube_pattern.find_iter(slice);
         println!("first youtube_pattern match: {:?}", youtube_iter.next());
@@ -989,15 +987,27 @@ mod tests {
     #[tokio::test]
     async fn intro_limit() {
         let two_youtubes = concat!(
-            "<div class=\"youtube\">\n    <div class=\"youtube-logo\">\n",
-            "        foo\n    </div>\n    bar\n</div>\n",
-            "<div class=\"youtube\">\n    <div class=\"youtube-logo\">\n",
-            "        baz\n    </div>\n    quux\n</div>",
+            "<div class=\"youtube\">\n",
+            "    <div class=\"youtube-logo\">\n",
+            "        foo\n",
+            "    </div>\n",
+            "    <div class=\"youtube-thumbnail\">\n",
+            "        bar\n",
+            "    </div>\n",
+            "</div>\n",
+            "<div class=\"youtube\">\n",
+            "    <div class=\"youtube-logo\">\n",
+            "        baz\n",
+            "    </div>\n",
+            "    <div class=\"youtube-thumbnail\">\n",
+            "        quux\n",
+            "    </div>\n",
+            "</div>",
         );
         let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
         assert_eq!(PostSubmission::intro_limit(&html), Some(120));
         let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
-        assert_eq!(PostSubmission::intro_limit(&html), Some(90));
+        assert_eq!(PostSubmission::intro_limit(&html), Some(141));
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
         let html = str::repeat("foo ", 100)
