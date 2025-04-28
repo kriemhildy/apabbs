@@ -198,16 +198,18 @@ div.media {
     text-align: center;
 }
 
-div.post img,
-div.post video {
+div.media img,
+div.media video,
+div.youtube-thumbnail img {
     max-width: max(300px, calc(100% + 16px));
     margin: 0 -8px;
     height: auto;
     width: auto;
 }
 
-div#posts div.post img,
-div#posts div.post video {
+div#posts div.media img,
+div#posts div.media video,
+div#posts div.youtube-thumbnail img {
     max-height: clamp(300px, 80vh, 1200px);
 }
 
@@ -258,7 +260,6 @@ div.youtube {
 div.youtube-logo img {
     height: 1.7em;
     filter: brightness(0.2) invert(1);
-    margin: unset;
 }
 
 @media (prefers-color-scheme: light) {
