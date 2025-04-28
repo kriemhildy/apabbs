@@ -8,7 +8,7 @@ default-run = "apabbs"
 opt-level = "z" # Optimize for size
 
 [[bin]]
-name = "migrate"  # Migration binary
+name = "migrate"        # Migration binary
 path = "src/migrate.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
