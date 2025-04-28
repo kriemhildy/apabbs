@@ -131,8 +131,11 @@ async fn download_youtube_thumbnails(db: PgPool) {
             sqlx::query(&format!(
                 concat!(
                     r#"UPDATE posts SET body = regexp_replace(body, "#,
-                    r#"'<img src="/youtube/{video_id}/\w+\.jpg" ?(alt="Post \w+")?[^>]*>', "#,
-                    r#"'<img src="{thumbnail_url}" \1 width="{width}" height="{height}">')"#,
+                    r#"'<a href="/post/(\w+)">"#,
+                    r#"<img src="/youtube/{video_id}/\w+\.jpg"[^>]*></a>', "#,
+                    r#"'<a href="/post/\1">"#,
+                    r#"<img src="{thumbnail_url}" alt="Post \1" "#,
+                    r#"width="{width}" height="{height}"></a>', 'g')"#,
                     r#"WHERE body LIKE "#,
                     r#"'%<img src="/youtube/{video_id}/%'"#
                 ),
