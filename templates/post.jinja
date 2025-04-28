@@ -9,7 +9,7 @@
     {# Body #}
     {###################################################################################}
     {% if post.body|length > 0 and status != "banned" %}
-    <div class="body">
+    <div class="post-body">
         {% filter indent(8) %}
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links }}

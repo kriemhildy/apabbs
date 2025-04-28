@@ -90,10 +90,6 @@ button,
     border-color: var(--border);
 }
 
-textarea#post-body {
-    margin-bottom: 4px;
-}
-
 a {
     color: var(--system);
 }
@@ -185,7 +181,7 @@ div.banned {
     background: var(--banned);
 }
 
-div.body {
+div.post-body {
     overflow-y: clip;
     overflow-wrap: anywhere;
     max-width: 600px;
@@ -243,6 +239,7 @@ div#spinner {
 }
 
 div.row {
+    margin-top: 4px;
     display: flex;
     gap: 6px;
     align-items: center;

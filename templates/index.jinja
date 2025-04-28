@@ -7,7 +7,7 @@
     {% else %}
     <form action="/submit-post" method="post" enctype="multipart/form-data">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
-        <textarea name="body" id="post-body"></textarea>
+        <textarea name="body"></textarea>
         <div class="row">
             <input type="file" name="media">
             <input type="submit" value="Post">
