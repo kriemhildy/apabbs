@@ -4,7 +4,7 @@
 {% set width = post.thumb_width_opt if use_thumb else post.media_width_opt %}
 {% set height = post.thumb_height_opt if use_thumb else post.media_height_opt %}
 {% set media_path = media_path_opt %}
-{% set mime_type = post.media_mime_type_opt %}
+{% set mime_type = "video/mp4" if use_thumb else post.media_mime_type_opt %}
 <div class="media">
     {% if category == "image" %}
     {% set solo_path = "/post/" + key %}

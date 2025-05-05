@@ -686,7 +686,7 @@ impl PostReview {
                 _ => "",
             };
         let command_output = tokio::process::Command::new("vipsthumbnail")
-            .args(["--size=1200x1600>", "--output=tn_%s.webp"])
+            .args(["--size=1280x2160>", "--output=tn_%s.webp"])
             .arg(&vips_input_file_path)
             .output()
             .await
@@ -868,7 +868,7 @@ impl PostReview {
         (dimensions[0], dimensions[1])
     }
 
-    // Convert the video to AVC/H.264 and AAC with maximum dimensions of 1200x1600.
+    // Convert to AVC/H.264 and AAC with maximum dimensions of 1280x2160.
     // This is for Safari and Firefox compatibility.
     pub async fn generate_video_thumbnail(video_path: &PathBuf) {
         let video_path_str = video_path.to_str().unwrap();
@@ -891,7 +891,7 @@ impl PostReview {
                 "-movflags",
                 "+faststart",
                 "-vf",
-                "scale='min(1200,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease",
+                "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease",
                 thumbnail_path_str,
             ])
             .output()

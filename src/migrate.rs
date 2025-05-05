@@ -18,10 +18,11 @@ async fn main() {
     let migrations = migrations![
         uuid_to_key,
         download_youtube_thumbnails,
-        generate_media_thumbnails,
+        generate_image_thumbnails,
         update_intro_limit,
         add_image_dimensions,
         add_video_dimensions,
+        generate_video_thumbnails,
     ];
     if let Err(error) = dotenv::dotenv() {
         eprintln!("Error loading .env file: {}", error);
@@ -197,7 +198,7 @@ async fn uuid_to_key(db: PgPool) {
     tx.commit().await.expect(COMMIT);
 }
 
-async fn generate_media_thumbnails(db: PgPool) {
+async fn generate_image_thumbnails(db: PgPool) {
     use apabbs::post::{Post, PostReview};
     let mut tx = db.begin().await.expect(BEGIN);
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -283,6 +284,38 @@ async fn add_video_dimensions(db: PgPool) {
         let (width, height) = PostReview::video_dimensions(&published_media_path).await;
         println!("setting video dimensions: {}x{}", width, height);
         post.update_media_dimensions(&mut *tx, width, height).await;
+    }
+    tx.commit().await.expect(COMMIT);
+}
+
+async fn generate_video_thumbnails(db: PgPool) {
+    use apabbs::post::{Post, PostReview};
+    let mut tx = db.begin().await.expect(BEGIN);
+    let posts: Vec<Post> = sqlx::query_as(concat!(
+        "SELECT * FROM posts WHERE media_filename_opt IS NOT NULL ",
+        "AND media_category_opt = 'video' AND status = 'approved'",
+    ))
+    .fetch_all(&mut *tx)
+    .await
+    .expect("selects posts with images");
+    for post in posts {
+        let published_media_path = post.published_media_path();
+        println!(
+            "generating thumbnail for media {}",
+            published_media_path.to_str().unwrap()
+        );
+        PostReview::generate_video_thumbnail(&published_media_path).await;
+        // update posts with new thumbnail filename
+        let (thumbnail_filename, thumbnail_path) =
+            PostReview::thumbnail_info(&published_media_path, ".mp4");
+        if !thumbnail_path.exists() {
+            eprintln!("thumbnail not created successfully");
+            std::process::exit(1);
+        }
+        println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
+        let (width, height) = PostReview::video_dimensions(&thumbnail_path).await;
+        post.update_thumbnail(&mut *tx, &thumbnail_filename, width, height)
+            .await;
     }
     tx.commit().await.expect(COMMIT);
 }
