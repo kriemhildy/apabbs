@@ -806,6 +806,16 @@ impl PostReview {
             }
             Some(MediaCategory::Video) => {
                 Self::generate_video_thumbnail(&published_media_path).await;
+                let (thumbnail_filename, thumbnail_path) =
+                    Self::thumbnail_info(&published_media_path, ".mp4");
+                if !thumbnail_path.exists() {
+                    return Err("thumbnail not created successfully".to_owned());
+                }
+                // Don't bother checking if the thumbnail is larger here because we need HEVC
+                // thumbnails for Safari.
+                let (width, height) = Self::video_dimensions(&thumbnail_path).await;
+                post.update_thumbnail(tx, &thumbnail_filename, width, height)
+                    .await;
                 let (width, height) = Self::video_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
             }
@@ -858,9 +868,8 @@ impl PostReview {
         (dimensions[0], dimensions[1])
     }
 
-    // Convert the video to HEVC/H.265 and AAC with maximum dimensions of 1200x1600.
-    // This is for file size optimization and also Safari compatibility.
-    // Use fast encoding because this is a web action and the quality is acceptable.
+    // Convert the video to AVC/H.264 and AAC with maximum dimensions of 1200x1600.
+    // This is for Safari and Firefox compatibility.
     pub async fn generate_video_thumbnail(video_path: &PathBuf) {
         let video_path_str = video_path.to_str().unwrap();
         let (_thumbnail_filename, thumbnail_path) = Self::thumbnail_info(video_path, ".mp4");
@@ -870,11 +879,11 @@ impl PostReview {
                 "-i",
                 video_path_str,
                 "-c:v",
-                "libx265",
+                "libx264",
                 "-crf",
-                "28",
+                "23",
                 "-preset",
-                "fast",
+                "medium",
                 "-c:a",
                 "aac",
                 "-b:a",
@@ -885,7 +894,6 @@ impl PostReview {
                 "scale='min(1200,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease",
                 thumbnail_path_str,
             ])
-            .arg(video_path_str)
             .output()
             .await
             .expect("generate video thumbnail");
