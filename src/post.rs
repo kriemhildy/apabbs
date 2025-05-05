@@ -674,7 +674,7 @@ impl PostReview {
         std::fs::write(&published_media_path, media_bytes).expect("write media file");
     }
 
-    pub async fn generate_thumbnail(published_media_path: &PathBuf) {
+    pub async fn generate_image_thumbnail(published_media_path: &PathBuf) {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')
@@ -694,17 +694,17 @@ impl PostReview {
         println!("vipsthumbnail output: {:?}", command_output);
     }
 
-    pub fn new_thumbnail_info(post: &Post) -> (String, PathBuf) {
-        let media_filename = post
-            .media_filename_opt
-            .as_ref()
-            .expect("media_filename is some");
+    pub fn thumbnail_info(media_path: &PathBuf, thumbnail_extension: &str) -> (String, PathBuf) {
+        let media_filename = media_path
+            .file_name()
+            .expect("get media filename")
+            .to_str()
+            .expect("media filename to str");
+        let key_dir = media_path.parent().unwrap();
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
         let thumbnail_filename =
-            String::from("tn_") + &extension_pattern.replace(media_filename, ".webp");
-        let thumbnail_path = std::path::Path::new(MEDIA_DIR)
-            .join(&post.key)
-            .join(&thumbnail_filename);
+            String::from("tn_") + &extension_pattern.replace(media_filename, thumbnail_extension);
+        let thumbnail_path = key_dir.join(&thumbnail_filename);
         (thumbnail_filename, thumbnail_path)
     }
 
@@ -752,10 +752,7 @@ impl PostReview {
                 Rejected | Banned => Ok(DeleteEncryptedMedia),
             },
             Approved | Delisted => {
-                if post.status == Approved
-                    && *reviewer_role == Mod
-                    && !post.recent_opt.expect("recent is some")
-                {
+                if post.status == Approved && *reviewer_role == Mod && !post.recent_opt.unwrap() {
                     return Err(RecentOnly);
                 }
                 match self.status {
@@ -791,23 +788,25 @@ impl PostReview {
         Self::write_media_file(&published_media_path, media_bytes);
         match post.media_category_opt {
             Some(MediaCategory::Image) => {
-                Self::generate_thumbnail(&published_media_path).await;
-                let (thumbnail_filename, thumbnail_path) = Self::new_thumbnail_info(&post);
+                Self::generate_image_thumbnail(&published_media_path).await;
+                let (thumbnail_filename, thumbnail_path) =
+                    Self::thumbnail_info(&published_media_path, ".webp");
                 if !thumbnail_path.exists() {
                     return Err("thumbnail not created successfully".to_owned());
                 }
                 if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                     std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
                 } else {
-                    let (width, height) = Self::image_dimensions(&thumbnail_path);
+                    let (width, height) = Self::image_dimensions(&thumbnail_path).await;
                     post.update_thumbnail(tx, &thumbnail_filename, width, height)
                         .await;
                 }
-                let (width, height) = Self::image_dimensions(&published_media_path);
+                let (width, height) = Self::image_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
             }
             Some(MediaCategory::Video) => {
-                let (width, height) = Self::video_dimensions(&published_media_path);
+                Self::generate_video_thumbnail(&published_media_path).await;
+                let (width, height) = Self::video_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
             }
             Some(MediaCategory::Audio) | None => (),
@@ -815,26 +814,25 @@ impl PostReview {
         Ok(())
     }
 
-    pub fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
+    pub async fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
         let image_path_str = image_path.to_str().unwrap();
-        let vipsheader = |field: &str| -> i32 {
-            let output = std::process::Command::new("vipsheader")
+        let vipsheader = async |field: &str| -> i32 {
+            let output = tokio::process::Command::new("vipsheader")
                 .args(["-f", field, image_path_str])
                 .output()
+                .await
                 .expect("get image dimension");
             String::from_utf8_lossy(&output.stdout)
                 .trim()
                 .parse()
                 .expect("parses as i32")
         };
-        let width = vipsheader("width");
-        let height = vipsheader("height");
-        (width, height)
+        tokio::join!(vipsheader("width"), vipsheader("height"))
     }
 
-    pub fn video_dimensions(video_path: &PathBuf) -> (i32, i32) {
+    pub async fn video_dimensions(video_path: &PathBuf) -> (i32, i32) {
         let video_path_str = video_path.to_str().unwrap();
-        let ffprobe_output = std::process::Command::new("ffprobe")
+        let ffprobe_output = tokio::process::Command::new("ffprobe")
             .args([
                 "-v",
                 "error",
@@ -847,6 +845,7 @@ impl PostReview {
             ])
             .arg(video_path_str)
             .output()
+            .await
             .expect("get video dimensions");
         let output_str = String::from_utf8_lossy(&ffprobe_output.stdout);
         println!("ffprobe output: {}", output_str);
@@ -857,6 +856,40 @@ impl PostReview {
             .collect();
         println!("video dimensions: {:?}", dimensions);
         (dimensions[0], dimensions[1])
+    }
+
+    // Convert the video to HEVC/H.265 and AAC with maximum dimensions of 1200x1600.
+    // This is for file size optimization and also Safari compatibility.
+    // Use fast encoding because this is a web action and the quality is acceptable.
+    pub async fn generate_video_thumbnail(video_path: &PathBuf) {
+        let video_path_str = video_path.to_str().unwrap();
+        let (_thumbnail_filename, thumbnail_path) = Self::thumbnail_info(video_path, ".mp4");
+        let thumbnail_path_str = thumbnail_path.to_str().unwrap();
+        let ffmpeg_output = tokio::process::Command::new("ffmpeg")
+            .args([
+                "-i",
+                video_path_str,
+                "-c:v",
+                "libx265",
+                "-crf",
+                "28",
+                "-preset",
+                "fast",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-movflags",
+                "+faststart",
+                "-vf",
+                "scale='min(1200,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease",
+                thumbnail_path_str,
+            ])
+            .arg(video_path_str)
+            .output()
+            .await
+            .expect("generate video thumbnail");
+        println!("ffmpeg output: {:?}", ffmpeg_output);
     }
 }
 

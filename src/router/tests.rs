@@ -70,7 +70,7 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
             .expect("set account as role");
         Account::select_by_username(&mut *tx, &account.username)
             .await
-            .expect("account is some")
+            .unwrap()
     } else {
         account
     };
@@ -124,9 +124,7 @@ async fn create_test_post(
         PostStatus::Pending => post,
         _ => {
             post.update_status(tx, &status).await;
-            Post::select_by_key(tx, &post.key)
-                .await
-                .expect("post is some")
+            Post::select_by_key(tx, &post.key).await.unwrap()
         }
     }
 }
@@ -764,9 +762,7 @@ async fn review_post() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = Post::select_by_key(&mut tx, &post.key)
-        .await
-        .expect("post is some");
+    let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
     assert!(!uploads_key_dir.exists());
     let published_media_path = post.published_media_path();
@@ -806,15 +802,15 @@ async fn review_post_with_small_media() {
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
     let mut tx = state.db.begin().await.expect(BEGIN);
-    let post = Post::select_by_key(&mut tx, &post.key)
-        .await
-        .expect("post is some");
+    let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     let encrypted_media_path = post.encrypted_media_path();
     let uploads_key_dir = encrypted_media_path.parent().unwrap();
+    let published_media_path = post.published_media_path();
     assert!(!uploads_key_dir.exists());
-    assert!(post.published_media_path().exists());
+    assert!(published_media_path.exists());
     assert!(post.thumb_filename_opt.is_none());
-    let (_thumbnail_filename, thumbnail_path) = PostReview::new_thumbnail_info(&post);
+    let (_thumbnail_filename, thumbnail_path) =
+        PostReview::thumbnail_info(&published_media_path, ".webp");
     assert!(!thumbnail_path.exists());
     PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;

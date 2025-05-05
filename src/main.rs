@@ -34,7 +34,7 @@ async fn app_state() -> AppState {
                 concat!(
                     r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
                     r#"width="$3" height="$4">"#,
-                )
+                ),
             )
             .to_string()
         }

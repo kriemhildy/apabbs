@@ -640,7 +640,10 @@ async fn review_post(
         }
         post.delete(&mut tx).await;
     }
-    if post.status == Approved && post.thumb_filename_opt.is_some() && !post.thumbnail_path().exists() {
+    if post.status == Approved
+        && post.thumb_filename_opt.is_some()
+        && !post.thumbnail_path().exists()
+    {
         return internal_server_error("error setting post thumbnail");
     }
     tx.commit().await.expect(COMMIT);
