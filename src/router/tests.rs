@@ -738,7 +738,7 @@ async fn update_password() {
 }
 
 #[tokio::test]
-async fn review_post() {
+async fn review_post_with_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -779,7 +779,7 @@ async fn review_post() {
 }
 
 #[tokio::test]
-async fn review_post_with_small_media() {
+async fn review_post_with_small_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
@@ -812,6 +812,47 @@ async fn review_post_with_small_media() {
     let (_thumbnail_filename, thumbnail_path) =
         PostReview::thumbnail_info(&published_media_path, ".webp");
     assert!(!thumbnail_path.exists());
+    PostReview::delete_media_key_dir(&post.key);
+    post.delete(&mut tx).await;
+    delete_test_account(&mut tx, &account).await;
+    tx.commit().await.expect(COMMIT);
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+}
+
+#[tokio::test]
+async fn review_post_with_video() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = test_user(None);
+    let post = create_test_post(&mut tx, &user, Some("video.mp4"), PostStatus::Pending).await;
+    let encrypted_media_path = post.encrypted_media_path();
+    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let account = user.account_opt.as_ref().unwrap();
+    tx.commit().await.expect(COMMIT);
+    let post_review = PostReview {
+        session_token: user.session_token,
+        status: PostStatus::Approved,
+    };
+    let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/review/{}", &post.key))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .body(Body::from(post_review_str))
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let uploads_key_dir = encrypted_media_path.parent().unwrap();
+    assert!(!uploads_key_dir.exists());
+    let published_media_path = post.published_media_path();
+    assert!(published_media_path.exists());
+    let thumbnail_path = post.thumbnail_path();
+    assert!(thumbnail_path.exists());
+    assert!(post.media_width_opt.is_some());
+    assert!(post.media_height_opt.is_some());
     PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
