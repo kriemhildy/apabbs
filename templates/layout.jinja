@@ -3,16 +3,15 @@
 <html lang="en-US">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% block meta %}
-    {% endblock %}
     <title>{{ title }}</title>
     <link rel="stylesheet" href="/style.css?201">
     {% if scrollbar_style %}
     <link rel="stylesheet" href="/scrollbar.css?6">
     {% endif %}
     <script src="/script.js?65"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% block meta %}
+    {% endblock %}
 </head>
 
 <body>
