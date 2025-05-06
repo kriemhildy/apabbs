@@ -6,7 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="/style.css?201">
-    <script src="/script.js?64"></script>
+    {% if scrollbar_style %}
+    <link rel="stylesheet" href="/scrollbar.css?6">
+    {% endif %}
+    <script src="/script.js?65"></script>
 </head>
 
 <body>

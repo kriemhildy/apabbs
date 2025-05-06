@@ -81,6 +81,7 @@ async fn index(
     State(state): State<AppState>,
     jar: CookieJar,
     Path(path): Path<HashMap<String, String>>,
+    headers: HeaderMap,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -106,12 +107,13 @@ async fn index(
         "index.jinja",
         minijinja::context!(
             title => apabbs::site_name(),
+            scrollbar_style => non_mac_webkit(&headers),
             nav => true,
             user,
             posts,
             page_post_opt,
             prior_page_post_opt,
-            solo => false
+            solo => false,
         ),
     ));
     (jar, html).into_response()
@@ -122,6 +124,7 @@ async fn solo_post(
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
+    headers: HeaderMap,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -135,7 +138,13 @@ async fn solo_post(
     let html = Html(render(
         &state,
         "solo.jinja",
-        minijinja::context!(title => apabbs::site_name(), user, post, solo => true),
+        minijinja::context!(
+            title => apabbs::site_name(),
+            scrollbar_style => non_mac_webkit(&headers),
+            user,
+            post,
+            solo => true,
+        ),
     ));
     (jar, html).into_response()
 }
@@ -214,7 +223,12 @@ async fn submit_post(
     (jar, response).into_response()
 }
 
-async fn login_form(method: Method, State(state): State<AppState>, jar: CookieJar) -> Response {
+async fn login_form(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
@@ -223,7 +237,11 @@ async fn login_form(method: Method, State(state): State<AppState>, jar: CookieJa
     let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(title => apabbs::site_name(), user),
+        minijinja::context!(
+            title => apabbs::site_name(),
+            scrollbar_style => non_mac_webkit(&headers),
+            user,
+        ),
     ));
     (jar, html).into_response()
 }
@@ -255,6 +273,7 @@ async fn registration_form(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -264,7 +283,11 @@ async fn registration_form(
     let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(title => apabbs::site_name(), user),
+        minijinja::context!(
+            title => apabbs::site_name(),
+            scrollbar_style => non_mac_webkit(&headers),
+            user,
+        ),
     ));
     (jar, html).into_response()
 }
@@ -458,6 +481,7 @@ async fn user_profile(
     State(state): State<AppState>,
     Path(username): Path<String>,
     jar: CookieJar,
+    headers: HeaderMap,
 ) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -474,6 +498,7 @@ async fn user_profile(
         "profile.jinja",
         minijinja::context!(
             title => apabbs::site_name(),
+            scrollbar_style => non_mac_webkit(&headers),
             user,
             account,
             posts,
@@ -482,7 +507,12 @@ async fn user_profile(
     (jar, html).into_response()
 }
 
-async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar) -> Response {
+async fn settings(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> Response {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
         Err(response) => return response,
@@ -498,6 +528,7 @@ async fn settings(method: Method, State(state): State<AppState>, jar: CookieJar)
         "settings.jinja",
         minijinja::context!(
             title => apabbs::site_name(),
+            scrollbar_style => non_mac_webkit(&headers),
             user,
             time_zones,
             notice_opt,

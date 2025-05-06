@@ -1,21 +1,4 @@
 //-------------------------------------------------------------------------------------------------
-// scrollbar styling for non-mac webkit
-//-------------------------------------------------------------------------------------------------
-
-function styleScrollbar() {
-    if (!navigator.userAgent.includes("Macintosh") && navigator.userAgent.includes("WebKit")) {
-        const primaryLink = document.querySelector("link[rel=stylesheet]");
-        const scrollbarLink = document.createElement("link");
-        scrollbarLink.rel = "stylesheet";
-        scrollbarLink.href = "/scrollbar.css?6";
-        console.log("non-mac webkit scrollbar");
-        primaryLink.after(scrollbarLink);
-    }
-}
-
-document.addEventListener("DOMContentLoaded", styleScrollbar);
-
-//-------------------------------------------------------------------------------------------------
 // confirm potentially harmful form submissions
 //-------------------------------------------------------------------------------------------------
 
