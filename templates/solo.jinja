@@ -1,8 +1,7 @@
 {% extends "layout.jinja" %}
 {% if post.media_category_opt is not none %}
 {% set media_category = post.media_category_opt %}
-{% set embed_filename = post.thumb_filename_opt
-    if post.thumb_filename_opt is not none else post.media_filename_opt %}
+{% set embed_filename = post.media_filename_opt %}
 {% set embed_path = "/m/" + post.key + "/" + embed_filename|urlencode %}
 {% set embed_width = post.media_width_opt %}
 {% set embed_height = post.media_height_opt %}
@@ -20,6 +19,7 @@
     <meta property="og:image:height" content="{{ embed_height }}">
     <meta property="og:image:type" content="{{ embed_mime_type }}">
     {% elif media_category == "video" %}
+    {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
     <meta property="og:type" content="video.other">
     <meta property="og:video" content="https://{{ host + embed_path }}">
     <meta property="og:video:secure_url" content="https://{{ host + embed_path }}">
@@ -27,6 +27,8 @@
     <meta property="og:video:alt" content="Video {{ embed_filename }}">
     <meta property="og:video:width" content="{{ embed_width }}">
     <meta property="og:video:height" content="{{ embed_height }}">
+    <meta property="og:image" content="https://{{ host + poster_path }}">
+    <meta property="og:image:alt" content="Poster {{ embed_filename }}">
     {% endif %}
 {% endblock %}
 {% endif %}

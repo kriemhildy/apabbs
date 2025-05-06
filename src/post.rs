@@ -277,7 +277,7 @@ impl Post {
             .expect("update media dimensions");
     }
 
-    async fn update_posters(
+    pub async fn update_posters(
         &self,
         tx: &mut PgConnection,
         media_poster_path: &PathBuf,
@@ -285,15 +285,13 @@ impl Post {
     ) {
         let media_poster_filename = media_poster_path.file_name().unwrap().to_str().unwrap();
         let thumb_poster_filename = thumb_poster_path.file_name().unwrap().to_str().unwrap();
-        sqlx::query(
-            "UPDATE posts SET media_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3"
-        )
-        .bind(media_poster_filename)
-        .bind(thumb_poster_filename)
-        .bind(self.id)
-        .execute(&mut *tx)
-        .await
-        .expect("update post posters");
+        sqlx::query("UPDATE posts SET media_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3")
+            .bind(media_poster_filename)
+            .bind(thumb_poster_filename)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post posters");
     }
 }
 
@@ -879,8 +877,7 @@ impl PostReview {
         let video_path_str = video_path.to_str().unwrap();
         let ffprobe_output = tokio::process::Command::new("ffprobe")
             .args([
-                "-v",
-                "error",
+                "-nostdin",
                 "-select_streams",
                 "v:0",
                 "-show_entries",
@@ -911,6 +908,7 @@ impl PostReview {
         let thumbnail_path_str = thumbnail_path.to_str().unwrap();
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
             .args([
+                "-nostdin",
                 "-i",
                 video_path_str,
                 "-f",
@@ -942,19 +940,30 @@ impl PostReview {
         thumbnail_path
     }
 
-    async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
-        let poster_path = video_path.with_extension("jpg");
+    pub async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
+        let poster_path = video_path.with_extension("webp");
         println!("poster_path: {:?}", poster_path);
         let video_path_str = video_path.to_str().unwrap();
         let poster_path_str = poster_path.to_str().unwrap();
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
             .args([
+                "-nostdin",
                 "-i",
                 video_path_str,
                 "-ss",
                 "00:00:01.000",
                 "-vframes",
                 "1",
+                "-c:v",
+                "libwebp",
+                "-lossless",
+                "0",
+                "-compression_level",
+                "6",
+                "-quality",
+                "80",
+                "-preset",
+                "picture",
                 poster_path_str,
             ])
             .output()
