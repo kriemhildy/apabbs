@@ -1,3 +1,4 @@
+{% set title = "[dev] " + host if dev else host %}
 <!DOCTYPE html>
 <html lang="en-US">
 
@@ -6,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% block meta %}
     {% endblock %}
-    <title>{{ "[dev] " + host if dev else host }}</title>
+    <title>{{ title }}</title>
     <link rel="stylesheet" href="/style.css?201">
     {% if scrollbar_style %}
     <link rel="stylesheet" href="/scrollbar.css?6">
@@ -26,7 +27,7 @@
     </nav>
     {% endif %}
     <header>
-        <h1><a href="/">{{ host }}</a></h1>
+        <h1><a href="/">{{ title }}</a></h1>
     </header>
     {% filter indent(4) %}
     {%+ block main %}

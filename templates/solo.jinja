@@ -7,7 +7,7 @@
 {% set media_height = post.media_height_opt %}
 {% set media_mime_type = post.media_mime_type_opt %}
 {% block meta %}
-    <meta property="og:title" content="{{ host }}">
+    <meta property="og:title" content="{{ title }}">
     <meta property="og:description" content="Post {{ post.key }}">
     <meta property="og:url" content="https://{{ host + "/post/" + post.key }}">
     {% if media_category == "image" %}
@@ -26,7 +26,7 @@
     <meta property="og:video:width" content="{{ media_width }}">
     <meta property="og:video:height" content="{{ media_height }}">
     {% endif %}
-{%- endblock %}
+{% endblock %}
 {% endif %}
 {% block main %}
 <main>
