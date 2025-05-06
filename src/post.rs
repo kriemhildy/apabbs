@@ -832,8 +832,8 @@ impl PostReview {
                 if !thumbnail_path.exists() {
                     return Err("thumbnail not created successfully".to_owned());
                 }
-                // Don't bother checking if the thumbnail is larger here because we need HEVC
-                // thumbnails for Safari.
+                // Don't bother checking if the thumbnail is larger here because we need
+                // thumbnails for Safari and Firefox compatibility.
                 let (
                     (thumb_width, thumb_height),
                     (media_width, media_height),

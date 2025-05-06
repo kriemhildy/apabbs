@@ -14,9 +14,13 @@
     <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}" width="{{ width }}" height="{{ height }}"></a>
     {% endif %}
     {% elif category == "video" %}
+    {% set poster_attr = "" %}
+    {% if post.media_poster_opt is not none %}
     {% set poster_filename = post.thumb_poster_opt if use_thumb else post.media_poster_opt %}
     {% set poster_path = "/m/" + key + "/" + poster_filename %}
-    <video width="{{ width }}" height="{{ height }}" controls poster="{{ poster_path }}" preload="metadata">
+    {% set poster_attr = " poster=\"" + poster_path + "\"" %}
+    {% endif %}
+    <video width="{{ width }}" height="{{ height }}" controls{{ poster_attr }} preload="metadata">
         <source src="{{ media_path }}" type="{{ mime_type }}">
         Video {{ filename }}
     </video>
