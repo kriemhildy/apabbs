@@ -809,8 +809,7 @@ async fn review_post_with_small_image() {
     assert!(!uploads_key_dir.exists());
     assert!(published_media_path.exists());
     assert!(post.thumb_filename_opt.is_none());
-    let (_thumbnail_filename, thumbnail_path) =
-        PostReview::thumbnail_info(&published_media_path, ".webp");
+    let thumbnail_path = PostReview::thumbnail_path(&published_media_path, ".webp");
     assert!(!thumbnail_path.exists());
     PostReview::delete_media_key_dir(&post.key);
     post.delete(&mut tx).await;

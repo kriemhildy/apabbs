@@ -62,8 +62,10 @@ pub struct Post {
     pub intro_limit_opt: Option<i32>,
     pub media_width_opt: Option<i32>,
     pub media_height_opt: Option<i32>,
+    pub media_poster_opt: Option<String>,
     pub thumb_width_opt: Option<i32>,
     pub thumb_height_opt: Option<i32>,
+    pub thumb_poster_opt: Option<String>,
 }
 
 impl Post {
@@ -226,10 +228,15 @@ impl Post {
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
-        thumbnail_filename: &str,
+        thumbnail_path: &PathBuf,
         width: i32,
         height: i32,
     ) {
+        let thumbnail_filename = thumbnail_path
+            .file_name()
+            .expect("get thumbnail filename")
+            .to_str()
+            .expect("thumbnail filename to str");
         sqlx::query(concat!(
             "UPDATE posts SET thumb_filename_opt = $1, thumb_width_opt = $2, ",
             "thumb_height_opt = $3 WHERE id = $4"
@@ -674,7 +681,7 @@ impl PostReview {
         std::fs::write(&published_media_path, media_bytes).expect("write media file");
     }
 
-    pub async fn generate_image_thumbnail(published_media_path: &PathBuf) {
+    pub async fn generate_image_thumbnail(published_media_path: &PathBuf) -> PathBuf {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')
@@ -692,9 +699,10 @@ impl PostReview {
             .await
             .expect("generate thumbnail");
         println!("vipsthumbnail output: {:?}", command_output);
+        Self::thumbnail_path(published_media_path, ".webp")
     }
 
-    pub fn thumbnail_info(media_path: &PathBuf, thumbnail_extension: &str) -> (String, PathBuf) {
+    pub fn thumbnail_path(media_path: &PathBuf, thumbnail_extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
             .expect("get media filename")
@@ -705,7 +713,7 @@ impl PostReview {
         let thumbnail_filename =
             String::from("tn_") + &extension_pattern.replace(media_filename, thumbnail_extension);
         let thumbnail_path = key_dir.join(&thumbnail_filename);
-        (thumbnail_filename, thumbnail_path)
+        thumbnail_path
     }
 
     pub fn thumbnail_is_larger(thumbnail_path: &PathBuf, published_media_path: &PathBuf) -> bool {
@@ -788,9 +796,7 @@ impl PostReview {
         Self::write_media_file(&published_media_path, media_bytes);
         match post.media_category_opt {
             Some(MediaCategory::Image) => {
-                Self::generate_image_thumbnail(&published_media_path).await;
-                let (thumbnail_filename, thumbnail_path) =
-                    Self::thumbnail_info(&published_media_path, ".webp");
+                let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
                 if !thumbnail_path.exists() {
                     return Err("thumbnail not created successfully".to_owned());
                 }
@@ -798,23 +804,21 @@ impl PostReview {
                     std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
                 } else {
                     let (width, height) = Self::image_dimensions(&thumbnail_path).await;
-                    post.update_thumbnail(tx, &thumbnail_filename, width, height)
+                    post.update_thumbnail(tx, &thumbnail_path, width, height)
                         .await;
                 }
                 let (width, height) = Self::image_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
             }
             Some(MediaCategory::Video) => {
-                Self::generate_video_thumbnail(&published_media_path).await;
-                let (thumbnail_filename, thumbnail_path) =
-                    Self::thumbnail_info(&published_media_path, ".mp4");
+                let thumbnail_path = Self::generate_video_thumbnail(&published_media_path).await;
                 if !thumbnail_path.exists() {
                     return Err("thumbnail not created successfully".to_owned());
                 }
                 // Don't bother checking if the thumbnail is larger here because we need HEVC
                 // thumbnails for Safari.
                 let (width, height) = Self::video_dimensions(&thumbnail_path).await;
-                post.update_thumbnail(tx, &thumbnail_filename, width, height)
+                post.update_thumbnail(tx, &thumbnail_path, width, height)
                     .await;
                 let (width, height) = Self::video_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
@@ -870,9 +874,9 @@ impl PostReview {
 
     // Convert to AVC/H.264 and AAC with maximum dimensions of 1280x2160.
     // This is for Safari and Firefox compatibility.
-    pub async fn generate_video_thumbnail(video_path: &PathBuf) {
+    pub async fn generate_video_thumbnail(video_path: &PathBuf) -> PathBuf {
         let video_path_str = video_path.to_str().unwrap();
-        let (_thumbnail_filename, thumbnail_path) = Self::thumbnail_info(video_path, ".mp4");
+        let thumbnail_path = Self::thumbnail_path(video_path, ".mp4");
         let thumbnail_path_str = thumbnail_path.to_str().unwrap();
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
             .args([
@@ -903,6 +907,28 @@ impl PostReview {
             .output()
             .await
             .expect("generate video thumbnail");
+        println!("ffmpeg output: {:?}", ffmpeg_output);
+        thumbnail_path
+    }
+
+    pub async fn generate_video_poster(video_path: &PathBuf) {
+        let poster_path = video_path.with_extension("jpg");
+        println!("poster_path: {:?}", poster_path);
+        let video_path_str = video_path.to_str().unwrap();
+        let poster_path_str = poster_path.to_str().unwrap();
+        let ffmpeg_output = tokio::process::Command::new("ffmpeg")
+            .args([
+                "-i",
+                video_path_str,
+                "-ss",
+                "00:00:01.000",
+                "-vframes",
+                "1",
+                poster_path_str,
+            ])
+            .output()
+            .await
+            .expect("generate video poster");
         println!("ffmpeg output: {:?}", ffmpeg_output);
     }
 }

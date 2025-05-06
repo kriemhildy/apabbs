@@ -214,10 +214,7 @@ async fn generate_image_thumbnails(db: PgPool) {
             "generating thumbnail for media {}",
             published_media_path.to_str().unwrap()
         );
-        PostReview::generate_image_thumbnail(&published_media_path).await;
-        // update posts with new thumbnail filename
-        let (thumbnail_filename, thumbnail_path) =
-            PostReview::thumbnail_info(&published_media_path, ".webp");
+        let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path).await;
         if !thumbnail_path.exists() {
             eprintln!("thumbnail not created successfully");
             std::process::exit(1);
@@ -229,7 +226,7 @@ async fn generate_image_thumbnails(db: PgPool) {
         }
         println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
         let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
-        post.update_thumbnail(&mut *tx, &thumbnail_filename, width, height)
+        post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
             .await;
     }
     tx.commit().await.expect(COMMIT);
@@ -254,11 +251,11 @@ async fn add_image_dimensions(db: PgPool) {
         let (width, height) = PostReview::image_dimensions(&published_media_path).await;
         println!("setting media image dimensions: {}x{}", width, height);
         post.update_media_dimensions(&mut *tx, width, height).await;
-        if let Some(ref thumb_filename) = post.thumb_filename_opt {
+        if post.thumb_filename_opt.is_some() {
             let thumbnail_path = post.thumbnail_path();
             let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
             println!("setting thumbnail image dimensions: {}x{}", width, height);
-            post.update_thumbnail(&mut *tx, thumb_filename, width, height)
+            post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
                 .await;
         }
     }
@@ -304,17 +301,14 @@ async fn generate_video_thumbnails(db: PgPool) {
             "generating thumbnail for media {}",
             published_media_path.to_str().unwrap()
         );
-        PostReview::generate_video_thumbnail(&published_media_path).await;
-        // update posts with new thumbnail filename
-        let (thumbnail_filename, thumbnail_path) =
-            PostReview::thumbnail_info(&published_media_path, ".mp4");
+        let thumbnail_path = PostReview::generate_video_thumbnail(&published_media_path).await;
         if !thumbnail_path.exists() {
             eprintln!("thumbnail not created successfully");
             std::process::exit(1);
         }
         println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
         let (width, height) = PostReview::video_dimensions(&thumbnail_path).await;
-        post.update_thumbnail(&mut *tx, &thumbnail_filename, width, height)
+        post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
             .await;
     }
     tx.commit().await.expect(COMMIT);
