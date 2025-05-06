@@ -4,11 +4,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% filter indent(4) %}
     {% block meta %}
     {% endblock %}
-    {% endfilter %}
-    <title>{{ host }}</title>
+    <title>{{ "[dev] " + host if dev else host }}</title>
     <link rel="stylesheet" href="/style.css?201">
     {% if scrollbar_style %}
     <link rel="stylesheet" href="/scrollbar.css?6">

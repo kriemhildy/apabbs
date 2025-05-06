@@ -26,8 +26,7 @@ pub fn dev() -> bool {
 }
 
 pub fn host() -> String {
-    let name = std::env::var("HOST").expect("read HOST env").to_string();
-    if dev() { format!("[dev] {name}") } else { name }
+    std::env::var("HOST").expect("read HOST env")
 }
 
 pub fn secret_key() -> String {

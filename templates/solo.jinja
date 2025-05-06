@@ -1,33 +1,32 @@
 {% extends "layout.jinja" %}
 {% if post.media_filename_path_opt is not none %}
-{% set media_filename = post.media_filename_path_opt %}
+{% set media_filename = post.media_filename_opt %}
 {% set media_category = post.media_category_opt %}
 {% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
 {% set media_width = post.media_width_opt %}
 {% set media_height = post.media_height_opt %}
 {% set media_mime_type = post.media_mime_type_opt %}
 {% block meta %}
-<meta property="og:title" content="{{ host }}">
-<meta property="og:description" content="Post {{ post.key }}">
-<meta property="og:url" content="https://{{ host + "post/" + post.key }}">
-{% if media_category == "image" %}
-<meta property="og:type" content="website">
-<meta property="og:image" content="https://{{ host + media_path }}">
-<meta property="og:image:alt" content="Image {{ media_filename }}">
-<meta property="og:image:width" content="{{ media_width }}">
-<meta property="og:image:height" content="{{ media_height }}">
-<meta property="og:image:type" content="{{ media_mime_type }}">
-{% elif media_category == "video" %}
-<meta property="og:type" content="video.other"> <!-- Indicates a video -->
-<meta property="og:video" content="https://{{ host + media_path }}">
-<meta property="og:video:secure_url" content="https://{{ host + media_path }}">
-<meta property="og:video:type" content="{{ media_mime_type }}">
-<meta property="og:video:alt" content="Video {{ media_filename }}">
-<meta property="og:video:width" content="{{ media_width }}">
-<meta property="og:video:height" content="{{ media_height }}">
-<meta
-{% endif %}
-{% endblock %}
+    <meta property="og:title" content="{{ host }}">
+    <meta property="og:description" content="Post {{ post.key }}">
+    <meta property="og:url" content="https://{{ host + "/post/" + post.key }}">
+    {% if media_category == "image" %}
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://{{ host + media_path }}">
+    <meta property="og:image:alt" content="Image {{ media_filename }}">
+    <meta property="og:image:width" content="{{ media_width }}">
+    <meta property="og:image:height" content="{{ media_height }}">
+    <meta property="og:image:type" content="{{ media_mime_type }}">
+    {% elif media_category == "video" %}
+    <meta property="og:type" content="video.other"> <!-- Indicates a video -->
+    <meta property="og:video" content="https://{{ host + media_path }}">
+    <meta property="og:video:secure_url" content="https://{{ host + media_path }}">
+    <meta property="og:video:type" content="{{ media_mime_type }}">
+    <meta property="og:video:alt" content="Video {{ media_filename }}">
+    <meta property="og:video:width" content="{{ media_width }}">
+    <meta property="og:video:height" content="{{ media_height }}">
+    {% endif %}
+{%- endblock %}
 {% endif %}
 {% block main %}
 <main>
