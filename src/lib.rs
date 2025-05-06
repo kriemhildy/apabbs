@@ -25,10 +25,8 @@ pub fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
 }
 
-pub fn site_name() -> String {
-    let name = std::env::var("SITE_NAME")
-        .expect("read SITE_NAME env")
-        .to_string();
+pub fn host() -> String {
+    let name = std::env::var("HOST").expect("read HOST env").to_string();
     if dev() { format!("[dev] {name}") } else { name }
 }
 

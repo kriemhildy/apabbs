@@ -106,7 +106,7 @@ async fn index(
         &state,
         "index.jinja",
         minijinja::context!(
-            title => apabbs::site_name(),
+            host => apabbs::host(),
             scrollbar_style => non_mac_webkit(&headers),
             nav => true,
             user,
@@ -139,7 +139,7 @@ async fn solo_post(
         &state,
         "solo.jinja",
         minijinja::context!(
-            title => apabbs::site_name(),
+            host => apabbs::host(),
             scrollbar_style => non_mac_webkit(&headers),
             user,
             post,
@@ -238,7 +238,7 @@ async fn login_form(
         &state,
         "login.jinja",
         minijinja::context!(
-            title => apabbs::site_name(),
+            host => apabbs::host(),
             scrollbar_style => non_mac_webkit(&headers),
             user,
         ),
@@ -284,7 +284,7 @@ async fn registration_form(
         &state,
         "register.jinja",
         minijinja::context!(
-            title => apabbs::site_name(),
+            host => apabbs::host(),
             scrollbar_style => non_mac_webkit(&headers),
             user,
         ),
@@ -497,7 +497,7 @@ async fn user_profile(
         &state,
         "profile.jinja",
         minijinja::context!(
-            title => apabbs::site_name(),
+            host => apabbs::host(),
             scrollbar_style => non_mac_webkit(&headers),
             user,
             account,
@@ -527,7 +527,7 @@ async fn settings(
         &state,
         "settings.jinja",
         minijinja::context!(
-            title => apabbs::site_name(),
+            host => apabbs::host(),
             scrollbar_style => non_mac_webkit(&headers),
             user,
             time_zones,

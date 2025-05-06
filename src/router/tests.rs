@@ -201,7 +201,7 @@ async fn index() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(r#"<div id="posts">"#));
-    assert!(body_str.contains(&apabbs::site_name()));
+    assert!(body_str.contains(&apabbs::host()));
 }
 
 #[tokio::test]
