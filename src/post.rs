@@ -276,6 +276,25 @@ impl Post {
             .await
             .expect("update media dimensions");
     }
+
+    async fn update_posters(
+        &self,
+        tx: &mut PgConnection,
+        media_poster_path: &PathBuf,
+        thumb_poster_path: &PathBuf,
+    ) {
+        let media_poster_filename = media_poster_path.file_name().unwrap().to_str().unwrap();
+        let thumb_poster_filename = thumb_poster_path.file_name().unwrap().to_str().unwrap();
+        sqlx::query(
+            "UPDATE posts SET media_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3"
+        )
+        .bind(media_poster_filename)
+        .bind(thumb_poster_filename)
+        .bind(self.id)
+        .execute(&mut *tx)
+        .await
+        .expect("update post posters");
+    }
 }
 
 #[derive(Default)]
@@ -817,11 +836,23 @@ impl PostReview {
                 }
                 // Don't bother checking if the thumbnail is larger here because we need HEVC
                 // thumbnails for Safari.
-                let (width, height) = Self::video_dimensions(&thumbnail_path).await;
-                post.update_thumbnail(tx, &thumbnail_path, width, height)
+                let (
+                    (thumb_width, thumb_height),
+                    (media_width, media_height),
+                    media_poster_path,
+                    thumbnail_poster_path,
+                ) = tokio::join!(
+                    Self::video_dimensions(&thumbnail_path),
+                    Self::video_dimensions(&published_media_path),
+                    Self::generate_video_poster(&published_media_path),
+                    Self::generate_video_poster(&thumbnail_path)
+                );
+                post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
                     .await;
-                let (width, height) = Self::video_dimensions(&published_media_path).await;
-                post.update_media_dimensions(tx, width, height).await;
+                post.update_media_dimensions(tx, media_width, media_height)
+                    .await;
+                post.update_posters(tx, &media_poster_path, &thumbnail_poster_path)
+                    .await;
             }
             Some(MediaCategory::Audio) | None => (),
         }
@@ -911,7 +942,7 @@ impl PostReview {
         thumbnail_path
     }
 
-    pub async fn generate_video_poster(video_path: &PathBuf) {
+    async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
         let poster_path = video_path.with_extension("jpg");
         println!("poster_path: {:?}", poster_path);
         let video_path_str = video_path.to_str().unwrap();
@@ -930,6 +961,7 @@ impl PostReview {
             .await
             .expect("generate video poster");
         println!("ffmpeg output: {:?}", ffmpeg_output);
+        poster_path
     }
 }
 
