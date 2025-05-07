@@ -877,7 +877,6 @@ impl PostReview {
         let video_path_str = video_path.to_str().unwrap();
         let ffprobe_output = tokio::process::Command::new("ffprobe")
             .args([
-                "-nostdin",
                 "-select_streams",
                 "v:0",
                 "-show_entries",
