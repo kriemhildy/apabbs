@@ -25,7 +25,7 @@ async fn app_state() -> AppState {
         env.set_trim_blocks(true);
         fn remove_youtube_thumbnail_links(body: &str) -> String {
             let re = Regex::new(concat!(
-                r#"<a href="/post/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
+                r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
                 r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
             ))
             .expect("regex builds");

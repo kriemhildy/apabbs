@@ -23,7 +23,7 @@
     </div>
     {% if not solo and post.intro_limit_opt is not none %}
     <div class="see-more">
-        <a href="/post/{{ key }}">[See more…]</a>
+        <a href="/p/{{ key }}">[See more…]</a>
     </div>
     {% endif %}
     {% endif %}
@@ -83,7 +83,7 @@
         and not post.youtube
         and post.intro_limit_opt is none %}
     <div class="arrow">
-        <a href="/post/{{ key }}">&rarr;</a>
+        <a href="/p/{{ key }}">&rarr;</a>
     </div>
     {% endif %}
     {###################################################################################}

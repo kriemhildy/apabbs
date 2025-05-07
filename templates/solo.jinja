@@ -1,4 +1,7 @@
 {% extends "layout.jinja" %}
+{% block title %}
+    <title>{{ title }} - Post {{ post.key }}</title>
+{% endblock %}
 {% if post.media_category_opt is not none %}
 {% set media_category = post.media_category_opt %}
 {% set embed_filename = post.media_filename_opt %}
@@ -6,9 +9,9 @@
 {% set embed_width = post.media_width_opt %}
 {% set embed_height = post.media_height_opt %}
 {% block meta %}
-    <meta property="og:title" content="{{ post.key }}">
+    <meta property="og:title" content="Post {{ post.key }}">
     <meta property="og:site_name" content="{{ title }}">
-    <meta property="og:url" content="https://{{ host + "/post/" + post.key }}">
+    <meta property="og:url" content="https://{{ host + "/p/" + post.key }}">
     {% if media_category == "image" %}
     {% set embed_mime_type = post.media_mime_type_opt %}
     <meta property="og:type" content="website">

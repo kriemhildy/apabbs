@@ -7,7 +7,7 @@
 {% set mime_type = "video/mp4" if use_thumb else post.media_mime_type_opt %}
 <div class="media">
     {% if category == "image" %}
-    {% set solo_path = "/post/" + key %}
+    {% set solo_path = "/p/" + key %}
     {% if solo %}
     <img src="{{ media_path }}" alt="Image {{ filename }}" width="{{ width }}" height="{{ height }}">
     {% else %}
