@@ -67,6 +67,10 @@ function updatePost(key, html) {
         postsDiv.prepend(template.content);
         incrementUnseenPosts();
     }
+    // Hack to re-assign poster attribute due to Chrome bug
+    document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
+        video.poster = video.poster;
+    });
 }
 
 //-------------------------------------------------------------------------------------------------
