@@ -6,14 +6,14 @@
 {% set embed_width = post.media_width_opt %}
 {% set embed_height = post.media_height_opt %}
 {% block meta %}
-    <meta property="og:title" content="{{ title }}">
-    <meta property="og:description" content="Post {{ post.key }}">
+    <meta property="og:title" content="{{ post.key }}">
+    <meta property="og:site_name" content="{{ title }}">
     <meta property="og:url" content="https://{{ host + "/post/" + post.key }}">
     {% if media_category == "image" %}
-    {% set embed_mime_type = "image/webp"
-        if post.thumb_filename_opt is not none else post.media_mime_type_opt %}
+    {% set embed_mime_type = post.media_mime_type_opt %}
     <meta property="og:type" content="website">
     <meta property="og:image" content="https://{{ host + embed_path }}">
+    <meta property="og:image:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:image:alt" content="Image {{ embed_filename }}">
     <meta property="og:image:width" content="{{ embed_width }}">
     <meta property="og:image:height" content="{{ embed_height }}">
