@@ -13,7 +13,7 @@ Installation
 ------------
 
 1. install rust using rustup.
-2. install postgresql, pkg-config, rsync, gnupg, libvips-tools and ffmpeg.
+2. install postgresql, pkg-config, rsync, gnupg, libvips-tools, ffmpeg and chromium.
 3. create a "gpg.key" file with a random string value.
 4. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
