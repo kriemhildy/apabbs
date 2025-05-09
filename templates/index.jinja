@@ -1,4 +1,14 @@
 {% extends "layout.jinja" %}
+{% block meta %}
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ host }}">
+    <meta property="og:url" content="https://{{ host }}">
+    <meta property="og:description" content="A curated anonymous imageboard">
+{% endblock %}
+{% block title %}
+    <title>{{ title }}</title>
+{% endblock %}
 {% block main %}
 <main>
     {% if page_post_opt is not none %}
