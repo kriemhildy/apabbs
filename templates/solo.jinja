@@ -27,7 +27,6 @@
     <meta property="twitter:image:height" content="{{ embed_height }}">
     <meta property="twitter:card" content="summary_large_image">
     {% elif media_category == "video" %}
-    {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
     <meta property="og:type" content="video.other">
     <meta property="og:video" content="https://{{ host + embed_path }}">
     <meta property="og:video:secure_url" content="https://{{ host + embed_path }}">
