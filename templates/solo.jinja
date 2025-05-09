@@ -3,6 +3,7 @@
     <title>{{ title }} - Post {{ post.key }}</title>
 {% endblock %}
 {% block meta %}
+    <meta property="og:title" content="/p/{{ post.key }}">
     <meta property="og:site_name" content="{{ title }}">
     <meta property="og:url" content="https://{{ host + "/p/" + post.key }}">
     {% if post.media_category_opt is not none %}
@@ -13,11 +14,14 @@
     {% set embed_height = post.media_height_opt %}
     {% set embed_mime_type = post.media_mime_type_opt %}
     {% if media_category == "image" %}
+    <meta property="og:type" content="website">
     <meta property="og:image" content="https://{{ host + embed_path }}">
     <meta property="og:image:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:image:width" content="{{ embed_width }}">
     <meta property="og:image:height" content="{{ embed_height }}">
     <meta property="og:image:type" content="{{ embed_mime_type }}">
+    <meta property="twitter:site" content="oomfie.land">
+    <meta property="twitter:title" content="/p/{{ post.key }}">
     <meta property="twitter:image" content="https://{{ host + embed_path }}">
     <meta property="twitter:image:width" content="{{ embed_width }}">
     <meta property="twitter:image:height" content="{{ embed_height }}">
@@ -31,6 +35,7 @@
     <meta property="og:video:width" content="{{ embed_width }}">
     <meta property="og:video:height" content="{{ embed_height }}">
     {% elif media_category == "audio" %}
+    <meta property="og:type" content="website">
     <meta property="og:audio" content="https://{{ host + embed_path }}">
     <meta property="og:audio:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:audio:type" content="{{ embed_mime_type }}">
