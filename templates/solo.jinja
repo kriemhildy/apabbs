@@ -3,7 +3,6 @@
     <title>{{ title }} - Post {{ post.key }}</title>
 {% endblock %}
 {% block meta %}
-    <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ title }}">
     <meta property="og:url" content="https://{{ host + "/p/" + post.key }}">
     {% if post.media_category_opt is not none %}
@@ -16,7 +15,6 @@
     {% if media_category == "image" %}
     <meta property="og:image" content="https://{{ host + embed_path }}">
     <meta property="og:image:secure_url" content="https://{{ host + embed_path }}">
-    <meta property="og:image:alt" content="Image {{ embed_filename }}">
     <meta property="og:image:width" content="{{ embed_width }}">
     <meta property="og:image:height" content="{{ embed_height }}">
     <meta property="og:image:type" content="{{ embed_mime_type }}">
@@ -26,14 +24,12 @@
     <meta property="twitter:card" content="summary_large_image">
     {% elif media_category == "video" %}
     {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
+    <meta property="og:type" content="video.other">
     <meta property="og:video" content="https://{{ host + embed_path }}">
     <meta property="og:video:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:video:type" content="{{ embed_mime_type }}">
-    <meta property="og:video:alt" content="Video {{ embed_filename }}">
     <meta property="og:video:width" content="{{ embed_width }}">
     <meta property="og:video:height" content="{{ embed_height }}">
-    <meta property="og:image" content="https://{{ host + poster_path }}">
-    <meta property="og:image:alt" content="Poster {{ embed_filename }}">
     {% elif media_category == "audio" %}
     <meta property="og:audio" content="https://{{ host + embed_path }}">
     <meta property="og:audio:secure_url" content="https://{{ host + embed_path }}">
