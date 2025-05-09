@@ -21,6 +21,11 @@
     <meta property="og:image:width" content="{{ embed_width }}">
     <meta property="og:image:height" content="{{ embed_height }}">
     <meta property="og:image:type" content="{{ embed_mime_type }}">
+    <meta property="twitter:title" content="Post {{ post.key }}">
+    <meta property="twitter:image" content="https://{{ host + embed_path }}">
+    <meta property="twitter:image:width" content="{{ embed_width }}">
+    <meta property="twitter:image:height" content="{{ embed_height }}">
+    <meta property="twitter:card" content="summary_large_image">
     {% elif media_category == "video" %}
     {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
     <meta property="og:video" content="https://{{ host + embed_path }}">
