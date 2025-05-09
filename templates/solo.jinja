@@ -15,7 +15,6 @@
     {% set embed_height = post.media_height_opt %}
     {% set embed_mime_type = post.media_mime_type_opt %}
     {% if media_category == "image" %}
-    <meta property="og:description" content="Image {{ embed_filename|escape }}">
     <meta property="og:image" content="https://{{ host + embed_path }}">
     <meta property="og:image:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:image:alt" content="Image {{ embed_filename }}">
@@ -24,7 +23,6 @@
     <meta property="og:image:type" content="{{ embed_mime_type }}">
     {% elif media_category == "video" %}
     {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
-    <meta property="og:description" content="Video {{ embed_filename|escape }}">
     <meta property="og:video" content="https://{{ host + embed_path }}">
     <meta property="og:video:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:video:type" content="{{ embed_mime_type }}">
@@ -34,13 +32,10 @@
     <meta property="og:image" content="https://{{ host + poster_path }}">
     <meta property="og:image:alt" content="Poster {{ embed_filename }}">
     {% elif media_category == "audio" %}
-    <meta property="og:description" content="Audio {{ embed_filename|escape }}">
     <meta property="og:audio" content="https://{{ host + embed_path }}">
     <meta property="og:audio:secure_url" content="https://{{ host + embed_path }}">
     <meta property="og:audio:type" content="{{ embed_mime_type }}">
     {% endif %}
-    {% else %}
-    <meta property="og:description" content="Text">
     {% endif %}
 {% endblock %}
 {% block main %}
