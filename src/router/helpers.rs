@@ -475,3 +475,46 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
         chromium: user_agent_str.contains("Chrome"),
     })
 }
+
+pub async fn generate_screenshot() {
+    use headless_chrome::{Browser, LaunchOptions, types::Bounds};
+    use std::fs;
+    // Launch headless Chromium
+    let browser = Browser::new(LaunchOptions {
+        headless: true,
+        path: None, // Auto-detect Chromium/Chrome; specify path if needed
+        ..Default::default()
+    })
+    .expect("launch browser");
+
+    // Create a new tab
+    let tab = browser.new_tab().expect("new tab");
+
+    // Set custom viewport size (e.g., 1200x630 for social media preview)
+    tab.set_bounds(Bounds::Normal {
+        width: Some(1200.0),
+        height: Some(630.0),
+        left: None,
+        top: None,
+    })
+    .expect("set bounds");
+
+    // Navigate to your homepage
+    tab.navigate_to("https://your-homepage.com")
+        .expect("navigate to homepage");
+    tab.wait_until_navigated().expect("wait until navigated");
+
+    // Capture a full-page screenshot
+    let screenshot = tab
+        .capture_screenshot(
+            headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Webp,
+            Some(80), // Quality (0-100)
+            None,     // No clipping region
+            true,     // Capture full page
+        )
+        .expect("capture screenshot");
+
+    // Save the screenshot
+    fs::write("pub/screenshot.webp", screenshot).expect("write screenshot");
+    println!("Screenshot saved as pub/screenshot.webp");
+}
