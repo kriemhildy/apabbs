@@ -1,5 +1,9 @@
 {# Main index page template displaying posts and submission form #}
 {% extends "layout.jinja" %}
+{% block meta %}
+    <meta property="twitter:image" content="https://{{ host }}/screenshot.webp">
+    <meta property="twitter:card" content="summary_large_image">
+{% endblock %}
 {% block title %}
     <title>{{ title }}</title>
 {% endblock %}

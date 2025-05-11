@@ -6,4 +6,5 @@ uploads/*
 pub/media/*
 pub/youtube/*
 pub/favicon.ico
+pub/screenshot.webp
 gpg.key

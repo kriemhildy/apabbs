@@ -918,36 +918,46 @@ async fn review_post(
                     // Create background task for media decryption
                     async fn decrypt_media_task(
                         state: AppState,
-                        post: Post,
+                        initial_post: Post,
                         post_review: PostReview,
                         encrypted_media_path: std::path::PathBuf,
                     ) {
                         let mut tx = state.db.begin().await.expect(BEGIN);
 
                         // Attempt media decryption
-                        if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await {
+                        if let Err(msg) =
+                            PostReview::handle_decrypt_media(&mut tx, &initial_post).await
+                        {
                             println!("Error decrypting media: {}", msg);
                             return;
                         }
 
                         // Update post status
-                        post.update_status(&mut tx, post_review.status).await;
+                        initial_post
+                            .update_status(&mut tx, post_review.status)
+                            .await;
 
                         // Get updated post
-                        let post = match Post::select_by_key(&mut tx, &post.key).await {
-                            None => {
-                                println!("Post does not exist after decrypting media");
-                                return;
-                            }
-                            Some(post) => post,
-                        };
+                        let updated_post =
+                            match Post::select_by_key(&mut tx, &initial_post.key).await {
+                                None => {
+                                    println!("Post does not exist after decrypting media");
+                                    return;
+                                }
+                                Some(post) => post,
+                            };
 
                         tx.commit().await.expect(COMMIT);
 
                         // Clean up and notify clients
                         PostReview::delete_upload_key_dir(&encrypted_media_path).await;
-                        if state.sender.send(post).is_err() {
+                        if state.sender.send(updated_post).is_err() {
                             println!("No active receivers to send to");
+                        }
+
+                        // Generate a new screenshot if the homepage changed
+                        if initial_post.status == Approved || post_review.status == Approved {
+                            generate_screenshot();
                         }
                     }
 
