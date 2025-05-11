@@ -231,8 +231,12 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
 
 pub fn non_mac_webkit(headers: &HeaderMap) -> bool {
     use axum::http::header::USER_AGENT;
-    let user_agent = headers.get(USER_AGENT).and_then(|h| h.to_str().ok());
-    user_agent
-        .map(|ua| ua.contains("WebKit") && !ua.contains("Macintosh"))
-        .unwrap_or(false)
+    let user_agent = match headers.get(USER_AGENT) {
+        None => return false,
+        Some(header) => match header.to_str() {
+            Err(_) => return false,
+            Ok(ua) => ua,
+        },
+    };
+    user_agent.contains("WebKit") && !user_agent.contains("Macintosh")
 }

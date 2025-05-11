@@ -893,7 +893,7 @@ impl PostReview {
         let dimensions: Vec<i32> = output_str
             .trim()
             .split(',')
-            .filter_map(|s| s.parse().ok())
+            .filter_map(|s| Some(s.parse().unwrap()))
             .collect();
         println!("video dimensions: {:?}", dimensions);
         (dimensions[0], dimensions[1])

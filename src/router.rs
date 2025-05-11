@@ -61,7 +61,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
             tracing_subscriber::fmt()
                 .with_max_level(Level::DEBUG)
                 .try_init()
-                .ok();
+                .expect("init tracing");
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
                 .on_response(DefaultOnResponse::new().level(Level::DEBUG))
@@ -217,7 +217,9 @@ async fn submit_post(
         }
     }
     tx.commit().await.expect(COMMIT);
-    state.sender.send(post).ok();
+    if state.sender.send(post).is_err() {
+        println!("No active receivers to send to");
+    }
     let response = if is_fetch_request(&headers) {
         StatusCode::CREATED.into_response()
     } else {
@@ -685,7 +687,9 @@ async fn review_post(
         return internal_server_error("error setting post thumbnail");
     }
     tx.commit().await.expect(COMMIT);
-    state.sender.send(post).ok();
+    if state.sender.send(post).is_err() {
+        println!("No active receivers to send to");
+    }
     let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
     } else {
