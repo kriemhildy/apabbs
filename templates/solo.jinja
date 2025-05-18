@@ -3,7 +3,7 @@
     <title>{{ title }} » {{ post.key }}</title>
 {% endblock %}
 {% block meta %}
-    <meta property="og:title" content="/p/{{ post.key }}">
+    <meta property="og:title" content="{{ post.key }}">
     <meta property="og:site_name" content="{{ title }}">
     <meta property="og:url" content="https://{{ host + "/p/" + post.key }}">
     {% if post.media_category_opt is not none %}
@@ -20,7 +20,7 @@
     <meta property="og:image:height" content="{{ embed_height }}">
     <meta property="og:image:type" content="{{ embed_mime_type }}">
     <meta property="twitter:site" content="oomfie.land">
-    <meta property="twitter:title" content="/p/{{ post.key }}">
+    <meta property="twitter:title" content="{{ post.key }}">
     <meta property="twitter:image" content="https://{{ host + embed_path }}">
     <meta property="twitter:image:width" content="{{ embed_width }}">
     <meta property="twitter:image:height" content="{{ embed_height }}">
