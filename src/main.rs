@@ -1,4 +1,4 @@
-mod jobs;
+mod cron;
 mod router;
 
 use apabbs::post::Post;
@@ -61,7 +61,7 @@ async fn main() {
     if apabbs::secret_key().len() < 16 {
         panic!("SECRET_KEY env must be at least 16 chars");
     }
-    jobs::init().await;
+    cron::init().await;
     let state = app_state().await;
     let router = router::router(state, true);
     let port = match std::env::var("PORT") {
