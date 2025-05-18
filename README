@@ -12,20 +12,18 @@ of the varied experience of the moderator will not go to waste.]
 Installation
 ------------
 
-1. install postgresql version 15+.
-2. install rust using rustup.
-3. install "pkg-config" via your package manager.
-4. install rsync, libvips-tools, and ffmpeg.
-5. install gnupg and create a "gpg.key" file with a random string value.
-6. install sqlx-cli for postgres only:
+1. install rust using rustup.
+2. install postgresql, pkg-config, rsync, gnupg, libvips-tools and ffmpeg.
+3. create a "gpg.key" file with a random string value.
+4. install sqlx-cli for postgres only:
    cargo install sqlx-cli --no-default-features --features native-tls,postgres
-7. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
-8. copy .env.example to .env and set the variables as needed.
-9. install direnv and run "direnv allow".
-10. run "sqlx database setup" to create and migrate the database.
-11. configure a web server (e.g. nginx) to proxy to the app server.
+5. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
+6. copy .env.example to .env and set the variables as needed.
+7. install direnv and run "direnv allow".
+8. run "sqlx database setup" to create and migrate the database.
+9. configure a web server (e.g. nginx) to proxy to the app server.
     this is necessary for serving assets (css, js, media). it is also
     necessary for SSL encryption via certbot. this server will need to enable
     web socket upgrades and X-Real-IP forwarding.
-12. run "cargo run" to start the app server in debug mode.
-13. access the app via "localhost" in a browser.
+10. run "cargo run" to start the app server in debug mode.
+11. access the app via "localhost" in a browser.
