@@ -342,7 +342,8 @@ async fn generate_video_posters(db: PgPool) {
             std::process::exit(1);
         }
         println!("setting media_poster_opt and thumb_poster_opt");
-        post.update_posters(&mut *tx, &media_poster_path, &thumb_poster_path).await;
+        post.update_posters(&mut *tx, &media_poster_path, &thumb_poster_path)
+            .await;
     }
     tx.commit().await.expect(COMMIT);
 }
