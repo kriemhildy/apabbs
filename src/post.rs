@@ -44,28 +44,28 @@ pub struct Post {
     pub id: i32,
     pub body: String,
     pub account_id_opt: Option<i32>,
-    pub session_token_opt: Option<Uuid>,
     pub status: PostStatus,
-    pub key: String,
+    pub session_token_opt: Option<Uuid>,
+    pub ip_hash_opt: Option<String>,
     pub media_filename_opt: Option<String>,
     pub media_category_opt: Option<MediaCategory>,
     pub media_mime_type_opt: Option<String>,
-    pub ip_hash_opt: Option<String>,
-    #[sqlx(default)]
-    pub created_at_rfc5322_opt: Option<String>,
-    #[sqlx(default)]
-    pub created_at_html_opt: Option<String>,
     pub thumb_filename_opt: Option<String>,
-    #[sqlx(default)]
-    pub recent_opt: Option<bool>,
+    pub key: String,
     pub youtube: bool,
     pub intro_limit_opt: Option<i32>,
     pub media_width_opt: Option<i32>,
     pub media_height_opt: Option<i32>,
-    pub media_poster_opt: Option<String>,
     pub thumb_width_opt: Option<i32>,
     pub thumb_height_opt: Option<i32>,
+    pub media_poster_opt: Option<String>,
     pub thumb_poster_opt: Option<String>,
+    #[sqlx(default)]
+    pub created_at_rfc5322_opt: Option<String>,
+    #[sqlx(default)]
+    pub created_at_html_opt: Option<String>,
+    #[sqlx(default)]
+    pub recent_opt: Option<bool>,
 }
 
 impl Post {
