@@ -252,7 +252,7 @@ async fn index_with_page() {
 }
 
 #[tokio::test]
-async fn submit_post() {
+async fn submit_post_without_media() {
     let (router, state) = init_test().await;
     let user = test_user(None);
     let mut form = FormData::new(Vec::new());
@@ -738,7 +738,7 @@ async fn update_password() {
 }
 
 #[tokio::test]
-async fn review_post_with_image() {
+async fn review_post_with_normal_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
