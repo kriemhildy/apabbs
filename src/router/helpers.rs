@@ -237,7 +237,7 @@ pub struct UserAgent {
 
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
-    let user_agent = match headers.get(USER_AGENT) {
+    let user_agent_str = match headers.get(USER_AGENT) {
         None => return None,
         Some(header) => match header.to_str() {
             Err(_) => return None,
@@ -245,7 +245,7 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
         },
     };
     Some(UserAgent {
-        mac: user_agent.contains("Macintosh"),
-        chrome: user_agent.contains("Chrome"),
+        mac: user_agent_str.contains("Macintosh"),
+        chrome: user_agent_str.contains("Chrome"),
     })
 }
