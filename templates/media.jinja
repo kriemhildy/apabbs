@@ -1,6 +1,3 @@
-{% set category = post.media_category_opt %}
-{% set use_thumb = (not solo and post.thumb_filename_opt is not none)
-    or (category == "video" and not user_agent.chrome) %}
 {% set filename = post.thumb_filename_opt if use_thumb else post.media_filename_opt %}
 {% set width = post.thumb_width_opt if use_thumb else post.media_width_opt %}
 {% set height = post.thumb_height_opt if use_thumb else post.media_height_opt %}
