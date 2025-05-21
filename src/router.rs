@@ -109,7 +109,7 @@ async fn index(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            scrollbar_style => non_mac_webkit(&headers),
+            user_agent_opt => analyze_user_agent(&headers),
             nav => true,
             user,
             posts,
@@ -143,7 +143,7 @@ async fn solo_post(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            scrollbar_style => non_mac_webkit(&headers),
+            user_agent_opt => analyze_user_agent(&headers),
             user,
             post,
             solo => true,
@@ -245,7 +245,7 @@ async fn login_form(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            scrollbar_style => non_mac_webkit(&headers),
+            user_agent_opt => analyze_user_agent(&headers),
             user,
         ),
     ));
@@ -292,7 +292,7 @@ async fn registration_form(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            scrollbar_style => non_mac_webkit(&headers),
+            user_agent_opt => analyze_user_agent(&headers),
             user,
         ),
     ));
@@ -506,7 +506,7 @@ async fn user_profile(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            scrollbar_style => non_mac_webkit(&headers),
+            user_agent_opt => analyze_user_agent(&headers),
             user,
             account,
             posts,
@@ -537,7 +537,7 @@ async fn settings(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            scrollbar_style => non_mac_webkit(&headers),
+            user_agent_opt => analyze_user_agent(&headers),
             user,
             time_zones,
             notice_opt,

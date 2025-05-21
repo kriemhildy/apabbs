@@ -56,9 +56,9 @@ pub struct Post {
     pub intro_limit_opt: Option<i32>,
     pub media_width_opt: Option<i32>,
     pub media_height_opt: Option<i32>,
+    pub media_poster_opt: Option<String>,
     pub thumb_width_opt: Option<i32>,
     pub thumb_height_opt: Option<i32>,
-    pub media_poster_opt: Option<String>,
     pub thumb_poster_opt: Option<String>,
     #[sqlx(default)]
     pub created_at_rfc5322_opt: Option<String>,

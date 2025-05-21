@@ -229,14 +229,23 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
     }
 }
 
-pub fn non_mac_webkit(headers: &HeaderMap) -> bool {
+#[derive(serde::Serialize)]
+pub struct UserAgent {
+    pub mac: bool,
+    pub chrome: bool,
+}
+
+pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
     let user_agent = match headers.get(USER_AGENT) {
-        None => return false,
+        None => return None,
         Some(header) => match header.to_str() {
-            Err(_) => return false,
+            Err(_) => return None,
             Ok(ua) => ua,
         },
     };
-    user_agent.contains("WebKit") && !user_agent.contains("Macintosh")
+    Some(UserAgent {
+        mac: user_agent.contains("Macintosh"),
+        chrome: user_agent.contains("Chrome"),
+    })
 }
