@@ -1,4 +1,10 @@
 {% set title = "[dev] " + host if dev else host %}
+{% set mac = false %}
+{% set chrome = false %}
+{% if user_agent_opt is not none %}
+{% set mac = user_agent_opt.mac %}
+{% set chrome = user_agent_opt.chrome %}
+{% endif %}
 <!DOCTYPE html>
 <html lang="en-US">
 
@@ -7,11 +13,8 @@
     <title>{{ title }}</title>
     {% endblock %}
     <link rel="stylesheet" href="/style.css?201">
-    {% if user_agent_opt is not none %}
-    {% set user_agent = user_agent_opt %}
-    {% if not user_agent.mac and user_agent.chrome %}
+    {% if not mac and chrome %}
     <link rel="stylesheet" href="/scrollbar.css?6">
-    {% endif %}
     {% endif %}
     <script src="/script.js?66"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
