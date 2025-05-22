@@ -17,7 +17,7 @@
     {% set poster_filename = post.thumb_poster_opt if use_thumb else post.media_poster_opt %}
     {% set poster_path = "/m/" + key + "/" + poster_filename %}
     {% endif %}
-    {% if solo and not chrome %}
+    {% if solo and not chromium %}
     <!-- Non-Chromium browsers receive an 8-bit H.264/AVC video for compatibility -->
     {% endif %}
     <video width="{{ width }}" height="{{ height }}" controls poster="{{ poster_path }}" preload="metadata">

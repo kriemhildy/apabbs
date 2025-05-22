@@ -33,7 +33,7 @@
     {% if post.media_filename_opt is not none %}
     {% set category = post.media_category_opt %}
     {% set use_thumb = (not solo and post.thumb_filename_opt is not none)
-        or (category == "video" and not chrome) %}
+        or (category == "video" and not chromium) %}
     {% set media_filename = post.media_filename_opt %}
     {% if status in ["approved", "delisted"] %}
     {% set thumb_filename = post.thumb_filename_opt if post.thumb_filename_opt is not none %}

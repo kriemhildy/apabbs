@@ -232,7 +232,7 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
 #[derive(serde::Serialize)]
 pub struct UserAgent {
     pub mac: bool,
-    pub chrome: bool,
+    pub chromium: bool,
 }
 
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
@@ -246,6 +246,6 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     };
     Some(UserAgent {
         mac: user_agent_str.contains("Macintosh"),
-        chrome: user_agent_str.contains("Chrome"),
+        chromium: user_agent_str.contains("Chrome"),
     })
 }
