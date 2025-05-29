@@ -828,6 +828,7 @@ impl PostReview {
                 post.update_media_dimensions(tx, width, height).await;
             }
             Some(MediaCategory::Video) => {
+                // TODO: mark post as processing and begin background job.
                 let thumbnail_path = Self::generate_video_thumbnail(&published_media_path).await;
                 if !thumbnail_path.exists() {
                     return Err("thumbnail not created successfully".to_owned());

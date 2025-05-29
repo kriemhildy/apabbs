@@ -649,6 +649,7 @@ async fn review_post(
                     return not_found("encrypted media file does not exist");
                 }
                 if review_action == Ok(DecryptMedia) {
+                    // spin off background job here?
                     if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await {
                         return internal_server_error(&msg);
                     }
