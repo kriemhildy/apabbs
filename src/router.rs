@@ -635,6 +635,7 @@ async fn review_post(
         Some(post) => post,
     };
     let review_action = post_review.determine_action(&post, &account.role);
+    let mut processing = false;
     match review_action {
         Err(SameStatus) => return bad_request("post already has this status"),
         Err(ReturnToPending) => return bad_request("cannot return post to pending"),
@@ -650,9 +651,11 @@ async fn review_post(
                 }
                 if review_action == Ok(DecryptMedia) {
                     // spin off background job here?
-                    post.update_processing(&mut tx, true).await;
+                    processing = true;
                     {
                         let post = post.clone();
+                        let status = post_review.status.clone();
+                        let sender = state.sender.clone();
                         task::spawn(async move {
                             let mut tx = state.db.begin().await.expect(BEGIN);
                             if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await
@@ -661,6 +664,17 @@ async fn review_post(
                                 return;
                             }
                             post.update_processing(&mut tx, false).await;
+                            post.update_status(&mut tx, &status).await;
+                            let post = match Post::select_by_key(&mut tx, &post.key).await {
+                                None => {
+                                    println!("Post does not exist after decrypting media");
+                                    return;
+                                }
+                                Some(post) => post,
+                            };
+                            if sender.send(post).is_err() {
+                                println!("No active receivers to send to");
+                            }
                             tx.commit().await.expect(COMMIT);
                         });
                     }
@@ -674,9 +688,11 @@ async fn review_post(
             }
         }
         Ok(ReencryptMedia) => {
-            post.update_processing(&mut tx, true).await;
+            processing = true;
             {
                 let post = post.clone();
+                let status = post_review.status.clone();
+                let sender = state.sender.clone();
                 task::spawn(async move {
                     let mut tx = state.db.begin().await.expect(BEGIN);
                     if let Err(msg) = post.reencrypt_media_file().await {
@@ -684,13 +700,28 @@ async fn review_post(
                         return;
                     }
                     post.update_processing(&mut tx, false).await;
+                    post.update_status(&mut tx, &status).await;
+                    let post = match Post::select_by_key(&mut tx, &post.key).await {
+                        None => {
+                            println!("Post does not exist after re-encrypting media");
+                            return;
+                        }
+                        Some(post) => post,
+                    };
+                    if sender.send(post).is_err() {
+                        println!("No active receivers to send to");
+                    }
                     tx.commit().await.expect(COMMIT);
                 });
             }
         }
         Ok(NoAction) => (),
     }
-    post.update_status(&mut tx, &post_review.status).await;
+    if processing {
+        post.update_processing(&mut tx, true).await;
+    } else {
+        post.update_status(&mut tx, &post_review.status).await;
+    }
     post_review.insert(&mut tx, account.id, post.id).await;
     let post = match Post::select_by_key(&mut tx, &key).await {
         None => return not_found("post does not exist"),
