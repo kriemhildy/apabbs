@@ -217,19 +217,22 @@ impl Post {
         }
     }
 
-    pub async fn update_status(
-        &self,
-        tx: &mut PgConnection,
-        new_status: &PostStatus,
-        processing: bool,
-    ) {
-        sqlx::query("UPDATE posts SET status = $1, processing = $2 WHERE id = $3")
+    pub async fn update_status(&self, tx: &mut PgConnection, new_status: &PostStatus) {
+        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
-            .bind(processing)
             .bind(self.id)
             .execute(&mut *tx)
             .await
             .expect("update post status");
+    }
+
+    pub async fn update_processing(&self, tx: &mut PgConnection, processing: bool) {
+        sqlx::query("UPDATE posts SET processing = $1 WHERE id = $2")
+            .bind(processing)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post processing status");
     }
 
     pub async fn update_thumbnail(

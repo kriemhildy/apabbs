@@ -123,7 +123,7 @@ async fn create_test_post(
     match status {
         PostStatus::Pending => post,
         _ => {
-            post.update_status(tx, &status, false).await;
+            post.update_status(tx, &status).await;
             Post::select_by_key(tx, &post.key).await.unwrap()
         }
     }
@@ -571,7 +571,7 @@ async fn hide_post() {
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin_user.account_opt.as_ref().unwrap();
-    post.update_status(&mut tx, &PostStatus::Rejected, false).await;
+    post.update_status(&mut tx, &PostStatus::Rejected).await;
     tx.commit().await.expect(COMMIT);
     let post_hiding = PostHiding {
         session_token: user.session_token,

@@ -22,7 +22,7 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::collections::HashMap;
-use tokio::sync::broadcast::Receiver;
+use tokio::{sync::broadcast::Receiver, task};
 use uuid::Uuid;
 
 const ROOT: &'static str = "/";
@@ -635,7 +635,6 @@ async fn review_post(
         Some(post) => post,
     };
     let review_action = post_review.determine_action(&post, &account.role);
-    let mut processing = false;
     match review_action {
         Err(SameStatus) => return bad_request("post already has this status"),
         Err(ReturnToPending) => return bad_request("cannot return post to pending"),
@@ -651,9 +650,19 @@ async fn review_post(
                 }
                 if review_action == Ok(DecryptMedia) {
                     // spin off background job here?
-                    processing = true;
-                    if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await {
-                        return internal_server_error(&msg);
+                    post.update_processing(&mut tx, true).await;
+                    {
+                        let post = post.clone();
+                        task::spawn(async move {
+                            let mut tx = state.db.begin().await.expect(BEGIN);
+                            if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await
+                            {
+                                println!("Error decrypting media: {}", msg);
+                                return;
+                            }
+                            post.update_processing(&mut tx, false).await;
+                            tx.commit().await.expect(COMMIT);
+                        });
                     }
                 }
                 PostReview::delete_upload_key_dir(&encrypted_media_path);
@@ -671,7 +680,7 @@ async fn review_post(
         }
         Ok(NoAction) => (),
     }
-    post.update_status(&mut tx, &post_review.status, processing).await;
+    post.update_status(&mut tx, &post_review.status).await;
     post_review.insert(&mut tx, account.id, post.id).await;
     let post = match Post::select_by_key(&mut tx, &key).await {
         None => return not_found("post does not exist"),
