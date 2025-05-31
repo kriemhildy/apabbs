@@ -674,8 +674,18 @@ async fn review_post(
             }
         }
         Ok(ReencryptMedia) => {
-            if let Err(msg) = post.reencrypt_media_file().await {
-                return internal_server_error(msg);
+            post.update_processing(&mut tx, true).await;
+            {
+                let post = post.clone();
+                task::spawn(async move {
+                    let mut tx = state.db.begin().await.expect(BEGIN);
+                    if let Err(msg) = post.reencrypt_media_file().await {
+                        println!("Error re-encrypting media: {}", msg);
+                        return;
+                    }
+                    post.update_processing(&mut tx, false).await;
+                    tx.commit().await.expect(COMMIT);
+                });
             }
         }
         Ok(NoAction) => (),
