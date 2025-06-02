@@ -672,10 +672,10 @@ async fn review_post(
                                 }
                                 Some(post) => post,
                             };
+                            tx.commit().await.expect(COMMIT);
                             if sender.send(post).is_err() {
                                 println!("No active receivers to send to");
                             }
-                            tx.commit().await.expect(COMMIT);
                         });
                     }
                 }
@@ -708,10 +708,10 @@ async fn review_post(
                         }
                         Some(post) => post,
                     };
+                    tx.commit().await.expect(COMMIT);
                     if sender.send(post).is_err() {
                         println!("No active receivers to send to");
                     }
-                    tx.commit().await.expect(COMMIT);
                 });
             }
         }
