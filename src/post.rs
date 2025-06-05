@@ -18,11 +18,12 @@ const MAX_INTRO_BYTES: usize = 1600;
 const MAX_INTRO_BREAKS: usize = 24;
 const KEY_LENGTH: usize = 8;
 
-#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
+#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Copy)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
 pub enum PostStatus {
     Pending,
+    Processing,
     Approved,
     Delisted,
     Reported,
@@ -60,7 +61,6 @@ pub struct Post {
     pub thumb_width_opt: Option<i32>,
     pub thumb_height_opt: Option<i32>,
     pub thumb_poster_opt: Option<String>,
-    pub processing: bool,
     #[sqlx(default)]
     pub created_at_rfc5322_opt: Option<String>,
     #[sqlx(default)]
@@ -217,22 +217,13 @@ impl Post {
         }
     }
 
-    pub async fn update_status(&self, tx: &mut PgConnection, new_status: &PostStatus) {
+    pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
             .bind(self.id)
             .execute(&mut *tx)
             .await
             .expect("update post status");
-    }
-
-    pub async fn update_processing(&self, tx: &mut PgConnection, processing: bool) {
-        sqlx::query("UPDATE posts SET processing = $1 WHERE id = $2")
-            .bind(processing)
-            .bind(self.id)
-            .execute(&mut *tx)
-            .await
-            .expect("update post processing status");
     }
 
     pub async fn update_thumbnail(
@@ -693,6 +684,7 @@ pub enum ReviewError {
     AdminOnly,
     RejectedOrBanned,
     RecentOnly,
+    NoProcessing,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -782,16 +774,19 @@ impl PostReview {
         match post.status {
             Pending => match self.status {
                 Pending => Err(SameStatus),
+                Processing => Err(NoProcessing),
                 Approved | Delisted => Ok(DecryptMedia),
                 Reported => Ok(NoAction),
                 Rejected | Banned => Ok(DeleteEncryptedMedia),
             },
+            Processing => Err(NoProcessing),
             Approved | Delisted => {
                 if post.status == Approved && *reviewer_role == Mod && !post.recent_opt.unwrap() {
                     return Err(RecentOnly);
                 }
                 match self.status {
                     Pending => Err(ReturnToPending),
+                    Processing => Err(NoProcessing),
                     Approved | Delisted => Ok(NoAction),
                     Reported => {
                         if *reviewer_role != Mod {
@@ -808,6 +803,7 @@ impl PostReview {
                 }
                 match self.status {
                     Pending => Err(ReturnToPending),
+                    Processing => Err(NoProcessing),
                     Approved | Delisted => Ok(DecryptMedia),
                     Rejected | Banned => Ok(DeleteEncryptedMedia),
                     Reported => Err(SameStatus),
