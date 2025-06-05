@@ -690,38 +690,32 @@ async fn review_post(
             }
         }
         Ok(ReencryptMedia) => {
-            processing = true;
-            {
-                async fn reencrypt_media_task(
-                    state: AppState,
-                    post: Post,
-                    post_review: PostReview,
-                ) {
-                    let mut tx = state.db.begin().await.expect(BEGIN);
-                    if let Err(msg) = post.reencrypt_media_file().await {
-                        println!("Error re-encrypting media: {}", msg);
+            async fn reencrypt_media_task(state: AppState, post: Post, post_review: PostReview) {
+                let mut tx = state.db.begin().await.expect(BEGIN);
+                if let Err(msg) = post.reencrypt_media_file().await {
+                    println!("Error re-encrypting media: {}", msg);
+                    return;
+                }
+                post.update_processing(&mut tx, false).await;
+                post.update_status(&mut tx, &post_review.status).await;
+                let post = match Post::select_by_key(&mut tx, &post.key).await {
+                    None => {
+                        println!("Post does not exist after re-encrypting media");
                         return;
                     }
-                    post.update_processing(&mut tx, false).await;
-                    post.update_status(&mut tx, &post_review.status).await;
-                    let post = match Post::select_by_key(&mut tx, &post.key).await {
-                        None => {
-                            println!("Post does not exist after re-encrypting media");
-                            return;
-                        }
-                        Some(post) => post,
-                    };
-                    tx.commit().await.expect(COMMIT);
-                    if state.sender.send(post).is_err() {
-                        println!("No active receivers to send to");
-                    }
+                    Some(post) => post,
+                };
+                tx.commit().await.expect(COMMIT);
+                if state.sender.send(post).is_err() {
+                    println!("No active receivers to send to");
                 }
-                tokio::spawn(reencrypt_media_task(
-                    state.clone(),
-                    post.clone(),
-                    post_review.clone(),
-                ));
             }
+            processing = true;
+            tokio::spawn(reencrypt_media_task(
+                state.clone(),
+                post.clone(),
+                post_review.clone(),
+            ));
         }
         Ok(NoAction) => (),
     }
