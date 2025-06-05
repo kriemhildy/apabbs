@@ -695,7 +695,7 @@ pub enum ReviewError {
     RecentOnly,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct PostReview {
     pub session_token: Uuid,
     pub status: PostStatus,
