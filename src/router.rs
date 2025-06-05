@@ -22,10 +22,15 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 const ROOT: &'static str = "/";
+
+// Used with background tasks
+type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 //-------------------------------------------------------------------------------------------------
 /// URL path router
@@ -635,7 +640,7 @@ async fn review_post(
         Some(post) => post,
     };
     let review_action = post_review.determine_action(&post, &account.role);
-    let mut processing = false;
+    let mut background_task: Option<BoxFuture> = None;
     match review_action {
         Err(SameStatus) => return bad_request("post already has this status"),
         Err(ReturnToPending) => return bad_request("cannot return post to pending"),
@@ -674,12 +679,11 @@ async fn review_post(
                             println!("No active receivers to send to");
                         }
                     }
-                    processing = true;
-                    tokio::spawn(decrypt_media_task(
+                    background_task = Some(Box::pin(decrypt_media_task(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
-                    ));
+                    )));
                 }
                 PostReview::delete_upload_key_dir(&encrypted_media_path);
             }
@@ -709,16 +713,15 @@ async fn review_post(
                     println!("No active receivers to send to");
                 }
             }
-            processing = true;
-            tokio::spawn(reencrypt_media_task(
+            background_task = Some(Box::pin(reencrypt_media_task(
                 state.clone(),
                 post.clone(),
                 post_review.clone(),
-            ));
+            )));
         }
         Ok(NoAction) => (),
     }
-    let status = if processing {
+    let status = if background_task.is_some() {
         Processing
     } else {
         post_review.status
@@ -744,6 +747,9 @@ async fn review_post(
     tx.commit().await.expect(COMMIT);
     if state.sender.send(post).is_err() {
         println!("No active receivers to send to");
+    }
+    if let Some(task) = background_task {
+        tokio::spawn(task);
     }
     let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
