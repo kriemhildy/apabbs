@@ -67,7 +67,13 @@ function updatePost(key, html) {
         postsDiv.prepend(template.content);
         incrementUnseenPosts();
     }
-    // Hack to re-assign poster attribute due to Chrome bug
+    fixChromeVideoPosters(key);
+}
+
+function fixChromeVideoPosters(key) {
+    // Chrome currently has a bug where the poster attribute of video elements is not set correctly
+    // when the video is dynamically added to the DOM. This function fixes that by re-assigning
+    // the poster attribute.
     document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
         video.poster = video.poster;
     });
