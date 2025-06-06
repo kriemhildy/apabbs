@@ -121,7 +121,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
             .expect("updates youtube link to be short");
         }
         if let Some((local_thumbnail_path, width, height)) =
-            PostSubmission::download_youtube_thumbnail(&video_id, short)
+            PostSubmission::download_youtube_thumbnail(&video_id, short).await
         {
             // remove pub prefix
             let thumbnail_url = local_thumbnail_path
@@ -190,7 +190,8 @@ async fn uuid_to_key(db: PgPool) {
             println!("media directory for uuid does not exist, skipping");
             continue;
         }
-        std::fs::rename(uuid_dir, format!("pub/media/{}", pair.key))
+        tokio::fs::rename(uuid_dir, format!("pub/media/{}", pair.key))
+            .await
             .expect("rename media directory");
     }
     sqlx::query("ALTER TABLE posts DROP COLUMN uuid")
@@ -223,7 +224,9 @@ async fn generate_image_thumbnails(db: PgPool) {
         }
         if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
             println!("thumbnail is larger, deleting");
-            std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+            tokio::fs::remove_file(&thumbnail_path)
+                .await
+                .expect("remove thumbnail file");
             continue;
         }
         println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");

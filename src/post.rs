@@ -255,14 +255,20 @@ impl Post {
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
+        tokio::fs::create_dir(uploads_key_dir)
+            .await
+            .expect("create uploads key dir");
         let media_file_path = self.published_media_path();
-        let media_bytes = std::fs::read(&media_file_path).expect("read media file");
+        let media_bytes = tokio::fs::read(&media_file_path)
+            .await
+            .expect("read media file");
         let result = self.gpg_encrypt(media_bytes).await;
         match result {
-            Ok(()) => PostReview::delete_media_key_dir(&self.key),
+            Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
             Err(msg) => {
-                std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
+                tokio::fs::remove_dir(uploads_key_dir)
+                    .await
+                    .expect("remove uploads key dir");
                 eprintln!("{}", msg);
             }
         }
@@ -339,7 +345,7 @@ impl PostSubmission {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
-        let html_body = self.body_to_html(key);
+        let html_body = self.body_to_html(key).await;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit_opt = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
@@ -363,7 +369,7 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
-    pub fn download_youtube_thumbnail(
+    pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
     ) -> Option<(PathBuf, i32, i32)> {
@@ -394,7 +400,9 @@ impl PostSubmission {
                 return Some((existing_thumbnail_path, width, height));
             }
         } else {
-            std::fs::create_dir(&video_id_dir).expect("create youtube video id dir");
+            tokio::fs::create_dir(&video_id_dir)
+                .await
+                .expect("create youtube video id dir");
         }
         let thumbnail_sizes = if youtube_short {
             vec!["oar2"]
@@ -425,7 +433,7 @@ impl PostSubmission {
         None
     }
 
-    fn body_to_html(&self, key: &str) -> String {
+    async fn body_to_html(&self, key: &str) -> String {
         let mut html = self
             .body
             .trim_end()
@@ -442,10 +450,10 @@ impl PostSubmission {
             Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex pattern");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
-        Self::embed_youtube(html, key)
+        Self::embed_youtube(html, key).await
     }
 
-    fn embed_youtube(mut html: String, key: &str) -> String {
+    async fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
@@ -475,7 +483,7 @@ impl PostSubmission {
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
             let thumbnail_tuple_opt =
-                Self::download_youtube_thumbnail(&youtube_video_id, youtube_short);
+                Self::download_youtube_thumbnail(&youtube_video_id, youtube_short).await;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple_opt {
                 None => break,
                 Some((path, width, height)) => (
@@ -575,10 +583,14 @@ impl PostSubmission {
         }
         let encrypted_file_path = post.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        std::fs::create_dir(uploads_key_dir).expect("create uploads key dir");
+        tokio::fs::create_dir(uploads_key_dir)
+            .await
+            .expect("create uploads key dir");
         let result = post.gpg_encrypt(self.media_bytes_opt.unwrap()).await;
         if result.is_err() {
-            std::fs::remove_dir(uploads_key_dir).expect("remove uploads key dir");
+            tokio::fs::remove_dir(uploads_key_dir)
+                .await
+                .expect("remove uploads key dir");
         }
         result
     }
@@ -696,10 +708,14 @@ pub struct PostReview {
 }
 
 impl PostReview {
-    pub fn write_media_file(published_media_path: &PathBuf, media_bytes: Vec<u8>) {
+    pub async fn write_media_file(published_media_path: &PathBuf, media_bytes: Vec<u8>) {
         let media_key_dir = published_media_path.parent().unwrap();
-        std::fs::create_dir(media_key_dir).expect("create media key dir");
-        std::fs::write(&published_media_path, media_bytes).expect("write media file");
+        tokio::fs::create_dir(media_key_dir)
+            .await
+            .expect("create media key dir");
+        tokio::fs::write(&published_media_path, media_bytes)
+            .await
+            .expect("write media file");
     }
 
     pub async fn generate_image_thumbnail(published_media_path: &PathBuf) -> PathBuf {
@@ -743,15 +759,21 @@ impl PostReview {
         thumbnail_len > media_file_len
     }
 
-    pub fn delete_upload_key_dir(encrypted_media_path: &PathBuf) {
+    pub async fn delete_upload_key_dir(encrypted_media_path: &PathBuf) {
         let uploads_key_dir = encrypted_media_path.parent().unwrap();
-        std::fs::remove_file(&encrypted_media_path).expect("remove encrypted media file");
-        std::fs::remove_dir(&uploads_key_dir).expect("remove uploads key dir");
+        tokio::fs::remove_file(&encrypted_media_path)
+            .await
+            .expect("remove encrypted media file");
+        tokio::fs::remove_dir(&uploads_key_dir)
+            .await
+            .expect("remove uploads key dir");
     }
 
-    pub fn delete_media_key_dir(key: &str) {
+    pub async fn delete_media_key_dir(key: &str) {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
-        std::fs::remove_dir_all(&media_key_dir).expect("remove media key dir and its contents");
+        tokio::fs::remove_dir_all(&media_key_dir)
+            .await
+            .expect("remove media key dir and its contents");
     }
 
     pub async fn insert(&self, tx: &mut PgConnection, account_id: i32, post_id: i32) {
@@ -818,7 +840,7 @@ impl PostReview {
     pub async fn handle_decrypt_media(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
         let media_bytes = post.decrypt_media_file().await;
         let published_media_path = post.published_media_path();
-        Self::write_media_file(&published_media_path, media_bytes);
+        Self::write_media_file(&published_media_path, media_bytes).await;
         match post.media_category_opt {
             Some(MediaCategory::Image) => {
                 let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
@@ -826,7 +848,9 @@ impl PostReview {
                     return Err("thumbnail not created successfully".to_owned());
                 }
                 if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-                    std::fs::remove_file(&thumbnail_path).expect("remove thumbnail file");
+                    tokio::fs::remove_file(&thumbnail_path)
+                        .await
+                        .expect("remove thumbnail file");
                 } else {
                     let (width, height) = Self::image_dimensions(&thumbnail_path).await;
                     post.update_thumbnail(tx, &thumbnail_path, width, height)
@@ -1028,7 +1052,7 @@ mod tests {
         }
         let key = "testkey1";
         assert_eq!(
-            submission.body_to_html(key),
+            submission.body_to_html(key).await,
             concat!(
                 "&lt;&amp;test body&quot;&apos; コンピューター<br>\n",
                 "<br>\n",
@@ -1100,7 +1124,8 @@ mod tests {
         );
         for id in test_ids {
             if !existing_ids.contains(&id) {
-                std::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
+                tokio::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
+                    .await
                     .expect("remove dir and its contents");
             }
         }

@@ -99,7 +99,7 @@ async fn create_test_post(
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
             (
                 Some(path.file_name().unwrap().to_str().unwrap().to_owned()),
-                Some(std::fs::read(path).expect("read test image file")),
+                Some(tokio::fs::read(path).await.expect("read test image file")),
             )
         }
         None => (None, None),
@@ -322,7 +322,7 @@ async fn submit_post_with_media() {
     post.delete(&mut tx).await;
     tx.commit().await.expect(COMMIT);
     let encrypted_file_path = post.encrypted_media_path();
-    PostReview::delete_upload_key_dir(&encrypted_file_path);
+    PostReview::delete_upload_key_dir(&encrypted_file_path).await;
 }
 
 #[tokio::test]
@@ -771,7 +771,7 @@ async fn review_post_with_normal_image() {
     assert!(thumbnail_path.exists());
     assert!(post.media_width_opt.is_some());
     assert!(post.media_height_opt.is_some());
-    PostReview::delete_media_key_dir(&post.key);
+    PostReview::delete_media_key_dir(&post.key).await;
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -811,7 +811,7 @@ async fn review_post_with_small_image() {
     assert!(post.thumb_filename_opt.is_none());
     let thumbnail_path = PostReview::thumbnail_path(&published_media_path, ".webp");
     assert!(!thumbnail_path.exists());
-    PostReview::delete_media_key_dir(&post.key);
+    PostReview::delete_media_key_dir(&post.key).await;
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -852,7 +852,7 @@ async fn review_post_with_video() {
     assert!(thumbnail_path.exists());
     assert!(post.media_width_opt.is_some());
     assert!(post.media_height_opt.is_some());
-    PostReview::delete_media_key_dir(&post.key);
+    PostReview::delete_media_key_dir(&post.key).await;
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
@@ -885,5 +885,5 @@ async fn decrypt_media() {
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
-    PostReview::delete_upload_key_dir(&encrypted_media_path);
+    PostReview::delete_upload_key_dir(&encrypted_media_path).await;
 }

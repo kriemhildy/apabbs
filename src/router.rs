@@ -677,7 +677,7 @@ async fn review_post(
                             Some(post) => post,
                         };
                         tx.commit().await.expect(COMMIT);
-                        PostReview::delete_upload_key_dir(&encrypted_media_path);
+                        PostReview::delete_upload_key_dir(&encrypted_media_path).await;
                         if state.sender.send(post).is_err() {
                             println!("No active receivers to send to");
                         }
@@ -693,7 +693,7 @@ async fn review_post(
         }
         Ok(DeletePublishedMedia) => {
             if post.media_filename_opt.as_ref().is_some() && post.published_media_path().exists() {
-                PostReview::delete_media_key_dir(&post.key);
+                PostReview::delete_media_key_dir(&post.key).await;
             }
         }
         Ok(ReencryptMedia) => {
@@ -752,7 +752,7 @@ async fn review_post(
         println!("No active receivers to send to");
     }
     if let Some(task) = background_task {
-        tokio::spawn(task);
+        tokio::task::spawn(task);
     }
     let response = if is_fetch_request(&headers) {
         StatusCode::NO_CONTENT.into_response()
