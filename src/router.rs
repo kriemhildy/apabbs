@@ -648,7 +648,8 @@ async fn review_post(
         Err(AdminOnly) => return unauthorized("only admins can ban or reject posts"),
         Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
         Err(RecentOnly) => return unauthorized("mods can only review approved posts for two days"),
-        Err(NoProcessing) => return bad_request("cannot review post that is processing"),
+        Err(CurrentlyProcessing) => return bad_request("post is currently being processed"),
+        Err(ManualProcessing) => return bad_request("cannot manually set post to processing"),
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
             if post.media_filename_opt.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();

@@ -684,7 +684,8 @@ pub enum ReviewError {
     AdminOnly,
     RejectedOrBanned,
     RecentOnly,
-    NoProcessing,
+    CurrentlyProcessing,
+    ManualProcessing,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -774,19 +775,19 @@ impl PostReview {
         match post.status {
             Pending => match self.status {
                 Pending => Err(SameStatus),
-                Processing => Err(NoProcessing),
+                Processing => Err(ManualProcessing),
                 Approved | Delisted => Ok(DecryptMedia),
                 Reported => Ok(NoAction),
                 Rejected | Banned => Ok(DeleteEncryptedMedia),
             },
-            Processing => Err(NoProcessing),
+            Processing => Err(CurrentlyProcessing),
             Approved | Delisted => {
                 if post.status == Approved && *reviewer_role == Mod && !post.recent_opt.unwrap() {
                     return Err(RecentOnly);
                 }
                 match self.status {
                     Pending => Err(ReturnToPending),
-                    Processing => Err(NoProcessing),
+                    Processing => Err(ManualProcessing),
                     Approved | Delisted => Ok(NoAction),
                     Reported => {
                         if *reviewer_role != Mod {
@@ -803,7 +804,7 @@ impl PostReview {
                 }
                 match self.status {
                     Pending => Err(ReturnToPending),
-                    Processing => Err(NoProcessing),
+                    Processing => Err(ManualProcessing),
                     Approved | Delisted => Ok(DecryptMedia),
                     Rejected | Banned => Ok(DeleteEncryptedMedia),
                     Reported => Err(SameStatus),
