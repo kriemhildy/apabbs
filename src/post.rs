@@ -164,6 +164,7 @@ impl Post {
             .output()
             .await
             .expect("decrypt media file");
+        println!("media file decrypted to stdout");
         output.stdout
     }
 

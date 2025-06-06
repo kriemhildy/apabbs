@@ -661,6 +661,7 @@ async fn review_post(
                         state: AppState,
                         post: Post,
                         post_review: PostReview,
+                        encrypted_media_path: std::path::PathBuf,
                     ) {
                         let mut tx = state.db.begin().await.expect(BEGIN);
                         if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &post).await {
@@ -676,6 +677,7 @@ async fn review_post(
                             Some(post) => post,
                         };
                         tx.commit().await.expect(COMMIT);
+                        PostReview::delete_upload_key_dir(&encrypted_media_path);
                         if state.sender.send(post).is_err() {
                             println!("No active receivers to send to");
                         }
@@ -684,9 +686,9 @@ async fn review_post(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
+                        encrypted_media_path.clone(),
                     )));
                 }
-                PostReview::delete_upload_key_dir(&encrypted_media_path);
             }
         }
         Ok(DeletePublishedMedia) => {
