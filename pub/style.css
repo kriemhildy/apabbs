@@ -5,6 +5,7 @@
     --system: #9cdcda;
     --review: #bebebe;
     --pending: #111111;
+    --processing: #111111;
     --delisted: #051d3a;
     --reported: rgb(75, 10, 75);
     --rejected: rgb(37, 4, 4);
@@ -20,6 +21,7 @@
         --system: black;
         --review: rgb(63, 63, 63);
         --pending: #eeeeee;
+        --processing: #eeeeee;
         --delisted: rgb(97, 156, 223);
         --reported: rgb(243, 186, 243);
         --rejected: rgb(250, 226, 226);
@@ -163,6 +165,10 @@ div.banned {
 
 div.pending {
     background: var(--pending);
+}
+
+div.processing {
+    background: var(--processing);
 }
 
 div.delisted {
