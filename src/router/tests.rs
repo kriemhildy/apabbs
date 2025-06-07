@@ -934,12 +934,12 @@ async fn review_post_with_video() {
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            let published_media_path = post.published_media_path();
+            let published_media_path = updated_post.published_media_path();
             assert!(published_media_path.exists());
-            let thumbnail_path = post.thumbnail_path();
+            let thumbnail_path = updated_post.thumbnail_path();
             assert!(thumbnail_path.exists());
-            assert!(post.media_width_opt.is_some());
-            assert!(post.media_height_opt.is_some());
+            assert!(updated_post.media_width_opt.is_some());
+            assert!(updated_post.media_height_opt.is_some());
 
             break;
         }
