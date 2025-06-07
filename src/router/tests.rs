@@ -736,7 +736,6 @@ async fn update_password() {
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT);
 }
-
 #[tokio::test]
 async fn review_post_with_normal_image() {
     let (router, state) = init_test().await;
@@ -747,6 +746,7 @@ async fn review_post_with_normal_image() {
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
+
     let post_review = PostReview {
         session_token: user.session_token,
         status: PostStatus::Approved,
@@ -760,22 +760,53 @@ async fn review_post_with_normal_image() {
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
+
     let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-    let uploads_key_dir = encrypted_media_path.parent().unwrap();
-    assert!(!uploads_key_dir.exists());
-    let published_media_path = post.published_media_path();
-    assert!(published_media_path.exists());
-    let thumbnail_path = post.thumbnail_path();
-    assert!(thumbnail_path.exists());
-    assert!(post.media_width_opt.is_some());
-    assert!(post.media_height_opt.is_some());
+    tx.commit().await.expect(COMMIT);
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
+    let max_attempts = 10;
+    let wait_time = std::time::Duration::from_millis(500);
+    let mut processed = false;
+
+    for _ in 0..max_attempts {
+        tokio::time::sleep(wait_time).await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+        tx.commit().await.expect(COMMIT);
+
+        if updated_post.status != PostStatus::Processing {
+            processed = true;
+
+            // After processing completes, verify all assets were created
+            let uploads_key_dir = encrypted_media_path.parent().unwrap();
+            assert!(!uploads_key_dir.exists());
+            let published_media_path = updated_post.published_media_path();
+            assert!(published_media_path.exists());
+            let thumbnail_path = updated_post.thumbnail_path();
+            assert!(thumbnail_path.exists());
+            assert!(updated_post.media_width_opt.is_some());
+            assert!(updated_post.media_height_opt.is_some());
+
+            break;
+        }
+    }
+
+    assert!(processed, "Background processing did not complete in the expected time");
+
+    // Clean up
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
-    post.delete(&mut tx).await;
+    final_post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
 #[tokio::test]
@@ -784,9 +815,11 @@ async fn review_post_with_small_image() {
     let mut tx = state.db.begin().await.expect(BEGIN);
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
+    let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
+
     let post_review = PostReview {
         session_token: user.session_token,
         status: PostStatus::Approved,
@@ -800,22 +833,54 @@ async fn review_post_with_small_image() {
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
+
     let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-    let encrypted_media_path = post.encrypted_media_path();
-    let uploads_key_dir = encrypted_media_path.parent().unwrap();
-    let published_media_path = post.published_media_path();
-    assert!(!uploads_key_dir.exists());
-    assert!(published_media_path.exists());
-    assert!(post.thumb_filename_opt.is_none());
-    let thumbnail_path = PostReview::thumbnail_path(&published_media_path, ".webp");
-    assert!(!thumbnail_path.exists());
+    tx.commit().await.expect(COMMIT);
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
+    let max_attempts = 10;
+    let wait_time = std::time::Duration::from_millis(500);
+    let mut processed = false;
+
+    for _ in 0..max_attempts {
+        tokio::time::sleep(wait_time).await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+        tx.commit().await.expect(COMMIT);
+
+        if updated_post.status != PostStatus::Processing {
+            processed = true;
+
+            // After processing completes, verify assets
+            let uploads_key_dir = encrypted_media_path.parent().unwrap();
+            assert!(!uploads_key_dir.exists());
+            let published_media_path = updated_post.published_media_path();
+            assert!(published_media_path.exists());
+
+            // Small images shouldn't have thumbnails
+            assert!(updated_post.thumb_filename_opt.is_none());
+            let thumbnail_path = PostReview::thumbnail_path(&published_media_path, ".webp");
+            assert!(!thumbnail_path.exists());
+
+            break;
+        }
+    }
+
+    assert!(processed, "Background processing did not complete in the expected time");
+
+    // Clean up
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
-    post.delete(&mut tx).await;
+    final_post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
 #[tokio::test]
@@ -828,6 +893,7 @@ async fn review_post_with_video() {
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account_opt.as_ref().unwrap();
     tx.commit().await.expect(COMMIT);
+
     let post_review = PostReview {
         session_token: user.session_token,
         status: PostStatus::Approved,
@@ -841,22 +907,53 @@ async fn review_post_with_video() {
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_review_str))
         .unwrap();
+
     let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect(BEGIN);
     let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-    let uploads_key_dir = encrypted_media_path.parent().unwrap();
-    assert!(!uploads_key_dir.exists());
-    let published_media_path = post.published_media_path();
-    assert!(published_media_path.exists());
-    let thumbnail_path = post.thumbnail_path();
-    assert!(thumbnail_path.exists());
-    assert!(post.media_width_opt.is_some());
-    assert!(post.media_height_opt.is_some());
+    tx.commit().await.expect(COMMIT);
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
+    let max_attempts = 10;
+    let wait_time = std::time::Duration::from_millis(500);
+    let mut processed = false;
+
+    for _ in 0..max_attempts {
+        tokio::time::sleep(wait_time).await;
+        let mut tx = state.db.begin().await.expect(BEGIN);
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+        tx.commit().await.expect(COMMIT);
+
+        if updated_post.status != PostStatus::Processing {
+            processed = true;
+
+            // After processing completes, verify all assets were created
+            let uploads_key_dir = encrypted_media_path.parent().unwrap();
+            assert!(!uploads_key_dir.exists());
+            let published_media_path = post.published_media_path();
+            assert!(published_media_path.exists());
+            let thumbnail_path = post.thumbnail_path();
+            assert!(thumbnail_path.exists());
+            assert!(post.media_width_opt.is_some());
+            assert!(post.media_height_opt.is_some());
+
+            break;
+        }
+    }
+
+    assert!(processed, "Background processing did not complete in the expected time");
+
+    // Clean up
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
-    post.delete(&mut tx).await;
+    final_post.delete(&mut tx).await;
     delete_test_account(&mut tx, &account).await;
     tx.commit().await.expect(COMMIT);
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 }
 
 #[tokio::test]
