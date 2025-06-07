@@ -419,11 +419,12 @@ impl PostSubmission {
             let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
             let remote_thumbnail_url =
                 format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
-            let curl_status = std::process::Command::new("curl")
+            let curl_status = tokio::process::Command::new("curl")
                 .args(["--silent", "--fail", "--output"])
                 .arg(&local_thumbnail_path)
                 .arg(&remote_thumbnail_url)
                 .status()
+                .await
                 .expect("download youtube thumbnail");
             if curl_status.success() {
                 let (width, height) = dimensions(size);
