@@ -5,7 +5,6 @@ use crate::{
 use regex::Regex;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::PathBuf;
-use tokio::io::AsyncWriteExt;
 use url::Url;
 use uuid::Uuid;
 
@@ -158,12 +157,17 @@ impl Post {
     }
 
     pub async fn decrypt_media_file(&self) -> Vec<u8> {
-        let output = tokio::process::Command::new("gpg")
-            .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
-            .arg(&self.encrypted_media_path())
-            .output()
-            .await
-            .expect("decrypt media file");
+        let encrypted_file_path = self.encrypted_media_path().to_str().unwrap().to_owned();
+
+        // Run GPG decrypt in a separate thread
+        let output = tokio::task::spawn_blocking(move || {
+            std::process::Command::new("gpg")
+                .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
+                .arg(&encrypted_file_path)
+                .output()
+                .expect("decrypt media file")
+        }).await.expect("decrypt task completed");
+
         println!("media file decrypted to stdout");
         output.stdout
     }
@@ -189,25 +193,33 @@ impl Post {
 
     async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
         let encrypted_media_path = self.encrypted_media_path();
-        let mut child = tokio::process::Command::new("gpg")
-            .args([
-                "--batch",
-                "--symmetric",
-                "--passphrase-file",
-                "gpg.key",
-                "--output",
-            ])
-            .arg(&encrypted_media_path)
-            .stdin(std::process::Stdio::piped())
-            .kill_on_drop(true)
-            .spawn()
-            .expect("spawn gpg to encrypt media file");
-        let mut stdin = child.stdin.take().expect("open stdin");
-        tokio::spawn(async move {
-            stdin.write_all(&bytes).await.expect("write data to stdin");
-        });
-        let child_status = child.wait().await.expect("wait for gpg to finish");
-        if child_status.success() {
+        let encrypted_media_path_str = encrypted_media_path.to_str().unwrap().to_owned();
+
+        // Run GPG encrypt in a separate thread
+        let success = tokio::task::spawn_blocking(move || {
+            let mut child = std::process::Command::new("gpg")
+                .args([
+                    "--batch",
+                    "--symmetric",
+                    "--passphrase-file",
+                    "gpg.key",
+                    "--output",
+                ])
+                .arg(&encrypted_media_path_str)
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .expect("spawn gpg to encrypt media file");
+
+            // Write data to stdin
+            if let Some(mut stdin) = child.stdin.take() {
+                std::io::Write::write_all(&mut stdin, &bytes).expect("write data to stdin");
+            }
+
+            let child_status = child.wait().expect("wait for gpg to finish");
+            child_status.success()
+        }).await.expect("encrypt task completed");
+
+        if success {
             println!(
                 "file encrypted as: {}",
                 encrypted_media_path.to_str().unwrap()
