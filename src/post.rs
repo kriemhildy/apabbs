@@ -729,13 +729,15 @@ impl PostReview {
                 "gif" | "webp" => "[n=-1]", // animated image support
                 _ => "",
             };
-        let command_output = tokio::process::Command::new("vipsthumbnail")
-            .args(["--size=1280x2160>", "--output=tn_%s.webp"])
-            .arg(&vips_input_file_path)
-            .output()
-            .await
-            .expect("generate thumbnail");
-        println!("vipsthumbnail output: {:?}", command_output);
+        // Use spawn_blocking to run the CPU-intensive process in a separate thread
+        tokio::task::spawn_blocking(move || {
+            let command_output = std::process::Command::new("vipsthumbnail")
+                .args(["--size=1280x2160>", "--output=tn_%s.webp"])
+                .arg(&vips_input_file_path)
+                .output()
+                .expect("generate thumbnail");
+            println!("vipsthumbnail output: {:?}", command_output);
+        }).await.expect("vipsthumbnail task completed");
         Self::thumbnail_path(published_media_path, ".webp")
     }
 
@@ -935,73 +937,77 @@ impl PostReview {
     // Convert to AVC/H.264 and AAC with maximum dimensions of 1280x2160.
     // This is for Safari and Firefox compatibility.
     pub async fn generate_video_thumbnail(video_path: &PathBuf) -> PathBuf {
-        let video_path_str = video_path.to_str().unwrap();
+        let video_path_str = video_path.to_str().unwrap().to_owned();
         let thumbnail_path = Self::thumbnail_path(video_path, ".mp4");
-        let thumbnail_path_str = thumbnail_path.to_str().unwrap();
-        let ffmpeg_output = tokio::process::Command::new("ffmpeg")
-            .args([
-                "-nostdin",
-                "-i",
-                video_path_str,
-                "-f",
-                "mp4",
-                "-c:v",
-                "libx264",
-                "-crf",
-                "23",
-                "-preset",
-                "medium",
-                "-movflags",
-                "+faststart",
-                "-profile:v",
-                "high",
-                "-pix_fmt",
-                "yuv420p",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                "-vf",
-                "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease",
-                thumbnail_path_str,
-            ])
-            .output()
-            .await
-            .expect("generate video thumbnail");
-        println!("ffmpeg output: {:?}", ffmpeg_output);
+        let thumbnail_path_str = thumbnail_path.to_str().unwrap().to_owned();
+        // Move the ffmpeg processing to a separate thread pool
+        tokio::task::spawn_blocking(move || {
+            let ffmpeg_output = std::process::Command::new("ffmpeg")
+                .args([
+                    "-nostdin",
+                    "-i",
+                    &video_path_str,
+                    "-f",
+                    "mp4",
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "23",
+                    "-preset",
+                    "medium",
+                    "-movflags",
+                    "+faststart",
+                    "-profile:v",
+                    "high",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "128k",
+                    "-vf",
+                    "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease",
+                    &thumbnail_path_str,
+                ])
+                .output()
+                .expect("generate video thumbnail");
+            println!("ffmpeg output: {:?}", ffmpeg_output);
+        }).await.expect("ffmpeg task completed");
         thumbnail_path
     }
 
     pub async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
         let poster_path = video_path.with_extension("webp");
         println!("poster_path: {:?}", poster_path);
-        let video_path_str = video_path.to_str().unwrap();
-        let poster_path_str = poster_path.to_str().unwrap();
-        let ffmpeg_output = tokio::process::Command::new("ffmpeg")
-            .args([
-                "-nostdin",
-                "-i",
-                video_path_str,
-                "-ss",
-                "00:00:01.000",
-                "-vframes",
-                "1",
-                "-c:v",
-                "libwebp",
-                "-lossless",
-                "0",
-                "-compression_level",
-                "6",
-                "-quality",
-                "80",
-                "-preset",
-                "picture",
-                poster_path_str,
-            ])
-            .output()
-            .await
-            .expect("generate video poster");
-        println!("ffmpeg output: {:?}", ffmpeg_output);
+        let video_path_str = video_path.to_str().unwrap().to_owned();
+        let poster_path_str = poster_path.to_str().unwrap().to_owned();
+        // Move ffmpeg poster generation to a separate thread
+        tokio::task::spawn_blocking(move || {
+            let ffmpeg_output = std::process::Command::new("ffmpeg")
+                .args([
+                    "-nostdin",
+                    "-i",
+                    &video_path_str,
+                    "-ss",
+                    "00:00:01.000",
+                    "-vframes",
+                    "1",
+                    "-c:v",
+                    "libwebp",
+                    "-lossless",
+                    "0",
+                    "-compression_level",
+                    "6",
+                    "-quality",
+                    "80",
+                    "-preset",
+                    "picture",
+                    &poster_path_str,
+                ])
+                .output()
+                .expect("generate video poster");
+            println!("ffmpeg output: {:?}", ffmpeg_output);
+        }).await.expect("poster generation task completed");
         poster_path
     }
 }
