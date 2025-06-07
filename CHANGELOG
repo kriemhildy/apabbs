@@ -1,3 +1,8 @@
+0.37.0
+
+Add background processing of media files.
+Use threading and async appropriately for optimal performance.
+
 0.36.1
 
 Always display compatibility videos in non-Chromium browsers.
