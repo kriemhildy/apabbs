@@ -1,18 +1,34 @@
+/* =============================================================================
+   This stylesheet defines the visual appearance for the entire application,
+   including layout, colors, and responsive behavior.
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Color Variables
+
+   Defines the color palette for both dark and light modes using CSS variables.
+   All colors are referenced via these variables throughout the stylesheet.
+   ----------------------------------------------------------------------------- */
+
 :root {
-    --back: black;
-    --fore: #e3e3e3;
-    --border: #777;
-    --system: #9cdcda;
-    --review: #bebebe;
-    --pending: #111111;
-    --processing: #111111;
-    --delisted: #051d3a;
-    --reported: rgb(75, 10, 75);
-    --rejected: rgb(37, 4, 4);
-    --banned: rgb(105, 10, 10);
-    --disabled: #444;
+    /* Dark mode color scheme (default) */
+    --back: black;            /* Background color */
+    --fore: #e3e3e3;          /* Text color */
+    --border: #777;           /* Border color for inputs and divisions */
+    --system: #9cdcda;        /* System message color and accent color */
+    --review: #bebebe;        /* Color for review controls */
+
+    /* Post status colors */
+    --pending: #111111;       /* Posts awaiting moderation */
+    --processing: #111111;    /* Posts being processed */
+    --delisted: #051d3a;      /* Posts hidden from main feed */
+    --reported: rgb(75, 10, 75); /* Posts flagged for review */
+    --rejected: rgb(37, 4, 4);   /* Posts that failed moderation */
+    --banned: rgb(105, 10, 10);  /* Posts from banned users */
+    --disabled: #444;         /* Disabled form elements */
 }
 
+/* Light mode color scheme (activated by system preference) */
 @media (prefers-color-scheme: light) {
     :root {
         --back: white;
@@ -30,23 +46,37 @@
     }
 }
 
+/* -----------------------------------------------------------------------------
+   Base Layout
+
+   Core layout settings for the document body and common elements.
+   ----------------------------------------------------------------------------- */
+
 body {
-    margin: 8px auto;
-    width: max-content;
-    max-width: calc(100% - 16px);
+    margin: 8px auto;       /* Center content with small margin */
+    width: max-content;     /* Adjust width to content */
+    max-width: calc(100% - 16px); /* Prevent horizontal scrolling on small screens */
 }
 
+/* Form element styling for consistent appearance */
 textarea {
-    width: min(calc(100% - 12px), 600px);
-    height: 4em;
+    width: min(calc(100% - 12px), 600px); /* Responsive width with max-width */
+    height: 4em;                         /* Default height for post textarea */
     padding: 5px;
 }
 
+/* Firefox-specific adjustments for textarea width */
 @-moz-document url-prefix() {
     textarea {
         width: min(calc(100% - 14px), 600px);
     }
 }
+
+/* -----------------------------------------------------------------------------
+   Typography and Form Controls
+
+   Consistent font styling across all text and interactive elements.
+   ----------------------------------------------------------------------------- */
 
 body,
 textarea,
@@ -54,24 +84,27 @@ input,
 select,
 button,
 ::file-selector-button {
-    font-family: Consolas, monospace;
-    font-size: 12px;
-    color: var(--fore);
-    background: var(--back);
-    accent-color: var(--system);
-    -webkit-text-size-adjust: none;
+    font-family: Consolas, monospace;    /* Monospace for retro/technical feel */
+    font-size: 12px;                     /* Base font size */
+    color: var(--fore);                  /* Text color from variables */
+    background: var(--back);             /* Background color from variables */
+    accent-color: var(--system);         /* Accent color for checkboxes, etc. */
+    -webkit-text-size-adjust: none;      /* Prevent iOS font size adjustment */
     text-size-adjust: none;
 }
 
+/* Text selection highlighting */
 ::selection {
     background: var(--system);
     color: var(--back);
 }
 
+/* Disabled input styling */
 input:disabled {
     color: var(--disabled);
 }
 
+/* Spacing for form controls */
 input[type="submit"],
 button,
 select {
@@ -83,6 +116,7 @@ input[type="password"] {
     margin: 4px 0;
 }
 
+/* Consistent border styling for form elements */
 input,
 textarea,
 select,
@@ -92,10 +126,18 @@ button,
     border-color: var(--border);
 }
 
+/* -----------------------------------------------------------------------------
+   Links and Navigation
+
+   Styling for links, navigation bar, and headings.
+   ----------------------------------------------------------------------------- */
+
+/* Standard link styling */
 a {
     color: var(--system);
 }
 
+/* Top-right navigation bar */
 nav {
     float: right;
 }
@@ -104,6 +146,7 @@ nav a {
     text-decoration: none;
 }
 
+/* Site title styling */
 h1 a {
     text-decoration: none;
     color: var(--fore);
@@ -112,6 +155,12 @@ h1 a {
 h1 {
     font-size: 1em;
 }
+
+/* -----------------------------------------------------------------------------
+   Status Messages and System Elements
+
+   Styling for informational elements and moderation controls.
+   ----------------------------------------------------------------------------- */
 
 .system {
     color: var(--system);
@@ -125,27 +174,38 @@ h1 {
     text-decoration: none;
 }
 
+/* Moderation review controls */
 details.review form {
     display: inline;
 }
 
+/* -----------------------------------------------------------------------------
+   Post Layout and Styling
+
+   Grid-based layout for posts with responsive sizing and spacing.
+   ----------------------------------------------------------------------------- */
+
+/* Posts container - flexbox layout */
 div#posts {
     display: flex;
     flex-wrap: wrap;
-    gap: calc(1vh + 1vw + 16px);
+    gap: calc(1vh + 1vw + 16px);        /* Responsive spacing between posts */
     margin-top: 12px;
-    margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
+    margin-bottom: max(calc(4vh + 4vw - 50px), 12px); /* Responsive bottom margin */
     align-items: center;
 }
 
+/* Review section height on single post view */
 div.post.solo details.review {
     height: 45px;
 }
 
+/* Individual post sizing in posts grid */
 div#posts div.post {
-    flex: clamp(300px, 35vh, 800px);
+    flex: clamp(300px, 35vh, 800px);    /* Responsive width with min/max bounds */
 }
 
+/* Base post layout using grid */
 div.post {
     display: grid;
     justify-content: center;
@@ -154,6 +214,13 @@ div.post {
     padding: 0 8px;
 }
 
+/* -----------------------------------------------------------------------------
+   Post Status Styling
+
+   Visual indicators for different post statuses (pending, rejected, etc.)
+   ----------------------------------------------------------------------------- */
+
+/* Common padding for posts with status indicators */
 div.pending,
 div.delisted,
 div.reported,
@@ -163,6 +230,7 @@ div.banned {
     padding-bottom: 8px;
 }
 
+/* Background colors for different post statuses */
 div.pending {
     background: var(--pending);
 }
@@ -187,12 +255,20 @@ div.banned {
     background: var(--banned);
 }
 
+/* -----------------------------------------------------------------------------
+   Post Content Elements
+
+   Styling for text content, media, and action buttons within posts.
+   ----------------------------------------------------------------------------- */
+
+/* Post text content */
 div.post-body {
-    overflow-y: clip;
-    overflow-wrap: anywhere;
-    max-width: 600px;
+    overflow-y: clip;               /* Prevent vertical scrolling */
+    overflow-wrap: anywhere;        /* Allow breaking words at any point */
+    max-width: 600px;               /* Maximum width for readability */
 }
 
+/* Media container in posts */
 div.media {
     margin: 0 auto;
     min-width: 300px;
@@ -200,50 +276,68 @@ div.media {
     text-align: center;
 }
 
+/* Media element sizing */
 div.media img,
 div.media video,
 div.youtube-thumbnail img {
     max-width: max(300px, calc(100% + 16px));
-    margin: 0 -8px;
+    margin: 0 -8px;                 /* Extend slightly beyond post boundaries */
     height: auto;
     width: auto;
 }
 
+/* Height constraints for media in post grid */
 div#posts div.media img,
 div#posts div.media video,
 div#posts div.youtube-thumbnail img {
     max-height: clamp(300px, 80vh, 1200px);
 }
 
+/* "See more" arrow styling */
 div.arrow a {
     text-decoration: none;
     font-size: 1.2em;
 }
 
+/* User link styling */
 div#user a {
     text-decoration: none;
 }
 
+/* Notification styling */
 p#notice {
     color: var(--system);
 }
+
+/* -----------------------------------------------------------------------------
+   Loading Spinner
+
+   Animated spinner shown during form submissions.
+   ----------------------------------------------------------------------------- */
 
 div#spinner {
     width: 10px;
     height: 10px;
     border: 2px solid var(--fore);
-    border-top-color: transparent;
+    border-top-color: transparent;  /* Creates spinner effect */
     border-radius: 50%;
     animation: spinner 0.85s linear infinite;
-    display: none;
+    display: none;                  /* Hidden by default, shown via JavaScript */
 }
 
 @keyframes spinner {
     to {
-        transform: rotate(360deg);
+        transform: rotate(360deg);  /* Full rotation animation */
     }
 }
 
+/* -----------------------------------------------------------------------------
+   Layout Helpers
+
+   Reusable layout components for forms and alignment.
+   ----------------------------------------------------------------------------- */
+
+/* Horizontal row layout */
 div.row {
     margin-top: 4px;
     display: flex;
@@ -252,9 +346,10 @@ div.row {
 }
 
 div.row input[type="submit"] {
-    margin: unset;
+    margin: unset;                  /* Reset margin for submit buttons in rows */
 }
 
+/* YouTube embeds */
 div.youtube {
     margin: 0 auto;
     width: fit-content;
@@ -262,15 +357,17 @@ div.youtube {
 
 div.youtube-logo img {
     height: 1.7em;
-    filter: brightness(0.2) invert(1);
+    filter: brightness(0.2) invert(1); /* Adjust YouTube logo color for dark mode */
 }
 
+/* Invert YouTube logo filter for light mode */
 @media (prefers-color-scheme: light) {
     div.youtube-logo img {
         filter: saturate(0) brightness(0.2);
     }
 }
 
+/* Checkbox alignment */
 div.checkbox-container {
     display: flex;
     align-items: center;
@@ -280,31 +377,45 @@ div.checkbox-container label {
     margin-left: 2px;
 }
 
+/* -----------------------------------------------------------------------------
+   Form Layouts
+
+   Grid-based form layouts with label alignment.
+   ----------------------------------------------------------------------------- */
+
 form.grid {
     display: grid;
-    grid-template-columns: max-content max-content;
+    grid-template-columns: max-content max-content; /* Label + input columns */
     column-gap: 5px;
     align-items: center;
 }
 
 form.grid label {
-    text-align: right;
+    text-align: right;              /* Right align labels for readability */
 }
 
+/* Position form elements that should span grid columns */
 form.grid div.checkbox-container,
 form.grid input[type="submit"] {
     grid-column: 2;
     justify-self: start;
 }
 
+/* -----------------------------------------------------------------------------
+   Form Field Sizing
+
+   Specific sizing for different input types.
+   ----------------------------------------------------------------------------- */
+
 input[type="password"] {
-    width: 31ch;
+    width: 31ch;                    /* Sized for typical password lengths */
 }
 
 input#username {
-    width: 17ch;
+    width: 17ch;                    /* Sized for maximum username length */
 }
 
+/* "See more" link styling */
 div.see-more a {
     text-decoration: none;
 }
