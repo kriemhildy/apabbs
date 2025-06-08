@@ -1,3 +1,25 @@
+//! User ban management and abuse prevention.
+//!
+//! This module provides functionality for managing temporary bans, detecting
+//! potential abuse, and protecting the system from malicious behavior. It
+//! handles IP-based and account-based restrictions to prevent spam and
+//! flooding.
+//!
+//! # Key Functions
+//!
+//! - [`insert`]: Creates a new temporary ban record
+//! - [`exists`]: Checks if an IP or account is currently banned
+//! - [`flooding`]: Detects excessive content creation from a single IP
+//! - [`prune`]: Removes content from banned IPs
+//! - [`scrub`]: Privacy-focused removal of IP data from older records
+//!
+//! # Rate Limiting
+//!
+//! The module implements rate limiting by tracking the combined count of new
+//! accounts and pending posts from each IP address. When this count exceeds
+//! [`MAX_CONTENT_PER_IP_DAILY`], the system considers it flooding and may
+//! apply temporary restrictions.
+
 use crate::POSTGRES_RFC5322_DATETIME;
 use sqlx::PgConnection;
 
