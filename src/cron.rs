@@ -48,7 +48,7 @@ fn scrub_ips() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
             // Connect to the database and start a transaction
-            let db = crate::db().await;
+            let db = apabbs::db().await;
             let mut tx = db.begin().await.expect(BEGIN);
 
             // Execute the IP scrubbing operation
