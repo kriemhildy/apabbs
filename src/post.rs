@@ -395,7 +395,7 @@ impl Post {
 
     /// Re-encrypts a media file that has already been published
     ///
-    /// This is used when media needs to be moved back from published to pending state.
+    /// This is used when media needs to be moved back from published to reported state.
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
