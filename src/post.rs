@@ -1,3 +1,17 @@
+//! Post content management and media processing functionality.
+//!
+//! This module provides the core data structures and functions for:
+//! - Post creation, submission, and moderation
+//! - Media file processing (encryption, decryption, thumbnailing)
+//! - YouTube embed handling and thumbnail caching
+//! - Content formatting and preview generation
+//!
+//! The main types include:
+//! - `Post`: A complete post object with all its metadata
+//! - `PostSubmission`: User-submitted content before processing
+//! - `PostReview`: Moderation actions for post approval/rejection
+//! - `PostHiding`: User requests to hide their own posts
+
 use crate::{
     POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME,
     user::{AccountRole, User},
