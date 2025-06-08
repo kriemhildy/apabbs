@@ -25,7 +25,7 @@ use sqlx::PgConnection;
 
 /// Maximum combined count of new accounts and pending posts allowed from a single IP
 /// within a 24-hour period before considering it to be flooding
-const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
+pub const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
 
 /// Inserts a new ban record into the database
 ///
