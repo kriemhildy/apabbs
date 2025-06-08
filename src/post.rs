@@ -23,8 +23,6 @@ const KEY_LENGTH: usize = 8; // Length of randomly generated post keys
 const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 /// Error messages
-const ERR_NO_MEDIA: &str = "No media bytes available";
-const ERR_GPG_FAILED: &str = "GPG failed to encrypt file";
 const ERR_THUMBNAIL_FAILED: &str = "Thumbnail not created successfully";
 
 /// Post status indicates the moderation/approval state of a post
@@ -239,7 +237,7 @@ impl Post {
     /// This operation is CPU-intensive and runs in a separate thread.
     pub async fn decrypt_media_file(&self) -> Vec<u8> {
         if self.media_filename_opt.is_none() {
-            panic!("{}", ERR_NO_MEDIA);
+            panic!("No media bytes available");
         }
 
         let encrypted_file_path = self.encrypted_media_path().to_str().unwrap().to_owned();
@@ -352,7 +350,7 @@ impl Post {
             );
             Ok(())
         } else {
-            Err(ERR_GPG_FAILED)
+            Err("GPG failed to encrypt file")
         }
     }
 
