@@ -67,12 +67,10 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/post/{key}", get(solo_post))
         .route("/p/{key}", get(solo_post))
         .route("/{key}", get(solo_post)) // temporary for backwards compatibility
-
         // Content creation and interaction
         .route("/submit-post", post(submit_post))
         .route("/hide-post", post(hide_post))
         .route("/interim/{key}", get(interim))
-
         // Authentication and account management
         .route("/login", get(login_form).post(authenticate))
         .route("/register", get(registration_form).post(create_account))
@@ -82,14 +80,11 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/settings/reset-account-token", post(reset_account_token))
         .route("/settings/update-time-zone", post(update_time_zone))
         .route("/settings/update-password", post(update_password))
-
         // Real-time updates
         .route("/web-socket", get(web_socket))
-
         // Moderation features
         .route("/review/{key}", post(review_post))
         .route("/decrypt-media/{key}", get(decrypt_media))
-
         // File size limit for uploads
         .layer(DefaultBodyLimit::max(20_000_000)); // 20MB limit
 
@@ -366,7 +361,8 @@ async fn authenticate(
     let mut tx = state.db.begin().await.expect(BEGIN);
 
     // Initialize user from session
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
+    {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };
@@ -431,7 +427,8 @@ async fn create_account(
     let mut tx = state.db.begin().await.expect(BEGIN);
 
     // Initialize user from session
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
+    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
+    {
         Err(response) => return response,
         Ok(tuple) => tuple,
     };

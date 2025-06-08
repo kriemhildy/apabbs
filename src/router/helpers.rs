@@ -49,7 +49,7 @@ fn http_status(status: StatusCode, msg: &str) -> Response {
             msg
         ),
     )
-    .into_response()
+        .into_response()
 }
 
 /// Creates a 400 Bad Request response with the given message.
@@ -177,14 +177,14 @@ pub async fn check_for_ban(
 /// A configured cookie with appropriate security settings
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!apabbs::dev())  // Secure in production, not in development
-        .http_only(true)         // Not accessible via JavaScript
-        .path("/")               // Available on all paths
+        .secure(!apabbs::dev()) // Secure in production, not in development
+        .http_only(true) // Not accessible via JavaScript
+        .path("/") // Available on all paths
         .same_site(SameSite::Lax) // Prevents CSRF while allowing linking
         .build();
 
     if permanent {
-        cookie.make_permanent()  // Extends expiration for long-term cookies
+        cookie.make_permanent() // Extends expiration for long-term cookies
     }
 
     cookie
@@ -252,7 +252,7 @@ pub fn add_account_cookie(
     let cookie = build_cookie(
         ACCOUNT_COOKIE,
         &account.token.to_string(),
-        credentials.year_checked(),  // Long-term cookie if user checked "remember me"
+        credentials.year_checked(), // Long-term cookie if user checked "remember me"
     );
 
     jar.add(cookie)
