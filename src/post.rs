@@ -8,67 +8,119 @@ use std::path::PathBuf;
 use url::Url;
 use uuid::Uuid;
 
-const APPLICATION_OCTET_STREAM: &'static str = "application/octet-stream";
-const UPLOADS_DIR: &'static str = "uploads";
-const MEDIA_DIR: &'static str = "pub/media";
-const YOUTUBE_DIR: &'static str = "pub/youtube";
-const MAX_YOUTUBE_EMBEDS: usize = 16;
-const MAX_INTRO_BYTES: usize = 1600;
-const MAX_INTRO_BREAKS: usize = 24;
-const KEY_LENGTH: usize = 8;
+/// File system directories
+const UPLOADS_DIR: &str = "uploads";      // Encrypted storage
+const MEDIA_DIR: &str = "pub/media";      // Published media
+const YOUTUBE_DIR: &str = "pub/youtube";  // YouTube thumbnail cache
 
+/// Content limits
+const MAX_YOUTUBE_EMBEDS: usize = 16;     // Maximum number of YouTube embeds per post
+const MAX_INTRO_BYTES: usize = 1600;      // Maximum number of bytes for post intro
+const MAX_INTRO_BREAKS: usize = 24;       // Maximum number of line breaks in intro
+const KEY_LENGTH: usize = 8;              // Length of randomly generated post keys
+
+/// MIME types
+const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
+
+/// Error messages
+const ERR_NO_MEDIA: &str = "No media bytes available";
+const ERR_GPG_FAILED: &str = "GPG failed to encrypt file";
+const ERR_THUMBNAIL_FAILED: &str = "Thumbnail not created successfully";
+
+/// Post status indicates the moderation/approval state of a post
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Copy)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
 pub enum PostStatus {
-    Pending,
-    Processing,
-    Approved,
-    Delisted,
-    Reported,
-    Rejected,
-    Banned,
+    Pending,     // Awaiting moderation review
+    Processing,  // Currently processing media
+    Approved,    // Publicly visible
+    Delisted,    // Visible only via direct link
+    Reported,    // Under review after being reported
+    Rejected,    // Declined by moderators
+    Banned,      // Removed for policy violations
 }
 
+/// Media category identifies the type of media attached to a post
 #[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "media_category", rename_all = "snake_case")]
 pub enum MediaCategory {
-    Image,
-    Video,
-    Audio,
+    Image,  // Images (jpg, png, webp, etc.)
+    Video,  // Video formats (mp4, webm, etc.)
+    Audio,  // Audio formats (mp3, wav, etc.)
 }
 
+/// Represents a post in the system including its content, status, and associated media
+///
+/// Posts can be associated with either a registered user account (account_id_opt)
+/// or an anonymous session (session_token_opt), but not both.
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
 pub struct Post {
+    /// Unique database identifier for the post
     pub id: i32,
+    /// HTML-formatted content of the post
     pub body: String,
+    /// Optional reference to the account that created this post
     pub account_id_opt: Option<i32>,
+    /// Current moderation/approval status of the post
     pub status: PostStatus,
+    /// For anonymous posts, the session token of the creator
     pub session_token_opt: Option<Uuid>,
+    /// Anonymized hash of the creator's IP address for anti-abuse
     pub ip_hash_opt: Option<String>,
+    /// Original filename of uploaded media, if present
     pub media_filename_opt: Option<String>,
+    /// Type of media (Image, Video, Audio) if present
     pub media_category_opt: Option<MediaCategory>,
+    /// MIME type of the media file if present
     pub media_mime_type_opt: Option<String>,
+    /// Filename of generated thumbnail if available
     pub thumb_filename_opt: Option<String>,
+    /// Unique URL-friendly identifier for the post
     pub key: String,
+    /// Whether this post contains YouTube embeds
     pub youtube: bool,
+    /// Character offset where the post should be truncated in previews
     pub intro_limit_opt: Option<i32>,
+    /// Width of the original media in pixels
     pub media_width_opt: Option<i32>,
+    /// Height of the original media in pixels
     pub media_height_opt: Option<i32>,
+    /// Filename of the poster image for video media
     pub media_poster_opt: Option<String>,
+    /// Width of the thumbnail in pixels
     pub thumb_width_opt: Option<i32>,
+    /// Height of the thumbnail in pixels
     pub thumb_height_opt: Option<i32>,
+    /// Filename of the poster image for the video thumbnail
     pub thumb_poster_opt: Option<String>,
+    /// Creation timestamp formatted according to RFC5322 for display
     #[sqlx(default)]
     pub created_at_rfc5322_opt: Option<String>,
+    /// Creation timestamp formatted for HTML datetime attribute
     #[sqlx(default)]
     pub created_at_html_opt: Option<String>,
+    /// Whether this post was created within the last 2 days
     #[sqlx(default)]
     pub recent_opt: Option<bool>,
 }
 
 impl Post {
+    /// Selects posts visible to the user according to their access level
+    ///
+    /// Filters posts by status based on the user's role:
+    /// - Admins: all posts except rejected
+    /// - Mods: all except rejected and reported
+    /// - Others: only approved posts
+    ///
+    /// Additionally shows posts created by the user regardless of status.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection
+    /// - `user`: Current user with session and account info
+    /// - `post_id_opt`: Optional ID for pagination
+    /// - `invert`: Whether to invert the sort order
     pub async fn select(
         tx: &mut PgConnection,
         user: &User,
@@ -77,6 +129,8 @@ impl Post {
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
+
+        // Filter by status based on user role
         match user.account_opt {
             Some(ref account) => match account.role {
                 AccountRole::Admin => query_builder.push("status <> 'rejected' "),
@@ -85,26 +139,36 @@ impl Post {
             },
             None => query_builder.push("status = 'approved' "),
         };
+
+        // Always show user's own posts
         query_builder.push("OR session_token_opt = ");
         query_builder.push_bind(&user.session_token);
+
         if let Some(ref account) = user.account_opt {
             query_builder.push(" OR account_id_opt = ");
             query_builder.push_bind(account.id);
         }
+
         query_builder.push(") AND hidden = false");
-        // invert interim order
-        // add one to "until" limit to check if there are more pages
+
+        // Set up pagination parameters
         let (operator, order, limit) = if invert {
             (">", "ASC", crate::per_page()) // sanity limit
         } else {
-            ("<=", "DESC", crate::per_page() + 1)
+            ("<=", "DESC", crate::per_page() + 1) // +1 to check if there are more pages
         };
+
+        // Add pagination constraint if post_id is provided
         if let Some(post_id) = post_id_opt {
             query_builder.push(&format!(" AND id {} ", operator));
             query_builder.push_bind(post_id);
         }
+
+        // Add ordering and limit
         query_builder.push(&format!(" ORDER BY id {} LIMIT ", order));
         query_builder.push_bind(limit as i32);
+
+        // Execute query
         query_builder
             .build_query_as()
             .fetch_all(&mut *tx)
@@ -112,6 +176,10 @@ impl Post {
             .expect("select posts")
     }
 
+    /// Selects approved posts created by the specified account
+    ///
+    /// Returns only posts with status 'approved' and limits the result
+    /// to the system-defined page size.
     pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id_opt = $1 ",
@@ -124,6 +192,11 @@ impl Post {
         .expect("select posts by account")
     }
 
+    /// Checks if the user is the author of this post
+    ///
+    /// Returns true if either:
+    /// - The post's session token matches the user's session token
+    /// - The post's account ID matches the user's account ID
     pub fn author(&self, user: &User) -> bool {
         self.session_token_opt
             .as_ref()
@@ -134,6 +207,9 @@ impl Post {
                 .is_some_and(|a| self.account_id_opt.is_some_and(|id| id == a.id))
     }
 
+    /// Selects a post by its unique key with formatted timestamps
+    ///
+    /// Also includes a flag indicating if the post is recent (less than 2 days old)
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322_opt, ",
@@ -148,6 +224,7 @@ impl Post {
         .expect("select post by key")
     }
 
+    /// Permanently deletes a post from the database
     pub async fn delete(&self, tx: &mut PgConnection) {
         sqlx::query("DELETE FROM posts WHERE id = $1")
             .bind(self.id)
@@ -156,7 +233,15 @@ impl Post {
             .expect("delete post");
     }
 
+    /// Decrypts the post's media file using GPG
+    ///
+    /// Returns the decrypted file content as bytes.
+    /// This operation is CPU-intensive and runs in a separate thread.
     pub async fn decrypt_media_file(&self) -> Vec<u8> {
+        if self.media_filename_opt.is_none() {
+            panic!("{}", ERR_NO_MEDIA);
+        }
+
         let encrypted_file_path = self.encrypted_media_path().to_str().unwrap().to_owned();
 
         // Run GPG decrypt in a separate thread
@@ -168,34 +253,71 @@ impl Post {
                 .expect("decrypt media file")
         }).await.expect("decrypt task completed");
 
-        println!("media file decrypted to stdout");
+        println!("Media file decrypted successfully");
         output.stdout
     }
 
+    /// Returns the path where an encrypted media file is stored
+    ///
+    /// Panics if the post has no associated media file.
     pub fn encrypted_media_path(&self) -> PathBuf {
-        let encrypted_filename = self.media_filename_opt.as_ref().unwrap().to_owned() + ".gpg";
+        if self.media_filename_opt.is_none() {
+            panic!("Attempted to get encrypted_media_path for post without media");
+        }
+
+        let encrypted_filename = format!("{}.gpg", self.media_filename_opt.as_ref().unwrap());
         std::path::Path::new(UPLOADS_DIR)
             .join(&self.key)
             .join(encrypted_filename)
     }
 
+    /// Returns the path where published media is stored after processing
+    ///
+    /// Panics if the post has no associated media file.
     pub fn published_media_path(&self) -> PathBuf {
+        if self.media_filename_opt.is_none() {
+            panic!("Attempted to get published_media_path for post without media");
+        }
+
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(&self.media_filename_opt.as_ref().unwrap())
+            .join(self.media_filename_opt.as_ref().unwrap())
     }
 
+    /// Returns the path where a thumbnail is stored after processing
+    ///
+    /// Panics if the post has no associated thumbnail.
     pub fn thumbnail_path(&self) -> PathBuf {
+        if self.thumb_filename_opt.is_none() {
+            panic!("Attempted to get thumbnail_path for post without thumbnail");
+        }
+
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(&self.thumb_filename_opt.as_ref().unwrap())
+            .join(self.thumb_filename_opt.as_ref().unwrap())
     }
 
+    /// Encrypts the provided bytes using GPG with the application's key
+    ///
+    /// This function creates necessary directories, runs GPG to encrypt data,
+    /// and handles cleanup in case of errors.
+    ///
+    /// Returns:
+    /// - Ok(()) if encryption succeeded
+    /// - Err with a message if encryption failed
     async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path.to_str().unwrap().to_owned();
 
-        // Run GPG encrypt in a separate thread
+        // Ensure parent directory exists
+        let parent_dir = encrypted_media_path.parent().unwrap();
+        if !parent_dir.exists() {
+            tokio::fs::create_dir_all(parent_dir)
+                .await
+                .map_err(|_| "Failed to create directory for encrypted media")?;
+        }
+
+        // Run GPG encrypt in a separate thread to avoid blocking the async runtime
         let success = tokio::task::spawn_blocking(move || {
             let mut child = std::process::Command::new("gpg")
                 .args([
@@ -212,7 +334,8 @@ impl Post {
 
             // Write data to stdin
             if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes).expect("write data to stdin");
+                std::io::Write::write_all(&mut stdin, &bytes)
+                    .expect("write data to stdin");
             }
 
             let child_status = child.wait().expect("wait for gpg to finish");
@@ -220,16 +343,14 @@ impl Post {
         }).await.expect("encrypt task completed");
 
         if success {
-            println!(
-                "file encrypted as: {}",
-                encrypted_media_path.to_str().unwrap()
-            );
+            println!("File encrypted successfully: {}", encrypted_media_path.display());
             Ok(())
         } else {
-            Err("gpg failed to encrypt file")
+            Err(ERR_GPG_FAILED)
         }
     }
 
+    /// Updates the status of a post in the database
     pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
@@ -239,6 +360,7 @@ impl Post {
             .expect("update post status");
     }
 
+    /// Updates thumbnail metadata for a post
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
@@ -251,6 +373,7 @@ impl Post {
             .expect("get thumbnail filename")
             .to_str()
             .expect("thumbnail filename to str");
+
         sqlx::query(concat!(
             "UPDATE posts SET thumb_filename_opt = $1, thumb_width_opt = $2, ",
             "thumb_height_opt = $3 WHERE id = $4"
@@ -264,29 +387,43 @@ impl Post {
         .expect("update post thumbnail");
     }
 
+    /// Re-encrypts a media file that has already been published
+    ///
+    /// This is used when media needs to be moved back from published to pending state.
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
+
+        // Create the directory for encrypted content
         tokio::fs::create_dir(uploads_key_dir)
             .await
             .expect("create uploads key dir");
+
+        // Read the published media file
         let media_file_path = self.published_media_path();
         let media_bytes = tokio::fs::read(&media_file_path)
             .await
             .expect("read media file");
+
+        // Try to encrypt the file
         let result = self.gpg_encrypt(media_bytes).await;
+
         match result {
+            // If encryption succeeded, clean up the published media
             Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
+            // If encryption failed, clean up the temp directory
             Err(msg) => {
                 tokio::fs::remove_dir(uploads_key_dir)
                     .await
                     .expect("remove uploads key dir");
-                eprintln!("{}", msg);
+                eprintln!("Re-encryption failed: {}", msg);
             }
         }
+
         result
     }
 
+    /// Updates the media dimensions for a post in the database
     pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) {
         sqlx::query("UPDATE posts SET media_width_opt = $1, media_height_opt = $2 WHERE id = $3")
             .bind(width)
@@ -297,14 +434,21 @@ impl Post {
             .expect("update media dimensions");
     }
 
+    /// Updates poster references for video media
     pub async fn update_posters(
         &self,
         tx: &mut PgConnection,
         media_poster_path: &PathBuf,
         thumb_poster_path: &PathBuf,
     ) {
-        let media_poster_filename = media_poster_path.file_name().unwrap().to_str().unwrap();
-        let thumb_poster_filename = thumb_poster_path.file_name().unwrap().to_str().unwrap();
+        let media_poster_filename = media_poster_path
+            .file_name().expect("get media poster filename")
+            .to_str().expect("media poster filename to str");
+
+        let thumb_poster_filename = thumb_poster_path
+            .file_name().expect("get thumb poster filename")
+            .to_str().expect("thumb poster filename to str");
+
         sqlx::query("UPDATE posts SET media_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3")
             .bind(media_poster_filename)
             .bind(thumb_poster_filename)
@@ -324,6 +468,10 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
+    /// Generates a unique key for a post
+    ///
+    /// The key is a random string of alphanumeric characters with a length
+    /// defined by the system. Checks the database to ensure the key is unique.
     pub async fn generate_key(tx: &mut PgConnection) -> String {
         use rand::{Rng, distr::Alphanumeric};
         loop {
@@ -344,6 +492,19 @@ impl PostSubmission {
         }
     }
 
+    /// Inserts a new post into the database
+    ///
+    /// This function handles determining the media type, generating the post key,
+    /// and extracting the intro limit from the body content.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection
+    /// - `user`: Current user submitting the post
+    /// - `ip_hash`: Anonymized IP hash of the user
+    /// - `key`: Unique key for the post
+    ///
+    /// # Returns
+    /// The newly created `Post` object
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
@@ -381,6 +542,17 @@ impl PostSubmission {
         .expect("insert new post")
     }
 
+    /// Downloads a YouTube thumbnail for the given video ID
+    ///
+    /// Tries to download the thumbnail in various sizes and returns the path
+    /// to the downloaded thumbnail image along with its dimensions.
+    ///
+    /// # Parameters
+    /// - `video_id`: The ID of the YouTube video
+    /// - `youtube_short`: Whether the video is a YouTube Shorts video
+    ///
+    /// # Returns
+    /// An optional tuple containing the thumbnail path and its width and height
     pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
@@ -446,6 +618,16 @@ impl PostSubmission {
         None
     }
 
+    /// Converts the post body from plain text to HTML format
+    ///
+    /// This function performs basic HTML escaping and replaces URLs with anchor links.
+    /// YouTube links are processed to embed thumbnails and video IDs.
+    ///
+    /// # Parameters
+    /// - `key`: The unique key of the post, used for generating YouTube links
+    ///
+    /// # Returns
+    /// The HTML-formatted body of the post
     async fn body_to_html(&self, key: &str) -> String {
         let mut html = self
             .body
@@ -466,6 +648,17 @@ impl PostSubmission {
         Self::embed_youtube(html, key).await
     }
 
+    /// Embeds YouTube video thumbnails in the post HTML
+    ///
+    /// Scans the post HTML for YouTube links and replaces them with embedded
+    /// thumbnail images and video IDs. Generates HTML for the YouTube embed.
+    ///
+    /// # Parameters
+    /// - `html`: The HTML content of the post body
+    /// - `key`: The unique key of the post, used in the embed HTML
+    ///
+    /// # Returns
+    /// The HTML content with YouTube embeds
     async fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
             r#"(?m)^ *<a href=""#,
@@ -543,6 +736,13 @@ impl PostSubmission {
         html
     }
 
+    /// Determines the media type (category and MIME type) based on the file extension
+    ///
+    /// # Parameters
+    /// - `media_filename_opt`: Optional media filename to infer type from
+    ///
+    /// # Returns
+    /// A tuple of optional media category and MIME type string
     fn determine_media_type(
         media_filename_opt: Option<&str>,
     ) -> (Option<MediaCategory>, Option<String>) {
@@ -590,6 +790,15 @@ impl PostSubmission {
         (media_category_opt, Some(media_mime_type_str.to_owned()))
     }
 
+    /// Encrypts the uploaded file data for a post
+    ///
+    /// This function handles the encryption of media bytes using the post's
+    /// encryption key. It also manages the creation of necessary directories
+    /// and cleans up in case of errors.
+    ///
+    /// # Returns
+    /// - Ok(()) if encryption succeeded
+    /// - Err with a message if encryption failed
     pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
         if self.media_bytes_opt.is_none() {
             return Err("no media bytes");
@@ -608,6 +817,19 @@ impl PostSubmission {
         result
     }
 
+    /// Determines the intro limit for a post based on its HTML content
+    ///
+    /// The intro limit is the byte offset where the post should be truncated
+    /// in previews. It is determined by the following factors:
+    /// - Maximum byte length (MAX_INTRO_BYTES)
+    /// - Maximum number of line breaks (MAX_INTRO_BREAKS)
+    /// - Presence of YouTube video embeds
+    ///
+    /// # Parameters
+    /// - `html`: The HTML content of the post body
+    ///
+    /// # Returns
+    /// An optional byte offset for truncating the post intro
     pub fn intro_limit(html: &str) -> Option<i32> {
         println!("html.len(): {}", html.len());
         if html.len() == 0 {
@@ -693,34 +915,70 @@ impl PostSubmission {
     }
 }
 
+/// Defines possible actions resulting from post review decisions
+///
+/// Each action represents a specific operation to perform on a post's media
+/// or status during the moderation workflow.
 #[derive(PartialEq)]
 pub enum ReviewAction {
+    /// Decrypt and process encrypted media for public viewing
     DecryptMedia,
+    /// Delete encrypted media files that haven't been published
     DeleteEncryptedMedia,
+    /// Delete media files from the public directory
     DeletePublishedMedia,
+    /// Move published media back to encrypted pending state
     ReencryptMedia,
+    /// Update post status without modifying media files
     NoAction,
 }
 
+/// Represents errors that can occur during post review
+///
+/// These errors correspond to business rules that restrict
+/// which status transitions are allowed and by which roles.
 #[derive(PartialEq)]
 pub enum ReviewError {
+    /// Attempted to change post to its current status
     SameStatus,
+    /// Cannot revert a post back to pending status
     ReturnToPending,
+    /// Operation restricted to moderator role
     ModOnly,
+    /// Operation restricted to administrator role
     AdminOnly,
+    /// Cannot modify posts with final status (rejected/banned)
     RejectedOrBanned,
+    /// Moderators can only modify recent posts
     RecentOnly,
+    /// Cannot modify a post that's currently being processed
     CurrentlyProcessing,
+    /// Cannot manually set a post to processing status
     ManualProcessing,
 }
 
+/// Represents a post review action submitted by a moderator or admin
+///
+/// Contains the reviewer's session token and the proposed new status for the post.
+/// Used to process moderation decisions through the review workflow.
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct PostReview {
+    /// Session token of the user performing the review
     pub session_token: Uuid,
+
+    /// New status to apply to the post
     pub status: PostStatus,
 }
 
 impl PostReview {
+    /// Writes decrypted media file bytes to the public directory
+    ///
+    /// Creates the necessary directory structure and writes the media bytes
+    /// to the destination file for public access.
+    ///
+    /// # Parameters
+    /// - `published_media_path`: Path where the media should be stored
+    /// - `media_bytes`: Raw bytes of the decrypted media file
     pub async fn write_media_file(published_media_path: &PathBuf, media_bytes: Vec<u8>) {
         let media_key_dir = published_media_path.parent().unwrap();
         tokio::fs::create_dir(media_key_dir)
@@ -731,66 +989,131 @@ impl PostReview {
             .expect("write media file");
     }
 
+    /// Generates a thumbnail image for a given media file
+    ///
+    /// Uses the vipsthumbnail utility to create a properly sized thumbnail.
+    /// Handles special cases for animated image formats by extracting the last frame.
+    ///
+    /// # Parameters
+    /// - `published_media_path`: Path to the original image file
+    ///
+    /// # Returns
+    /// Path to the generated thumbnail file
     pub async fn generate_image_thumbnail(published_media_path: &PathBuf) -> PathBuf {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')
             .last()
             .expect("get file extension");
+
+        // For animated images (GIF, WebP), extract the last frame as the thumbnail
         let vips_input_file_path = media_path_str.to_owned()
             + match extension.to_lowercase().as_str() {
                 "gif" | "webp" => "[n=-1]", // animated image support
                 _ => "",
             };
-        // Use spawn_blocking to run the CPU-intensive process in a separate thread
+
+        // Run vipsthumbnail in a separate thread to avoid blocking async runtime
         tokio::task::spawn_blocking(move || {
             let command_output = std::process::Command::new("vipsthumbnail")
-                .args(["--size=1280x2160>", "--output=tn_%s.webp"])
+                .args([
+                    "--size=1280x2160>",      // Max dimensions with aspect ratio preserved
+                    "--output=tn_%s.webp"     // Output format with prefix
+                ])
                 .arg(&vips_input_file_path)
                 .output()
                 .expect("generate thumbnail");
+
             println!("vipsthumbnail output: {:?}", command_output);
         }).await.expect("vipsthumbnail task completed");
+
         Self::thumbnail_path(published_media_path, ".webp")
     }
 
+    /// Constructs the path for a thumbnail based on the original media path
+    ///
+    /// Creates a path with "tn_" prefix and the specified extension.
+    ///
+    /// # Parameters
+    /// - `media_path`: Path to the original media file
+    /// - `thumbnail_extension`: File extension for the thumbnail (e.g., ".webp")
+    ///
+    /// # Returns
+    /// Path where the thumbnail should be stored
     pub fn thumbnail_path(media_path: &PathBuf, thumbnail_extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
             .expect("get media filename")
             .to_str()
             .expect("media filename to str");
+
         let key_dir = media_path.parent().unwrap();
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
+
+        // Create thumbnail filename with "tn_" prefix and specified extension
         let thumbnail_filename =
             String::from("tn_") + &extension_pattern.replace(media_filename, thumbnail_extension);
-        let thumbnail_path = key_dir.join(&thumbnail_filename);
-        thumbnail_path
+
+        key_dir.join(&thumbnail_filename)
     }
 
+    /// Determines if a thumbnail file is larger than the original media file
+    ///
+    /// Used to decide if the thumbnail provides any benefit over the original.
+    /// If the thumbnail is larger, it's better to use the original file instead.
+    ///
+    /// # Parameters
+    /// - `thumbnail_path`: Path to the thumbnail file
+    /// - `published_media_path`: Path to the original media file
+    ///
+    /// # Returns
+    /// `true` if the thumbnail is larger than the original, `false` otherwise
     pub fn thumbnail_is_larger(thumbnail_path: &PathBuf, published_media_path: &PathBuf) -> bool {
         let thumbnail_len = thumbnail_path.metadata().unwrap().len();
         let media_file_len = published_media_path.metadata().unwrap().len();
         thumbnail_len > media_file_len
     }
 
+    /// Deletes an encrypted media file and its containing directory
+    ///
+    /// Used when rejecting or banning a post to clean up the encrypted media.
+    ///
+    /// # Parameters
+    /// - `encrypted_media_path`: Path to the encrypted media file
     pub async fn delete_upload_key_dir(encrypted_media_path: &PathBuf) {
         let uploads_key_dir = encrypted_media_path.parent().unwrap();
+
         tokio::fs::remove_file(&encrypted_media_path)
             .await
             .expect("remove encrypted media file");
+
         tokio::fs::remove_dir(&uploads_key_dir)
             .await
             .expect("remove uploads key dir");
     }
 
+    /// Deletes all media files associated with a post
+    ///
+    /// Removes the entire directory containing a post's media files.
+    ///
+    /// # Parameters
+    /// - `key`: The unique key of the post whose media should be deleted
     pub async fn delete_media_key_dir(key: &str) {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
+
         tokio::fs::remove_dir_all(&media_key_dir)
             .await
             .expect("remove media key dir and its contents");
     }
 
+    /// Records a review action in the database
+    ///
+    /// Creates an entry in the reviews table to track moderation activity.
+    ///
+    /// # Parameters
+    /// - `tx`: Database transaction
+    /// - `account_id`: ID of the account performing the review
+    /// - `post_id`: ID of the post being reviewed
     pub async fn insert(&self, tx: &mut PgConnection, account_id: i32, post_id: i32) {
         sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
             .bind(account_id)
@@ -801,6 +1124,20 @@ impl PostReview {
             .expect("insert post review");
     }
 
+    /// Determines what action should be taken for a review based on post state and user role
+    ///
+    /// This method implements the business rules that govern post moderation:
+    /// - Which transitions between post statuses are allowed
+    /// - Which roles can perform which actions
+    /// - What should happen to media files during each transition
+    ///
+    /// # Parameters
+    /// - `post`: The post being reviewed
+    /// - `reviewer_role`: Role of the user performing the review
+    ///
+    /// # Returns
+    /// - `Ok(ReviewAction)` if the action is allowed
+    /// - `Err(ReviewError)` if the action is not allowed
     pub fn determine_action(
         &self,
         post: &Post,
@@ -810,78 +1147,122 @@ impl PostReview {
         use PostStatus::*;
         use ReviewAction::*;
         use ReviewError::*;
+
         match post.status {
+            // Rules for posts in Pending status
             Pending => match self.status {
-                Pending => Err(SameStatus),
-                Processing => Err(ManualProcessing),
-                Approved | Delisted => Ok(DecryptMedia),
-                Reported => Ok(NoAction),
-                Rejected | Banned => Ok(DeleteEncryptedMedia),
+                Pending => Err(SameStatus),                // No change needed
+                Processing => Err(ManualProcessing),       // Processing is set automatically
+                Approved | Delisted => Ok(DecryptMedia),   // Approve: decrypt media for public view
+                Reported => Ok(NoAction),                  // Just change status, no media action
+                Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete encrypted media
             },
+
+            // Posts being processed can't be changed until processing completes
             Processing => Err(CurrentlyProcessing),
+
+            // Rules for already approved or delisted posts
             Approved | Delisted => {
+                // Mods can only change recent posts
                 if post.status == Approved && *reviewer_role == Mod && !post.recent_opt.unwrap() {
                     return Err(RecentOnly);
                 }
+
                 match self.status {
-                    Pending => Err(ReturnToPending),
-                    Processing => Err(ManualProcessing),
-                    Approved | Delisted => Ok(NoAction),
+                    Pending => Err(ReturnToPending),           // Can't go backwards to pending
+                    Processing => Err(ManualProcessing),       // Processing is set automatically
+                    Approved | Delisted => Ok(NoAction),       // Just status change, no media action
                     Reported => {
+                        // Only mods can report posts
                         if *reviewer_role != Mod {
                             return Err(ModOnly);
                         }
+                        // When reporting, re-encrypt the media for admin review
                         Ok(ReencryptMedia)
                     }
-                    Rejected | Banned => Ok(DeletePublishedMedia),
+                    Rejected | Banned => Ok(DeletePublishedMedia), // Delete the published media
                 }
-            }
+            },
+
+            // Rules for reported posts
             Reported => {
+                // Only admins can review reported posts
                 if *reviewer_role != Admin {
                     return Err(AdminOnly);
                 }
+
                 match self.status {
-                    Pending => Err(ReturnToPending),
-                    Processing => Err(ManualProcessing),
-                    Approved | Delisted => Ok(DecryptMedia),
-                    Rejected | Banned => Ok(DeleteEncryptedMedia),
-                    Reported => Err(SameStatus),
+                    Pending => Err(ReturnToPending),           // Can't go backwards to pending
+                    Processing => Err(ManualProcessing),       // Processing is set automatically
+                    Approved | Delisted => Ok(DecryptMedia),   // Approve: decrypt for public view
+                    Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete the encrypted media
+                    Reported => Err(SameStatus),               // No change needed
                 }
-            }
+            },
+
+            // Rejected or banned posts are final and can't be changed
             Rejected | Banned => Err(RejectedOrBanned),
         }
     }
 
+    /// Handles the media decryption and processing workflow for a post
+    ///
+    /// This method decrypts the post's media file, processes it according to its type,
+    /// generates appropriate thumbnails, and updates the database with metadata.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection
+    /// - `post`: The post whose media should be decrypted
+    ///
+    /// # Returns
+    /// - `Ok(())` if processing was successful
+    /// - `Err(String)` with an error message if processing failed
     pub async fn handle_decrypt_media(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+        // Decrypt the media file
         let media_bytes = post.decrypt_media_file().await;
         let published_media_path = post.published_media_path();
+
+        // Write the decrypted file to the published media directory
         Self::write_media_file(&published_media_path, media_bytes).await;
+
+        // Process according to media type
         match post.media_category_opt {
             Some(MediaCategory::Image) => {
+                // Generate a thumbnail for the image
                 let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
+
                 if !thumbnail_path.exists() {
-                    return Err("thumbnail not created successfully".to_owned());
+                    return Err(ERR_THUMBNAIL_FAILED.to_owned());
                 }
+
+                // If thumbnail is larger than original, don't use it
                 if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
                     tokio::fs::remove_file(&thumbnail_path)
                         .await
                         .expect("remove thumbnail file");
                 } else {
+                    // Update the database with thumbnail information
                     let (width, height) = Self::image_dimensions(&thumbnail_path).await;
                     post.update_thumbnail(tx, &thumbnail_path, width, height)
                         .await;
                 }
+
+                // Update the media dimensions in the database
                 let (width, height) = Self::image_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
-            }
+            },
+
             Some(MediaCategory::Video) => {
-                // TODO: mark post as processing and begin background job.
+                // Generate a thumbnail video for browser compatibility
                 let thumbnail_path = Self::generate_video_thumbnail(&published_media_path).await;
+
                 if !thumbnail_path.exists() {
-                    return Err("thumbnail not created successfully".to_owned());
+                    return Err(ERR_THUMBNAIL_FAILED.to_owned());
                 }
-                // Don't bother checking if the thumbnail is larger here because we need
-                // thumbnails for Safari and Firefox compatibility.
+
+                // Don't check if thumbnail is larger because we need it for browser compatibility
+
+                // Process multiple tasks in parallel for efficiency
                 let (
                     (thumb_width, thumb_height),
                     (media_width, media_height),
@@ -893,145 +1274,198 @@ impl PostReview {
                     Self::generate_video_poster(&published_media_path),
                     Self::generate_video_poster(&thumbnail_path)
                 );
+
+                // Update the database with all the video metadata
                 post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
                     .await;
                 post.update_media_dimensions(tx, media_width, media_height)
                     .await;
                 post.update_posters(tx, &media_poster_path, &thumbnail_poster_path)
                     .await;
-            }
+            },
+
+            // Audio files and posts without media don't need thumbnails
             Some(MediaCategory::Audio) | None => (),
         }
+
         Ok(())
     }
 
+    /// Determines the dimensions of an image using the vipsheader utility
+    ///
+    /// # Parameters
+    /// - `image_path`: Path to the image file
+    ///
+    /// # Returns
+    /// A tuple of (width, height) as integers
     pub async fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
         let image_path_str = image_path.to_str().unwrap();
+
+        // Helper function to extract specific field from vipsheader
         let vipsheader = async |field: &str| -> i32 {
             let output = tokio::process::Command::new("vipsheader")
                 .args(["-f", field, image_path_str])
                 .output()
                 .await
                 .expect("get image dimension");
+
             String::from_utf8_lossy(&output.stdout)
                 .trim()
                 .parse()
                 .expect("parses as i32")
         };
+
+        // Get both dimensions in parallel
         tokio::join!(vipsheader("width"), vipsheader("height"))
     }
 
+    /// Retrieves the dimensions (width and height) of a video file
+    ///
+    /// Uses the ffprobe tool to extract the resolution information from the video stream.
+    ///
+    /// # Parameters
+    /// - `video_path`: Path to the video file to analyze
+    ///
+    /// # Returns
+    /// A tuple of (width, height) as integers representing the video's dimensions
     pub async fn video_dimensions(video_path: &PathBuf) -> (i32, i32) {
         let video_path_str = video_path.to_str().unwrap();
         let ffprobe_output = tokio::process::Command::new("ffprobe")
             .args([
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=width,height",
-                "-of",
-                "csv=p=0",
+                "-select_streams", "v:0",         // Select the first video stream
+                "-show_entries", "stream=width,height", // Extract width and height
+                "-of", "csv=p=0",                 // Output as CSV without headers
             ])
             .arg(video_path_str)
             .output()
             .await
             .expect("get video dimensions");
+
         let output_str = String::from_utf8_lossy(&ffprobe_output.stdout);
         println!("ffprobe output: {}", output_str);
+
+        // Parse the comma-separated dimensions from the output
         let dimensions: Vec<i32> = output_str
             .trim()
             .split(',')
             .filter_map(|s| Some(s.parse().unwrap()))
             .collect();
+
         println!("video dimensions: {:?}", dimensions);
         (dimensions[0], dimensions[1])
     }
 
-    // Convert to AVC/H.264 and AAC with maximum dimensions of 1280x2160.
-    // This is for Safari and Firefox compatibility.
+    /// Generates a browser-compatible version of a video for thumbnails
+    ///
+    /// Converts the input video to H.264/AVC format with AAC audio, limiting dimensions
+    /// to a maximum of 1280x2160 for better browser compatibility.
+    ///
+    /// # Parameters
+    /// - `video_path`: Path to the original video file
+    ///
+    /// # Returns
+    /// Path to the generated thumbnail video file
     pub async fn generate_video_thumbnail(video_path: &PathBuf) -> PathBuf {
         let video_path_str = video_path.to_str().unwrap().to_owned();
         let thumbnail_path = Self::thumbnail_path(video_path, ".mp4");
         let thumbnail_path_str = thumbnail_path.to_str().unwrap().to_owned();
+
         // Move the ffmpeg processing to a separate thread pool
         tokio::task::spawn_blocking(move || {
             let ffmpeg_output = std::process::Command::new("ffmpeg")
                 .args([
-                    "-nostdin",
-                    "-i",
-                    &video_path_str,
-                    "-f",
-                    "mp4",
-                    "-c:v",
-                    "libx264",
-                    "-crf",
-                    "23",
-                    "-preset",
-                    "medium",
-                    "-movflags",
-                    "+faststart",
-                    "-profile:v",
-                    "high",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-c:a",
-                    "aac",
-                    "-b:a",
-                    "128k",
-                    "-vf",
-                    "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease",
-                    &thumbnail_path_str,
+                    "-nostdin",                // No stdin interaction
+                    "-i", &video_path_str,     // Input file
+                    "-f", "mp4",               // Force MP4 container
+                    "-c:v", "libx264",         // H.264 video codec
+                    "-crf", "23",              // Constant rate factor (quality)
+                    "-preset", "medium",       // Encoding speed/compression trade-off
+                    "-movflags", "+faststart", // Optimize for web playback
+                    "-profile:v", "high",      // H.264 profile
+                    "-pix_fmt", "yuv420p",     // Pixel format for compatibility
+                    "-c:a", "aac",             // AAC audio codec
+                    "-b:a", "128k",            // Audio bitrate
+                    "-vf", "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease", // Resize while preserving aspect ratio
+                    &thumbnail_path_str,       // Output file
                 ])
                 .output()
                 .expect("generate video thumbnail");
+
             println!("ffmpeg output: {:?}", ffmpeg_output);
         }).await.expect("ffmpeg task completed");
+
         thumbnail_path
     }
 
+    /// Generates a poster image (still frame) from a video file
+    ///
+    /// Extracts a single frame at the 1-second mark of the video and saves it
+    /// as a WebP image to serve as a poster/preview for the video.
+    ///
+    /// # Parameters
+    /// - `video_path`: Path to the video file
+    ///
+    /// # Returns
+    /// Path to the generated poster image file
     pub async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
         let poster_path = video_path.with_extension("webp");
         println!("poster_path: {:?}", poster_path);
+
         let video_path_str = video_path.to_str().unwrap().to_owned();
         let poster_path_str = poster_path.to_str().unwrap().to_owned();
+
         // Move ffmpeg poster generation to a separate thread
         tokio::task::spawn_blocking(move || {
             let ffmpeg_output = std::process::Command::new("ffmpeg")
                 .args([
-                    "-nostdin",
-                    "-i",
-                    &video_path_str,
-                    "-ss",
-                    "00:00:01.000",
-                    "-vframes",
-                    "1",
-                    "-c:v",
-                    "libwebp",
-                    "-lossless",
-                    "0",
-                    "-compression_level",
-                    "6",
-                    "-quality",
-                    "80",
-                    "-preset",
-                    "picture",
-                    &poster_path_str,
+                    "-nostdin",                // No stdin interaction
+                    "-i", &video_path_str,     // Input file
+                    "-ss", "00:00:01.000",     // Seek to 1 second into the video
+                    "-vframes", "1",           // Extract a single video frame
+                    "-c:v", "libwebp",         // WebP format
+                    "-lossless", "0",          // Use lossy compression
+                    "-compression_level", "6", // Compression level
+                    "-quality", "80",          // Image quality
+                    "-preset", "picture",      // Optimize for still image
+                    &poster_path_str,          // Output file
                 ])
                 .output()
                 .expect("generate video poster");
+
             println!("ffmpeg output: {:?}", ffmpeg_output);
         }).await.expect("poster generation task completed");
+
         poster_path
     }
 }
 
+/// Represents a request to hide a post from public view
+///
+/// This structure contains the session token of the user requesting to hide a post
+/// and the unique key of the post to be hidden. Used primarily for moderation actions
+/// or user-initiated content hiding.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PostHiding {
+    /// Session token of the user requesting to hide the post
     pub session_token: Uuid,
+
+    /// Unique key identifier of the post to be hidden
     pub key: String,
 }
 
 impl PostHiding {
+    /// Sets a post's hidden flag to true in the database
+    ///
+    /// This effectively removes the post from public view without deleting it.
+    /// The post will no longer appear in feeds or search results, but remains
+    /// in the database for record-keeping and potential future restoration.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection for executing the update
+    ///
+    /// # Note
+    /// This method does not verify authorization - the caller must ensure that
+    /// the user identified by `session_token` has permission to hide this post.
     pub async fn hide_post(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE posts SET hidden = true WHERE key = $1")
             .bind(&self.key)
@@ -1045,8 +1479,21 @@ impl PostHiding {
 mod tests {
     use super::*;
 
+    /// Tests the conversion of post body text to HTML with YouTube embed generation
+    ///
+    /// This test verifies:
+    /// - Basic HTML escaping (converting <, >, &, etc. to HTML entities)
+    /// - URL recognition and conversion to anchor tags
+    /// - YouTube link detection and conversion to embedded thumbnails
+    /// - Handling of various YouTube URL formats (standard, mobile, shorts, etc.)
+    /// - Proper timestamp handling in YouTube links
     #[tokio::test]
     async fn body_to_html() {
+        // Setup test with various types of content:
+        // - HTML special characters
+        // - Line breaks
+        // - Regular URLs
+        // - YouTube links in different formats
         let submission = PostSubmission {
             body: concat!(
                 "<&test body\"' コンピューター\n\n",
@@ -1062,6 +1509,8 @@ mod tests {
             .to_owned(),
             ..Default::default()
         };
+
+        // Keep track of existing test directories to avoid deleting user data
         let test_ids = ["jNQXAC9IVRw", "kixirmHePCc", "cHMCGCWit6U", "28jr-6-XDPM"];
         let mut existing_ids = Vec::new();
         for id in test_ids {
@@ -1069,6 +1518,8 @@ mod tests {
                 existing_ids.push(id);
             }
         }
+
+        // Run the test
         let key = "testkey1";
         assert_eq!(
             submission.body_to_html(key).await,
@@ -1141,6 +1592,8 @@ mod tests {
                 "</div>",
             )
         );
+
+        // Clean up test data but preserve any existing directories
         for id in test_ids {
             if !existing_ids.contains(&id) {
                 tokio::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
@@ -1150,8 +1603,18 @@ mod tests {
         }
     }
 
+    /// Tests the intro_limit functionality for post previews
+    ///
+    /// This test verifies the algorithm correctly determines where to truncate posts for previews based on:
+    /// - YouTube embed locations
+    /// - Line break counts
+    /// - Maximum size limits
+    /// - Character encoding boundaries
+    /// - HTML entity handling
     #[tokio::test]
     async fn intro_limit() {
+        // Test case: Two YouTube embeds with line breaks beyond the limit
+        // Should truncate at the first YouTube embed
         let two_youtubes = concat!(
             "<div class=\"youtube\">\n",
             "    <div class=\"youtube-logo\">\n",
@@ -1170,24 +1633,40 @@ mod tests {
             "    </div>\n",
             "</div>",
         );
+
+        // Case 1: Line breaks first, then YouTube content
         let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
         assert_eq!(PostSubmission::intro_limit(&html), Some(120));
+
+        // Case 2: YouTube content first, then line breaks beyond the limit
         let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
         assert_eq!(PostSubmission::intro_limit(&html), Some(141));
+
+        // Case 3: Content shorter than the limit - shouldn't truncate
         let html = str::repeat("foo ", 300);
         assert_eq!(PostSubmission::intro_limit(&html), None);
+
+        // Case 4: Content with line breaks but still under the break limit
         let html = str::repeat("foo ", 100)
             + "<br>\n"
             + &str::repeat("bar ", 200)
             + "<br>\n"
             + &str::repeat("baz ", 100);
         assert_eq!(PostSubmission::intro_limit(&html), Some(1205));
+
+        // Case 5: Content exactly at the byte limit boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
+
+        // Case 6: Content beyond the byte limit
         let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1599));
+
+        // Case 7: HTML entity at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
+
+        // Case 8: Multi-byte character at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
     }
