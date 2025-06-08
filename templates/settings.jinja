@@ -1,24 +1,32 @@
+{# User settings page template for account management #}
 {% extends "layout.jinja" %}
+{# Get account information from the user object #}
 {% set account = user.account_opt %}
 {% block main %}
 <main>
+    {# Display notification messages if present #}
     {% if notice_opt is not none %}
     {% set notice = notice_opt %}
     <p id="notice">{{ notice }}</p>
     {% endif %}
     <h2>Settings</h2>
+    {# Authentication section for login management #}
     <h3>Authentication</h3>
+    {# Logout form to end current session #}
     <form action="/settings/logout" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         Delete account cookie:
         <input type="submit" value="Log out">
     </form>
+    {# Reset token form to invalidate all sessions across devices #}
     <form action="/settings/reset-account-token" method="post" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         Reset account token:
         <input type="submit" value="Log out all devices">
     </form>
+    {# Time zone preferences section #}
     <h3>Time zone</h3>
+    {# Form to update user's preferred time zone #}
     <form action="/settings/update-time-zone" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <select name="time_zone">
@@ -28,7 +36,9 @@
         </select>
         <input type="submit" value="Update">
     </form>
+    {# Password management section #}
     <h3>Password</h3>
+    {# Form to change account password #}
     <form action="/settings/update-password" method="post" class="grid">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="username" value="{{ account.username }}">

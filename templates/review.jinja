@@ -1,27 +1,33 @@
+{# Post review controls for moderators and admins #}
 <details class="review">
     <summary>Review</summary>
+    {# Approve post form - available to both mods and admins #}
     <form action="/review/{{ key }}" method="post" class="approve">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="approved">
         <input type="submit" value="Approve"{{ " disabled" if status == "approved" }}>
     </form>
+    {# Delist post form - hides from public view but remains accessible by direct link #}
     <form action="/review/{{ key }}" method="post" class="delist">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="delisted">
         <input type="submit" value="Delist"{{ " disabled" if status == "delisted" }}>
     </form>
 {% if role == "mod" %}
+    {# Report form - moderators can escalate posts to admin review #}
     <form action="/review/{{ key }}" method="post" class="reported" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="reported">
         <input type="submit" value="Report"{{ " disabled" if status == "reported" }}>
     </form>
 {% elif role == "admin" %}
+    {# Reject form - admin-only action to mark content as rejected #}
     <form action="/review/{{ key }}" method="post" class="reject" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="rejected">
         <input type="submit" value="Reject"{{ " disabled" if status == "rejected" }}>
     </form>
+    {# Ban form - admin-only action to ban content and potentially the poster #}
     <form action="/review/{{ key }}" method="post" class="ban" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="banned">

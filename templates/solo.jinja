@@ -1,8 +1,10 @@
+{# Single post view template with social media metadata #}
 {% extends "layout.jinja" %}
 {% block title %}
     <title>{{ title }} » {{ post.key }}</title>
 {% endblock %}
 {% block meta %}
+    {# Add metadata for embedding in social media platforms #}
     {% if post.media_category_opt is not none %}
     {% set media_category = post.media_category_opt %}
     {% set embed_filename = post.media_filename_opt %}
@@ -10,13 +12,16 @@
     {% set embed_width = post.media_width_opt %}
     {% set embed_height = post.media_height_opt %}
     {% set embed_mime_type = post.media_mime_type_opt %}
+    {# Image-specific meta tags for Twitter card #}
     {% if media_category == "image" %}
     <meta property="twitter:image" content="https://{{ host + embed_path }}">
     <meta property="twitter:card" content="summary_large_image">
+    {# Video-specific meta tags with poster image #}
     {% elif media_category == "video" %}
     {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
     <meta property="og:type" content="video.other">
     <meta property="og:video" content="https://{{ host + embed_path }}">
+    {# Audio-specific meta tags #}
     {% elif media_category == "audio" %}
     <meta property="og:audio" content="https://{{ host + embed_path }}">
     {% endif %}
@@ -24,6 +29,7 @@
 {% endblock %}
 {% block main %}
 <main>
+    {# Include the post template with solo view flag set #}
     {% filter indent(4) %}
     {%+ include "post.jinja" +%}
     {% endfilter %}

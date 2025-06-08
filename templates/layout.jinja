@@ -1,4 +1,7 @@
+{# Base layout template used by all pages in the application #}
+{# Add dev prefix in development mode #}
 {% set title = "[dev] " + host if dev else host %}
+{# Initialize user agent detection variables #}
 {% set mac = false %}
 {% set chromium = false %}
 {% if user_agent_opt is not none %}
@@ -10,33 +13,44 @@
 <html lang="en-US">
 
 <head>
+    {# Title block that can be overridden by child templates #}
     {% block title %}
     <title>{{ title }}</title>
     {% endblock %}
+    {# Main stylesheet with cache-busting parameter #}
     <link rel="stylesheet" href="/style.css?202">
+    {# Custom scrollbar styling for non-Mac Chromium browsers #}
     {% if not mac and chromium %}
     <link rel="stylesheet" href="/scrollbar.css?6">
     {% endif %}
+    {# Main JavaScript with cache-busting parameter #}
     <script src="/script.js?67"></script>
+    {# Responsive design viewport configuration #}
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# Additional metadata block for child templates #}
     {% block meta %}
     {% endblock %}
 </head>
 
 <body>
+    {# Navigation bar - only shown when nav variable is true #}
     {% if nav %}
     <nav>
+        {# Show username link for logged-in users #}
         {% if user.account_opt is not none %}
         {% set account = user.account_opt %}
         <a href="/user/{{ account.username }}">{{ account.username }}</a>
+        {# Show login link for anonymous users #}
         {% else %}
         <a href="/login">log in</a>
         {% endif %}
     </nav>
     {% endif %}
+    {# Page header with site title/logo #}
     <header>
         <h1><a href="/">{{ title }}</a></h1>
     </header>
+    {# Main content area - filled by child templates #}
     {% filter indent(4) %}
     {%+ block main %}
     {% endblock +%}

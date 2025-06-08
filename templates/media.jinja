@@ -1,9 +1,12 @@
+{# Media display template for images, videos, and audio files #}
+{# Set filename, dimensions and type based on whether to use thumbnail or full media #}
 {% set filename = post.thumb_filename_opt if use_thumb else post.media_filename_opt %}
 {% set width = post.thumb_width_opt if use_thumb else post.media_width_opt %}
 {% set height = post.thumb_height_opt if use_thumb else post.media_height_opt %}
 {% set media_path = media_path_opt %}
 {% set mime_type = "video/mp4" if use_thumb else post.media_mime_type_opt %}
 <div class="media">
+    {# Image display handling #}
     {% if category == "image" %}
     {% set solo_path = "/p/" + key %}
     {% if solo %}
@@ -11,6 +14,7 @@
     {% else %}
     <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ key }}" width="{{ width }}" height="{{ height }}"></a>
     {% endif %}
+    {# Video display handling with poster image #}
     {% elif category == "video" %}
     {% set poster_attr = "" %}
     {% if post.media_poster_opt is not none %}
@@ -24,6 +28,7 @@
         <source src="{{ media_path }}" type="{{ mime_type }}">
         Video {{ filename }}
     </video>
+    {# Audio file display handling #}
     {% elif category == "audio" %}
     <audio controls>
         <source src="{{ media_path }}" type="{{ mime_type }}">

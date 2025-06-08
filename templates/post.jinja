@@ -1,3 +1,5 @@
+{# Post template - handles displaying a single post with all its components #}
+{# Set up variables for user permissions and post properties #}
 {% set user_account = user.account_opt if user.account_opt is not none %}
 {% set role = user_account.role if user.account_opt is not none %}
 {% set status = post.status %}
@@ -11,16 +13,20 @@
     {% if post.body|length > 0 and status != "banned" %}
     <div class="post-body">
         {% filter indent(8) %}
+        {# Handle YouTube embeds differently in solo view #}
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links }}
+        {# Show full body in solo view or if no intro limit exists #}
         {% elif solo or post.intro_limit_opt is none %}
         {{ post.body }}
+        {# Otherwise truncate body to intro limit #}
         {% else %}
         {% set intro_limit = post.intro_limit_opt %}
         {{ post.body|byte_slice(intro_limit) }}
         {% endif %}
         {% endfilter +%}
     </div>
+    {# Show "See more" link for truncated posts #}
     {% if not solo and post.intro_limit_opt is not none %}
     <div class="see-more">
         <a href="/p/{{ key }}">[See more…]</a>
@@ -31,19 +37,23 @@
     {# Media #}
     {###################################################################################}
     {% if post.media_filename_opt is not none %}
+    {# Set up media display variables based on post properties #}
     {% set category = post.media_category_opt %}
     {% set use_thumb = (not solo and post.thumb_filename_opt is not none)
         or (category == "video" and not chromium) %}
     {% set media_filename = post.media_filename_opt %}
+    {# For approved or delisted posts, use public media paths #}
     {% if status in ["approved", "delisted"] %}
     {% set thumb_filename = post.thumb_filename_opt if post.thumb_filename_opt is not none %}
     {% set optimal_filename = thumb_filename if use_thumb else media_filename %}
     {% set media_path_opt = "/m/" + key + "/" + optimal_filename|urlencode %}
+    {# For pending/reported posts, allow admins/mods to see encrypted media #}
     {% elif user.account_opt is not none and (
         (role in ["admin", "mod"] and status == "pending")
         or (role == "admin" and status == "reported")) %}
     {% set media_path_opt = "/decrypt-media/" + key %}
     {% endif %}
+    {# Include the media template if we have a valid media path #}
     {% if media_path_opt is not none %}
     {% filter indent(4) %}
     {%+ include "media.jinja" +%}
@@ -53,6 +63,7 @@
     {###################################################################################}
     {# Status #}
     {###################################################################################}
+    {# Show status indicator for non-approved posts #}
     {% if status != "approved" %}
     <div class="status">
         {% if post.media_filename_opt is not none %}
@@ -64,6 +75,7 @@
     {###################################################################################}
     {# Info #}
     {###################################################################################}
+    {# Show creation timestamp in solo view #}
     {% if solo %}
     {% set created_at_html = post.created_at_html_opt %}
     {% set created_at_rfc5322 = post.created_at_rfc5322_opt %}
@@ -74,6 +86,7 @@
     {###################################################################################}
     {# Arrow #}
     {###################################################################################}
+    {# Show arrow link to solo view for specific post types #}
     {% set media_category = post.media_category_opt if post.media_category_opt is not none %}
     {% if not solo
         and status not in ["rejected", "banned"]
@@ -90,6 +103,7 @@
     {###################################################################################}
     {# Review #}
     {###################################################################################}
+    {# Show moderation controls for admins and moderators #}
     {% if user.account_opt is not none and (
         (role == "admin" and status in ["pending", "delisted", "reported"])
         or (role == "mod" and status in ["pending", "delisted"])
@@ -101,6 +115,7 @@
     {###################################################################################}
     {# Hide #}
     {###################################################################################}
+    {# Allow post author to hide their own rejected posts #}
     {% set session_token = post.session_token_opt if post.session_token_opt is not none %}
     {% set post_account_id = post.account_id_opt if post.account_id_opt is not none %}
     {% if status == "rejected" and
@@ -112,6 +127,7 @@
         <input type="hidden" name="key" value="{{ key }}">
         <input type="submit" value="Hide">
     </form>
+    {# Allow client-side hiding of reported/rejected/banned posts #}
     {% elif status in ["rejected", "banned"]
         or (status == "reported" and user.account_opt is not none and role == "mod") %}
     <button onclick="removeHiddenPost(this)">Hide</button>
