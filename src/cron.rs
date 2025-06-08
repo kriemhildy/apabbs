@@ -1,12 +1,30 @@
-// ┌──────────────── second (0 - 59)
-// │ ┌────────────── minute (0 - 59)
-// │ │ ┌──────────── hour (0 - 23)
-// │ │ │ ┌────────── day of month (1 - 31)
-// │ │ │ │ ┌──────── month (1 - 12, JAN-DEC)
-// │ │ │ │ │ ┌────── day of week (0 - 6, SUN-Mon)
-// │ │ │ │ │ │       (0 to 6 are Sunday to Saturday; 7 is Sunday, the same as 0)
-// │ │ │ │ │ │
-// * * * * * *
+//! Scheduled job management for recurring system tasks.
+//!
+//! This module provides functionality for setting up and managing scheduled
+//! background tasks that run at specific intervals. It handles maintenance
+//! operations like database cleanup, privacy protection, and content
+//! management tasks.
+//!
+//! # Key Functions
+//!
+//! - [`init`]: Sets up and starts the job scheduler system
+//! - [`scrub_ips`]: Creates a job to remove old IP data for privacy
+//!
+//! # Cron Schedule Format
+//!
+//! The module uses the standard cron format for scheduling jobs:
+//!
+//! ```text
+//! ┌──────────────── second (0 - 59)
+//! │ ┌────────────── minute (0 - 59)
+//! │ │ ┌──────────── hour (0 - 23)
+//! │ │ │ ┌────────── day of month (1 - 31)
+//! │ │ │ │ ┌──────── month (1 - 12, JAN-DEC)
+//! │ │ │ │ │ ┌────── day of week (0 - 6, SUN-MON)
+//! │ │ │ │ │ │       (0 to 6 are Sunday to Saturday; 7 is Sunday, the same as 0)
+//! │ │ │ │ │ │
+//! * * * * * *
+//! ```
 
 use apabbs::{BEGIN, COMMIT, ban};
 use tokio_cron_scheduler::Job;
