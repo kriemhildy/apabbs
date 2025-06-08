@@ -714,8 +714,9 @@ impl PostSubmission {
                 Some((path, width, height)) => (
                     path.to_str()
                         .expect("path to str")
-                        .to_owned()
-                        .replacen("pub", "", 1),
+                        .strip_prefix("pub")
+                        .expect("strip pub prefix")
+                        .to_owned(),
                     width,
                     height,
                 ),
