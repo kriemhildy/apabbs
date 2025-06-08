@@ -798,7 +798,10 @@ async fn review_post_with_normal_image() {
         }
     }
 
-    assert!(processed, "Background processing did not complete in the expected time");
+    assert!(
+        processed,
+        "Background processing did not complete in the expected time"
+    );
 
     // Clean up
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -872,7 +875,10 @@ async fn review_post_with_small_image() {
         }
     }
 
-    assert!(processed, "Background processing did not complete in the expected time");
+    assert!(
+        processed,
+        "Background processing did not complete in the expected time"
+    );
 
     // Clean up
     let mut tx = state.db.begin().await.expect(BEGIN);
@@ -945,7 +951,10 @@ async fn review_post_with_video() {
         }
     }
 
-    assert!(processed, "Background processing did not complete in the expected time");
+    assert!(
+        processed,
+        "Background processing did not complete in the expected time"
+    );
 
     // Clean up
     let mut tx = state.db.begin().await.expect(BEGIN);

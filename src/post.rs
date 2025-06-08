@@ -9,15 +9,15 @@ use url::Url;
 use uuid::Uuid;
 
 /// File system directories
-const UPLOADS_DIR: &str = "uploads";      // Encrypted storage
-const MEDIA_DIR: &str = "pub/media";      // Published media
-const YOUTUBE_DIR: &str = "pub/youtube";  // YouTube thumbnail cache
+const UPLOADS_DIR: &str = "uploads"; // Encrypted storage
+const MEDIA_DIR: &str = "pub/media"; // Published media
+const YOUTUBE_DIR: &str = "pub/youtube"; // YouTube thumbnail cache
 
 /// Content limits
-const MAX_YOUTUBE_EMBEDS: usize = 16;     // Maximum number of YouTube embeds per post
-const MAX_INTRO_BYTES: usize = 1600;      // Maximum number of bytes for post intro
-const MAX_INTRO_BREAKS: usize = 24;       // Maximum number of line breaks in intro
-const KEY_LENGTH: usize = 8;              // Length of randomly generated post keys
+const MAX_YOUTUBE_EMBEDS: usize = 16; // Maximum number of YouTube embeds per post
+const MAX_INTRO_BYTES: usize = 1600; // Maximum number of bytes for post intro
+const MAX_INTRO_BREAKS: usize = 24; // Maximum number of line breaks in intro
+const KEY_LENGTH: usize = 8; // Length of randomly generated post keys
 
 /// MIME types
 const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
@@ -32,13 +32,13 @@ const ERR_THUMBNAIL_FAILED: &str = "Thumbnail not created successfully";
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
 pub enum PostStatus {
-    Pending,     // Awaiting moderation review
-    Processing,  // Currently processing media
-    Approved,    // Publicly visible
-    Delisted,    // Visible only via direct link
-    Reported,    // Under review after being reported
-    Rejected,    // Declined by moderators
-    Banned,      // Removed for policy violations
+    Pending,    // Awaiting moderation review
+    Processing, // Currently processing media
+    Approved,   // Publicly visible
+    Delisted,   // Visible only via direct link
+    Reported,   // Under review after being reported
+    Rejected,   // Declined by moderators
+    Banned,     // Removed for policy violations
 }
 
 /// Media category identifies the type of media attached to a post
@@ -46,9 +46,9 @@ pub enum PostStatus {
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "media_category", rename_all = "snake_case")]
 pub enum MediaCategory {
-    Image,  // Images (jpg, png, webp, etc.)
-    Video,  // Video formats (mp4, webm, etc.)
-    Audio,  // Audio formats (mp3, wav, etc.)
+    Image, // Images (jpg, png, webp, etc.)
+    Video, // Video formats (mp4, webm, etc.)
+    Audio, // Audio formats (mp3, wav, etc.)
 }
 
 /// Represents a post in the system including its content, status, and associated media
@@ -251,7 +251,9 @@ impl Post {
                 .arg(&encrypted_file_path)
                 .output()
                 .expect("decrypt media file")
-        }).await.expect("decrypt task completed");
+        })
+        .await
+        .expect("decrypt task completed");
 
         println!("Media file decrypted successfully");
         output.stdout
@@ -334,16 +336,20 @@ impl Post {
 
             // Write data to stdin
             if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes)
-                    .expect("write data to stdin");
+                std::io::Write::write_all(&mut stdin, &bytes).expect("write data to stdin");
             }
 
             let child_status = child.wait().expect("wait for gpg to finish");
             child_status.success()
-        }).await.expect("encrypt task completed");
+        })
+        .await
+        .expect("encrypt task completed");
 
         if success {
-            println!("File encrypted successfully: {}", encrypted_media_path.display());
+            println!(
+                "File encrypted successfully: {}",
+                encrypted_media_path.display()
+            );
             Ok(())
         } else {
             Err(ERR_GPG_FAILED)
@@ -442,12 +448,16 @@ impl Post {
         thumb_poster_path: &PathBuf,
     ) {
         let media_poster_filename = media_poster_path
-            .file_name().expect("get media poster filename")
-            .to_str().expect("media poster filename to str");
+            .file_name()
+            .expect("get media poster filename")
+            .to_str()
+            .expect("media poster filename to str");
 
         let thumb_poster_filename = thumb_poster_path
-            .file_name().expect("get thumb poster filename")
-            .to_str().expect("thumb poster filename to str");
+            .file_name()
+            .expect("get thumb poster filename")
+            .to_str()
+            .expect("thumb poster filename to str");
 
         sqlx::query("UPDATE posts SET media_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3")
             .bind(media_poster_filename)
@@ -1017,15 +1027,17 @@ impl PostReview {
         tokio::task::spawn_blocking(move || {
             let command_output = std::process::Command::new("vipsthumbnail")
                 .args([
-                    "--size=1280x2160>",      // Max dimensions with aspect ratio preserved
-                    "--output=tn_%s.webp"     // Output format with prefix
+                    "--size=1280x2160>",   // Max dimensions with aspect ratio preserved
+                    "--output=tn_%s.webp", // Output format with prefix
                 ])
                 .arg(&vips_input_file_path)
                 .output()
                 .expect("generate thumbnail");
 
             println!("vipsthumbnail output: {:?}", command_output);
-        }).await.expect("vipsthumbnail task completed");
+        })
+        .await
+        .expect("vipsthumbnail task completed");
 
         Self::thumbnail_path(published_media_path, ".webp")
     }
@@ -1151,10 +1163,10 @@ impl PostReview {
         match post.status {
             // Rules for posts in Pending status
             Pending => match self.status {
-                Pending => Err(SameStatus),                // No change needed
-                Processing => Err(ManualProcessing),       // Processing is set automatically
-                Approved | Delisted => Ok(DecryptMedia),   // Approve: decrypt media for public view
-                Reported => Ok(NoAction),                  // Just change status, no media action
+                Pending => Err(SameStatus),                    // No change needed
+                Processing => Err(ManualProcessing),           // Processing is set automatically
+                Approved | Delisted => Ok(DecryptMedia), // Approve: decrypt media for public view
+                Reported => Ok(NoAction),                // Just change status, no media action
                 Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete encrypted media
             },
 
@@ -1169,9 +1181,9 @@ impl PostReview {
                 }
 
                 match self.status {
-                    Pending => Err(ReturnToPending),           // Can't go backwards to pending
-                    Processing => Err(ManualProcessing),       // Processing is set automatically
-                    Approved | Delisted => Ok(NoAction),       // Just status change, no media action
+                    Pending => Err(ReturnToPending),     // Can't go backwards to pending
+                    Processing => Err(ManualProcessing), // Processing is set automatically
+                    Approved | Delisted => Ok(NoAction), // Just status change, no media action
                     Reported => {
                         // Only mods can report posts
                         if *reviewer_role != Mod {
@@ -1182,7 +1194,7 @@ impl PostReview {
                     }
                     Rejected | Banned => Ok(DeletePublishedMedia), // Delete the published media
                 }
-            },
+            }
 
             // Rules for reported posts
             Reported => {
@@ -1192,13 +1204,13 @@ impl PostReview {
                 }
 
                 match self.status {
-                    Pending => Err(ReturnToPending),           // Can't go backwards to pending
-                    Processing => Err(ManualProcessing),       // Processing is set automatically
-                    Approved | Delisted => Ok(DecryptMedia),   // Approve: decrypt for public view
+                    Pending => Err(ReturnToPending),     // Can't go backwards to pending
+                    Processing => Err(ManualProcessing), // Processing is set automatically
+                    Approved | Delisted => Ok(DecryptMedia), // Approve: decrypt for public view
                     Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete the encrypted media
-                    Reported => Err(SameStatus),               // No change needed
+                    Reported => Err(SameStatus),         // No change needed
                 }
-            },
+            }
 
             // Rejected or banned posts are final and can't be changed
             Rejected | Banned => Err(RejectedOrBanned),
@@ -1250,7 +1262,7 @@ impl PostReview {
                 // Update the media dimensions in the database
                 let (width, height) = Self::image_dimensions(&published_media_path).await;
                 post.update_media_dimensions(tx, width, height).await;
-            },
+            }
 
             Some(MediaCategory::Video) => {
                 // Generate a thumbnail video for browser compatibility
@@ -1282,7 +1294,7 @@ impl PostReview {
                     .await;
                 post.update_posters(tx, &media_poster_path, &thumbnail_poster_path)
                     .await;
-            },
+            }
 
             // Audio files and posts without media don't need thumbnails
             Some(MediaCategory::Audio) | None => (),
@@ -1332,9 +1344,12 @@ impl PostReview {
         let video_path_str = video_path.to_str().unwrap();
         let ffprobe_output = tokio::process::Command::new("ffprobe")
             .args([
-                "-select_streams", "v:0",         // Select the first video stream
-                "-show_entries", "stream=width,height", // Extract width and height
-                "-of", "csv=p=0",                 // Output as CSV without headers
+                "-select_streams",
+                "v:0", // Select the first video stream
+                "-show_entries",
+                "stream=width,height", // Extract width and height
+                "-of",
+                "csv=p=0", // Output as CSV without headers
             ])
             .arg(video_path_str)
             .output()
@@ -1374,25 +1389,38 @@ impl PostReview {
         tokio::task::spawn_blocking(move || {
             let ffmpeg_output = std::process::Command::new("ffmpeg")
                 .args([
-                    "-nostdin",                // No stdin interaction
-                    "-i", &video_path_str,     // Input file
-                    "-f", "mp4",               // Force MP4 container
-                    "-c:v", "libx264",         // H.264 video codec
-                    "-crf", "23",              // Constant rate factor (quality)
-                    "-preset", "medium",       // Encoding speed/compression trade-off
-                    "-movflags", "+faststart", // Optimize for web playback
-                    "-profile:v", "high",      // H.264 profile
-                    "-pix_fmt", "yuv420p",     // Pixel format for compatibility
-                    "-c:a", "aac",             // AAC audio codec
-                    "-b:a", "128k",            // Audio bitrate
-                    "-vf", "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease", // Resize while preserving aspect ratio
-                    &thumbnail_path_str,       // Output file
+                    "-nostdin", // No stdin interaction
+                    "-i",
+                    &video_path_str, // Input file
+                    "-f",
+                    "mp4", // Force MP4 container
+                    "-c:v",
+                    "libx264", // H.264 video codec
+                    "-crf",
+                    "23", // Constant rate factor (quality)
+                    "-preset",
+                    "medium", // Encoding speed/compression trade-off
+                    "-movflags",
+                    "+faststart", // Optimize for web playback
+                    "-profile:v",
+                    "high", // H.264 profile
+                    "-pix_fmt",
+                    "yuv420p", // Pixel format for compatibility
+                    "-c:a",
+                    "aac", // AAC audio codec
+                    "-b:a",
+                    "128k", // Audio bitrate
+                    "-vf",
+                    "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease", // Resize while preserving aspect ratio
+                    &thumbnail_path_str, // Output file
                 ])
                 .output()
                 .expect("generate video thumbnail");
 
             println!("ffmpeg output: {:?}", ffmpeg_output);
-        }).await.expect("ffmpeg task completed");
+        })
+        .await
+        .expect("ffmpeg task completed");
 
         thumbnail_path
     }
@@ -1418,22 +1446,32 @@ impl PostReview {
         tokio::task::spawn_blocking(move || {
             let ffmpeg_output = std::process::Command::new("ffmpeg")
                 .args([
-                    "-nostdin",                // No stdin interaction
-                    "-i", &video_path_str,     // Input file
-                    "-ss", "00:00:01.000",     // Seek to 1 second into the video
-                    "-vframes", "1",           // Extract a single video frame
-                    "-c:v", "libwebp",         // WebP format
-                    "-lossless", "0",          // Use lossy compression
-                    "-compression_level", "6", // Compression level
-                    "-quality", "80",          // Image quality
-                    "-preset", "picture",      // Optimize for still image
-                    &poster_path_str,          // Output file
+                    "-nostdin", // No stdin interaction
+                    "-i",
+                    &video_path_str, // Input file
+                    "-ss",
+                    "00:00:01.000", // Seek to 1 second into the video
+                    "-vframes",
+                    "1", // Extract a single video frame
+                    "-c:v",
+                    "libwebp", // WebP format
+                    "-lossless",
+                    "0", // Use lossy compression
+                    "-compression_level",
+                    "6", // Compression level
+                    "-quality",
+                    "80", // Image quality
+                    "-preset",
+                    "picture",        // Optimize for still image
+                    &poster_path_str, // Output file
                 ])
                 .output()
                 .expect("generate video poster");
 
             println!("ffmpeg output: {:?}", ffmpeg_output);
-        }).await.expect("poster generation task completed");
+        })
+        .await
+        .expect("poster generation task completed");
 
         poster_path
     }
