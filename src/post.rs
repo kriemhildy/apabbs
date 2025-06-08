@@ -469,11 +469,20 @@ impl Post {
     }
 }
 
+/// Represents a post submission from a user
+///
+/// This struct contains all data needed to create a new post including the content,
+/// associated media files, and user identification information. It handles converting
+/// raw input into properly formatted post content with media processing.
 #[derive(Default)]
 pub struct PostSubmission {
+    /// Session token of the user submitting the post
     pub session_token: Uuid,
+    /// Raw text content of the post before HTML processing
     pub body: String,
+    /// Original filename of any uploaded media (if present)
     pub media_filename_opt: Option<String>,
+    /// Raw bytes of the uploaded media file (if present)
     pub media_bytes_opt: Option<Vec<u8>>,
 }
 
