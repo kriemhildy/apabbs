@@ -1,12 +1,23 @@
 use crate::POSTGRES_RFC5322_DATETIME;
 use sqlx::PgConnection;
 
+/// Maximum combined count of new accounts and pending posts allowed from a single IP
+/// within a 24-hour period before considering it to be flooding
+const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
+
 /// Inserts a new ban record into the database
 ///
 /// Creates a new entry in the bans table with the specified IP hash and optional
 /// account IDs. The ban will have an automatic expiration time set by the database.
 ///
+/// # Parameters
+/// - `tx`: Database transaction
+/// - `ip_hash`: Hash of the IP address to ban
+/// - `banned_account_id_opt`: Optional ID of the account being banned
+/// - `admin_account_id_opt`: Optional ID of the admin who created the ban
 ///
+/// # Returns
+/// A string representation of the ban expiration time formatted according to RFC5322
 pub async fn insert(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -31,7 +42,13 @@ pub async fn insert(
 /// Queries the database for unexpired bans matching either the IP hash
 /// or the account ID (if provided).
 ///
+/// # Parameters
+/// - `tx`: Database transaction
+/// - `ip_hash`: Hash of the IP address to check
+/// - `banned_account_id_opt`: Optional ID of the banned account
 ///
+/// # Returns
+/// The expiration time of the ban if it exists and is unexpired, `None` otherwise
 pub async fn exists(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -53,7 +70,12 @@ pub async fn exists(
 ///
 /// Used for rate limiting and anti-abuse detection.
 ///
+/// # Parameters
+/// - `tx`: Database transaction
+/// - `ip_hash`: Hash of the IP address to check
 ///
+/// # Returns
+/// The count of new accounts created from the IP address within the past day
 pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     sqlx::query_scalar(concat!(
         "SELECT count(*) FROM accounts WHERE ip_hash_opt = $1 ",
@@ -69,7 +91,12 @@ pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
 ///
 /// Used for rate limiting and anti-abuse detection.
 ///
+/// # Parameters
+/// - `tx`: Database transaction
+/// - `ip_hash`: Hash of the IP address to check
 ///
+/// # Returns
+/// The count of pending posts created from the IP address within the past day
 pub async fn new_posts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     sqlx::query_scalar(concat!(
         "SELECT count(*) FROM posts WHERE ip_hash_opt = $1 ",
@@ -86,11 +113,16 @@ pub async fn new_posts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
 /// Combines the count of new accounts and pending posts from an IP address
 /// to determine if it exceeds the system's rate limits.
 ///
+/// # Parameters
+/// - `tx`: Database transaction
+/// - `ip_hash`: Hash of the IP address to check
 ///
+/// # Returns
+/// `true` if the IP is flooding (combined count >= MAX_CONTENT_PER_IP_DAILY), `false` otherwise
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     let new_accounts_count = new_accounts_count(tx, ip_hash).await;
     let new_posts_count = new_posts_count(tx, ip_hash).await;
-    new_accounts_count + new_posts_count >= 9
+    new_accounts_count + new_posts_count >= MAX_CONTENT_PER_IP_DAILY
 }
 
 /// Removes content from a banned IP address
@@ -98,7 +130,9 @@ pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
 /// Deletes accounts that have only created pending posts and removes all
 /// pending posts associated with the IP address.
 ///
-///
+/// # Parameters
+/// - `tx`: Database transaction
+/// - `ip_hash`: Hash of the IP address to prune
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query(concat!(
         "DELETE FROM accounts WHERE ip_hash_opt = $1 AND NOT ",
@@ -123,7 +157,8 @@ pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
 /// or banned posts). This improves user privacy by not storing IP data longer
 /// than necessary for moderation purposes.
 ///
-///
+/// # Parameters
+/// - `tx`: Database transaction
 pub async fn scrub(tx: &mut PgConnection) {
     // Scrub IP data from accounts older than 1 day
     sqlx::query(concat!(
