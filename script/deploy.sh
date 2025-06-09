@@ -4,6 +4,7 @@ if ! [ "$DEV" == 1 ]; then
     git pull
     nice rustup update
     nice cargo build --release
+    nice cargo doc --no-deps --release
 else
     if [ `git branch --show-current` != "main" ]; then
         echo "Not on main branch"
