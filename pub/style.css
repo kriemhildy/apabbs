@@ -202,7 +202,7 @@ div.post.solo details.review {
 
 /* Individual post sizing in posts grid */
 div#posts div.post {
-    flex: clamp(300px, 35vh, 800px);    /* Responsive width with min/max bounds */
+    flex: clamp(300px, 34vh, 800px);    /* Responsive width with min/max bounds */
 }
 
 /* Base post layout using grid */
