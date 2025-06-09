@@ -83,7 +83,7 @@ impl User {
 /// Represents a registered user account in the system.
 ///
 /// Contains all account details including credentials and preferences.
-#[derive(sqlx::FromRow, serde::Serialize, Default)]
+#[derive(sqlx::FromRow, serde::Serialize, Default, Clone)]
 pub struct Account {
     /// Unique identifier for the account
     pub id: i32,
@@ -412,5 +412,84 @@ mod tests {
         // Test multiple validation errors
         credentials.username = "password".to_owned();
         assert_eq!(credentials.validate().len(), 2);
+    }
+
+    /// Tests the User helper methods for permission checking
+    #[tokio::test]
+    async fn user_permission_checks() {
+        // Test anonymous user
+        let anon_user = User {
+            session_token: Uuid::new_v4(),
+            account_opt: None,
+        };
+
+        assert!(!anon_user.mod_or_admin());
+        assert!(!anon_user.admin());
+        assert_eq!(anon_user.time_zone(), "UTC");
+
+        // Test novice user
+        let novice_user = User {
+            session_token: Uuid::new_v4(),
+            account_opt: Some(Account {
+                id: 1,
+                username: "novice".to_string(),
+                token: Uuid::new_v4(),
+                password_hash: "hash".to_string(),
+                role: AccountRole::Novice,
+                time_zone: "America/New_York".to_string(),
+                ..Default::default()
+            }),
+        };
+
+        assert!(!novice_user.mod_or_admin());
+        assert!(!novice_user.admin());
+        assert_eq!(novice_user.time_zone(), "America/New_York");
+
+        // Test mod user
+        let mod_user = User {
+            session_token: Uuid::new_v4(),
+            account_opt: Some(Account {
+                role: AccountRole::Mod,
+                ..novice_user.account_opt.clone().unwrap()
+            }),
+        };
+
+        assert!(mod_user.mod_or_admin());
+        assert!(!mod_user.admin());
+
+        // Test admin user
+        let admin_user = User {
+            session_token: Uuid::new_v4(),
+            account_opt: Some(Account {
+                role: AccountRole::Admin,
+                ..novice_user.account_opt.as_ref().unwrap().clone()
+            }),
+        };
+
+        assert!(admin_user.mod_or_admin());
+        assert!(admin_user.admin());
+    }
+
+    /// Tests the year_checked method of Credentials
+    #[tokio::test]
+    async fn year_checkbox_validation() {
+        let mut credentials = Credentials {
+            session_token: Uuid::new_v4(),
+            username: "username".to_string(),
+            password: "password123".to_string(),
+            confirm_password_opt: Some("password123".to_string()),
+            year_opt: None,
+        };
+
+        // Test default state (unchecked)
+        assert!(!credentials.year_checked());
+
+        // Test with year checked
+        credentials.year_opt = Some("on".to_string());
+        assert!(credentials.year_checked());
+
+        // Test with incorrect value
+        credentials.year_opt = Some("yes".to_string());
+        assert!(!credentials.year_checked());
     }
 }
