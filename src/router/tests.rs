@@ -1305,3 +1305,59 @@ async fn decrypt_media() {
     tx.commit().await.expect(COMMIT);
     PostReview::delete_upload_key_dir(&encrypted_media_path).await;
 }
+
+/// Tests establishing a WebSocket connection and receiving real-time updates.
+#[tokio::test]
+async fn websocket_connection() {
+    use futures::StreamExt;
+    use tokio_tungstenite::tungstenite;
+
+    let (router, state) = init_test().await;
+
+    // Create a test post to trigger notifications
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let user = test_user(None);
+    let test_post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    tx.commit().await.expect(COMMIT);
+
+    // Start a server for testing
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server_handle = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+
+    // Create WebSocket client
+    let ws_uri = format!("ws://{}/web-socket", addr);
+    let (mut ws_client, _) = tokio_tungstenite::connect_async(ws_uri).await.unwrap();
+
+    // Send a post update through the broadcast channel
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    let post = Post::select_by_key(&mut tx, &test_post.key).await.unwrap();
+    tx.commit().await.expect(COMMIT);
+    state.sender.send(post.clone()).expect("send post update");
+
+    // Wait for and verify message reception
+    let message = tokio::time::timeout(
+        tokio::time::Duration::from_secs(2),
+        ws_client.next()
+    ).await.expect("receive message timeout").expect("receive message").unwrap();
+
+    // Check content
+    if let tungstenite::Message::Text(text) = message {
+        let json: serde_json::Value = serde_json::from_str(&text).expect("parse json");
+        assert_eq!(json["key"], post.key);
+        assert!(json["html"].as_str().unwrap().contains(&post.key));
+    } else {
+        panic!("Expected text message, got {:?}", message);
+    }
+
+    // Clean up
+    ws_client.close(None).await.unwrap();
+    server_handle.abort(); // Stop the server
+
+    let mut tx = state.db.begin().await.expect(BEGIN);
+    test_post.delete(&mut tx).await;
+    tx.commit().await.expect(COMMIT);
+}
