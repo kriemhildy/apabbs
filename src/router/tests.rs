@@ -1339,10 +1339,11 @@ async fn websocket_connection() {
     state.sender.send(post.clone()).expect("send post update");
 
     // Wait for and verify message reception
-    let message = tokio::time::timeout(
-        tokio::time::Duration::from_secs(2),
-        ws_client.next()
-    ).await.expect("receive message timeout").expect("receive message").unwrap();
+    let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
+        .await
+        .expect("receive message timeout")
+        .expect("receive message")
+        .unwrap();
 
     // Check content
     if let tungstenite::Message::Text(text) = message {
