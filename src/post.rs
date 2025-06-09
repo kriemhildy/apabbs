@@ -40,11 +40,14 @@ const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const ERR_THUMBNAIL_FAILED: &str = "Thumbnail not created successfully";
 
 /// Post status indicates the moderation/approval state of a post
-#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Copy)]
+#[derive(
+    sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Copy, Default,
+)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
 pub enum PostStatus {
-    Pending,    // Awaiting moderation review
+    #[default]
+    Pending, // Awaiting moderation review
     Processing, // Currently processing media
     Approved,   // Publicly visible
     Delisted,   // Visible only via direct link
@@ -67,7 +70,7 @@ pub enum MediaCategory {
 ///
 /// Posts can be associated with either a registered user account (account_id_opt)
 /// or an anonymous session (session_token_opt), but not both.
-#[derive(sqlx::FromRow, serde::Serialize, Clone, Debug)]
+#[derive(sqlx::FromRow, serde::Serialize, Clone, Debug, Default)]
 pub struct Post {
     /// Unique database identifier for the post
     pub id: i32,
@@ -951,7 +954,7 @@ impl PostSubmission {
 ///
 /// Each action represents a specific operation to perform on a post's media
 /// or status during the moderation workflow.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum ReviewAction {
     /// Decrypt and process encrypted media for public viewing
     DecryptMedia,
@@ -969,7 +972,7 @@ pub enum ReviewAction {
 ///
 /// These errors correspond to business rules that restrict
 /// which status transitions are allowed and by which roles.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum ReviewError {
     /// Attempted to change post to its current status
     SameStatus,
@@ -1539,6 +1542,185 @@ impl PostHiding {
 mod tests {
     use super::*;
 
+    /// Tests post status transitions and review actions for different user roles
+    #[tokio::test]
+    async fn review_action_permissions() {
+        // Create a post with defaults, only setting what we need for this test
+        // PostStatus::Pending is already the default
+        let post = Post {
+            id: 1,
+            key: String::from("testkey"),
+            ..Default::default()
+        };
+
+        // Case 1: Admin approving a pending post
+        let review = PostReview {
+            session_token: Uuid::new_v4(),
+            status: PostStatus::Approved,
+        };
+        assert_eq!(
+            review.determine_action(&post, &AccountRole::Admin),
+            Ok(ReviewAction::DecryptMedia)
+        );
+
+        // Case 2: Mod trying to modify a reported post (should fail)
+        let reported_post = Post {
+            status: PostStatus::Reported,
+            ..Default::default()
+        };
+        let review = PostReview {
+            session_token: Uuid::new_v4(),
+            status: PostStatus::Approved,
+        };
+        assert_eq!(
+            review.determine_action(&reported_post, &AccountRole::Mod),
+            Err(ReviewError::AdminOnly)
+        );
+
+        // Case 3: Trying to modify a banned post (should fail)
+        let banned_post = Post {
+            status: PostStatus::Banned,
+            ..Default::default()
+        };
+        let review = PostReview {
+            session_token: Uuid::new_v4(),
+            status: PostStatus::Approved,
+        };
+        assert_eq!(
+            review.determine_action(&banned_post, &AccountRole::Admin),
+            Err(ReviewError::RejectedOrBanned)
+        );
+
+        // Case 4: Mod trying to report an approved post (valid action)
+        let approved_post = Post {
+            status: PostStatus::Approved,
+            recent_opt: Some(true),
+            ..Default::default()
+        };
+        let review = PostReview {
+            session_token: Uuid::new_v4(),
+            status: PostStatus::Reported,
+        };
+        assert_eq!(
+            review.determine_action(&approved_post, &AccountRole::Mod),
+            Ok(ReviewAction::ReencryptMedia)
+        );
+
+        // Case 5: Mod trying to modify a non-recent approved post (should fail)
+        let old_post = Post {
+            status: PostStatus::Approved,
+            recent_opt: Some(false),
+            ..Default::default()
+        };
+        let review = PostReview {
+            session_token: Uuid::new_v4(),
+            status: PostStatus::Delisted,
+        };
+        assert_eq!(
+            review.determine_action(&old_post, &AccountRole::Mod),
+            Err(ReviewError::RecentOnly)
+        );
+    }
+
+    /// Tests the author verification functionality
+    #[tokio::test]
+    async fn post_author_verification() {
+        // Create test user with session token
+        let session_token = Uuid::new_v4();
+        let user = User {
+            session_token,
+            account_opt: None,
+        };
+
+        // Create post with matching session token
+        let post_by_session = Post {
+            session_token_opt: Some(session_token),
+            ..Default::default()
+        };
+
+        // Create user with account but different session token
+        let user_with_account = User {
+            session_token: Uuid::new_v4(),
+            account_opt: Some(crate::user::Account {
+                id: 123,
+                username: String::from("testuser"),
+                role: AccountRole::Novice,
+                token: Uuid::new_v4(),
+                ..Default::default()
+            }),
+        };
+
+        // Create post with matching account ID
+        let post_by_account = Post {
+            id: 2,
+            session_token_opt: None,
+            account_id_opt: Some(123),
+            ..Default::default()
+        };
+
+        // Test author verification
+        assert!(post_by_session.author(&user));
+        assert!(!post_by_account.author(&user));
+        assert!(post_by_account.author(&user_with_account));
+        assert!(!post_by_session.author(&user_with_account));
+    }
+
+    /// Tests path construction for media files
+    #[tokio::test]
+    async fn media_paths() {
+        let post = Post {
+            key: String::from("abcd1234"),
+            media_filename_opt: Some(String::from("test.jpg")),
+            thumb_filename_opt: Some(String::from("tn_test.webp")),
+            ..Default::default()
+        };
+
+        // Test path construction
+        assert_eq!(
+            post.encrypted_media_path().to_str().unwrap(),
+            format!("{}/abcd1234/test.jpg.gpg", UPLOADS_DIR)
+        );
+
+        assert_eq!(
+            post.published_media_path().to_str().unwrap(),
+            format!("{}/abcd1234/test.jpg", MEDIA_DIR)
+        );
+
+        assert_eq!(
+            post.thumbnail_path().to_str().unwrap(),
+            format!("{}/abcd1234/tn_test.webp", MEDIA_DIR)
+        );
+    }
+
+    /// Tests MIME type and media category detection for different file extensions
+    #[tokio::test]
+    async fn media_type_detection() {
+        // Test image file types
+        let (category, mime) = PostSubmission::determine_media_type(Some("test.jpg"));
+        assert_eq!(category, Some(MediaCategory::Image));
+        assert_eq!(mime, Some("image/jpeg".to_string()));
+
+        // Test video file types
+        let (category, mime) = PostSubmission::determine_media_type(Some("video.mp4"));
+        assert_eq!(category, Some(MediaCategory::Video));
+        assert_eq!(mime, Some("video/mp4".to_string()));
+
+        // Test audio file types
+        let (category, mime) = PostSubmission::determine_media_type(Some("audio.mp3"));
+        assert_eq!(category, Some(MediaCategory::Audio));
+        assert_eq!(mime, Some("audio/mpeg".to_string()));
+
+        // Test unknown file type
+        let (category, mime) = PostSubmission::determine_media_type(Some("document.pdf"));
+        assert_eq!(category, None);
+        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
+
+        // Test no file
+        let (category, mime) = PostSubmission::determine_media_type(None);
+        assert_eq!(category, None);
+        assert_eq!(mime, None);
+    }
+
     /// Tests the conversion of post body text to HTML with YouTube embed generation
     ///
     /// This test verifies:
@@ -1571,7 +1753,13 @@ mod tests {
         };
 
         // Keep track of existing test directories to avoid deleting user data
-        let test_ids = ["jNQXAC9IVRw", "kixirmHePCc", "cHMCGCWit6U", "28jr-6-XDPM"];
+        let test_ids = [
+            "jNQXAC9IVRw",
+            "kixirmHePCc",
+            "cHMCGCWit6U",
+            "28jr-6-XDPM",
+            "ySrBS4ulbmQ",
+        ];
         let mut existing_ids = Vec::new();
         for id in test_ids {
             if std::path::Path::new(YOUTUBE_DIR).join(id).exists() {
@@ -1658,7 +1846,7 @@ mod tests {
             if !existing_ids.contains(&id) {
                 tokio::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
                     .await
-                    .expect("remove dir and its contents");
+                    .ok(); // Use ok() to ignore errors if directory doesn't exist
             }
         }
     }
@@ -1729,5 +1917,49 @@ mod tests {
         // Case 8: Multi-byte character at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
         assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
+    }
+
+    /// Tests YouTube timestamp extraction from various URL formats
+    #[tokio::test]
+    async fn youtube_timestamp_extraction() {
+        let submission = PostSubmission {
+            body: concat!(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s\n",
+                "https://www.youtube.com/watch?t=25s&v=dQw4w9WgXcQ\n",
+                "https://youtu.be/dQw4w9WgXcQ?t=42\n"
+            )
+            .to_owned(),
+            ..Default::default()
+        };
+
+        // Check if test directory already exists
+        let video_id = "dQw4w9WgXcQ";
+        let youtube_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
+        let dir_existed = youtube_dir.exists();
+
+        if !dir_existed {
+            tokio::fs::create_dir_all(&youtube_dir)
+                .await
+                .expect("create test dir");
+
+            // Create fake thumbnail file
+            let test_thumbnail = youtube_dir.join("maxresdefault.jpg");
+            tokio::fs::write(&test_thumbnail, b"test")
+                .await
+                .expect("write test thumbnail");
+        }
+
+        // Generate HTML with embeds containing timestamps
+        let html = submission.body_to_html("testkey").await;
+
+        // Verify timestamps were properly extracted and included
+        assert!(html.contains("&amp;t=1m30s"));
+        assert!(html.contains("&amp;t=25s"));
+        assert!(html.contains("&amp;t=42"));
+
+        // Clean up only if we created the directory for this test
+        if !dir_existed {
+            tokio::fs::remove_dir_all(youtube_dir).await.ok();
+        }
     }
 }

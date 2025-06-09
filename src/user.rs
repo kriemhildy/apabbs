@@ -24,11 +24,12 @@ const BLOWFISH_ITERATIONS: i32 = 10;
 /// Role-based access control for user accounts.
 ///
 /// Defines the access level and permissions of a user within the system.
-#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
+#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Default)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "account_role", rename_all = "snake_case")]
 pub enum AccountRole {
     /// Basic user with limited privileges
+    #[default]
     Novice,
     /// Regular user with standard privileges
     Member,
@@ -82,7 +83,7 @@ impl User {
 /// Represents a registered user account in the system.
 ///
 /// Contains all account details including credentials and preferences.
-#[derive(sqlx::FromRow, serde::Serialize)]
+#[derive(sqlx::FromRow, serde::Serialize, Default)]
 pub struct Account {
     /// Unique identifier for the account
     pub id: i32,
