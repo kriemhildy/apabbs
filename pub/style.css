@@ -20,7 +20,7 @@
 
     /* Post status colors */
     --pending: #111111;       /* Posts awaiting moderation */
-    --processing: #000000;    /* Posts being processed */
+    --processing: #111111;    /* Posts being processed */
     --delisted: #051d3a;      /* Posts hidden from main feed */
     --reported: rgb(75, 10, 75); /* Posts flagged for review */
     --rejected: rgb(37, 4, 4);   /* Posts that failed moderation */
@@ -37,7 +37,7 @@
         --system: black;
         --review: rgb(63, 63, 63);
         --pending: #eeeeee;
-        --processing: #ffffff;
+        --processing: #eeeeee;
         --delisted: rgb(97, 156, 223);
         --reported: rgb(243, 186, 243);
         --rejected: rgb(250, 226, 226);
