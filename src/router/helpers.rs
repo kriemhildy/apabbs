@@ -493,7 +493,7 @@ pub async fn generate_screenshot() {
 
     // Set custom viewport size
     tab.set_bounds(Bounds::Normal {
-        width: Some(1920.0),
+        width: Some(1600.0),
         height: Some(1080.0),
         left: None,
         top: None,
