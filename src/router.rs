@@ -1020,6 +1020,10 @@ async fn review_post(
             )))
         }
 
+        // Moved to or from approved status requires screenshot update
+        Ok(GenerateScreenshot) => Some(Box::pin(generate_screenshot())),
+
+        // No action or background task needed
         Ok(NoAction) => None,
     };
 
