@@ -478,10 +478,12 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 
 pub async fn generate_screenshot() {
     use headless_chrome::{Browser, LaunchOptions, types::Bounds};
+
     // Launch headless Chromium
     let browser = Browser::new(LaunchOptions {
         headless: true,
         path: None, // Auto-detect Chromium/Chrome; specify path if needed
+        args: vec![std::ffi::OsStr::new("--enable-features=WebContentsForceDark")],
         ..Default::default()
     })
     .expect("launch browser");
@@ -489,7 +491,7 @@ pub async fn generate_screenshot() {
     // Create a new tab
     let tab = browser.new_tab().expect("new tab");
 
-    // Set custom viewport size (e.g., 1200x630 for social media preview)
+    // Set custom viewport size
     tab.set_bounds(Bounds::Normal {
         width: Some(1920.0),
         height: Some(1080.0),
