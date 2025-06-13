@@ -476,7 +476,7 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     })
 }
 
-pub fn generate_screenshot() {
+pub async fn generate_screenshot() {
     use headless_chrome::{Browser, LaunchOptions, types::Bounds};
     // Launch headless Chromium
     let browser = Browser::new(LaunchOptions {
