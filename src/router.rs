@@ -626,9 +626,9 @@ async fn web_socket(
     upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user))
 }
 
-/// Fetches posts created after a specific post
+/// Fetches posts created after the latest approved post
 ///
-/// Used for pagination and "load more" functionality.
+/// Used for recovering updates since websocket interruption.
 async fn interim(
     method: Method,
     State(state): State<AppState>,
