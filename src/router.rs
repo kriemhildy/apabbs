@@ -907,6 +907,7 @@ async fn review_post(
 
         // Handle media operations
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
+            // Do nothing if there is no media file
             if post.media_filename_opt.is_none() {
                 None
             } else {
