@@ -977,7 +977,7 @@ async fn review_post(
                 PostReview::delete_media_key_dir(&post.key).await;
             }
 
-            Some(Box::pin(generate_screenshot()))
+            None
         }
 
         // Handle media re-encryption
