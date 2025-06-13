@@ -477,52 +477,49 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 }
 
 pub async fn generate_screenshot() {
-    use headless_chrome::{Browser, LaunchOptions, types::Bounds};
+    use std::process::Command;
+    use std::path::Path;
 
-    // Launch headless Chromium
-    let browser = Browser::new(LaunchOptions {
-        headless: true,
-        path: None, // Auto-detect Chromium/Chrome; specify path if needed
-        args: vec![
-            std::ffi::OsStr::new("--enable-features=WebContentsForceDark"),
-            std::ffi::OsStr::new("--hide-scrollbars"),
-        ],
-        ..Default::default()
-    })
-    .expect("launch browser");
-
-    // Create a new tab
-    let tab = browser.new_tab().expect("new tab");
-
-    // Set custom viewport size
-    tab.set_bounds(Bounds::Normal {
-        width: Some(1600.0),
-        height: Some(1080.0),
-        left: None,
-        top: None,
-    })
-    .expect("set bounds");
-
-    // Navigate to your homepage
+    // Determine the URL to screenshot
     let url = if apabbs::dev() {
         "http://localhost"
     } else {
         &format!("https://{}", apabbs::host())
     };
-    tab.navigate_to(url).expect("navigate to homepage");
-    tab.wait_until_navigated().expect("wait until navigated");
 
-    // Capture a full-page screenshot
-    let screenshot = tab
-        .capture_screenshot(
-            headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Webp,
-            Some(80), // Quality (0-100)
-            None,     // No clipping region
-            true,     // Capture full page
-        )
-        .expect("capture screenshot");
+    // Ensure the output directory exists
+    let output_path = Path::new("pub/screenshot.webp");
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent).expect("create output directory");
+    }
 
-    // Save the screenshot
-    std::fs::write("pub/screenshot.webp", screenshot).expect("write screenshot");
-    println!("Screenshot saved as pub/screenshot.webp");
+    // Build the full output path
+    let output_path_str = output_path.to_str().expect("convert path to string");
+
+    println!("Taking screenshot using chromium");
+
+    // Execute Chromium with headless mode and other options
+    let status = Command::new("chromium")
+        .args([
+            "--headless=new",                        // New headless mode
+            "--disable-gpu",                         // Disable GPU acceleration
+            "--enable-features=WebContentsForceDark", // Force dark mode
+            "--hide-scrollbars",                     // Hide scrollbars
+            "--window-size=1600,1080",               // Set window size
+            "--screenshot",                          // Enable screenshot mode
+            &format!("--screenshot={}", output_path_str), // Output file
+            "--virtual-time-budget=5000",            // Wait for page to load
+            "--run-all-compositor-stages-before-draw", // Ensure complete rendering
+            "--disable-web-security",                // Allow cross-origin for local testing
+            "--no-sandbox",                          // Required in some environments
+            url                                      // URL to capture
+        ])
+        .status()
+        .expect("execute Chromium command");
+
+    if status.success() {
+        println!("Screenshot saved as {}", output_path_str);
+    } else {
+        eprintln!("Failed to generate screenshot. Exit code: {:?}", status.code());
+    }
 }
