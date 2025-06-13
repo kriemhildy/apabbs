@@ -483,7 +483,10 @@ pub async fn generate_screenshot() {
     let browser = Browser::new(LaunchOptions {
         headless: true,
         path: None, // Auto-detect Chromium/Chrome; specify path if needed
-        args: vec![std::ffi::OsStr::new("--enable-features=WebContentsForceDark")],
+        args: vec![
+            std::ffi::OsStr::new("--enable-features=WebContentsForceDark"),
+            std::ffi::OsStr::new("--hide-scrollbars"),
+        ],
         ..Default::default()
     })
     .expect("launch browser");
