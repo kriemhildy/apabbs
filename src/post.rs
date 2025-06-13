@@ -966,8 +966,6 @@ pub enum ReviewAction {
     ReencryptMedia,
     /// Update post status without modifying media files
     NoAction,
-    /// No alteration to media, but generate a Chromium screenshot
-    GenerateScreenshot,
 }
 
 /// Represents errors that can occur during post review
@@ -1210,7 +1208,7 @@ impl PostReview {
                 match self.status {
                     Pending => Err(ReturnToPending),     // Can't go backwards to pending
                     Processing => Err(ManualProcessing), // Processing is set automatically
-                    Approved | Delisted => Ok(GenerateScreenshot), // Just status change, no media action
+                    Approved | Delisted => Ok(NoAction), // Just status change, no media action
                     Reported => {
                         // Only mods can report posts
                         if *reviewer_role != Mod {
