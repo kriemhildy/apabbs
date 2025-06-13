@@ -926,8 +926,7 @@ async fn review_post(
                     let mut tx = state.db.begin().await.expect(BEGIN);
 
                     // Attempt media decryption
-                    if let Err(msg) =
-                        PostReview::handle_decrypt_media(&mut tx, &initial_post).await
+                    if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &initial_post).await
                     {
                         println!("Error decrypting media: {}", msg);
                         return;
@@ -939,14 +938,13 @@ async fn review_post(
                         .await;
 
                     // Get updated post
-                    let updated_post =
-                        match Post::select_by_key(&mut tx, &initial_post.key).await {
-                            None => {
-                                println!("Post does not exist after decrypting media");
-                                return;
-                            }
-                            Some(post) => post,
-                        };
+                    let updated_post = match Post::select_by_key(&mut tx, &initial_post.key).await {
+                        None => {
+                            println!("Post does not exist after decrypting media");
+                            return;
+                        }
+                        Some(post) => post,
+                    };
 
                     tx.commit().await.expect(COMMIT);
 
@@ -984,20 +982,26 @@ async fn review_post(
 
         // Handle media re-encryption
         Ok(ReencryptMedia) => {
-            async fn reencrypt_media_task(state: AppState, post: Post, post_review: PostReview) {
+            async fn reencrypt_media_task(
+                state: AppState,
+                initial_post: Post,
+                post_review: PostReview,
+            ) {
                 let mut tx = state.db.begin().await.expect(BEGIN);
 
                 // Attempt media re-encryption
-                if let Err(msg) = post.reencrypt_media_file().await {
+                if let Err(msg) = initial_post.reencrypt_media_file().await {
                     println!("Error re-encrypting media: {}", msg);
                     return;
                 }
 
                 // Update post status
-                post.update_status(&mut tx, post_review.status).await;
+                initial_post
+                    .update_status(&mut tx, post_review.status)
+                    .await;
 
                 // Get updated post
-                let post = match Post::select_by_key(&mut tx, &post.key).await {
+                let updated_post = match Post::select_by_key(&mut tx, &initial_post.key).await {
                     None => {
                         println!("Post does not exist after re-encrypting media");
                         return;
@@ -1008,8 +1012,13 @@ async fn review_post(
                 tx.commit().await.expect(COMMIT);
 
                 // Notify clients
-                if state.sender.send(post).is_err() {
+                if state.sender.send(updated_post).is_err() {
                     println!("No active receivers to send to");
+                }
+
+                // Generate a new screenshot if the homepage changed
+                if initial_post.status == Approved || post_review.status == Approved {
+                    generate_screenshot().await;
                 }
             }
 
@@ -1029,6 +1038,13 @@ async fn review_post(
     } else {
         post_review.status
     };
+
+    if status != Processing && (post.status == Approved || post_review.status == Approved) {
+        // Generate a new screenshot if the homepage changed
+        tokio::task::spawn_blocking(|| {
+            tokio::runtime::Handle::current().block_on(generate_screenshot())
+        });
+    }
 
     // Update post status and record review action
     post.update_status(&mut tx, status).await;
@@ -1065,7 +1081,9 @@ async fn review_post(
 
     // Start background task if needed
     if let Some(task) = background_task {
-        tokio::task::spawn(task);
+        tokio::task::spawn_blocking(move || {
+            tokio::runtime::Handle::current().block_on(task)
+        });
     }
 
     // Return appropriate response based on request type
