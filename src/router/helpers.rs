@@ -505,7 +505,6 @@ pub async fn generate_screenshot() {
             "--disable-gpu",                         // Disable GPU acceleration
             "--enable-features=WebContentsForceDark", // Force dark mode
             "--hide-scrollbars",                     // Hide scrollbars
-            "--window-size=1600,1080",               // Set window size
             "--screenshot",                          // Enable screenshot mode
             &format!("--screenshot={}", output_path_str), // Output file
             "--virtual-time-budget=5000",            // Wait for page to load
