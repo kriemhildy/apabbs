@@ -503,7 +503,6 @@ pub async fn generate_screenshot() {
         .args([
             "--headless=new",                        // New headless mode
             "--disable-gpu",                         // Disable GPU acceleration
-            "--enable-features=WebContentsForceDark", // Force dark mode
             "--hide-scrollbars",                     // Hide scrollbars
             "--screenshot",                          // Enable screenshot mode
             &format!("--screenshot={}", output_path_str), // Output file
