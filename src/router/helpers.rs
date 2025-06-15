@@ -477,8 +477,8 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 }
 
 pub async fn generate_screenshot() {
-    use std::process::Command;
     use std::path::Path;
+    use std::process::Command;
 
     // Determine the URL to screenshot
     let url = if apabbs::dev() {
@@ -501,16 +501,16 @@ pub async fn generate_screenshot() {
     // Execute Chromium with headless mode and other options
     let status = Command::new("chromium")
         .args([
-            "--headless=new",                        // New headless mode
-            "--disable-gpu",                         // Disable GPU acceleration
-            "--hide-scrollbars",                     // Hide scrollbars
-            "--screenshot",                          // Enable screenshot mode
+            "--headless=new",                             // New headless mode
+            "--disable-gpu",                              // Disable GPU acceleration
+            "--hide-scrollbars",                          // Hide scrollbars
+            "--screenshot",                               // Enable screenshot mode
             &format!("--screenshot={}", output_path_str), // Output file
-            "--virtual-time-budget=5000",            // Wait for page to load
-            "--run-all-compositor-stages-before-draw", // Ensure complete rendering
-            "--disable-web-security",                // Allow cross-origin for local testing
-            "--no-sandbox",                          // Required in some environments
-            url                                      // URL to capture
+            "--virtual-time-budget=5000",                 // Wait for page to load
+            "--run-all-compositor-stages-before-draw",    // Ensure complete rendering
+            "--disable-web-security",                     // Allow cross-origin for local testing
+            "--no-sandbox",                               // Required in some environments
+            url,                                          // URL to capture
         ])
         .status()
         .expect("execute Chromium command");
@@ -518,6 +518,9 @@ pub async fn generate_screenshot() {
     if status.success() {
         println!("Screenshot saved as {}", output_path_str);
     } else {
-        eprintln!("Failed to generate screenshot. Exit code: {:?}", status.code());
+        eprintln!(
+            "Failed to generate screenshot. Exit code: {:?}",
+            status.code()
+        );
     }
 }

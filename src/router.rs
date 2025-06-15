@@ -927,7 +927,8 @@ async fn review_post(
                         let mut tx = state.db.begin().await.expect(BEGIN);
 
                         // Attempt media decryption
-                        if let Err(msg) = PostReview::handle_decrypt_media(&mut tx, &initial_post).await
+                        if let Err(msg) =
+                            PostReview::handle_decrypt_media(&mut tx, &initial_post).await
                         {
                             println!("Error decrypting media: {}", msg);
                             return;
@@ -939,13 +940,14 @@ async fn review_post(
                             .await;
 
                         // Get updated post
-                        let updated_post = match Post::select_by_key(&mut tx, &initial_post.key).await {
-                            None => {
-                                println!("Post does not exist after decrypting media");
-                                return;
-                            }
-                            Some(post) => post,
-                        };
+                        let updated_post =
+                            match Post::select_by_key(&mut tx, &initial_post.key).await {
+                                None => {
+                                    println!("Post does not exist after decrypting media");
+                                    return;
+                                }
+                                Some(post) => post,
+                            };
 
                         tx.commit().await.expect(COMMIT);
 
@@ -1083,9 +1085,7 @@ async fn review_post(
 
     // Start background task if needed
     if let Some(task) = background_task {
-        tokio::task::spawn_blocking(move || {
-            tokio::runtime::Handle::current().block_on(task)
-        });
+        tokio::task::spawn_blocking(move || tokio::runtime::Handle::current().block_on(task));
     }
 
     // Return appropriate response based on request type
