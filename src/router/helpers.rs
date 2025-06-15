@@ -482,7 +482,7 @@ pub async fn utc_hour_timestamp(tx: &mut sqlx::PgConnection) -> String {
     // Query PostgreSQL for the current UTC timestamp formatted according to our needs
     // HH24 explicitly specifies 24-hour format (00-23)
     sqlx::query_scalar::<_, String>(
-        "SELECT to_char(current_timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD-HH24')"
+        "SELECT to_char(current_timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD-HH24')",
     )
     .fetch_one(tx)
     .await

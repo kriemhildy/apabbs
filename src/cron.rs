@@ -121,7 +121,10 @@ fn generate_screenshot() -> Job {
             }
 
             // Build the full output path
-            let output_path_str = output_path.to_str().expect("convert path to string").to_owned();
+            let output_path_str = output_path
+                .to_str()
+                .expect("convert path to string")
+                .to_owned();
             let url_clone = url.to_owned();
 
             // Run the blocking operation in a separate thread
@@ -131,20 +134,22 @@ fn generate_screenshot() -> Job {
                 // Execute Chromium with headless mode and other options
                 Command::new("chromium")
                     .args([
-                        "--headless=new",                              // New headless mode
-                        "--disable-gpu",                               // Disable GPU acceleration
-                        "--hide-scrollbars",                           // Hide scrollbars
-                        "--screenshot",                                // Enable screenshot mode
-                        &format!("--screenshot={}", output_path_str),  // Output file
-                        "--virtual-time-budget=5000",                  // Wait for page to load
-                        "--run-all-compositor-stages-before-draw",     // Ensure complete rendering
-                        "--disable-web-security",                      // Allow cross-origin for local testing
-                        "--no-sandbox",                                // Required in some environments
-                        &url_clone,                                    // URL to capture
+                        "--headless=new",                             // New headless mode
+                        "--disable-gpu",                              // Disable GPU acceleration
+                        "--hide-scrollbars",                          // Hide scrollbars
+                        "--screenshot",                               // Enable screenshot mode
+                        &format!("--screenshot={}", output_path_str), // Output file
+                        "--virtual-time-budget=5000",                 // Wait for page to load
+                        "--run-all-compositor-stages-before-draw",    // Ensure complete rendering
+                        "--disable-web-security", // Allow cross-origin for local testing
+                        "--no-sandbox",           // Required in some environments
+                        &url_clone,               // URL to capture
                     ])
                     .status()
                     .expect("execute Chromium command")
-            }).await.expect("screenshot task completed");
+            })
+            .await
+            .expect("screenshot task completed");
 
             if !status.success() {
                 eprintln!(
