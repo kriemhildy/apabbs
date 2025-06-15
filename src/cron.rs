@@ -94,7 +94,7 @@ fn scrub_ips() -> Job {
 /// using `tokio::task::spawn_blocking` to avoid blocking the async runtime.
 ///
 /// # Schedule
-/// Runs hourly at XX:00:00 (0 0 * * * *)
+/// Runs hourly at XX:55:00 (0 55 * * * *)
 ///
 /// # Output
 /// Saves the screenshot to `pub/screenshot.webp`
@@ -102,7 +102,7 @@ fn scrub_ips() -> Job {
 /// # Returns
 /// A configured Job that can be added to the scheduler
 fn generate_screenshot() -> Job {
-    Job::new_async("0 0 * * * *", |_uuid, _l| {
+    Job::new_async("0 55 * * * *", |_uuid, _l| {
         Box::pin(async move {
             use std::path::Path;
             use std::process::Command;
