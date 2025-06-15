@@ -125,11 +125,11 @@ fn generate_screenshot() -> Job {
             let url_clone = url.to_owned();
 
             // Run the blocking operation in a separate thread
-            let result = tokio::task::spawn_blocking(move || {
+            let status = tokio::task::spawn_blocking(move || {
                 println!("Taking screenshot using chromium");
 
                 // Execute Chromium with headless mode and other options
-                let status = Command::new("chromium")
+                Command::new("chromium")
                     .args([
                         "--headless=new",                              // New headless mode
                         "--disable-gpu",                               // Disable GPU acceleration
@@ -143,16 +143,10 @@ fn generate_screenshot() -> Job {
                         &url_clone,                                    // URL to capture
                     ])
                     .status()
-                    .expect("execute Chromium command");
-
-                (status, output_path_str)
+                    .expect("execute Chromium command")
             }).await.expect("screenshot task completed");
 
-            let (status, output_path_str) = result;
-
-            if status.success() {
-                println!("Screenshot saved as {}", output_path_str);
-            } else {
+            if !status.success() {
                 eprintln!(
                     "Failed to generate screenshot. Exit code: {:?}",
                     status.code()

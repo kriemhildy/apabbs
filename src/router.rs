@@ -157,6 +157,9 @@ async fn index(
         posts.pop()
     };
 
+    // Get a timestamp of the current UTC hour for cache-busting the screenshot file
+    let utc_hour_timestamp = utc_hour_timestamp(&mut tx).await;
+
     // Render the page
     let html = Html(render(
         &state,
@@ -171,6 +174,7 @@ async fn index(
             page_post_opt,
             prior_page_post_opt,
             solo => false,
+            utc_hour_timestamp,
         ),
     ));
 

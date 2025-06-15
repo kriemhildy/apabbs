@@ -475,3 +475,16 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
         chromium: user_agent_str.contains("Chrome"),
     })
 }
+
+/// Returns a UTC timestamp string formatted as "year-month-date-hour" (e.g. "2025-06-15-14")
+/// using a PostgreSQL query with 24-hour time format.
+pub async fn utc_hour_timestamp(tx: &mut sqlx::PgConnection) -> String {
+    // Query PostgreSQL for the current UTC timestamp formatted according to our needs
+    // HH24 explicitly specifies 24-hour format (00-23)
+    sqlx::query_scalar::<_, String>(
+        "SELECT to_char(current_timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD-HH24')"
+    )
+    .fetch_one(tx)
+    .await
+    .expect("failed to fetch UTC timestamp from database")
+}
