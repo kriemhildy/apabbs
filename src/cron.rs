@@ -142,7 +142,6 @@ fn generate_screenshot() -> Job {
                         "--virtual-time-budget=5000",                 // Wait for page to load
                         "--run-all-compositor-stages-before-draw",    // Ensure complete rendering
                         "--disable-web-security", // Allow cross-origin for local testing
-                        "--no-sandbox",           // Required in some environments
                         &url_clone,               // URL to capture
                     ])
                     .status()
