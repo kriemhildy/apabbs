@@ -137,12 +137,8 @@ fn generate_screenshot() -> Job {
                         "--headless=new",                             // New headless mode
                         "--disable-gpu",                              // Disable GPU acceleration
                         "--hide-scrollbars",                          // Hide scrollbars
-                        "--screenshot",                               // Enable screenshot mode
                         &format!("--screenshot={}", output_path_str), // Output file
-                        "--virtual-time-budget=5000",                 // Wait for page to load
-                        "--run-all-compositor-stages-before-draw",    // Ensure complete rendering
-                        "--disable-web-security", // Allow cross-origin for local testing
-                        &url_clone,               // URL to capture
+                        &url_clone,                                   // URL to capture
                     ])
                     .status()
                     .expect("execute Chromium command")
