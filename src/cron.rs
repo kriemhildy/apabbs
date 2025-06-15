@@ -79,7 +79,7 @@ fn scrub_ips() -> Job {
             println!("old IP hashes scrubbed");
         })
     })
-    .expect("make new job")
+    .expect("make scrub job")
 }
 
 /// Creates a scheduled job that takes a screenshot of the application
