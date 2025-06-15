@@ -43,8 +43,9 @@ pub async fn init() {
     let sched = JobScheduler::new().await.expect("make new job scheduler");
 
     // Add all scheduled jobs to the scheduler
-    let job = scrub_ips();
-    sched.add(job).await.expect("add job to scheduler");
+    for job in [scrub_ips(), generate_screenshot()] {
+        sched.add(job).await.expect("add job to scheduler");
+    }
 
     // Start the scheduler running
     sched.start().await.expect("start scheduler");
@@ -79,4 +80,85 @@ fn scrub_ips() -> Job {
         })
     })
     .expect("make new job")
+}
+
+/// Creates a scheduled job that takes a screenshot of the application
+///
+/// This job runs hourly and captures a screenshot of the front page of the site,
+/// saving it as a webp image in the public directory. The screenshot can be used
+/// for previews, monitoring the application's appearance, or generating social
+/// media cards.
+///
+/// The function uses Chromium in headless mode to render the page and capture the
+/// screenshot. This potentially blocking operation is executed in a separate thread
+/// using `tokio::task::spawn_blocking` to avoid blocking the async runtime.
+///
+/// # Schedule
+/// Runs hourly at XX:00:00 (0 0 * * * *)
+///
+/// # Output
+/// Saves the screenshot to `pub/screenshot.webp`
+///
+/// # Returns
+/// A configured Job that can be added to the scheduler
+fn generate_screenshot() -> Job {
+    Job::new_async("0 0 * * * *", |_uuid, _l| {
+        Box::pin(async move {
+            use std::path::Path;
+            use std::process::Command;
+
+            // Determine the URL to screenshot
+            let url = if apabbs::dev() {
+                "http://localhost"
+            } else {
+                &format!("https://{}", apabbs::host())
+            };
+
+            // Ensure the output directory exists
+            let output_path = Path::new("pub/screenshot.webp");
+            if let Some(parent) = output_path.parent() {
+                std::fs::create_dir_all(parent).expect("create output directory");
+            }
+
+            // Build the full output path
+            let output_path_str = output_path.to_str().expect("convert path to string").to_owned();
+            let url_clone = url.to_owned();
+
+            // Run the blocking operation in a separate thread
+            let result = tokio::task::spawn_blocking(move || {
+                println!("Taking screenshot using chromium");
+
+                // Execute Chromium with headless mode and other options
+                let status = Command::new("chromium")
+                    .args([
+                        "--headless=new",                              // New headless mode
+                        "--disable-gpu",                               // Disable GPU acceleration
+                        "--hide-scrollbars",                           // Hide scrollbars
+                        "--screenshot",                                // Enable screenshot mode
+                        &format!("--screenshot={}", output_path_str),  // Output file
+                        "--virtual-time-budget=5000",                  // Wait for page to load
+                        "--run-all-compositor-stages-before-draw",     // Ensure complete rendering
+                        "--disable-web-security",                      // Allow cross-origin for local testing
+                        "--no-sandbox",                                // Required in some environments
+                        &url_clone,                                    // URL to capture
+                    ])
+                    .status()
+                    .expect("execute Chromium command");
+
+                (status, output_path_str)
+            }).await.expect("screenshot task completed");
+
+            let (status, output_path_str) = result;
+
+            if status.success() {
+                println!("Screenshot saved as {}", output_path_str);
+            } else {
+                eprintln!(
+                    "Failed to generate screenshot. Exit code: {:?}",
+                    status.code()
+                );
+            }
+        })
+    })
+    .expect("make screenshot job")
 }

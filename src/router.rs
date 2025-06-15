@@ -956,11 +956,6 @@ async fn review_post(
                         if state.sender.send(updated_post).is_err() {
                             println!("No active receivers to send to");
                         }
-
-                        // Generate a new screenshot if the homepage changed
-                        if initial_post.status == Approved || post_review.status == Approved {
-                            generate_screenshot().await;
-                        }
                     }
 
                     Some(Box::pin(decrypt_media_task(
@@ -1019,11 +1014,6 @@ async fn review_post(
                 if state.sender.send(updated_post).is_err() {
                     println!("No active receivers to send to");
                 }
-
-                // Generate a new screenshot if the homepage changed
-                if initial_post.status == Approved || post_review.status == Approved {
-                    generate_screenshot().await;
-                }
             }
 
             Some(Box::pin(reencrypt_media_task(
@@ -1042,13 +1032,6 @@ async fn review_post(
     } else {
         post_review.status
     };
-
-    if status != Processing && (post.status == Approved || post_review.status == Approved) {
-        // Generate a new screenshot if the homepage changed
-        tokio::task::spawn_blocking(|| {
-            tokio::runtime::Handle::current().block_on(generate_screenshot())
-        });
-    }
 
     // Update post status and record review action
     post.update_status(&mut tx, status).await;
