@@ -21,6 +21,9 @@ pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 /// Format string for HTML datetime attribute format in PostgreSQL
 pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM""#;
 
+/// Format string for UTC hour in PostgreSQL
+pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
+
 /// Creates a connection pool to the PostgreSQL database.
 ///
 /// Uses the DATABASE_URL environment variable to establish a connection.
