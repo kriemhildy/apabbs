@@ -127,6 +127,7 @@ fn generate_screenshot() -> Job {
                 .to_owned();
             // Clone to move into the blocking task
             let url_clone = url.clone();
+            let output_path_str_clone = output_path_str.clone();
 
             // Run the blocking operation in a separate thread
             let status = tokio::task::spawn_blocking(move || {
@@ -135,19 +136,23 @@ fn generate_screenshot() -> Job {
                 // Execute Chromium with headless mode and other options
                 Command::new("chromium")
                     .args([
-                        "--headless=new",                             // New headless mode
-                        "--hide-scrollbars",                          // Hide scrollbars
-                        "--force-dark-mode",                          // Force dark mode
-                        &format!("--screenshot={}", output_path_str), // Output file
-                        &url_clone,                                   // URL to capture
+                        "--headless=new",                                   // New headless mode
+                        "--disable-gpu",                                    // Disable GPU
+                        "--hide-scrollbars",                                // Hide scrollbars
+                        "--force-dark-mode",                                // Force dark mode
+                        &format!("--screenshot={}", output_path_str_clone), // Output file
+                        &url_clone,                                         // URL to capture
                     ])
+                    .stderr(std::process::Stdio::null()) // Suppress unnecessary stderr output
                     .status()
                     .expect("execute Chromium command")
             })
             .await
             .expect("screenshot task completed");
 
-            if !status.success() {
+            if status.success() {
+                println!("Screenshot saved to {}", output_path_str);
+            } else {
                 eprintln!(
                     "Failed to generate screenshot. Exit code: {:?}",
                     status.code()
