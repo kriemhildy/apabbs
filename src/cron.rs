@@ -109,9 +109,9 @@ fn generate_screenshot() -> Job {
 
             // Determine the URL to screenshot
             let url = if apabbs::dev() {
-                "http://localhost"
+                String::from("http://localhost")
             } else {
-                &format!("https://{}", apabbs::host())
+                format!("https://{}", apabbs::host())
             };
 
             // Ensure the output directory exists
@@ -125,7 +125,8 @@ fn generate_screenshot() -> Job {
                 .to_str()
                 .expect("convert path to string")
                 .to_owned();
-            let url_clone = url.to_owned();
+            // Clone to move into the blocking task
+            let url_clone = url.clone();
 
             // Run the blocking operation in a separate thread
             let status = tokio::task::spawn_blocking(move || {
@@ -135,8 +136,8 @@ fn generate_screenshot() -> Job {
                 Command::new("chromium")
                     .args([
                         "--headless=new",                             // New headless mode
-                        "--disable-gpu",                              // Disable GPU acceleration
                         "--hide-scrollbars",                          // Hide scrollbars
+                        "--force-dark-mode",                          // Force dark mode
                         &format!("--screenshot={}", output_path_str), // Output file
                         &url_clone,                                   // URL to capture
                     ])
