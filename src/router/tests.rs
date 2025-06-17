@@ -1172,7 +1172,7 @@ async fn review_post_with_small_image() {
 
             // Small images shouldn't have thumbnails
             assert!(updated_post.thumb_filename_opt.is_none());
-            let thumbnail_path = PostReview::thumbnail_path(&published_media_path, ".webp");
+            let thumbnail_path = PostReview::alternate_path(&published_media_path, "tn_", ".webp");
             assert!(!thumbnail_path.exists());
 
             break;

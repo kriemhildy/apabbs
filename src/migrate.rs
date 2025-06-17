@@ -407,7 +407,7 @@ async fn generate_video_thumbnails(db: PgPool) {
         );
 
         // Generate video thumbnail
-        let thumbnail_path = PostReview::generate_video_thumbnail(&published_media_path).await;
+        let thumbnail_path = PostReview::generate_compatibility_video(&published_media_path).await;
         if !thumbnail_path.exists() {
             eprintln!("thumbnail not created successfully");
             std::process::exit(1);

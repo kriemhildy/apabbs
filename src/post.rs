@@ -1098,7 +1098,7 @@ impl PostReview {
         .await
         .expect("vipsthumbnail task completed");
 
-        Self::thumbnail_path(published_media_path, ".webp")
+        Self::alternate_path(published_media_path, "tn_", ".webp")
     }
 
     /// Constructs the path for a thumbnail based on the original media path
@@ -1111,7 +1111,7 @@ impl PostReview {
     ///
     /// # Returns
     /// Path where the thumbnail should be stored
-    pub fn thumbnail_path(media_path: &PathBuf, thumbnail_extension: &str) -> PathBuf {
+    pub fn alternate_path(media_path: &PathBuf, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
             .expect("get media filename")
@@ -1122,10 +1122,10 @@ impl PostReview {
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
 
         // Create thumbnail filename with "tn_" prefix and specified extension
-        let thumbnail_filename =
-            String::from("tn_") + &extension_pattern.replace(media_filename, thumbnail_extension);
+        let alternate_filename =
+            prefix.to_owned() + &extension_pattern.replace(media_filename, extension);
 
-        key_dir.join(&thumbnail_filename)
+        key_dir.join(&alternate_filename)
     }
 
     /// Determines if a thumbnail file is larger than the original media file
@@ -1325,9 +1325,9 @@ impl PostReview {
 
             Some(MediaCategory::Video) => {
                 // Generate a thumbnail video for browser compatibility
-                let thumbnail_path = Self::generate_video_thumbnail(&published_media_path).await;
+                let compatibility_path = Self::generate_compatibility_video(&published_media_path).await;
 
-                if !thumbnail_path.exists() {
+                if !compatibility_path.exists() {
                     return Err(ERR_THUMBNAIL_FAILED.to_owned());
                 }
 
@@ -1340,14 +1340,14 @@ impl PostReview {
                     media_poster_path,
                     thumbnail_poster_path,
                 ) = tokio::join!(
-                    Self::video_dimensions(&thumbnail_path),
+                    Self::video_dimensions(&compatibility_path),
                     Self::video_dimensions(&published_media_path),
                     Self::generate_video_poster(&published_media_path),
-                    Self::generate_video_poster(&thumbnail_path)
+                    Self::generate_video_poster(&compatibility_path)
                 );
 
                 // Update the database with all the video metadata
-                post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
+                post.update_thumbnail(tx, &compatibility_path, thumb_width, thumb_height)
                     .await;
                 post.update_media_dimensions(tx, media_width, media_height)
                     .await;
@@ -1439,10 +1439,10 @@ impl PostReview {
     ///
     /// # Returns
     /// Path to the generated thumbnail video file
-    pub async fn generate_video_thumbnail(video_path: &PathBuf) -> PathBuf {
+    pub async fn generate_compatibility_video(video_path: &PathBuf) -> PathBuf {
         let video_path_str = video_path.to_str().unwrap().to_owned();
-        let thumbnail_path = Self::thumbnail_path(video_path, ".mp4");
-        let thumbnail_path_str = thumbnail_path.to_str().unwrap().to_owned();
+        let compatibility_path = Self::alternate_path(video_path, "tn_", ".mp4");
+        let compatibility_path_str = compatibility_path.to_str().unwrap().to_owned();
 
         // Move the ffmpeg processing to a separate thread pool
         tokio::task::spawn_blocking(move || {
@@ -1469,9 +1469,7 @@ impl PostReview {
                     "aac", // AAC audio codec
                     "-b:a",
                     "128k", // Audio bitrate
-                    "-vf",
-                    "scale='min(1280,iw)':'min(2160,ih)':force_original_aspect_ratio=decrease", // Resize while preserving aspect ratio
-                    &thumbnail_path_str, // Output file
+                    &compatibility_path_str, // Output file
                 ])
                 .output()
                 .expect("generate video thumbnail");
@@ -1481,7 +1479,7 @@ impl PostReview {
         .await
         .expect("ffmpeg task completed");
 
-        thumbnail_path
+        compatibility_path
     }
 
     /// Generates a poster image (still frame) from a video file
