@@ -102,14 +102,16 @@ pub struct Post {
     pub media_width_opt: Option<i32>,
     /// Height of the original media in pixels
     pub media_height_opt: Option<i32>,
-    /// Filename of the poster image for video media
-    pub media_poster_opt: Option<String>,
     /// Width of the thumbnail in pixels
     pub thumb_width_opt: Option<i32>,
     /// Height of the thumbnail in pixels
     pub thumb_height_opt: Option<i32>,
-    /// Filename of the poster image for the video thumbnail
+    /// Filename of the poster image for video media
+    pub media_poster_opt: Option<String>,
+    /// Filename of the thumbnail-sized video poster image
     pub thumb_poster_opt: Option<String>,
+    /// Filename of compatibility video (H.264) for non-Chromium browsers
+    pub compat_filename_opt: Option<String>,
     /// Creation timestamp formatted according to RFC5322 for display
     #[sqlx(default)]
     pub created_at_rfc5322_opt: Option<String>,
