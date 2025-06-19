@@ -484,11 +484,9 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 /// # Returns
 /// A string containing the UTC timestamp in "YYYY-MM-DD-HH" format
 pub async fn utc_hour_timestamp(tx: &mut sqlx::PgConnection) -> String {
-    sqlx::query_scalar::<_, String>(
-        "SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)",
-    )
-    .bind(apabbs::POSTGRES_UTC_HOUR)
-    .fetch_one(tx)
-    .await
-    .expect("failed to fetch UTC timestamp from database")
+    sqlx::query_scalar::<_, String>("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
+        .bind(apabbs::POSTGRES_UTC_HOUR)
+        .fetch_one(tx)
+        .await
+        .expect("failed to fetch UTC timestamp from database")
 }

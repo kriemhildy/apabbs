@@ -1103,16 +1103,19 @@ impl PostReview {
         Self::alternate_path(published_media_path, "tn_", ".webp")
     }
 
-    /// Constructs the path for a thumbnail based on the original media path
+    /// Constructs an alternate file path for a derived media file
     ///
-    /// Creates a path with "tn_" prefix and the specified extension.
+    /// Generates a new file path in the same directory as the original, using the provided
+    /// prefix and file extension. This is used for creating paths for thumbnails, compatibility
+    /// videos, or other media variants derived from the original file.
     ///
     /// # Parameters
     /// - `media_path`: Path to the original media file
-    /// - `thumbnail_extension`: File extension for the thumbnail (e.g., ".webp")
+    /// - `prefix`: Prefix to prepend to the base filename (e.g., "tn_" for thumbnails)
+    /// - `extension`: New file extension for the derived file (e.g., ".webp", ".mp4")
     ///
     /// # Returns
-    /// Path where the thumbnail should be stored
+    /// Path where the derived file should be stored, in the same directory as the original
     pub fn alternate_path(media_path: &PathBuf, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
@@ -1327,7 +1330,8 @@ impl PostReview {
 
             Some(MediaCategory::Video) => {
                 // Generate a thumbnail video for browser compatibility
-                let compatibility_path = Self::generate_compatibility_video(&published_media_path).await;
+                let compatibility_path =
+                    Self::generate_compatibility_video(&published_media_path).await;
 
                 if !compatibility_path.exists() {
                     return Err(ERR_THUMBNAIL_FAILED.to_owned());
@@ -1470,7 +1474,7 @@ impl PostReview {
                     "-c:a",
                     "aac", // AAC audio codec
                     "-b:a",
-                    "128k", // Audio bitrate
+                    "128k",                  // Audio bitrate
                     &compatibility_path_str, // Output file
                 ])
                 .output()
