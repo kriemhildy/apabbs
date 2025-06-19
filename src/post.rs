@@ -425,6 +425,31 @@ impl Post {
         .expect("update post thumbnail");
     }
 
+    /// Update the compatibility video filename for a post
+    ///
+    ///  This is used to store a fallback video format for browsers that do not support
+    ///  the primary video format (e.g., H.264 for non-Chromium browsers).
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection
+    /// - `compat_path`: Path to the compatibility video file
+    ///
+    /// # Panics
+    /// Panics if the compatibility video filename cannot be extracted or converted to a string.
+    pub async fn update_compat_filename_opt(&self, tx: &mut PgConnection, compat_path: &PathBuf) {
+        let compat_filename = compat_path
+            .file_name()
+            .expect("get compatibility video filename")
+            .to_str()
+            .expect("compatibility video filename to str");
+        sqlx::query("UPDATE posts SET compat_filename_opt = $1 WHERE id = $2")
+            .bind(compat_filename)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post compatibility video");
+    }
+
     /// Re-encrypts a media file that has already been published
     ///
     /// This is used when media needs to be moved back from published to reported state.
@@ -1353,7 +1378,7 @@ impl PostReview {
                 );
 
                 // Update the database with all the video metadata
-                post.update_thumbnail(tx, &compatibility_path, thumb_width, thumb_height)
+                post.update_compat_filename_opt(tx, &compatibility_path)
                     .await;
                 post.update_media_dimensions(tx, media_width, media_height)
                     .await;
