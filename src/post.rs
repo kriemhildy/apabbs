@@ -1368,21 +1368,22 @@ impl PostReview {
                 let (
                     (thumb_width, thumb_height),
                     (media_width, media_height),
-                    media_poster_path,
-                    thumbnail_poster_path,
+                    (media_poster_path, thumb_poster_path_opt),
                 ) = tokio::join!(
                     Self::video_dimensions(&compatibility_path),
-                    Self::video_dimensions(&published_media_path),
-                    Self::generate_video_poster(&published_media_path),
-                    Self::generate_video_poster(&compatibility_path)
+                    Self::video_dimensions(&published_media_path),\
+                    // TODO: this needs to generate a thumbnail (if appropriate) via vipsthumbnail
+                    Self::generate_video_posters(&published_media_path),
                 );
 
                 // Update the database with all the video metadata
                 post.update_compat_filename_opt(tx, &compatibility_path)
                     .await;
+                // TODO: Need to update thumb dimensions here;
+                // probably combine these into one function.
                 post.update_media_dimensions(tx, media_width, media_height)
                     .await;
-                post.update_posters(tx, &media_poster_path, &thumbnail_poster_path)
+                post.update_posters(tx, &media_poster_path, &thumb_poster_path_opt)
                     .await;
             }
 
@@ -1460,16 +1461,17 @@ impl PostReview {
         (dimensions[0], dimensions[1])
     }
 
-    /// Generates a browser-compatible version of a video for thumbnails
+    /// Generates a browser-compatible video variant for playback
     ///
-    /// Converts the input video to H.264/AVC format with AAC audio, limiting dimensions
-    /// to a maximum of 1280x2160 for better browser compatibility.
+    /// Converts the input video to an H.264/AVC MP4 file with AAC audio, suitable for maximum browser compatibility.
+    /// The output is limited to 1280x2160 resolution and is intended as a fallback for browsers that do not support
+    /// the original video format. The generated file is saved alongside the original with a "tn_" prefix and ".mp4" extension.
     ///
     /// # Parameters
     /// - `video_path`: Path to the original video file
     ///
     /// # Returns
-    /// Path to the generated thumbnail video file
+    /// Path to the generated compatibility video file (MP4)
     pub async fn generate_compatibility_video(video_path: &PathBuf) -> PathBuf {
         let video_path_str = video_path.to_str().unwrap().to_owned();
         let compatibility_path = Self::alternate_path(video_path, "tn_", ".mp4");
