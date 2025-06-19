@@ -54,6 +54,24 @@ impl User {
     /// Checks if the user has moderator or administrator privileges.
     ///
     /// Returns `true` if the user is a moderator or administrator.
+    ///
+    /// Checks if the user has moderator or administrator privileges.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apabbs::user::{User, Account, AccountRole};
+    /// use uuid::Uuid;
+    ///
+    /// let user = User {
+    ///     session_token: Uuid::new_v4(),
+    ///     account_opt: Some(Account {
+    ///         role: AccountRole::Mod,
+    ///         ..Default::default()
+    ///     }),
+    /// };
+    /// assert!(user.mod_or_admin());
+    /// ```
     pub fn mod_or_admin(&self) -> bool {
         self.account_opt
             .as_ref()
@@ -63,6 +81,23 @@ impl User {
     /// Checks if the user has administrator privileges.
     ///
     /// Returns `true` if the user is an administrator.
+    /// Checks if the user has moderator or administrator privileges.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apabbs::user::{User, Account, AccountRole};
+    /// use uuid::Uuid;
+    ///
+    /// let user = User {
+    ///     session_token: Uuid::new_v4(),
+    ///     account_opt: Some(Account {
+    ///         role: AccountRole::Mod,
+    ///         ..Default::default()
+    ///     }),
+    /// };
+    /// assert!(!user.admin());
+    /// ```
     pub fn admin(&self) -> bool {
         self.account_opt
             .as_ref()
@@ -222,6 +257,27 @@ impl Credentials {
     /// - Password confirmation match
     ///
     /// Returns a list of error messages if validation fails.
+    ///
+    /// Validates the credentials for registration.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use uuid::Uuid;
+    /// use apabbs::user::Credentials;
+    ///
+    /// let mut creds = Credentials {
+    ///     session_token: Uuid::new_v4(),
+    ///     username: "validuser".to_owned(),
+    ///     password: "goodpassw0rd".to_owned(),
+    ///     confirm_password_opt: Some("goodpassw0rd".to_owned()),
+    ///     year_opt: None,
+    /// };
+    /// assert!(creds.validate().is_empty());
+    ///
+    /// creds.username = "bad".to_owned(); // too short
+    /// assert!(!creds.validate().is_empty());
+    /// ```
     pub fn validate(&self) -> Vec<&str> {
         let mut errors: Vec<&str> = Vec::new();
 
@@ -321,6 +377,30 @@ impl Credentials {
     /// Checks if the year verification checkbox was checked.
     ///
     /// Returns true if the year field is present and set to "on".
+    ///
+    /// Checks if the year verification checkbox was checked.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use uuid::Uuid;
+    /// use apabbs::user::Credentials;
+    ///
+    /// let creds = Credentials {
+    ///     session_token: Uuid::new_v4(),
+    ///     username: "user".to_string(),
+    ///     password: "password".to_string(),
+    ///     confirm_password_opt: Some("password".to_string()),
+    ///     year_opt: Some("on".to_string()),
+    /// };
+    /// assert!(creds.year_checked());
+    ///
+    /// let creds = Credentials {
+    ///     year_opt: Some("off".to_string()),
+    ///     ..creds
+    /// };
+    /// assert!(!creds.year_checked());
+    /// ```
     pub fn year_checked(&self) -> bool {
         match self.year_opt {
             Some(ref year) => year == "on",
