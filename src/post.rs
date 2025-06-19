@@ -212,6 +212,21 @@ impl Post {
     /// Returns true if either:
     /// - The post's session token matches the user's session token
     /// - The post's account ID matches the user's account ID
+    ///
+    /// Checks if the user is the author of this post
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apabbs::post::Post;
+    /// use apabbs::user::User;
+    /// use uuid::Uuid;
+    ///
+    /// let session_token = Uuid::new_v4();
+    /// let user = User { session_token, account_opt: None };
+    /// let post = Post { session_token_opt: Some(session_token), ..Default::default() };
+    /// assert!(post.author(&user));
+    /// ```
     pub fn author(&self, user: &User) -> bool {
         self.session_token_opt
             .as_ref()
@@ -773,12 +788,23 @@ impl PostSubmission {
 
     /// Determines the media type (category and MIME type) based on the file extension
     ///
-    /// # Parameters
-    /// - `media_filename_opt`: Optional media filename to infer type from
+    /// # Examples
     ///
-    /// # Returns
-    /// A tuple of optional media category and MIME type string
-    fn determine_media_type(
+    /// ```
+    /// use apabbs::post::{PostSubmission, MediaCategory};
+    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.jpg"));
+    /// assert_eq!(cat, Some(MediaCategory::Image));
+    /// assert_eq!(mime, Some("image/jpeg".to_string()));
+    ///
+    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.mp3"));
+    /// assert_eq!(cat, Some(MediaCategory::Audio));
+    /// assert_eq!(mime, Some("audio/mpeg".to_string()));
+    ///
+    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.unknown"));
+    /// assert_eq!(cat, None);
+    /// assert_eq!(mime, Some("application/octet-stream".to_string()));
+    /// ```
+    pub fn determine_media_type(
         media_filename_opt: Option<&str>,
     ) -> (Option<MediaCategory>, Option<String>) {
         let media_filename = match media_filename_opt {
@@ -865,6 +891,14 @@ impl PostSubmission {
     ///
     /// # Returns
     /// An optional byte offset for truncating the post intro
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apabbs::post::PostSubmission;
+    /// let html = "short content";
+    /// assert_eq!(PostSubmission::intro_limit(html), None);
+    /// ```
     pub fn intro_limit(html: &str) -> Option<i32> {
         println!("html.len(): {}", html.len());
         if html.len() == 0 {
