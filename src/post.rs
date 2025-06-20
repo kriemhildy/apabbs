@@ -1365,10 +1365,11 @@ impl PostReview {
         let published_media_path = post.published_media_path();
 
         // Generate a compatibility video for browser playback
+        // Later, only do this if it's not already in the compatibility format.
         let compatibility_path = Self::generate_compatibility_video(&published_media_path).await;
 
         if !compatibility_path.exists() {
-            return Err(ERR_THUMBNAIL_FAILED.to_owned());
+            return Err(String::from("Compatibility video generation failed"));
         }
 
         // Update the database with the compatibility video path
@@ -1376,12 +1377,27 @@ impl PostReview {
 
         // Generate a poster image from the video
         let video_poster_path = Self::generate_video_poster(&published_media_path).await;
-        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
+        post.update_poster(tx, &video_poster_path).await;
 
         // Update the post with media dimensions and poster
+        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
         post.update_media_dimensions(tx, media_width, media_height)
             .await;
-        post.update_poster(tx, &video_poster_path).await;
+
+        // Check if dimensions are large enough to necessitate a thumbnail
+        if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
+            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await;
+
+            if !thumbnail_path.exists() {
+                return Err(ERR_THUMBNAIL_FAILED.to_owned());
+            }
+
+            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await;
+
+            // Update the post with thumbnail info
+            post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
+                .await;
+        }
 
         Ok(())
     }
