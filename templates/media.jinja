@@ -18,7 +18,7 @@
     {% elif category == "video" %}
     {% set poster_attr = "" %}
     {% if post.video_poster_opt is not none %}
-    {% set poster_filename = post.thumb_poster_opt if use_thumb else post.video_poster_opt %}
+    {% set poster_filename = post.thumb_filename_opt if use_thumb else post.video_poster_opt %}
     {% set poster_path = "/m/" + key + "/" + poster_filename %}
     {% endif %}
     {% if solo and not chromium %}
