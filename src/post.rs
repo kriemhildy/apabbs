@@ -12,6 +12,8 @@
 //! - `PostReview`: Moderation actions for post approval/rejection
 //! - `PostHiding`: User requests to hide their own posts
 
+// TODO: split this into smaller files
+
 use crate::{
     POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME,
     user::{AccountRole, User},
@@ -109,9 +111,7 @@ pub struct Post {
     /// Height of the thumbnail in pixels
     pub thumb_height_opt: Option<i32>,
     /// Filename of the poster image for video media
-    pub media_poster_opt: Option<String>,
-    /// Filename of the thumbnail-sized video poster image
-    pub thumb_poster_opt: Option<String>,
+    pub video_poster_opt: Option<String>,
     /// Filename of compatibility video (H.264) for non-Chromium browsers
     pub compat_filename_opt: Option<String>,
     /// Creation timestamp formatted according to RFC5322 for display
@@ -518,7 +518,7 @@ impl Post {
             .to_str()
             .expect("thumb poster filename to str");
 
-        sqlx::query("UPDATE posts SET media_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3")
+        sqlx::query("UPDATE posts SET video_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3")
             .bind(media_poster_filename)
             .bind(thumb_poster_filename)
             .bind(self.id)
@@ -1332,6 +1332,7 @@ impl PostReview {
         // Process according to media type
         match post.media_category_opt {
             Some(MediaCategory::Image) => {
+                // TODO: Split this into a separate function
                 // Generate a thumbnail for the image
                 let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
 
@@ -1357,6 +1358,7 @@ impl PostReview {
             }
 
             Some(MediaCategory::Video) => {
+                // TODO: Split this into a separate function
                 // Generate a thumbnail video for browser compatibility
                 let compatibility_path =
                     Self::generate_compatibility_video(&published_media_path).await;
@@ -1368,7 +1370,7 @@ impl PostReview {
                 // Update the database with the compatibility video path
                 post.update_compat_filename(tx, &compatibility_path).await;
 
-                // Process multiple tasks concurrently for efficiency
+                // Generate media poster image from the video
                 let media_poster_path = Self::generate_video_poster(&published_media_path).await;
                 let (media_width, media_height) = Self::image_dimensions(&media_poster_path).await;
 
@@ -1384,13 +1386,10 @@ impl PostReview {
                         Self::image_dimensions(&thumb_poster_path).await;
 
                     // Update the post with thumbnail dimensions
+                    // This needs to update thumb_poster_opt instead of thumb_filename_opt (why?)
                     post.update_thumbnail(tx, &thumb_poster_path, thumb_width, thumb_height).await;
                 }
 
-                // TODO: Need to update thumb dimensions here;
-                // probably combine these into one function.
-                post.update_media_dimensions(tx, media_width, media_height)
-                    .await;
                 post.update_posters(tx, &media_poster_path, &thumb_poster_path_opt)
                     .await;
             }

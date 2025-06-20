@@ -460,7 +460,7 @@ async fn generate_video_posters(db: PgPool) {
         }
 
         // Update database with poster paths
-        println!("setting media_poster_opt and thumb_poster_opt");
+        println!("setting video_poster_opt and thumb_poster_opt");
         post.update_posters(&mut *tx, &media_poster_path, &thumb_poster_path)
             .await;
     }

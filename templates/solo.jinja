@@ -18,7 +18,7 @@
     <meta property="twitter:card" content="summary_large_image">
     {# Video-specific meta tags with poster image #}
     {% elif media_category == "video" %}
-    {% set poster_path = "/m/" + post.key + "/" + post.media_poster_opt %}
+    {% set poster_path = "/m/" + post.key + "/" + post.video_poster_opt %}
     <meta property="og:type" content="video.other">
     <meta property="og:video" content="https://{{ host + embed_path }}">
     {# Audio-specific meta tags #}
