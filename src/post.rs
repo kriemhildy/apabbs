@@ -499,28 +499,16 @@ impl Post {
             .expect("update media dimensions");
     }
 
-    /// Updates poster references for video media
-    pub async fn update_posters(
-        &self,
-        tx: &mut PgConnection,
-        media_poster_path: &PathBuf,
-        thumb_poster_path: &PathBuf,
-    ) {
-        let media_poster_filename = media_poster_path
+    /// Updates poster filename for videos
+    pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &PathBuf) {
+        let media_poster_filename = video_poster_path
             .file_name()
             .expect("get media poster filename")
             .to_str()
             .expect("media poster filename to str");
 
-        let thumb_poster_filename = thumb_poster_path
-            .file_name()
-            .expect("get thumb poster filename")
-            .to_str()
-            .expect("thumb poster filename to str");
-
-        sqlx::query("UPDATE posts SET video_poster_opt = $1, thumb_poster_opt = $2 WHERE id = $3")
+        sqlx::query("UPDATE posts SET video_poster_opt = $1 WHERE id = $2")
             .bind(media_poster_filename)
-            .bind(thumb_poster_filename)
             .bind(self.id)
             .execute(&mut *tx)
             .await
@@ -1371,8 +1359,8 @@ impl PostReview {
                 post.update_compat_filename(tx, &compatibility_path).await;
 
                 // Generate media poster image from the video
-                let media_poster_path = Self::generate_video_poster(&published_media_path).await;
-                let (media_width, media_height) = Self::image_dimensions(&media_poster_path).await;
+                let video_poster_path = Self::generate_video_poster(&published_media_path).await;
+                let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
 
                 // Update the post with media dimensions and poster
                 post.update_media_dimensions(tx, media_width, media_height)
@@ -1380,18 +1368,17 @@ impl PostReview {
 
                 // Check if dimensions are large enough to necessitate a thumbnail
                 if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
-                    let thumb_poster_path =
-                        Self::generate_image_thumbnail(&media_poster_path).await;
+                    let thumb_filename_path =
+                        Self::generate_image_thumbnail(&video_poster_path).await;
                     let (thumb_width, thumb_height) =
-                        Self::image_dimensions(&thumb_poster_path).await;
+                        Self::image_dimensions(&thumb_filename_path).await;
 
                     // Update the post with thumbnail dimensions
-                    // This needs to update thumb_poster_opt instead of thumb_filename_opt (why?)
-                    post.update_thumbnail(tx, &thumb_poster_path, thumb_width, thumb_height).await;
+                    post.update_thumbnail(tx, &thumb_filename_path, thumb_width, thumb_height)
+                        .await;
                 }
 
-                post.update_posters(tx, &media_poster_path, &thumb_poster_path_opt)
-                    .await;
+                post.update_poster(tx, &video_poster_path).await;
             }
 
             // Audio files and posts without media don't need thumbnails

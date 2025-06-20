@@ -449,20 +449,19 @@ async fn generate_video_posters(db: PgPool) {
 
         // Generate posters for both video and thumbnail
         let thumbnail_path = post.thumbnail_path();
-        let (media_poster_path, thumb_poster_path) = tokio::join!(
+        let (video_poster_path, thumb_poster_path) = tokio::join!(
             PostReview::generate_video_poster(&published_media_path),
             PostReview::generate_video_poster(&thumbnail_path)
         );
 
-        if !media_poster_path.exists() || !thumb_poster_path.exists() {
+        if !video_poster_path.exists() || !thumb_poster_path.exists() {
             eprintln!("poster not created successfully");
             std::process::exit(1);
         }
 
         // Update database with poster paths
-        println!("setting video_poster_opt and thumb_poster_opt");
-        post.update_posters(&mut *tx, &media_poster_path, &thumb_poster_path)
-            .await;
+        println!("setting video_poster_opt");
+        post.update_poster(&mut *tx, &video_poster_path).await;
     }
 
     tx.commit().await.expect(COMMIT);
