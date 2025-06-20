@@ -32,6 +32,8 @@ const MAX_YOUTUBE_EMBEDS: usize = 16; // Maximum number of YouTube embeds per po
 const MAX_INTRO_BYTES: usize = 1600; // Maximum number of bytes for post intro
 const MAX_INTRO_BREAKS: usize = 24; // Maximum number of line breaks in intro
 const KEY_LENGTH: usize = 8; // Length of randomly generated post keys
+const MAX_THUMB_WIDTH: i32 = 1280; // Maximum width for thumbnails
+const MAX_THUMB_HEIGHT: i32 = 2160; // Maximum height for thumbnails
 
 /// MIME types
 const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
@@ -436,7 +438,7 @@ impl Post {
     ///
     /// # Panics
     /// Panics if the compatibility video filename cannot be extracted or converted to a string.
-    pub async fn update_compat_filename_opt(&self, tx: &mut PgConnection, compat_path: &PathBuf) {
+    pub async fn update_compat_filename(&self, tx: &mut PgConnection, compat_path: &PathBuf) {
         let compat_filename = compat_path
             .file_name()
             .expect("get compatibility video filename")
@@ -1113,7 +1115,8 @@ impl PostReview {
         tokio::task::spawn_blocking(move || {
             let command_output = std::process::Command::new("vipsthumbnail")
                 .args([
-                    "--size=1280x2160>",   // Max dimensions with aspect ratio preserved
+                    // Max dimensions with aspect ratio preserved
+                    &format!("--size={MAX_THUMB_WIDTH}x{MAX_THUMB_HEIGHT}>"),
                     "--output=tn_%s.webp", // Output format with prefix
                 ])
                 .arg(&vips_input_file_path)
@@ -1362,23 +1365,28 @@ impl PostReview {
                     return Err(ERR_THUMBNAIL_FAILED.to_owned());
                 }
 
-                // Don't check if thumbnail is larger because we need it for browser compatibility
+                // Update the database with the compatibility video path
+                post.update_compat_filename(tx, &compatibility_path).await;
 
-                // Process multiple tasks in parallel for efficiency
-                let (
-                    (thumb_width, thumb_height),
-                    (media_width, media_height),
-                    (media_poster_path, thumb_poster_path_opt),
-                ) = tokio::join!(
-                    Self::video_dimensions(&compatibility_path),
-                    Self::video_dimensions(&published_media_path),\
-                    // TODO: this needs to generate a thumbnail (if appropriate) via vipsthumbnail
-                    Self::generate_video_posters(&published_media_path),
-                );
+                // Process multiple tasks concurrently for efficiency
+                let media_poster_path = Self::generate_video_poster(&published_media_path).await;
+                let (media_width, media_height) = Self::image_dimensions(&media_poster_path).await;
 
-                // Update the database with all the video metadata
-                post.update_compat_filename_opt(tx, &compatibility_path)
+                // Update the post with media dimensions and poster
+                post.update_media_dimensions(tx, media_width, media_height)
                     .await;
+
+                // Check if dimensions are large enough to necessitate a thumbnail
+                if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
+                    let thumb_poster_path =
+                        Self::generate_image_thumbnail(&media_poster_path).await;
+                    let (thumb_width, thumb_height) =
+                        Self::image_dimensions(&thumb_poster_path).await;
+
+                    // Update the post with thumbnail dimensions
+                    post.update_thumbnail(tx, &thumb_poster_path, thumb_width, thumb_height).await;
+                }
+
                 // TODO: Need to update thumb dimensions here;
                 // probably combine these into one function.
                 post.update_media_dimensions(tx, media_width, media_height)
@@ -1422,50 +1430,11 @@ impl PostReview {
         tokio::join!(vipsheader("width"), vipsheader("height"))
     }
 
-    /// Retrieves the dimensions (width and height) of a video file
-    ///
-    /// Uses the ffprobe tool to extract the resolution information from the video stream.
-    ///
-    /// # Parameters
-    /// - `video_path`: Path to the video file to analyze
-    ///
-    /// # Returns
-    /// A tuple of (width, height) as integers representing the video's dimensions
-    pub async fn video_dimensions(video_path: &PathBuf) -> (i32, i32) {
-        let video_path_str = video_path.to_str().unwrap();
-        let ffprobe_output = tokio::process::Command::new("ffprobe")
-            .args([
-                "-select_streams",
-                "v:0", // Select the first video stream
-                "-show_entries",
-                "stream=width,height", // Extract width and height
-                "-of",
-                "csv=p=0", // Output as CSV without headers
-            ])
-            .arg(video_path_str)
-            .output()
-            .await
-            .expect("get video dimensions");
-
-        let output_str = String::from_utf8_lossy(&ffprobe_output.stdout);
-        println!("ffprobe output: {}", output_str);
-
-        // Parse the comma-separated dimensions from the output
-        let dimensions: Vec<i32> = output_str
-            .trim()
-            .split(',')
-            .filter_map(|s| Some(s.parse().unwrap()))
-            .collect();
-
-        println!("video dimensions: {:?}", dimensions);
-        (dimensions[0], dimensions[1])
-    }
-
     /// Generates a browser-compatible video variant for playback
     ///
     /// Converts the input video to an H.264/AVC MP4 file with AAC audio, suitable for maximum browser compatibility.
-    /// The output is limited to 1280x2160 resolution and is intended as a fallback for browsers that do not support
-    /// the original video format. The generated file is saved alongside the original with a "tn_" prefix and ".mp4" extension.
+    /// The output and is intended as a fallback for browsers that do not support  the original video format. The
+    /// generated file is saved alongside the original with a "cm_" prefix and ".mp4" extension.
     ///
     /// # Parameters
     /// - `video_path`: Path to the original video file
@@ -1474,7 +1443,7 @@ impl PostReview {
     /// Path to the generated compatibility video file (MP4)
     pub async fn generate_compatibility_video(video_path: &PathBuf) -> PathBuf {
         let video_path_str = video_path.to_str().unwrap().to_owned();
-        let compatibility_path = Self::alternate_path(video_path, "tn_", ".mp4");
+        let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
         let compatibility_path_str = compatibility_path.to_str().unwrap().to_owned();
 
         // Move the ffmpeg processing to a separate thread pool
