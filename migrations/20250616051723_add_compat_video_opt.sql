@@ -9,6 +9,7 @@ UPDATE posts SET thumb_filename_opt = thumb_poster_opt WHERE thumb_poster_opt IS
 
 ALTER TABLE posts DROP COLUMN thumb_poster_opt;
 
-DELETE FROM _rust_migrations WHERE name = 'generate_video_thumbnails';
+DELETE FROM _rust_migrations
+WHERE name IN ('add_video_dimensions', 'generate_video_thumbnails', 'generate_video_posters');
 
 COMMIT;

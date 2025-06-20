@@ -1312,78 +1312,76 @@ impl PostReview {
     pub async fn handle_decrypt_media(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
         // Decrypt the media file
         let media_bytes = post.decrypt_media_file().await;
-        let published_media_path = post.published_media_path();
 
         // Write the decrypted file to the published media directory
+        let published_media_path = post.published_media_path();
         Self::write_media_file(&published_media_path, media_bytes).await;
 
         // Process according to media type
         match post.media_category_opt {
-            Some(MediaCategory::Image) => {
-                // TODO: Split this into a separate function
-                // Generate a thumbnail for the image
-                let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
+            Some(MediaCategory::Image) => Self::process_image(tx, post).await?,
 
-                if !thumbnail_path.exists() {
-                    return Err(ERR_THUMBNAIL_FAILED.to_owned());
-                }
-
-                // If thumbnail is larger than original, don't use it
-                if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-                    tokio::fs::remove_file(&thumbnail_path)
-                        .await
-                        .expect("remove thumbnail file");
-                } else {
-                    // Update the database with thumbnail information
-                    let (width, height) = Self::image_dimensions(&thumbnail_path).await;
-                    post.update_thumbnail(tx, &thumbnail_path, width, height)
-                        .await;
-                }
-
-                // Update the media dimensions in the database
-                let (width, height) = Self::image_dimensions(&published_media_path).await;
-                post.update_media_dimensions(tx, width, height).await;
-            }
-
-            Some(MediaCategory::Video) => {
-                // TODO: Split this into a separate function
-                // Generate a thumbnail video for browser compatibility
-                let compatibility_path =
-                    Self::generate_compatibility_video(&published_media_path).await;
-
-                if !compatibility_path.exists() {
-                    return Err(ERR_THUMBNAIL_FAILED.to_owned());
-                }
-
-                // Update the database with the compatibility video path
-                post.update_compat_video(tx, &compatibility_path).await;
-
-                // Generate media poster image from the video
-                let video_poster_path = Self::generate_video_poster(&published_media_path).await;
-                let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
-
-                // Update the post with media dimensions and poster
-                post.update_media_dimensions(tx, media_width, media_height)
-                    .await;
-
-                // Check if dimensions are large enough to necessitate a thumbnail
-                if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
-                    let thumb_filename_path =
-                        Self::generate_image_thumbnail(&video_poster_path).await;
-                    let (thumb_width, thumb_height) =
-                        Self::image_dimensions(&thumb_filename_path).await;
-
-                    // Update the post with thumbnail dimensions
-                    post.update_thumbnail(tx, &thumb_filename_path, thumb_width, thumb_height)
-                        .await;
-                }
-
-                post.update_poster(tx, &video_poster_path).await;
-            }
+            Some(MediaCategory::Video) => Self::process_video(tx, post).await?,
 
             // Audio files and posts without media don't need thumbnails
             Some(MediaCategory::Audio) | None => (),
         }
+
+        Ok(())
+    }
+
+    /// Process image media
+    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+        let published_media_path = post.published_media_path();
+
+        // Generate a thumbnail for the image
+        let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
+
+        if !thumbnail_path.exists() {
+            return Err(ERR_THUMBNAIL_FAILED.to_owned());
+        }
+
+        // If thumbnail is larger than original, don't use it
+        if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+            tokio::fs::remove_file(&thumbnail_path)
+                .await
+                .expect("remove thumbnail file");
+        } else {
+            // Update the database with thumbnail information
+            let (width, height) = Self::image_dimensions(&thumbnail_path).await;
+            post.update_thumbnail(tx, &thumbnail_path, width, height)
+                .await;
+        }
+
+        // Update the media dimensions in the database
+        let (width, height) = Self::image_dimensions(&published_media_path).await;
+        post.update_media_dimensions(tx, width, height).await;
+
+        Ok(())
+    }
+
+    /// Process video media
+    pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+        let published_media_path = post.published_media_path();
+
+        // Generate a compatibility video for browser playback
+        let compatibility_path = Self::generate_compatibility_video(&published_media_path).await;
+
+        if !compatibility_path.exists() {
+            return Err(ERR_THUMBNAIL_FAILED.to_owned());
+        }
+
+        // Update the database with the compatibility video path
+        post.update_compat_video(tx, &compatibility_path).await;
+
+        // Generate a poster image from the video
+        let video_poster_path = Self::generate_video_poster(&published_media_path).await;
+        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
+
+        // Update the post with media dimensions and poster
+        post.update_media_dimensions(tx, media_width, media_height)
+            .await;
+        post.update_poster(tx, &video_poster_path).await;
 
         Ok(())
     }

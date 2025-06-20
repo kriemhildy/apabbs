@@ -33,9 +33,7 @@ async fn main() {
         generate_image_thumbnails,
         update_intro_limit,
         add_image_dimensions,
-        add_video_dimensions,
-        generate_video_thumbnails,
-        generate_video_posters,
+        process_videos,
     ];
 
     // Load environment variables from .env file
@@ -350,10 +348,10 @@ async fn add_image_dimensions(db: PgPool) {
     tx.commit().await.expect(COMMIT);
 }
 
-/// Adds width and height information to video posts.
+/// Process videos
 ///
-/// Updates the database with dimension information for videos.
-async fn add_video_dimensions(db: PgPool) {
+/// Create posters, thumbnails, compatibility videos, and add dimensions.
+async fn process_videos(db: PgPool) {
     use apabbs::post::{Post, PostReview};
     let mut tx = db.begin().await.expect(BEGIN);
 
@@ -367,102 +365,127 @@ async fn add_video_dimensions(db: PgPool) {
     .expect("selects posts with videos");
 
     for post in posts {
-        let published_media_path = post.published_media_path();
-        println!(
-            "adding dimensions for media {}",
-            published_media_path.to_str().unwrap()
-        );
-
-        // Extract and save video dimensions
-        let (width, height) = PostReview::video_dimensions(&published_media_path).await;
-        println!("setting video dimensions: {}x{}", width, height);
-        post.update_media_dimensions(&mut *tx, width, height).await;
+        PostReview::process_video(&mut *tx, &post)
+            .await
+            .expect("process video");
     }
 
     tx.commit().await.expect(COMMIT);
 }
 
-/// Generates thumbnails for video posts.
-///
-/// Creates static image thumbnails for videos and updates
-/// the database with the thumbnail paths and dimensions.
-async fn generate_video_thumbnails(db: PgPool) {
-    use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect(BEGIN);
+// /// Adds width and height information to video posts.
+// ///
+// /// Updates the database with dimension information for videos.
+// async fn add_video_dimensions(db: PgPool) {
+//     use apabbs::post::{Post, PostReview};
+//     let mut tx = db.begin().await.expect(BEGIN);
 
-    // Get all video posts
-    let posts: Vec<Post> = sqlx::query_as(concat!(
-        "SELECT * FROM posts WHERE media_category_opt = 'video' ",
-        "AND status IN ('approved', 'delisted')",
-    ))
-    .fetch_all(&mut *tx)
-    .await
-    .expect("selects posts with images");
+//     // Get all video posts
+//     let posts: Vec<Post> = sqlx::query_as(concat!(
+//         "SELECT * FROM posts WHERE media_category_opt = 'video' ",
+//         "AND status IN ('approved', 'delisted')",
+//     ))
+//     .fetch_all(&mut *tx)
+//     .await
+//     .expect("selects posts with videos");
 
-    for post in posts {
-        let published_media_path = post.published_media_path();
-        println!(
-            "generating thumbnail for media {}",
-            published_media_path.to_str().unwrap()
-        );
+//     for post in posts {
+//         let published_media_path = post.published_media_path();
+//         println!(
+//             "adding dimensions for media {}",
+//             published_media_path.to_str().unwrap()
+//         );
 
-        // Generate video thumbnail
-        let thumbnail_path = PostReview::generate_compatibility_video(&published_media_path).await;
-        if !thumbnail_path.exists() {
-            eprintln!("thumbnail not created successfully");
-            std::process::exit(1);
-        }
+//         // Extract and save video dimensions
+//         let (width, height) = PostReview::video_dimensions(&published_media_path).await;
+//         println!("setting video dimensions: {}x{}", width, height);
+//         post.update_media_dimensions(&mut *tx, width, height).await;
+//     }
 
-        // Update database with thumbnail information
-        println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
-        let (width, height) = PostReview::video_dimensions(&thumbnail_path).await;
-        post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
-            .await;
-    }
+//     tx.commit().await.expect(COMMIT);
+// }
 
-    tx.commit().await.expect(COMMIT);
-}
+// /// Generates thumbnails for video posts.
+// ///
+// /// Creates static image thumbnails for videos and updates
+// /// the database with the thumbnail paths and dimensions.
+// async fn generate_video_thumbnails(db: PgPool) {
+//     use apabbs::post::{Post, PostReview};
+//     let mut tx = db.begin().await.expect(BEGIN);
 
-/// Generates poster images for videos and their thumbnails.
-///
-/// Creates static poster images for both videos and their thumbnails,
-/// updating the database with the poster paths.
-async fn generate_video_posters(db: PgPool) {
-    use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect(BEGIN);
+//     // Get all video posts
+//     let posts: Vec<Post> = sqlx::query_as(concat!(
+//         "SELECT * FROM posts WHERE media_category_opt = 'video' ",
+//         "AND status IN ('approved', 'delisted')",
+//     ))
+//     .fetch_all(&mut *tx)
+//     .await
+//     .expect("selects posts with videos");
 
-    // Get all video posts
-    let posts: Vec<Post> = sqlx::query_as(concat!(
-        "SELECT * FROM posts WHERE media_category_opt = 'video' ",
-        "AND status IN ('approved', 'delisted')",
-    ))
-    .fetch_all(&mut *tx)
-    .await
-    .expect("selects posts with images");
+//     for post in posts {
+//         let published_media_path = post.published_media_path();
+//         println!(
+//             "generating thumbnail for media {}",
+//             published_media_path.to_str().unwrap()
+//         );
 
-    for post in posts {
-        let published_media_path = post.published_media_path();
-        println!(
-            "generating poster for media {}",
-            published_media_path.to_str().unwrap()
-        );
+//         // Generate video thumbnail
+//         let thumbnail_path = PostReview::generate_compatibility_video(&published_media_path).await;
+//         if !thumbnail_path.exists() {
+//             eprintln!("thumbnail not created successfully");
+//             std::process::exit(1);
+//         }
 
-        // Generate posters for both video and thumbnail
-        let thumbnail_path = post.thumbnail_path();
-        let (video_poster_path, thumb_poster_path) = tokio::join!(
-            PostReview::generate_video_poster(&published_media_path),
-            PostReview::generate_video_poster(&thumbnail_path)
-        );
+//         // Update database with thumbnail information
+//         println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
+//         let (width, height) = PostReview::video_dimensions(&thumbnail_path).await;
+//         post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
+//             .await;
+//     }
 
-        if !video_poster_path.exists() || !thumb_poster_path.exists() {
-            eprintln!("poster not created successfully");
-            std::process::exit(1);
-        }
+//     tx.commit().await.expect(COMMIT);
+// }
 
-        // Update database with poster paths
-        println!("setting video_poster_opt");
-        post.update_poster(&mut *tx, &video_poster_path).await;
-    }
+// /// Generates poster images for videos and their thumbnails.
+// ///
+// /// Creates static poster images for both videos and their thumbnails,
+// /// updating the database with the poster paths.
+// async fn generate_video_posters(db: PgPool) {
+//     use apabbs::post::{Post, PostReview};
+//     let mut tx = db.begin().await.expect(BEGIN);
 
-    tx.commit().await.expect(COMMIT);
-}
+//     // Get all video posts
+//     let posts: Vec<Post> = sqlx::query_as(concat!(
+//         "SELECT * FROM posts WHERE media_category_opt = 'video' ",
+//         "AND status IN ('approved', 'delisted')",
+//     ))
+//     .fetch_all(&mut *tx)
+//     .await
+//     .expect("selects posts with video");
+
+//     for post in posts {
+//         let published_media_path = post.published_media_path();
+//         println!(
+//             "generating poster for media {}",
+//             published_media_path.to_str().unwrap()
+//         );
+
+//         // Generate posters for both video and thumbnail
+//         let thumbnail_path = post.thumbnail_path();
+//         let (video_poster_path, thumb_poster_path) = tokio::join!(
+//             PostReview::generate_video_poster(&published_media_path),
+//             PostReview::generate_video_poster(&thumbnail_path)
+//         );
+
+//         if !video_poster_path.exists() || !thumb_poster_path.exists() {
+//             eprintln!("poster not created successfully");
+//             std::process::exit(1);
+//         }
+
+//         // Update database with poster paths
+//         println!("setting video_poster_opt");
+//         post.update_poster(&mut *tx, &video_poster_path).await;
+//     }
+
+//     tx.commit().await.expect(COMMIT);
+// }
