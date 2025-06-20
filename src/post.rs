@@ -113,7 +113,7 @@ pub struct Post {
     /// Filename of the poster image for video media
     pub video_poster_opt: Option<String>,
     /// Filename of compatibility video (H.264) for non-Chromium browsers
-    pub compat_filename_opt: Option<String>,
+    pub compat_video_opt: Option<String>,
     /// Creation timestamp formatted according to RFC5322 for display
     #[sqlx(default)]
     pub created_at_rfc5322_opt: Option<String>,
@@ -438,13 +438,13 @@ impl Post {
     ///
     /// # Panics
     /// Panics if the compatibility video filename cannot be extracted or converted to a string.
-    pub async fn update_compat_filename(&self, tx: &mut PgConnection, compat_path: &PathBuf) {
+    pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &PathBuf) {
         let compat_filename = compat_path
             .file_name()
             .expect("get compatibility video filename")
             .to_str()
             .expect("compatibility video filename to str");
-        sqlx::query("UPDATE posts SET compat_filename_opt = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET compat_video_opt = $1 WHERE id = $2")
             .bind(compat_filename)
             .bind(self.id)
             .execute(&mut *tx)
@@ -1356,7 +1356,7 @@ impl PostReview {
                 }
 
                 // Update the database with the compatibility video path
-                post.update_compat_filename(tx, &compatibility_path).await;
+                post.update_compat_video(tx, &compatibility_path).await;
 
                 // Generate media poster image from the video
                 let video_poster_path = Self::generate_video_poster(&published_media_path).await;
