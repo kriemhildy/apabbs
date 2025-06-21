@@ -6,23 +6,17 @@
 {% block meta %}
     {# Add metadata for embedding in social media platforms #}
     {% if post.media_category_opt is not none %}
-    {% set media_category = post.media_category_opt %}
-    {% set embed_filename = post.media_filename_opt %}
-    {% set embed_path = "/m/" + post.key + "/" + embed_filename|urlencode %}
-    {% set embed_width = post.media_width_opt %}
-    {% set embed_height = post.media_height_opt %}
-    {% set embed_mime_type = post.media_mime_type_opt %}
+    {% set embed_path = "/m/" + post.key + "/" + post.media_filename_opt|urlencode %}
     {# Image-specific meta tags for Twitter card #}
-    {% if media_category == "image" %}
+    {% if post.media_category_opt == "image" %}
     <meta property="twitter:image" content="https://{{ host + embed_path }}">
     <meta property="twitter:card" content="summary_large_image">
     {# Video-specific meta tags with poster image #}
-    {% elif media_category == "video" %}
-    {% set poster_path = "/m/" + post.key + "/" + post.video_poster_opt %}
+    {% elif post.media_category_opt == "video" %}
     <meta property="og:type" content="video.other">
     <meta property="og:video" content="https://{{ host + embed_path }}">
     {# Audio-specific meta tags #}
-    {% elif media_category == "audio" %}
+    {% elif post.media_category_opt == "audio" %}
     <meta property="og:audio" content="https://{{ host + embed_path }}">
     {% endif %}
     {% endif %}
