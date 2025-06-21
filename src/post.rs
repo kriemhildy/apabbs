@@ -25,9 +25,9 @@ use url::Url;
 use uuid::Uuid;
 
 /// File system directories
-const UPLOADS_DIR: &str = "uploads"; // Encrypted storage
-const MEDIA_DIR: &str = "pub/media"; // Published media
-const YOUTUBE_DIR: &str = "pub/youtube"; // YouTube thumbnail cache
+pub const UPLOADS_DIR: &str = "uploads"; // Encrypted storage
+pub const MEDIA_DIR: &str = "pub/media"; // Published media
+pub const YOUTUBE_DIR: &str = "pub/youtube"; // YouTube thumbnail cache
 
 /// Content limits
 const MAX_YOUTUBE_EMBEDS: usize = 16; // Maximum number of YouTube embeds per post
@@ -1320,10 +1320,8 @@ impl PostReview {
         // Process according to media type
         match post.media_category_opt {
             Some(MediaCategory::Image) => Self::process_image(tx, post).await?,
-
             Some(MediaCategory::Video) => Self::process_video(tx, post).await?,
-
-            // Audio files and posts without media don't need thumbnails
+            // Audio files and posts without media don't need processing
             Some(MediaCategory::Audio) | None => (),
         }
 

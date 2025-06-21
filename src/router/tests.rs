@@ -4,7 +4,10 @@
 //! content moderation, and user account operations.
 
 use super::*;
-use apabbs::{post::MediaCategory, user::AccountRole};
+use apabbs::{
+    post::{MEDIA_DIR, MediaCategory},
+    user::AccountRole,
+};
 use axum::{
     Router,
     body::Body,
@@ -1247,8 +1250,14 @@ async fn review_post_with_video() {
             assert!(!uploads_key_dir.exists());
             let published_media_path = updated_post.published_media_path();
             assert!(published_media_path.exists());
-            let thumbnail_path = updated_post.thumbnail_path();
-            assert!(thumbnail_path.exists());
+            // Thumbnail is only created for very large videos now
+            // Check for compatibility video, though
+            assert!(updated_post.thumb_filename_opt.is_none());
+            assert!(updated_post.compat_video_opt.is_some());
+            let compat_video_path = std::path::Path::new(MEDIA_DIR)
+                .join(&updated_post.key)
+                .join(&updated_post.compat_video_opt.as_ref().unwrap());
+            assert!(compat_video_path.exists());
             assert!(updated_post.media_width_opt.is_some());
             assert!(updated_post.media_height_opt.is_some());
 

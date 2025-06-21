@@ -352,7 +352,7 @@ async fn add_image_dimensions(db: PgPool) {
 ///
 /// Create posters, thumbnails, compatibility videos, and add dimensions.
 async fn process_videos(db: PgPool) {
-    use apabbs::post::{Post, PostReview};
+    use apabbs::post::{MEDIA_DIR, Post, PostReview};
     let mut tx = db.begin().await.expect(BEGIN);
 
     // Get all video posts
@@ -365,11 +365,34 @@ async fn process_videos(db: PgPool) {
     .expect("selects posts with videos");
 
     for post in posts {
-        // have it delete files if they already exist
         println!("Processing video on post {}...", post.key);
+        // Iterate over media files and delete all besides the source video
+        let media_key_dir = std::path::Path::new(MEDIA_DIR).join(&post.key);
+        if media_key_dir.exists() {
+            let mut read_dir = tokio::fs::read_dir(&media_key_dir)
+                .await
+                .expect("read media directory");
+
+            while let Some(entry) = read_dir
+                .next_entry()
+                .await
+                .expect("read next directory entry")
+            {
+                let path = entry.path();
+                // Skip the source video file
+                if path.file_name().unwrap().to_string_lossy()
+                    != post.media_filename_opt.as_ref().unwrap().as_str()
+                {
+                    println!("Deleting old media file: {}", path.display());
+                    tokio::fs::remove_file(&path)
+                        .await
+                        .expect("Error removing old media file");
+                }
+            }
+        }
         PostReview::process_video(&mut *tx, &post)
             .await
-            .expect("process video");
+            .expect("Error process video");
         println!("Completed processing post {}", post.key);
     }
 
