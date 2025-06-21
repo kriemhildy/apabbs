@@ -365,11 +365,14 @@ async fn process_videos(db: PgPool) {
     .expect("selects posts with videos");
 
     for post in posts {
+        // have it delete files if they already exist
+        println!("Processing video on post {}...", post.key);
         PostReview::process_video(&mut *tx, &post)
             .await
             .expect("process video");
+        println!("Completed processing post {}", post.key);
     }
 
     tx.commit().await.expect(COMMIT);
-    println!("video processing complete");
+    println!("All video processing complete");
 }
