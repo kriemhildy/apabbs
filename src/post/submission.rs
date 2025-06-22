@@ -1,0 +1,777 @@
+use url::Url;
+use super::MediaCategory;
+use crate::post::Post;
+use crate::user::User;
+use sqlx::PgConnection;
+use uuid::Uuid;
+use regex::Regex;
+use std::path::PathBuf;
+use crate::post::APPLICATION_OCTET_STREAM;
+
+const KEY_LENGTH: usize = 8; // Length of randomly generated post keys
+pub const YOUTUBE_DIR: &str = "pub/youtube"; // YouTube thumbnail cache
+const MAX_YOUTUBE_EMBEDS: usize = 16; // Maximum number of YouTube embeds per post
+const MAX_INTRO_BYTES: usize = 1600; // Maximum number of bytes for post intro
+const MAX_INTRO_BREAKS: usize = 24; // Maximum number of line breaks in intro
+
+/// Represents a post submission from a user
+///
+/// This struct contains all data needed to create a new post including the content,
+/// associated media files, and user identification information. It handles converting
+/// raw input into properly formatted post content with media processing.
+#[derive(Default)]
+pub struct PostSubmission {
+    /// Session token of the user submitting the post
+    pub session_token: Uuid,
+    /// Raw text content of the post before HTML processing
+    pub body: String,
+    /// Original filename of any uploaded media (if present)
+    pub media_filename: Option<String>,
+    /// Raw bytes of the uploaded media file (if present)
+    pub media_bytes: Option<Vec<u8>>,
+}
+
+impl PostSubmission {
+    /// Generates a unique key for a post
+    ///
+    /// The key is a random string of alphanumeric characters with a length
+    /// defined by the system. Checks the database to ensure the key is unique.
+    pub async fn generate_key(tx: &mut PgConnection) -> String {
+        use rand::{Rng, distr::Alphanumeric};
+        loop {
+            let key = rand::rng()
+                .sample_iter(&Alphanumeric)
+                .take(KEY_LENGTH)
+                .map(char::from)
+                .collect();
+            let exists: bool =
+                sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE key = $1)")
+                    .bind(&key)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .expect("check if key exists");
+            if !exists {
+                return key;
+            }
+        }
+    }
+
+    /// Inserts a new post into the database
+    ///
+    /// This function handles determining the media type, generating the post key,
+    /// and extracting the intro limit from the body content.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection
+    /// - `user`: Current user submitting the post
+    /// - `ip_hash`: Anonymized IP hash of the user
+    /// - `key`: Unique key for the post
+    ///
+    /// # Returns
+    /// The newly created `Post` object
+    pub async fn insert(
+        &self,
+        tx: &mut PgConnection,
+        user: &User,
+        ip_hash: &str,
+        key: &str,
+    ) -> Post {
+        let (media_category, media_mime_type) =
+            Self::determine_media_type(self.media_filename.as_deref());
+        let (session_token, account_id) = match user.account {
+            Some(ref account) => (None, Some(account.id)),
+            None => (Some(self.session_token), None),
+        };
+        let html_body = self.body_to_html(key).await;
+        let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
+        let intro_limit = Self::intro_limit(&html_body);
+        sqlx::query_as(concat!(
+            "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
+            "media_filename, media_category, media_mime_type, youtube, ",
+            "intro_limit) ",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
+        ))
+        .bind(key)
+        .bind(session_token)
+        .bind(account_id)
+        .bind(&html_body)
+        .bind(ip_hash)
+        .bind(self.media_filename.as_deref())
+        .bind(media_category)
+        .bind(media_mime_type.as_deref())
+        .bind(youtube)
+        .bind(intro_limit)
+        .fetch_one(&mut *tx)
+        .await
+        .expect("insert new post")
+    }
+
+    /// Downloads a YouTube thumbnail for the given video ID
+    ///
+    /// Tries to download the thumbnail in various sizes and returns the path
+    /// to the downloaded thumbnail image along with its dimensions.
+    ///
+    /// # Parameters
+    /// - `video_id`: The ID of the YouTube video
+    /// - `youtube_short`: Whether the video is a YouTube Shorts video
+    ///
+    /// # Returns
+    /// An optional tuple containing the thumbnail path and its width and height
+    pub async fn download_youtube_thumbnail(
+        video_id: &str,
+        youtube_short: bool,
+    ) -> Option<(PathBuf, i32, i32)> {
+        println!("Downloading YouTube thumbnail for video ID: {}", video_id);
+        fn dimensions(size: &str) -> (i32, i32) {
+            match size {
+                "maxresdefault" => (1280, 720),
+                "sddefault" => (640, 480),
+                "hqdefault" => (480, 360),
+                "mqdefault" => (320, 180),
+                "default" => (120, 90),
+                "oar2" => (1080, 1920),
+                _ => panic!("invalid thumbnail size"),
+            }
+        }
+        let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
+        if video_id_dir.exists() {
+            if let Some(first_entry) = video_id_dir.read_dir().expect("reads video id dir").next() {
+                let existing_thumbnail_path = first_entry.expect("get first entry").path();
+                let size = existing_thumbnail_path
+                    .file_name()
+                    .expect("get file name")
+                    .to_str()
+                    .expect("file name to str")
+                    .split('.')
+                    .next()
+                    .expect("get file name without extension");
+                let (width, height) = dimensions(size);
+                return Some((existing_thumbnail_path, width, height));
+            }
+        } else {
+            tokio::fs::create_dir(&video_id_dir)
+                .await
+                .expect("create youtube video id dir");
+        }
+        let thumbnail_sizes = if youtube_short {
+            vec!["oar2"]
+        } else {
+            vec![
+                "maxresdefault",
+                "sddefault",
+                "hqdefault",
+                "mqdefault",
+                "default",
+            ]
+        };
+        for size in thumbnail_sizes {
+            let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
+            let remote_thumbnail_url =
+                format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
+            let curl_status = tokio::process::Command::new("curl")
+                .args(["--silent", "--fail", "--output"])
+                .arg(&local_thumbnail_path)
+                .arg(&remote_thumbnail_url)
+                .status()
+                .await
+                .expect("download youtube thumbnail");
+            if curl_status.success() {
+                let (width, height) = dimensions(size);
+                return Some((local_thumbnail_path, width, height));
+            }
+        }
+        None
+    }
+
+    /// Converts the post body from plain text to HTML format
+    ///
+    /// This function performs basic HTML escaping and replaces URLs with anchor links.
+    /// YouTube links are processed to embed thumbnails and video IDs.
+    ///
+    /// # Parameters
+    /// - `key`: The unique key of the post, used for generating YouTube links
+    ///
+    /// # Returns
+    /// The HTML-formatted body of the post
+    pub async fn body_to_html(&self, key: &str) -> String {
+        let mut html = self
+            .body
+            .trim_end()
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+            .replace("  ", " &nbsp;")
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("\n", "<br>\n");
+        let url_pattern =
+            Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex pattern");
+        let anchor_tag = r#"<a href="$1">$1</a>"#;
+        html = url_pattern.replace_all(&html, anchor_tag).to_string();
+        Self::embed_youtube(html, key).await
+    }
+
+    /// Embeds YouTube video thumbnails in the post HTML
+    ///
+    /// Scans the post HTML for YouTube links and replaces them with embedded
+    /// thumbnail images and video IDs. Generates HTML for the YouTube embed.
+    ///
+    /// # Parameters
+    /// - `html`: The HTML content of the post body
+    /// - `key`: The unique key of the post, used in the embed HTML
+    ///
+    /// # Returns
+    /// The HTML content with YouTube embeds
+    async fn embed_youtube(mut html: String, key: &str) -> String {
+        let youtube_link_pattern = concat!(
+            r#"(?m)^ *<a href=""#,
+            r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
+            r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
+            r#"([^&\s\?]+)\S*)">\S+</a> *(?:<br>)?$"#,
+        );
+        let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
+        for _ in 0..MAX_YOUTUBE_EMBEDS {
+            let captures = match youtube_link_regex.captures(&html) {
+                None => break,
+                Some(captures) => captures,
+            };
+            // youtu.be has no match for 2, but is always not a short
+            let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
+            let youtube_video_id = &captures[3];
+            println!("captures: {:?}", captures);
+            let youtube_timestamp = if youtube_short {
+                None
+            } else {
+                let url_str = &captures[1].replace("&amp;", "&");
+                let parsed_url = Url::parse(&url_str).expect("parse youtube url");
+                parsed_url
+                    .query_pairs()
+                    .find(|(k, _)| k == "t")
+                    .map(|(_, v)| v.to_string())
+            };
+            println!("youtube_video_id: {}", youtube_video_id);
+            println!("youtube_timestamp: {:?}", youtube_timestamp);
+            let thumbnail_tuple =
+                Self::download_youtube_thumbnail(&youtube_video_id, youtube_short).await;
+            let (local_thumbnail_url, width, height) = match thumbnail_tuple {
+                None => break,
+                Some((path, width, height)) => (
+                    path.to_str()
+                        .expect("path to str")
+                        .strip_prefix("pub")
+                        .expect("strip pub prefix")
+                        .to_owned(),
+                    width,
+                    height,
+                ),
+            };
+            let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
+            let youtube_thumbnail_link = format!(
+                concat!(
+                    "<div class=\"youtube\">\n",
+                    "    <div class=\"youtube-logo\">\n",
+                    "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">",
+                    "<img src=\"/youtube.svg\" alt=\"YouTube {video_id}\" ",
+                    "width=\"20\" height=\"20\">",
+                    "</a>\n",
+                    "    </div>\n",
+                    "    <div class=\"youtube-thumbnail\">\n",
+                    "        <a href=\"/p/{key}\">",
+                    "<img src=\"{thumbnail_url}\" alt=\"Post {key}\" ",
+                    "width=\"{width}\" height=\"{height}\">",
+                    "</a>\n",
+                    "    </div>\n",
+                    "</div>",
+                ),
+                url_path = youtube_url_path,
+                video_id = youtube_video_id,
+                thumbnail_url = local_thumbnail_url,
+                key = key,
+                timestamp = youtube_timestamp
+                    .map(|t| format!("&amp;t={}", t))
+                    .unwrap_or_default(),
+                width = width,
+                height = height,
+            );
+            html = youtube_link_regex
+                .replace(&html, youtube_thumbnail_link)
+                .to_string();
+        }
+        html
+    }
+
+    /// Determines the media type (category and MIME type) based on the file extension
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apabbs::post::{PostSubmission, MediaCategory};
+    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.jpg"));
+    /// assert_eq!(cat, Some(MediaCategory::Image));
+    /// assert_eq!(mime, Some("image/jpeg".to_string()));
+    ///
+    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.mp3"));
+    /// assert_eq!(cat, Some(MediaCategory::Audio));
+    /// assert_eq!(mime, Some("audio/mpeg".to_string()));
+    ///
+    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.unknown"));
+    /// assert_eq!(cat, None);
+    /// assert_eq!(mime, Some("application/octet-stream".to_string()));
+    /// ```
+    pub fn determine_media_type(
+        media_filename: Option<&str>,
+    ) -> (Option<MediaCategory>, Option<String>) {
+        let media_filename = match media_filename {
+            None => return (None, None),
+            Some(media_filename) => media_filename,
+        };
+        use MediaCategory::*;
+        let extension = media_filename.split('.').last();
+        let (media_category, media_mime_type_str) = match extension {
+            Some(extension) => match extension.to_lowercase().as_str() {
+                "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
+                "gif" => (Some(Image), "image/gif"),
+                "png" => (Some(Image), "image/png"),
+                "webp" => (Some(Image), "image/webp"),
+                "svg" => (Some(Image), "image/svg+xml"),
+                "avif" => (Some(Image), "image/avif"),
+                "ico" | "cur" => (Some(Image), "image/x-icon"),
+                "apng" => (Some(Image), "image/apng"),
+                "bmp" => (Some(Image), "image/bmp"),
+                "tiff" | "tif" => (Some(Image), "image/tiff"),
+                "avi" => (Some(Video), "video/x-msvideo"),
+                "mpeg" | "mpg" | "mpe" => (Some(Video), "video/mpeg"),
+                "mp4" | "m4v" => (Some(Video), "video/mp4"),
+                "webm" => (Some(Video), "video/webm"),
+                "ogv" => (Some(Video), "video/ogg"),
+                "flv" => (Some(Video), "video/x-flv"),
+                "mov" => (Some(Video), "video/quicktime"),
+                "wmv" => (Some(Video), "video/x-ms-wmv"),
+                "mp3" => (Some(Audio), "audio/mpeg"),
+                "ogg" => (Some(Audio), "audio/ogg"),
+                "wav" => (Some(Audio), "audio/wav"),
+                "flac" => (Some(Audio), "audio/flac"),
+                "opus" => (Some(Audio), "audio/opus"),
+                "m4a" => (Some(Audio), "audio/mp4"),
+                "aac" => (Some(Audio), "audio/aac"),
+                "wma" => (Some(Audio), "audio/x-ms-wma"),
+                "weba" => (Some(Audio), "audio/webm"),
+                "3gp" => (Some(Audio), "audio/3gpp"),
+                "3g2" => (Some(Audio), "audio/3gpp2"),
+                _ => (None, APPLICATION_OCTET_STREAM),
+            },
+            None => (None, APPLICATION_OCTET_STREAM),
+        };
+        (media_category, Some(media_mime_type_str.to_owned()))
+    }
+
+    /// Encrypts the uploaded file data for a post
+    ///
+    /// This function handles the encryption of media bytes using the post's
+    /// encryption key. It also manages the creation of necessary directories
+    /// and cleans up in case of errors.
+    ///
+    /// # Returns
+    /// - Ok(()) if encryption succeeded
+    /// - Err with a message if encryption failed
+    pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
+        if self.media_bytes.is_none() {
+            return Err("no media bytes");
+        }
+        let encrypted_file_path = post.encrypted_media_path();
+        let uploads_key_dir = encrypted_file_path.parent().unwrap();
+        tokio::fs::create_dir(uploads_key_dir)
+            .await
+            .expect("create uploads key dir");
+        let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
+        if result.is_err() {
+            tokio::fs::remove_dir(uploads_key_dir)
+                .await
+                .expect("remove uploads key dir");
+        }
+        result
+    }
+
+    /// Determines the intro limit for a post based on its HTML content
+    ///
+    /// The intro limit is the byte offset where the post should be truncated
+    /// in previews. It is determined by the following factors:
+    /// - Maximum byte length (MAX_INTRO_BYTES)
+    /// - Maximum number of line breaks (MAX_INTRO_BREAKS)
+    /// - Presence of YouTube video embeds
+    ///
+    /// # Parameters
+    /// - `html`: The HTML content of the post body
+    ///
+    /// # Returns
+    /// An optional byte offset for truncating the post intro
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apabbs::post::PostSubmission;
+    /// let html = "short content";
+    /// assert_eq!(PostSubmission::intro_limit(html), None);
+    /// ```
+    pub fn intro_limit(html: &str) -> Option<i32> {
+        println!("html.len(): {}", html.len());
+        if html.len() == 0 {
+            return None;
+        }
+        // get a slice of the maximum intro bytes limited to the last valid utf8 character
+        let last_valid_utf8_index = html
+            .char_indices()
+            .take_while(|&(idx, _)| idx < MAX_INTRO_BYTES)
+            .last()
+            .map_or(0, |(idx, _)| idx);
+        println!("last valid utf8 index: {}", last_valid_utf8_index);
+        let slice = if html.len() - 1 > last_valid_utf8_index {
+            &html[..last_valid_utf8_index]
+        } else {
+            html
+        };
+        println!("slice: {}", slice);
+        // stop before a second youtube video
+        let youtube_pattern =
+            Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("regex builds");
+        // debug
+        let mut youtube_iter = youtube_pattern.find_iter(slice);
+        println!("first youtube_pattern match: {:?}", youtube_iter.next());
+        let youtube_limit = match youtube_iter.next() {
+            None => None,
+            Some(mat) => {
+                println!("second youtube_pattern match: {:?}", mat);
+                let before_second_youtube = &slice[..mat.start()];
+                // strip any breaks or whitespace that might be present at the end
+                let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("regex builds");
+                let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
+                Some(stripped.trim_end().len() as i32)
+            }
+        };
+        // check for the maximum breaks
+        let single_break_pattern = Regex::new("<br>\n").expect("regex builds");
+        let break_limit = match single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS) {
+            None => None,
+            Some(mat) => Some(mat.start() as i32),
+        };
+        // take the smallest of youtube and break limits
+        println!(
+            "youtube_limit: {:?}, break_limit: {:?}",
+            youtube_limit, break_limit
+        );
+        let min_limit = match (youtube_limit, break_limit) {
+            (None, None) => None,
+            (Some(y), None) => Some(y),
+            (None, Some(b)) => Some(b),
+            (Some(y), Some(b)) => Some(y.min(b)),
+        };
+        println!("min_limit: {:?}", min_limit);
+        if min_limit.is_some() {
+            println!("intro: {}", &html[..min_limit.unwrap() as usize]);
+            return min_limit;
+        }
+        // do not truncate if beneath the maximum intro length
+        if html.len() <= MAX_INTRO_BYTES {
+            return None;
+        }
+        // truncate to the last break(s)
+        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("regex builds");
+        if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
+            println!("found last break(s): {}", mat.start());
+            return Some(mat.start() as i32);
+        }
+        // if no breaks, truncate to the last space byte.
+        let last_space = slice.rfind(' ');
+        if last_space.is_some() {
+            return last_space.map(|p| p as i32);
+        }
+        // if no space found, use the last utf8 character index
+        // need to strip incomplete html entities
+        // check for & which is not terminated by a ;
+        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("regex builds");
+        if let Some(mat) = incomplete_entity_pattern.find(slice) {
+            println!("found incomplete entity: {}", mat.start());
+            return Some(mat.start() as i32);
+        }
+        // no incomplete entity, return last valid utf8 character index.
+        Some(last_valid_utf8_index as i32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tests MIME type and media category detection for different file extensions
+    #[tokio::test]
+    async fn media_type_detection() {
+        // Test image file types
+        let (category, mime) = PostSubmission::determine_media_type(Some("test.jpg"));
+        assert_eq!(category, Some(MediaCategory::Image));
+        assert_eq!(mime, Some("image/jpeg".to_string()));
+
+        // Test video file types
+        let (category, mime) = PostSubmission::determine_media_type(Some("video.mp4"));
+        assert_eq!(category, Some(MediaCategory::Video));
+        assert_eq!(mime, Some("video/mp4".to_string()));
+
+        // Test audio file types
+        let (category, mime) = PostSubmission::determine_media_type(Some("audio.mp3"));
+        assert_eq!(category, Some(MediaCategory::Audio));
+        assert_eq!(mime, Some("audio/mpeg".to_string()));
+
+        // Test unknown file type
+        let (category, mime) = PostSubmission::determine_media_type(Some("document.pdf"));
+        assert_eq!(category, None);
+        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
+
+        // Test no file
+        let (category, mime) = PostSubmission::determine_media_type(None);
+        assert_eq!(category, None);
+        assert_eq!(mime, None);
+    }
+
+    /// Tests the conversion of post body text to HTML with YouTube embed generation
+    ///
+    /// This test verifies:
+    /// - Basic HTML escaping (converting <, >, &, etc. to HTML entities)
+    /// - URL recognition and conversion to anchor tags
+    /// - YouTube link detection and conversion to embedded thumbnails
+    /// - Handling of various YouTube URL formats (standard, mobile, shorts, etc.)
+    /// - Proper timestamp handling in YouTube links
+    #[tokio::test]
+    pub async fn body_to_html() {
+        // Setup test with various types of content:
+        // - HTML special characters
+        // - Line breaks
+        // - Regular URLs
+        // - YouTube links in different formats
+        let submission = PostSubmission {
+            body: concat!(
+                "<&test body\"' コンピューター\n\n",
+                "https://example.com\n",
+                " https://m.youtube.com/watch?v=jNQXAC9IVRw\n",
+                "https://youtu.be/kixirmHePCc?si=q9OkPEWRQ0RjoWg&t=3\n",
+                "http://youtube.com/shorts/cHMCGCWit6U?si=q9OkPEWRQ0RjoWg \n",
+                "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\n",
+                "foo https://www.youtube.com/watch?v=ySrBS4ulbmQ&t=2m1s\n\n",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar\n",
+                "https://www.youtube.com/watch?t=10s&app=desktop&v=28jr-6-XDPM",
+            )
+            .to_owned(),
+            ..Default::default()
+        };
+
+        // Keep track of existing test directories to avoid deleting user data
+        let test_ids = [
+            "jNQXAC9IVRw",
+            "kixirmHePCc",
+            "cHMCGCWit6U",
+            "28jr-6-XDPM",
+            "ySrBS4ulbmQ",
+        ];
+        let mut existing_ids = Vec::new();
+        for id in test_ids {
+            if std::path::Path::new(YOUTUBE_DIR).join(id).exists() {
+                existing_ids.push(id);
+            }
+        }
+
+        // Run the test
+        let key = "testkey1";
+        assert_eq!(
+            submission.body_to_html(key).await,
+            concat!(
+                "&lt;&amp;test body&quot;&apos; コンピューター<br>\n",
+                "<br>\n",
+                "<a href=\"https://example.com\">https://example.com</a><br>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"youtube-logo\">\n",
+                "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\">",
+                "<img src=\"/youtube.svg\" alt=\"YouTube jNQXAC9IVRw\" width=\"20\" height=\"20\">",
+                "</a>\n",
+                "    </div>\n",
+                "    <div class=\"youtube-thumbnail\">\n",
+                "        <a href=\"/p/testkey1\">",
+                "<img src=\"/youtube/jNQXAC9IVRw/hqdefault.jpg\" alt=\"Post testkey1\" ",
+                "width=\"480\" height=\"360\">",
+                "</a>\n",
+                "    </div>\n",
+                "</div>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"youtube-logo\">\n",
+                "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\">",
+                "<img src=\"/youtube.svg\" alt=\"YouTube kixirmHePCc\" width=\"20\" height=\"20\">",
+                "</a>\n",
+                "    </div>\n",
+                "    <div class=\"youtube-thumbnail\">\n",
+                "        <a href=\"/p/testkey1\">",
+                "<img src=\"/youtube/kixirmHePCc/maxresdefault.jpg\" alt=\"Post testkey1\" ",
+                "width=\"1280\" height=\"720\">",
+                "</a>\n",
+                "    </div>\n",
+                "</div>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"youtube-logo\">\n",
+                "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\">",
+                "<img src=\"/youtube.svg\" alt=\"YouTube cHMCGCWit6U\" width=\"20\" height=\"20\">",
+                "</a>\n",
+                "    </div>\n",
+                "    <div class=\"youtube-thumbnail\">\n",
+                "        <a href=\"/p/testkey1\">",
+                "<img src=\"/youtube/cHMCGCWit6U/oar2.jpg\" alt=\"Post testkey1\" ",
+                "width=\"1080\" height=\"1920\">",
+                "</a>\n",
+                "    </div>\n",
+                "</div>\n",
+                "<a href=\"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\">",
+                "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw",
+                "</a><br>\n",
+                "foo ",
+                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s\">",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s",
+                "</a><br>\n",
+                "<br>\n",
+                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ\">",
+                "https://www.youtube.com/watch?v=ySrBS4ulbmQ",
+                "</a> bar<br>\n",
+                "<div class=\"youtube\">\n",
+                "    <div class=\"youtube-logo\">\n",
+                "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\">",
+                "<img src=\"/youtube.svg\" alt=\"YouTube 28jr-6-XDPM\" width=\"20\" height=\"20\">",
+                "</a>\n",
+                "    </div>\n",
+                "    <div class=\"youtube-thumbnail\">\n",
+                "        <a href=\"/p/testkey1\">",
+                "<img src=\"/youtube/28jr-6-XDPM/hqdefault.jpg\" alt=\"Post testkey1\" ",
+                "width=\"480\" height=\"360\">",
+                "</a>\n",
+                "    </div>\n",
+                "</div>",
+            )
+        );
+
+        // Clean up test data but preserve any existing directories
+        for id in test_ids {
+            if !existing_ids.contains(&id) {
+                tokio::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
+                    .await
+                    .ok(); // Use ok() to ignore errors if directory doesn't exist
+            }
+        }
+    }
+
+    /// Tests the intro_limit functionality for post previews
+    ///
+    /// This test verifies the algorithm correctly determines where to truncate posts for previews based on:
+    /// - YouTube embed locations
+    /// - Line break counts
+    /// - Maximum size limits
+    /// - Character encoding boundaries
+    /// - HTML entity handling
+    #[tokio::test]
+    async fn intro_limit() {
+        // Test case: Two YouTube embeds with line breaks beyond the limit
+        // Should truncate at the first YouTube embed
+        let two_youtubes = concat!(
+            "<div class=\"youtube\">\n",
+            "    <div class=\"youtube-logo\">\n",
+            "        foo\n",
+            "    </div>\n",
+            "    <div class=\"youtube-thumbnail\">\n",
+            "        bar\n",
+            "    </div>\n",
+            "</div>\n",
+            "<div class=\"youtube\">\n",
+            "    <div class=\"youtube-logo\">\n",
+            "        baz\n",
+            "    </div>\n",
+            "    <div class=\"youtube-thumbnail\">\n",
+            "        quux\n",
+            "    </div>\n",
+            "</div>",
+        );
+
+        // Case 1: Line breaks first, then YouTube content
+        let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
+        assert_eq!(PostSubmission::intro_limit(&html), Some(120));
+
+        // Case 2: YouTube content first, then line breaks beyond the limit
+        let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(141));
+
+        // Case 3: Content shorter than the limit - shouldn't truncate
+        let html = str::repeat("foo ", 300);
+        assert_eq!(PostSubmission::intro_limit(&html), None);
+
+        // Case 4: Content with line breaks but still under the break limit
+        let html = str::repeat("foo ", 100)
+            + "<br>\n"
+            + &str::repeat("bar ", 200)
+            + "<br>\n"
+            + &str::repeat("baz ", 100);
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1205));
+
+        // Case 5: Content exactly at the byte limit boundary
+        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
+
+        // Case 6: Content beyond the byte limit
+        let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1599));
+
+        // Case 7: HTML entity at the boundary
+        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
+
+        // Case 8: Multi-byte character at the boundary
+        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
+        assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
+    }
+
+    /// Tests YouTube timestamp extraction from various URL formats
+    #[tokio::test]
+    async fn youtube_timestamp_extraction() {
+        let submission = PostSubmission {
+            body: concat!(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s\n",
+                "https://www.youtube.com/watch?t=25s&v=dQw4w9WgXcQ\n",
+                "https://youtu.be/dQw4w9WgXcQ?t=42\n"
+            )
+            .to_owned(),
+            ..Default::default()
+        };
+
+        // Check if test directory already exists
+        let video_id = "dQw4w9WgXcQ";
+        let youtube_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
+        let dir_existed = youtube_dir.exists();
+
+        if !dir_existed {
+            tokio::fs::create_dir_all(&youtube_dir)
+                .await
+                .expect("create test dir");
+
+            // Create fake thumbnail file
+            let test_thumbnail = youtube_dir.join("maxresdefault.jpg");
+            tokio::fs::write(&test_thumbnail, b"test")
+                .await
+                .expect("write test thumbnail");
+        }
+
+        // Generate HTML with embeds containing timestamps
+        let html = submission.body_to_html("testkey").await;
+
+        // Verify timestamps were properly extracted and included
+        assert!(html.contains("&amp;t=1m30s"));
+        assert!(html.contains("&amp;t=25s"));
+        assert!(html.contains("&amp;t=42"));
+
+        // Clean up only if we created the directory for this test
+        if !dir_existed {
+            tokio::fs::remove_dir_all(youtube_dir).await.ok();
+        }
+    }
+}
