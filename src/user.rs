@@ -11,7 +11,6 @@
 //! - [`AccountRole`]: Permission levels (Novice, Member, Mod, Admin)
 //! - [`Credentials`]: User registration and login information
 //! - [`TimeZoneUpdate`]: User time zone preference management
-//! - [`Logout`]: Session termination request handler
 
 use crate::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
 use regex::Regex;
@@ -407,13 +406,6 @@ impl Credentials {
             None => false,
         }
     }
-}
-
-/// Represents a logout request.
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct Logout {
-    /// Session token to invalidate during logout
-    pub session_token: Uuid,
 }
 
 #[cfg(test)]

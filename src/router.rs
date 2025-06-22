@@ -4,6 +4,7 @@
 //! implementing core functionality such as post management, user authentication,
 //! content moderation, and real-time updates via WebSockets.
 
+mod auth;
 mod helpers;
 #[cfg(test)]
 mod tests;
@@ -12,7 +13,7 @@ use crate::AppState;
 use apabbs::{
     BEGIN, COMMIT, ban,
     post::{Post, PostHiding, PostReview, PostStatus, PostSubmission, ReviewAction, ReviewError},
-    user::{Account, AccountRole, Credentials, Logout, TimeZoneUpdate, User},
+    user::{Account, AccountRole, Credentials, TimeZoneUpdate, User},
 };
 use axum::{
     extract::{
@@ -72,12 +73,12 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/hide-post", post(hide_post))
         .route("/interim/{key}", get(interim))
         // Authentication and account management
-        .route("/login", get(login_form).post(authenticate))
-        .route("/register", get(registration_form).post(create_account))
+        .route("/login", get(auth::login_form).post(auth::authenticate))
+        .route("/register", get(auth::registration_form).post(auth::create_account))
         .route("/user/{username}", get(user_profile))
         .route("/settings", get(settings))
-        .route("/settings/logout", post(logout))
-        .route("/settings/reset-account-token", post(reset_account_token))
+        .route("/settings/logout", post(auth::logout))
+        .route("/settings/reset-account-token", post(auth::reset_account_token))
         .route("/settings/update-time-zone", post(update_time_zone))
         .route("/settings/update-password", post(update_password))
         // Real-time updates
@@ -314,211 +315,6 @@ async fn submit_post(
     };
 
     (jar, response).into_response()
-}
-
-/// Displays the login form
-///
-/// Renders the page for user authentication.
-async fn login_form(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-
-    // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
-
-    // Render the login form
-    let html = Html(render(
-        &state,
-        "login.jinja",
-        minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
-            user_agent => analyze_user_agent(&headers),
-            user,
-        ),
-    ));
-
-    (jar, html).into_response()
-}
-
-/// Processes user login attempts
-///
-/// Authenticates users with provided credentials and sets session cookies.
-async fn authenticate(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-
-    // Initialize user from session
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
-    {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
-
-    // Check if username exists
-    if !credentials.username_exists(&mut tx).await {
-        return not_found("username does not exist");
-    }
-
-    // Validate credentials
-    let jar = match credentials.authenticate(&mut tx).await {
-        None => return bad_request("password is wrong"),
-        Some(account) => add_account_cookie(jar, &account, &credentials),
-    };
-
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
-/// Displays the registration form
-///
-/// Renders the page for creating a new account.
-async fn registration_form(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-
-    // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
-
-    // Render the registration form
-    let html = Html(render(
-        &state,
-        "register.jinja",
-        minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
-            user_agent => analyze_user_agent(&headers),
-            user,
-        ),
-    ));
-
-    (jar, html).into_response()
-}
-
-/// Processes account creation requests
-///
-/// Validates registration information and creates new user accounts.
-async fn create_account(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    headers: HeaderMap,
-    Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-
-    // Initialize user from session
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
-    {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
-
-    // Check if username is already taken
-    if credentials.username_exists(&mut tx).await {
-        return bad_request("username is taken");
-    }
-
-    // Validate credentials
-    let errors = credentials.validate();
-    if !errors.is_empty() {
-        return bad_request(&errors.join("\n"));
-    }
-
-    // Check for IP bans
-    let ip_hash = ip_hash(&headers);
-    if let Some(response) = check_for_ban(&mut tx, &ip_hash, None, None).await {
-        tx.commit().await.expect(COMMIT);
-        return response;
-    }
-
-    // Create the account
-    let account = credentials.register(&mut tx, &ip_hash).await;
-    let jar = add_account_cookie(jar, &account, &credentials);
-
-    tx.commit().await.expect(COMMIT);
-
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
-}
-
-/// Processes user logout requests
-///
-/// Clears authentication cookies and ends user session.
-async fn logout(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(logout): Form<Logout>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-
-    // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
-
-    // Verify user is logged in
-    if user.account.is_none() {
-        return bad_request("not logged in");
-    }
-
-    // Clear account cookie and redirect
-    let jar = remove_account_cookie(jar);
-    let redirect = Redirect::to(ROOT);
-
-    (jar, redirect).into_response()
-}
-
-/// Resets a user's authentication token
-///
-/// Invalidates all existing sessions for security purposes.
-async fn reset_account_token(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(logout): Form<Logout>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
-
-    // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
-        Err(response) => return response,
-        Ok(tuple) => tuple,
-    };
-
-    // Verify user is logged in and reset token
-    let jar = match user.account {
-        None => return bad_request("not logged in"),
-        Some(account) => {
-            account.reset_token(&mut tx).await;
-            remove_account_cookie(jar)
-        }
-    };
-
-    tx.commit().await.expect(COMMIT);
-
-    let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
 }
 
 /// Hides a post from the user's view

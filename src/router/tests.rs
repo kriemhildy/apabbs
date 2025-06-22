@@ -3,6 +3,7 @@
 //! This module provides comprehensive tests for all API endpoints, authentication,
 //! content moderation, and user account operations.
 
+use super::auth::Logout;
 use super::*;
 use apabbs::{post::MediaCategory, user::AccountRole};
 use axum::{
