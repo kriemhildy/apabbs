@@ -24,7 +24,7 @@ use crate::{
 pub use review::{PostReview, ReviewAction, ReviewError};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::PathBuf;
-pub use submission::PostSubmission;
+pub use submission::{PostHiding, PostSubmission};
 use uuid::Uuid;
 
 /// File system directories
@@ -508,42 +508,6 @@ impl Post {
             .execute(&mut *tx)
             .await
             .expect("update post posters");
-    }
-}
-
-/// Represents a request to hide a post from public view
-///
-/// This structure contains the session token of the user requesting to hide a post
-/// and the unique key of the post to be hidden. Used primarily for moderation actions
-/// or user-initiated content hiding.
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct PostHiding {
-    /// Session token of the user requesting to hide the post
-    pub session_token: Uuid,
-
-    /// Unique key identifier of the post to be hidden
-    pub key: String,
-}
-
-impl PostHiding {
-    /// Sets a post's hidden flag to true in the database
-    ///
-    /// This effectively removes the post from public view without deleting it.
-    /// The post will no longer appear in feeds or search results, but remains
-    /// in the database for record-keeping and potential future restoration.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection for executing the update
-    ///
-    /// # Note
-    /// This method does not verify authorization - the caller must ensure that
-    /// the user identified by `session_token` has permission to hide this post.
-    pub async fn hide_post(&self, tx: &mut PgConnection) {
-        sqlx::query("UPDATE posts SET hidden = true WHERE key = $1")
-            .bind(&self.key)
-            .execute(&mut *tx)
-            .await
-            .expect("set hidden flag to true");
     }
 }
 
