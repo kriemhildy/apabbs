@@ -31,7 +31,21 @@
     {# Media #}
     {###################################################################################}
     {# Include the media template if we have media file #}
-    {% if post.media_category is not none %}
+    {% set media_path = none %}
+    {% set thumb = not solo and post.thumb_filename is not none %}
+    {# For approved or delisted posts, use public media paths #}
+    {% if post.status in ["approved", "delisted"] %}
+    {% set media_filename = (post.thumb_filename if post.media_category == "image" and thumb)
+        or (post.compat_video if post.compat_video is not none and not chromium)
+        or post.media_filename %}
+    {% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
+    {# For pending/reported posts, allow admins/mods to see encrypted media #}
+    {% elif user.account is not none and (
+        (user.account.role in ["admin", "mod"] and post.status == "pending")
+        or (user.account.role == "admin" and post.status == "reported")) %}
+    {% set media_path = "/decrypt-media/" + post.key %}
+    {% endif %}
+    {% if media_path is not none %}
     {% filter indent(4) %}
     {%+ include "media.jinja" +%}
     {% endfilter %}
@@ -43,7 +57,7 @@
     {% if post.status != "approved" %}
     <div class="status">
         {% if post.media_filename is not none %}
-        File: {{ media_filename|escape }}<br>
+        File: {{ post.media_filename|escape }}<br>
         {% endif %}
         Status: {{ post.status|capitalize }}
     </div>

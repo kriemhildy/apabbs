@@ -1,19 +1,5 @@
 {# Media display template for images, videos, and audio files #}
 {# Set filename, dimensions and type based on whether to use thumbnail or full media #}
-{# We should probably move a lot of this into Rust #}
-{% set thumb = not solo and post.thumb_filename is not none %}
-{# For approved or delisted posts, use public media paths #}
-{% if post.status in ["approved", "delisted"] %}
-{% set media_filename = (post.thumb_filename if post.media_category == "image" and thumb)
-    or (post.compat_video if post.compat_video is not none and not chromium)
-    or post.media_filename %}
-{% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
-{# For pending/reported posts, allow admins/mods to see encrypted media #}
-{% elif user.account is not none and (
-    (user.account.role in ["admin", "mod"] and post.status == "pending")
-    or (user.account.role == "admin" and post.status == "reported")) %}
-{% set media_path = "/decrypt-media/" + post.key %}
-{% endif %}
 {% set width = post.thumb_width if thumb else post.media_width %}
 {% set height = post.thumb_height if thumb else post.media_height %}
 <div class="media">
