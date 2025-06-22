@@ -63,11 +63,10 @@
     {# Arrow #}
     {###################################################################################}
     {# Show arrow link to solo view for specific post types #}
-    {% set media_category = post.media_category_opt if post.media_category_opt is not none %}
     {% if not solo
         and post.status not in ["rejected", "banned"]
         and (post.media_category_opt is none
-            or media_category != "image"
+            or post.media_category_opt != "image"
             or (post.status in ["pending", "reported"]
                 and user.account_opt is not none and user.account_opt.role not in ["admin", "mod"]))
         and not post.youtube

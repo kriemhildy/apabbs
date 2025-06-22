@@ -13,14 +13,14 @@
         <input type="hidden" name="status" value="delisted">
         <input type="submit" value="Delist"{{ " disabled" if post.status == "delisted" }}>
     </form>
-{% if role == "mod" %}
+{% if user.account_opt.role == "mod" %}
     {# Report form - moderators can escalate posts to admin review #}
     <form action="/review/{{ post.key }}" method="post" class="reported" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="reported">
         <input type="submit" value="Report"{{ " disabled" if post.status == "reported" }}>
     </form>
-{% elif role == "admin" %}
+{% elif user.account_opt.role == "admin" %}
     {# Reject form - admin-only action to mark content as rejected #}
     <form action="/review/{{ post.key }}" method="post" class="reject" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
