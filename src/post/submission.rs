@@ -1,5 +1,3 @@
-use super::MediaCategory;
-use crate::post::APPLICATION_OCTET_STREAM;
 use crate::post::Post;
 use crate::user::User;
 use regex::Regex;
@@ -302,98 +300,6 @@ impl PostSubmission {
         html
     }
 
-    /// Determines the media type (category and MIME type) based on the file extension
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use apabbs::post::{PostSubmission, MediaCategory};
-    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.jpg"));
-    /// assert_eq!(cat, Some(MediaCategory::Image));
-    /// assert_eq!(mime, Some("image/jpeg".to_string()));
-    ///
-    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.mp3"));
-    /// assert_eq!(cat, Some(MediaCategory::Audio));
-    /// assert_eq!(mime, Some("audio/mpeg".to_string()));
-    ///
-    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.unknown"));
-    /// assert_eq!(cat, None);
-    /// assert_eq!(mime, Some("application/octet-stream".to_string()));
-    /// ```
-    pub fn determine_media_type(
-        media_filename: Option<&str>,
-    ) -> (Option<MediaCategory>, Option<String>) {
-        let media_filename = match media_filename {
-            None => return (None, None),
-            Some(media_filename) => media_filename,
-        };
-        use MediaCategory::*;
-        let extension = media_filename.split('.').last();
-        let (media_category, media_mime_type_str) = match extension {
-            Some(extension) => match extension.to_lowercase().as_str() {
-                "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
-                "gif" => (Some(Image), "image/gif"),
-                "png" => (Some(Image), "image/png"),
-                "webp" => (Some(Image), "image/webp"),
-                "svg" => (Some(Image), "image/svg+xml"),
-                "avif" => (Some(Image), "image/avif"),
-                "ico" | "cur" => (Some(Image), "image/x-icon"),
-                "apng" => (Some(Image), "image/apng"),
-                "bmp" => (Some(Image), "image/bmp"),
-                "tiff" | "tif" => (Some(Image), "image/tiff"),
-                "avi" => (Some(Video), "video/x-msvideo"),
-                "mpeg" | "mpg" | "mpe" => (Some(Video), "video/mpeg"),
-                "mp4" | "m4v" => (Some(Video), "video/mp4"),
-                "webm" => (Some(Video), "video/webm"),
-                "ogv" => (Some(Video), "video/ogg"),
-                "flv" => (Some(Video), "video/x-flv"),
-                "mov" => (Some(Video), "video/quicktime"),
-                "wmv" => (Some(Video), "video/x-ms-wmv"),
-                "mp3" => (Some(Audio), "audio/mpeg"),
-                "ogg" => (Some(Audio), "audio/ogg"),
-                "wav" => (Some(Audio), "audio/wav"),
-                "flac" => (Some(Audio), "audio/flac"),
-                "opus" => (Some(Audio), "audio/opus"),
-                "m4a" => (Some(Audio), "audio/mp4"),
-                "aac" => (Some(Audio), "audio/aac"),
-                "wma" => (Some(Audio), "audio/x-ms-wma"),
-                "weba" => (Some(Audio), "audio/webm"),
-                "3gp" => (Some(Audio), "audio/3gpp"),
-                "3g2" => (Some(Audio), "audio/3gpp2"),
-                _ => (None, APPLICATION_OCTET_STREAM),
-            },
-            None => (None, APPLICATION_OCTET_STREAM),
-        };
-        (media_category, Some(media_mime_type_str.to_owned()))
-    }
-
-    /// Encrypts the uploaded file data for a post
-    ///
-    /// This function handles the encryption of media bytes using the post's
-    /// encryption key. It also manages the creation of necessary directories
-    /// and cleans up in case of errors.
-    ///
-    /// # Returns
-    /// - Ok(()) if encryption succeeded
-    /// - Err with a message if encryption failed
-    pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
-        if self.media_bytes.is_none() {
-            return Err("no media bytes");
-        }
-        let encrypted_file_path = post.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        tokio::fs::create_dir(uploads_key_dir)
-            .await
-            .expect("create uploads key dir");
-        let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
-        if result.is_err() {
-            tokio::fs::remove_dir(uploads_key_dir)
-                .await
-                .expect("remove uploads key dir");
-        }
-        result
-    }
-
     /// Determines the intro limit for a post based on its HTML content
     ///
     /// The intro limit is the byte offset where the post should be truncated
@@ -503,35 +409,6 @@ impl PostSubmission {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Tests MIME type and media category detection for different file extensions
-    #[tokio::test]
-    async fn media_type_detection() {
-        // Test image file types
-        let (category, mime) = PostSubmission::determine_media_type(Some("test.jpg"));
-        assert_eq!(category, Some(MediaCategory::Image));
-        assert_eq!(mime, Some("image/jpeg".to_string()));
-
-        // Test video file types
-        let (category, mime) = PostSubmission::determine_media_type(Some("video.mp4"));
-        assert_eq!(category, Some(MediaCategory::Video));
-        assert_eq!(mime, Some("video/mp4".to_string()));
-
-        // Test audio file types
-        let (category, mime) = PostSubmission::determine_media_type(Some("audio.mp3"));
-        assert_eq!(category, Some(MediaCategory::Audio));
-        assert_eq!(mime, Some("audio/mpeg".to_string()));
-
-        // Test unknown file type
-        let (category, mime) = PostSubmission::determine_media_type(Some("document.pdf"));
-        assert_eq!(category, None);
-        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
-
-        // Test no file
-        let (category, mime) = PostSubmission::determine_media_type(None);
-        assert_eq!(category, None);
-        assert_eq!(mime, None);
-    }
 
     /// Tests the conversion of post body text to HTML with YouTube embed generation
     ///

@@ -352,7 +352,7 @@ async fn add_image_dimensions(db: PgPool) {
 ///
 /// Create posters, thumbnails, compatibility videos, and add dimensions.
 async fn process_videos(db: PgPool) {
-    use apabbs::post::{MEDIA_DIR, Post, PostReview};
+    use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
     let mut tx = db.begin().await.expect(BEGIN);
 
     // Get all video posts

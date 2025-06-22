@@ -16,6 +16,7 @@
 
 pub mod review;
 pub mod submission;
+pub mod media;
 
 use crate::{
     POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME,
@@ -26,17 +27,6 @@ use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::PathBuf;
 pub use submission::{PostHiding, PostSubmission};
 use uuid::Uuid;
-
-/// File system directories
-pub const UPLOADS_DIR: &str = "uploads"; // Encrypted storage
-pub const MEDIA_DIR: &str = "pub/media"; // Published media
-
-/// Content limits
-const MAX_THUMB_WIDTH: i32 = 1280; // Maximum width for thumbnails
-const MAX_THUMB_HEIGHT: i32 = 2160; // Maximum height for thumbnails
-
-/// MIME types
-const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 /// Post status indicates the moderation/approval state of a post
 #[derive(
@@ -288,103 +278,6 @@ impl Post {
         output.stdout
     }
 
-    /// Returns the path where an encrypted media file is stored
-    ///
-    /// Panics if the post has no associated media file.
-    pub fn encrypted_media_path(&self) -> PathBuf {
-        if self.media_filename.is_none() {
-            panic!("Attempted to get encrypted_media_path for post without media");
-        }
-
-        let encrypted_filename = format!("{}.gpg", self.media_filename.as_ref().unwrap());
-        std::path::Path::new(UPLOADS_DIR)
-            .join(&self.key)
-            .join(encrypted_filename)
-    }
-
-    /// Returns the path where published media is stored after processing
-    ///
-    /// Panics if the post has no associated media file.
-    pub fn published_media_path(&self) -> PathBuf {
-        if self.media_filename.is_none() {
-            panic!("Attempted to get published_media_path for post without media");
-        }
-
-        std::path::Path::new(MEDIA_DIR)
-            .join(&self.key)
-            .join(self.media_filename.as_ref().unwrap())
-    }
-
-    /// Returns the path where a thumbnail is stored after processing
-    ///
-    /// Panics if the post has no associated thumbnail.
-    pub fn thumbnail_path(&self) -> PathBuf {
-        if self.thumb_filename.is_none() {
-            panic!("Attempted to get thumbnail_path for post without thumbnail");
-        }
-
-        std::path::Path::new(MEDIA_DIR)
-            .join(&self.key)
-            .join(self.thumb_filename.as_ref().unwrap())
-    }
-
-    /// Encrypts the provided bytes using GPG with the application's key
-    ///
-    /// This function creates necessary directories, runs GPG to encrypt data,
-    /// and handles cleanup in case of errors.
-    ///
-    /// Returns:
-    /// - Ok(()) if encryption succeeded
-    /// - Err with a message if encryption failed
-    async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
-        let encrypted_media_path = self.encrypted_media_path();
-        let encrypted_media_path_str = encrypted_media_path.to_str().unwrap().to_owned();
-
-        // Ensure parent directory exists
-        let parent_dir = encrypted_media_path.parent().unwrap();
-        if !parent_dir.exists() {
-            tokio::fs::create_dir_all(parent_dir)
-                .await
-                .map_err(|_| "Failed to create directory for encrypted media")?;
-        }
-
-        // Run GPG encrypt in a separate thread to avoid blocking the async runtime
-        let success = tokio::task::spawn_blocking(move || {
-            let mut child = std::process::Command::new("gpg")
-                .args([
-                    "--batch",
-                    "--symmetric",
-                    "--passphrase-file",
-                    "gpg.key",
-                    "--output",
-                ])
-                .arg(&encrypted_media_path_str)
-                .stdin(std::process::Stdio::piped())
-                .spawn()
-                .expect("spawn gpg to encrypt media file");
-
-            // Write data to stdin
-            if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes).expect("write data to stdin");
-            }
-
-            let child_status = child.wait().expect("wait for gpg to finish");
-            child_status.success()
-        })
-        .await
-        .expect("encrypt task completed");
-
-        if success {
-            println!(
-                "File encrypted successfully: {}",
-                encrypted_media_path.display()
-            );
-            Ok(())
-        } else {
-            Err("GPG failed to encrypt file")
-        }
-    }
-
     /// Updates the status of a post in the database
     pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
@@ -445,42 +338,6 @@ impl Post {
             .execute(&mut *tx)
             .await
             .expect("update post compatibility video");
-    }
-
-    /// Re-encrypts a media file that has already been published
-    ///
-    /// This is used when media needs to be moved back from published to reported state.
-    pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
-        let encrypted_file_path = self.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
-
-        // Create the directory for encrypted content
-        tokio::fs::create_dir(uploads_key_dir)
-            .await
-            .expect("create uploads key dir");
-
-        // Read the published media file
-        let media_file_path = self.published_media_path();
-        let media_bytes = tokio::fs::read(&media_file_path)
-            .await
-            .expect("read media file");
-
-        // Try to encrypt the file
-        let result = self.gpg_encrypt(media_bytes).await;
-
-        match result {
-            // If encryption succeeded, clean up the published media
-            Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
-            // If encryption failed, clean up the temp directory
-            Err(msg) => {
-                tokio::fs::remove_dir(uploads_key_dir)
-                    .await
-                    .expect("remove uploads key dir");
-                eprintln!("Re-encryption failed: {}", msg);
-            }
-        }
-
-        result
     }
 
     /// Updates the media dimensions for a post in the database
@@ -636,32 +493,5 @@ mod tests {
         assert!(!post_by_account.author(&user));
         assert!(post_by_account.author(&user_with_account));
         assert!(!post_by_session.author(&user_with_account));
-    }
-
-    /// Tests path construction for media files
-    #[tokio::test]
-    async fn media_paths() {
-        let post = Post {
-            key: String::from("abcd1234"),
-            media_filename: Some(String::from("test.jpg")),
-            thumb_filename: Some(String::from("tn_test.webp")),
-            ..Default::default()
-        };
-
-        // Test path construction
-        assert_eq!(
-            post.encrypted_media_path().to_str().unwrap(),
-            format!("{}/abcd1234/test.jpg.gpg", UPLOADS_DIR)
-        );
-
-        assert_eq!(
-            post.published_media_path().to_str().unwrap(),
-            format!("{}/abcd1234/test.jpg", MEDIA_DIR)
-        );
-
-        assert_eq!(
-            post.thumbnail_path().to_str().unwrap(),
-            format!("{}/abcd1234/tn_test.webp", MEDIA_DIR)
-        );
     }
 }
