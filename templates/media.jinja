@@ -5,12 +5,6 @@
 {# For approved or delisted posts, use public media paths #}
 {% if post.status in ["approved", "delisted"] %}
 {% set media_filename = (post.thumb_filename_opt if post.media_category_opt == "image" and thumb)
-    or (post.compat_video_opt if post.media_category_opt == "video" and not chromium)
-    or post.media_filename_opt %}
-{% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
-{# For pending posts, use decryption path for admins/mods #}
-{% elif post.status == "pending" and user.account_opt is not none and user.account_opt.role in ["admin", "mod"] %}
-{% set media_filename = (post.thumb_filename_opt if post.media_category_opt == "image" and thumb)
     or (post.compat_video_opt if post.compat_video_opt is not none and not chromium)
     or post.media_filename_opt %}
 {% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
