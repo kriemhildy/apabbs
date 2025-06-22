@@ -1,24 +1,24 @@
 {# Media display template for images, videos, and audio files #}
 {# Set filename, dimensions and type based on whether to use thumbnail or full media #}
 {# We should probably move a lot of this into Rust #}
-{% set thumb = not solo and post.thumb_filename_opt is not none %}
+{% set thumb = not solo and post.thumb_filename is not none %}
 {# For approved or delisted posts, use public media paths #}
 {% if post.status in ["approved", "delisted"] %}
-{% set media_filename = (post.thumb_filename_opt if post.media_category_opt == "image" and thumb)
-    or (post.compat_video_opt if post.compat_video_opt is not none and not chromium)
-    or post.media_filename_opt %}
+{% set media_filename = (post.thumb_filename if post.media_category == "image" and thumb)
+    or (post.compat_video if post.compat_video is not none and not chromium)
+    or post.media_filename %}
 {% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
 {# For pending/reported posts, allow admins/mods to see encrypted media #}
-{% elif user.account_opt is not none and (
-    (user.account_opt.role in ["admin", "mod"] and post.status == "pending")
-    or (user.account_opt.role == "admin" and post.status == "reported")) %}
+{% elif user.account is not none and (
+    (user.account.role in ["admin", "mod"] and post.status == "pending")
+    or (user.account.role == "admin" and post.status == "reported")) %}
 {% set media_path = "/decrypt-media/" + post.key %}
 {% endif %}
-{% set width = post.thumb_width_opt if thumb else post.media_width_opt %}
-{% set height = post.thumb_height_opt if thumb else post.media_height_opt %}
+{% set width = post.thumb_width if thumb else post.media_width %}
+{% set height = post.thumb_height if thumb else post.media_height %}
 <div class="media">
     {# Image display handling #}
-    {% if post.media_category_opt == "image" %}
+    {% if post.media_category == "image" %}
     {% set solo_path = "/p/" + post.key %}
     {% if solo %}
     <img src="{{ media_path }}" alt="Image {{ media_filename }}" width="{{ width }}" height="{{ height }}">
@@ -26,22 +26,22 @@
     <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ post.key }}" width="{{ width }}" height="{{ height }}"></a>
     {% endif %}
     {# Video display handling with poster image #}
-    {% elif post.media_category_opt == "video" %}
-    {% set mime_type = "video/mp4" if not chromium else post.media_mime_type_opt %}
+    {% elif post.media_category == "video" %}
+    {% set mime_type = "video/mp4" if not chromium else post.media_mime_type %}
     {% set poster_attr = "" %}
-    {% if post.video_poster_opt is not none %}
-    {% set poster_filename = post.thumb_filename_opt if thumb else post.video_poster_opt %}
+    {% if post.video_poster is not none %}
+    {% set poster_filename = post.thumb_filename if thumb else post.video_poster %}
     {% set poster_path = "/m/" + post.key + "/" + poster_filename|urlencode %}
     {% endif %}
     <video width="{{ width }}" height="{{ height }}" controls poster="{{ poster_path }}" preload="metadata">
         <source src="{{ media_path }}" type="{{ mime_type }}">
-        Video {{ post.media_filename_opt }}
+        Video {{ post.media_filename }}
     </video>
     {# Audio file display handling #}
-    {% elif post.media_category_opt == "audio" %}
+    {% elif post.media_category == "audio" %}
     <audio controls>
         <source src="{{ media_path }}" type="{{ mime_type }}">
-        Audio {{ post.media_filename_opt }}
+        Audio {{ post.media_filename }}
     </audio>
     {% endif %}
 </div>

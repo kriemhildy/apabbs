@@ -138,7 +138,7 @@ async fn index(
     };
 
     // Handle pagination parameter if present
-    let page_post_opt = match path.get("key") {
+    let page_post = match path.get("key") {
         Some(key) => match init_post(&mut tx, key, &user).await {
             Err(response) => return response,
             Ok(post) => Some(post),
@@ -147,11 +147,11 @@ async fn index(
     };
 
     // Get posts for current page
-    let page_post_id_opt = page_post_opt.as_ref().map(|p| p.id);
-    let mut posts = Post::select(&mut tx, &user, page_post_id_opt, false).await;
+    let page_post_id = page_post.as_ref().map(|p| p.id);
+    let mut posts = Post::select(&mut tx, &user, page_post_id, false).await;
 
     // Check if there's a next page by seeing if we got more posts than our page size
-    let prior_page_post_opt = if posts.len() <= apabbs::per_page() {
+    let prior_page_post = if posts.len() <= apabbs::per_page() {
         None
     } else {
         posts.pop()
@@ -167,12 +167,12 @@ async fn index(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            user_agent_opt => analyze_user_agent(&headers),
+            user_agent => analyze_user_agent(&headers),
             nav => true,
             user,
             posts,
-            page_post_opt,
-            prior_page_post_opt,
+            page_post,
+            prior_page_post,
             solo => false,
             utc_hour_timestamp,
         ),
@@ -212,7 +212,7 @@ async fn solo_post(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            user_agent_opt => analyze_user_agent(&headers),
+            user_agent => analyze_user_agent(&headers),
             user,
             post,
             solo => true,
@@ -248,7 +248,7 @@ async fn submit_post(
             }
             "body" => post_submission.body = field.text().await.unwrap(),
             "media" => {
-                if post_submission.media_filename_opt.is_some() {
+                if post_submission.media_filename.is_some() {
                     return bad_request("only upload one media file");
                 }
                 let filename = match field.file_name() {
@@ -258,8 +258,8 @@ async fn submit_post(
                 if filename.is_empty() {
                     continue;
                 }
-                post_submission.media_filename_opt = Some(filename);
-                post_submission.media_bytes_opt = Some(field.bytes().await.unwrap().to_vec());
+                post_submission.media_filename = Some(filename);
+                post_submission.media_bytes = Some(field.bytes().await.unwrap().to_vec());
             }
             _ => return bad_request(&format!("unexpected field: {name}")),
         };
@@ -276,20 +276,15 @@ async fn submit_post(
         };
 
     // Check if user is banned
-    if let Some(response) = check_for_ban(
-        &mut tx,
-        &ip_hash,
-        user.account_opt.as_ref().map(|a| a.id),
-        None,
-    )
-    .await
+    if let Some(response) =
+        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
     {
         tx.commit().await.expect(COMMIT);
         return response;
     }
 
     // Validate post content
-    if post_submission.body.is_empty() && post_submission.media_filename_opt.is_none() {
+    if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
         return bad_request("post cannot be empty unless there is a media file");
     }
 
@@ -298,7 +293,7 @@ async fn submit_post(
     let post = post_submission.insert(&mut tx, &user, &ip_hash, &key).await;
 
     // Handle media file encryption if present
-    if post_submission.media_filename_opt.is_some() {
+    if post_submission.media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
             return internal_server_error(&msg);
         }
@@ -345,7 +340,7 @@ async fn login_form(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            user_agent_opt => analyze_user_agent(&headers),
+            user_agent => analyze_user_agent(&headers),
             user,
         ),
     ));
@@ -410,7 +405,7 @@ async fn registration_form(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            user_agent_opt => analyze_user_agent(&headers),
+            user_agent => analyze_user_agent(&headers),
             user,
         ),
     ));
@@ -483,7 +478,7 @@ async fn logout(
     };
 
     // Verify user is logged in
-    if user.account_opt.is_none() {
+    if user.account.is_none() {
         return bad_request("not logged in");
     }
 
@@ -512,7 +507,7 @@ async fn reset_account_token(
     };
 
     // Verify user is logged in and reset token
-    let jar = match user.account_opt {
+    let jar = match user.account {
         None => return bad_request("not logged in"),
         Some(account) => {
             account.reset_token(&mut tx).await;
@@ -593,7 +588,7 @@ async fn web_socket(
         while let Ok(post) = receiver.recv().await {
             // Determine if this post should be sent to the user
             let should_send = post.author(&user)
-                || match user.account_opt {
+                || match user.account {
                     None => post.status == Approved,
                     Some(ref account) => match account.role {
                         Admin => true,
@@ -654,8 +649,8 @@ async fn interim(
     };
 
     // Fetch newer posts
-    let since_post_id_opt = Some(since_post.id);
-    let new_posts = Post::select(&mut tx, &user, since_post_id_opt, true).await;
+    let since_post_id = Some(since_post.id);
+    let new_posts = Post::select(&mut tx, &user, since_post_id, true).await;
 
     if new_posts.is_empty() {
         return (jar, StatusCode::NO_CONTENT).into_response();
@@ -709,7 +704,7 @@ async fn user_profile(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            user_agent_opt => analyze_user_agent(&headers),
+            user_agent => analyze_user_agent(&headers),
             user,
             account,
             posts,
@@ -737,7 +732,7 @@ async fn settings(
     };
 
     // Verify user is logged in
-    if user.account_opt.is_none() {
+    if user.account.is_none() {
         return unauthorized("not logged in");
     }
 
@@ -745,7 +740,7 @@ async fn settings(
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
 
     // Check for notice messages
-    let (jar, notice_opt) = remove_notice_cookie(jar);
+    let (jar, notice) = remove_notice_cookie(jar);
 
     // Render settings page
     let html = Html(render(
@@ -754,10 +749,10 @@ async fn settings(
         minijinja::context!(
             dev => apabbs::dev(),
             host => apabbs::host(),
-            user_agent_opt => analyze_user_agent(&headers),
+            user_agent => analyze_user_agent(&headers),
             user,
             time_zones,
-            notice_opt,
+            notice,
         ),
     ));
 
@@ -783,7 +778,7 @@ async fn update_time_zone(
         };
 
     // Verify user is logged in
-    let account = match user.account_opt {
+    let account = match user.account {
         None => return unauthorized("not logged in"),
         Some(account) => account,
     };
@@ -823,7 +818,7 @@ async fn update_password(
     };
 
     // Verify user is logged in as the correct user
-    match user.account_opt {
+    match user.account {
         None => return unauthorized("not logged in"),
         Some(account) => {
             if account.username != credentials.username {
@@ -878,7 +873,7 @@ async fn review_post(
     };
 
     // Verify user has moderator privileges
-    let account = match user.account_opt {
+    let account = match user.account {
         None => return unauthorized("not logged in"),
         Some(account) => account,
     };
@@ -912,7 +907,7 @@ async fn review_post(
         // Handle media operations
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
             // Do nothing if there is no media file
-            if post.media_filename_opt.is_none() {
+            if post.media_filename.is_none() {
                 None
             } else {
                 let encrypted_media_path = post.encrypted_media_path();
@@ -976,7 +971,7 @@ async fn review_post(
 
         // Handle media deletion
         Ok(DeletePublishedMedia) => {
-            if post.media_filename_opt.as_ref().is_some() && post.published_media_path().exists() {
+            if post.media_filename.as_ref().is_some() && post.published_media_path().exists() {
                 PostReview::delete_media_key_dir(&post.key).await;
             }
 
@@ -1049,17 +1044,14 @@ async fn review_post(
 
     // Handle banned post cleanup
     if post.status == Banned {
-        if let Some(ip_hash) = post.ip_hash_opt.as_ref() {
-            ban::insert(&mut tx, ip_hash, post.account_id_opt, Some(account.id)).await;
+        if let Some(ip_hash) = post.ip_hash.as_ref() {
+            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await;
         }
         post.delete(&mut tx).await;
     }
 
     // Ensure approved posts have thumbnails if needed
-    if post.status == Approved
-        && post.thumb_filename_opt.is_some()
-        && !post.thumbnail_path().exists()
-    {
+    if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
         return internal_server_error("error setting post thumbnail");
     }
 
@@ -1119,12 +1111,9 @@ async fn decrypt_media(
     }
 
     // Get media details
-    let media_filename = post
-        .media_filename_opt
-        .as_ref()
-        .expect("read media filename");
+    let media_filename = post.media_filename.as_ref().expect("read media filename");
     let media_bytes = post.decrypt_media_file().await;
-    let content_type = post.media_mime_type_opt.expect("read mime type");
+    let content_type = post.media_mime_type.expect("read mime type");
 
     // Set response headers for download
     let headers = [

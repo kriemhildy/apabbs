@@ -7,9 +7,9 @@
     {# Show user role (Novice, Member, Mod, Admin) #}
     <p>{{ account.role|capitalize }}</p>
     {# Show account creation timestamp #}
-    <p>Created <time datetime="{{ account.created_at_html_opt }}">{{ account.created_at_rfc5322_opt }}</time></p>
+    <p>Created <time datetime="{{ account.created_at_html }}">{{ account.created_at_rfc5322 }}</time></p>
     {# Show settings link if viewing own profile #}
-    {% if user.account_opt.username == account.username %}
+    {% if user.account.username == account.username %}
     <p>You are logged in as this user. <a href="/settings">Settings</a></p>
     {% endif %}
     {# Display user's posts #}

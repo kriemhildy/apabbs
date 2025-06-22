@@ -73,18 +73,18 @@ async fn main() {
 
 /// Updates post intro_limit values based on content analysis.
 ///
-/// Recalculates the intro_limit_opt field for all posts that have it set.
+/// Recalculates the intro_limit field for all posts that have it set.
 async fn update_intro_limit(db: PgPool) {
     use apabbs::post::{Post, PostSubmission};
     let mut tx = db.begin().await.expect(BEGIN);
-    let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit_opt IS NOT NULL")
+    let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
         .expect("fetch posts for migration");
     for post in posts {
-        let intro_limit_opt = PostSubmission::intro_limit(&post.body);
-        sqlx::query("UPDATE posts SET intro_limit_opt = $1 WHERE id = $2")
-            .bind(intro_limit_opt)
+        let intro_limit = PostSubmission::intro_limit(&post.body);
+        sqlx::query("UPDATE posts SET intro_limit = $1 WHERE id = $2")
+            .bind(intro_limit)
             .bind(post.id)
             .execute(&mut *tx)
             .await
@@ -226,7 +226,7 @@ async fn uuid_to_key(db: PgPool) {
 
     // Get all UUID-key pairs for posts with media
     let pairs: Vec<UuidKeyPair> = sqlx::query_as(
-        "SELECT uuid, key FROM posts WHERE uuid IS NOT NULL AND media_category_opt IS NOT NULL ",
+        "SELECT uuid, key FROM posts WHERE uuid IS NOT NULL AND media_category IS NOT NULL ",
     )
     .fetch_all(&mut *tx)
     .await
@@ -266,7 +266,7 @@ async fn generate_image_thumbnails(db: PgPool) {
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
-        "SELECT * FROM posts WHERE media_category_opt = 'image' ",
+        "SELECT * FROM posts WHERE media_category = 'image' ",
         "AND status IN ('approved', 'delisted')",
     ))
     .fetch_all(&mut *tx)
@@ -297,7 +297,7 @@ async fn generate_image_thumbnails(db: PgPool) {
         }
 
         // Update database with thumbnail information
-        println!("setting thumb_filename_opt, thumb_width_opt, thumb_height_opt");
+        println!("setting thumb_filename, thumb_width, thumb_height");
         let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
         post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
             .await;
@@ -316,7 +316,7 @@ async fn add_image_dimensions(db: PgPool) {
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
-        "SELECT * FROM posts WHERE media_category_opt = 'image' ",
+        "SELECT * FROM posts WHERE media_category = 'image' ",
         "AND status IN ('approved', 'delisted')",
     ))
     .fetch_all(&mut *tx)
@@ -336,7 +336,7 @@ async fn add_image_dimensions(db: PgPool) {
         post.update_media_dimensions(&mut *tx, width, height).await;
 
         // Update thumbnail dimensions if present
-        if post.thumb_filename_opt.is_some() {
+        if post.thumb_filename.is_some() {
             let thumbnail_path = post.thumbnail_path();
             let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
             println!("setting thumbnail image dimensions: {}x{}", width, height);
@@ -357,7 +357,7 @@ async fn process_videos(db: PgPool) {
 
     // Get all video posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
-        "SELECT * FROM posts WHERE media_category_opt = 'video' ",
+        "SELECT * FROM posts WHERE media_category = 'video' ",
         "AND status IN ('approved', 'delisted')",
     ))
     .fetch_all(&mut *tx)
@@ -381,7 +381,7 @@ async fn process_videos(db: PgPool) {
                 let path = entry.path();
                 // Skip the source video file
                 if path.file_name().unwrap().to_string_lossy()
-                    != post.media_filename_opt.as_ref().unwrap().as_str()
+                    != post.media_filename.as_ref().unwrap().as_str()
                 {
                     println!("Deleting old media file: {}", path.display());
                     tokio::fs::remove_file(&path)

@@ -11,17 +11,17 @@
         {% if solo and post.youtube %}
         {{ post.body|remove_youtube_thumbnail_links }}
         {# Show full body in solo view or if no intro limit exists #}
-        {% elif solo or post.intro_limit_opt is none %}
+        {% elif solo or post.intro_limit is none %}
         {{ post.body }}
         {# Otherwise truncate body to intro limit #}
         {% else %}
-        {% set intro_limit = post.intro_limit_opt %}
+        {% set intro_limit = post.intro_limit %}
         {{ post.body|byte_slice(intro_limit) }}
         {% endif %}
         {% endfilter +%}
     </div>
     {# Show "See more" link for truncated posts #}
-    {% if not solo and post.intro_limit_opt is not none %}
+    {% if not solo and post.intro_limit is not none %}
     <div class="see-more">
         <a href="/p/{{ post.key }}">[See more…]</a>
     </div>
@@ -31,7 +31,7 @@
     {# Media #}
     {###################################################################################}
     {# Include the media template if we have media file #}
-    {% if post.media_category_opt is not none %}
+    {% if post.media_category is not none %}
     {% filter indent(4) %}
     {%+ include "media.jinja" +%}
     {% endfilter %}
@@ -42,7 +42,7 @@
     {# Show status indicator for non-approved posts #}
     {% if post.status != "approved" %}
     <div class="status">
-        {% if post.media_filename_opt is not none %}
+        {% if post.media_filename is not none %}
         File: {{ media_filename|escape }}<br>
         {% endif %}
         Status: {{ post.status|capitalize }}
@@ -53,8 +53,8 @@
     {###################################################################################}
     {# Show creation timestamp in solo view #}
     {% if solo %}
-    {% set created_at_html = post.created_at_html_opt %}
-    {% set created_at_rfc5322 = post.created_at_rfc5322_opt %}
+    {% set created_at_html = post.created_at_html %}
+    {% set created_at_rfc5322 = post.created_at_rfc5322 %}
     <div id="created-at">
         <time datetime="{{ created_at_html }}">{{ created_at_rfc5322 }}</time>
     </div>
@@ -65,12 +65,12 @@
     {# Show arrow link to solo view for specific post types #}
     {% if not solo
         and post.status not in ["rejected", "banned"]
-        and (post.media_category_opt is none
-            or post.media_category_opt != "image"
+        and (post.media_category is none
+            or post.media_category != "image"
             or (post.status in ["pending", "reported"]
-                and user.account_opt is not none and user.account_opt.role not in ["admin", "mod"]))
+                and user.account is not none and user.account.role not in ["admin", "mod"]))
         and not post.youtube
-        and post.intro_limit_opt is none %}
+        and post.intro_limit is none %}
     <div class="arrow">
         <a href="/p/{{ post.key }}">&rarr;</a>
     </div>
@@ -79,9 +79,9 @@
     {# Review #}
     {###################################################################################}
     {# Show moderation controls for admins and moderators #}
-    {% if (user.account_opt.role == "admin" and post.status in ["pending", "delisted", "reported"])
-        or (user.account_opt.role == "mod" and post.status in ["pending", "delisted"])
-        or ((user.account_opt.role == "admin" or (user.account_opt.role == "mod" and post.recent_opt))
+    {% if (user.account.role == "admin" and post.status in ["pending", "delisted", "reported"])
+        or (user.account.role == "mod" and post.status in ["pending", "delisted"])
+        or ((user.account.role == "admin" or (user.account.role == "mod" and post.recent))
             and post.status == "approved" and solo) %}
     {% filter indent(4) %}
     {%+ include "review.jinja" +%}
@@ -91,12 +91,12 @@
     {# Hide #}
     {###################################################################################}
     {# Allow post author to hide their own rejected posts #}
-    {% set session_token = post.session_token_opt if post.session_token_opt is not none %}
-    {% set post_account_id = post.account_id_opt if post.account_id_opt is not none %}
+    {% set session_token = post.session_token if post.session_token is not none %}
+    {% set post_account_id = post.account_id if post.account_id is not none %}
     {% if post.status == "rejected" and
-        (post.session_token_opt is not none and session_token == user.session_token
-            or (post.account_id_opt is not none and user.account_opt is not none
-                and post_account_id == user.account_opt.id)) %}
+        (post.session_token is not none and session_token == user.session_token
+            or (post.account_id is not none and user.account is not none
+                and post_account_id == user.account.id)) %}
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="key" value="{{ post.key }}">
@@ -104,7 +104,7 @@
     </form>
     {# Allow client-side hiding of reported/rejected/banned posts #}
     {% elif post.status in ["rejected", "banned"]
-        or (post.status == "reported" and user.account_opt.role == "mod") %}
+        or (post.status == "reported" and user.account.role == "mod") %}
     <button onclick="removeHiddenPost(this)">Hide</button>
     {% endif %}
 </div>

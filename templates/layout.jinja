@@ -2,8 +2,8 @@
 {# Add dev prefix in development mode #}
 {% set title = "[dev] " + host if dev else host %}
 {# Initialize user agent detection variables #}
-{% set mac = user_agent_opt is not none and user_agent_opt.mac %}
-{% set chromium =  user_agent_opt is not none and user_agent_opt.chromium %}
+{% set mac = user_agent is not none and user_agent.mac %}
+{% set chromium =  user_agent is not none and user_agent.chromium %}
 <!DOCTYPE html>
 <html lang="en-US">
 
@@ -32,8 +32,8 @@
     {% if nav %}
     <nav>
         {# Show username link for logged-in users #}
-        {% if user.account_opt is not none %}
-        <a href="/user/{{ user.account_opt.username }}">{{ user.account_opt.username }}</a>
+        {% if user.account is not none %}
+        <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
         {# Show login link for anonymous users #}
         {% else %}
         <a href="/login">log in</a>

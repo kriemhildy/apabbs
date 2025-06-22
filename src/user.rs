@@ -45,7 +45,7 @@ pub enum AccountRole {
 #[derive(serde::Serialize)]
 pub struct User {
     /// The user's account details if they are logged in
-    pub account_opt: Option<Account>,
+    pub account: Option<Account>,
     /// Unique token for identifying the user's session
     pub session_token: Uuid,
 }
@@ -65,7 +65,7 @@ impl User {
     ///
     /// let user = User {
     ///     session_token: Uuid::new_v4(),
-    ///     account_opt: Some(Account {
+    ///     account: Some(Account {
     ///         role: AccountRole::Mod,
     ///         ..Default::default()
     ///     }),
@@ -73,7 +73,7 @@ impl User {
     /// assert!(user.mod_or_admin());
     /// ```
     pub fn mod_or_admin(&self) -> bool {
-        self.account_opt
+        self.account
             .as_ref()
             .is_some_and(|a| [AccountRole::Admin, AccountRole::Mod].contains(&a.role))
     }
@@ -91,7 +91,7 @@ impl User {
     ///
     /// let user = User {
     ///     session_token: Uuid::new_v4(),
-    ///     account_opt: Some(Account {
+    ///     account: Some(Account {
     ///         role: AccountRole::Mod,
     ///         ..Default::default()
     ///     }),
@@ -99,7 +99,7 @@ impl User {
     /// assert!(!user.admin());
     /// ```
     pub fn admin(&self) -> bool {
-        self.account_opt
+        self.account
             .as_ref()
             .is_some_and(|a| a.role == AccountRole::Admin)
     }
@@ -108,7 +108,7 @@ impl User {
     ///
     /// Returns the account's time zone if logged in, or "UTC" for anonymous users.
     pub fn time_zone(&self) -> &str {
-        match self.account_opt {
+        match self.account {
             Some(ref account) => &account.time_zone,
             None => "UTC",
         }
@@ -134,10 +134,10 @@ pub struct Account {
     pub time_zone: String,
     /// Account creation timestamp in RFC5322 format
     #[sqlx(default)]
-    pub created_at_rfc5322_opt: Option<String>,
+    pub created_at_rfc5322: Option<String>,
     /// Account creation timestamp in HTML format
     #[sqlx(default)]
-    pub created_at_html_opt: Option<String>,
+    pub created_at_html: Option<String>,
 }
 
 impl Account {
@@ -158,8 +158,8 @@ impl Account {
     /// or None if no account matches the username.
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_rfc5322_opt, ",
-            "to_char(created_at, $2) AS created_at_html_opt ",
+            "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
+            "to_char(created_at, $2) AS created_at_html ",
             "FROM accounts WHERE username = $3",
         ))
         .bind(POSTGRES_RFC5322_DATETIME)
@@ -228,10 +228,10 @@ pub struct Credentials {
     pub password: String,
     /// Password confirmation for registration
     #[serde(rename = "confirm_password")]
-    pub confirm_password_opt: Option<String>,
+    pub confirm_password: Option<String>,
     /// Age verification field (typically a checkbox)
     #[serde(rename = "year")]
-    pub year_opt: Option<String>,
+    pub year: Option<String>,
 }
 
 impl Credentials {
@@ -270,8 +270,8 @@ impl Credentials {
     ///     session_token: Uuid::new_v4(),
     ///     username: "validuser".to_owned(),
     ///     password: "goodpassw0rd".to_owned(),
-    ///     confirm_password_opt: Some("goodpassw0rd".to_owned()),
-    ///     year_opt: None,
+    ///     confirm_password: Some("goodpassw0rd".to_owned()),
+    ///     year: None,
     /// };
     /// assert!(creds.validate().is_empty());
     ///
@@ -311,7 +311,7 @@ impl Credentials {
         }
 
         // Validate password confirmation
-        match self.confirm_password_opt {
+        match self.confirm_password {
             None => errors.push("password confirmation is required"),
             Some(ref confirm_password) => {
                 if &self.password != confirm_password {
@@ -331,7 +331,7 @@ impl Credentials {
     /// Returns the newly created account.
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         sqlx::query_as(concat!(
-            "INSERT INTO accounts (username, password_hash, ip_hash_opt) ",
+            "INSERT INTO accounts (username, password_hash, ip_hash) ",
             "VALUES ($1, crypt($2, gen_salt('bf', $3)), $4) RETURNING *"
         ))
         .bind(&self.username)
@@ -390,19 +390,19 @@ impl Credentials {
     ///     session_token: Uuid::new_v4(),
     ///     username: "user".to_string(),
     ///     password: "password".to_string(),
-    ///     confirm_password_opt: Some("password".to_string()),
-    ///     year_opt: Some("on".to_string()),
+    ///     confirm_password: Some("password".to_string()),
+    ///     year: Some("on".to_string()),
     /// };
     /// assert!(creds.year_checked());
     ///
     /// let creds = Credentials {
-    ///     year_opt: Some("off".to_string()),
+    ///     year: Some("off".to_string()),
     ///     ..creds
     /// };
     /// assert!(!creds.year_checked());
     /// ```
     pub fn year_checked(&self) -> bool {
-        match self.year_opt {
+        match self.year {
             Some(ref year) => year == "on",
             None => false,
         }
@@ -423,7 +423,7 @@ mod tests {
     /// Helper function to set both password and confirmation fields.
     fn set_password_and_confirmation(credentials: &mut Credentials, password: &str) {
         credentials.password = password.to_owned();
-        credentials.confirm_password_opt = Some(password.to_owned());
+        credentials.confirm_password = Some(password.to_owned());
     }
 
     /// Tests the credential validation for various username and password combinations.
@@ -441,8 +441,8 @@ mod tests {
             session_token: Uuid::new_v4(),
             username: "username".to_owned(),
             password: "passw0rd".to_owned(),
-            confirm_password_opt: Some("passw0rd".to_owned()),
-            year_opt: None,
+            confirm_password: Some("passw0rd".to_owned()),
+            year: None,
         };
 
         // Valid initial credentials
@@ -479,10 +479,10 @@ mod tests {
         assert_eq!(credentials.validate().len(), 0);
 
         // Test password confirmation
-        credentials.confirm_password_opt = Some("pass".to_owned());
+        credentials.confirm_password = Some("pass".to_owned());
         assert_eq!(credentials.validate().len(), 1);
 
-        credentials.confirm_password_opt = Some("passw0rd".to_owned());
+        credentials.confirm_password = Some("passw0rd".to_owned());
         assert_eq!(credentials.validate().len(), 0);
 
         // Test common password patterns
@@ -500,7 +500,7 @@ mod tests {
         // Test anonymous user
         let anon_user = User {
             session_token: Uuid::new_v4(),
-            account_opt: None,
+            account: None,
         };
 
         assert!(!anon_user.mod_or_admin());
@@ -510,7 +510,7 @@ mod tests {
         // Test novice user
         let novice_user = User {
             session_token: Uuid::new_v4(),
-            account_opt: Some(Account {
+            account: Some(Account {
                 id: 1,
                 username: "novice".to_string(),
                 token: Uuid::new_v4(),
@@ -528,9 +528,9 @@ mod tests {
         // Test mod user
         let mod_user = User {
             session_token: Uuid::new_v4(),
-            account_opt: Some(Account {
+            account: Some(Account {
                 role: AccountRole::Mod,
-                ..novice_user.account_opt.clone().unwrap()
+                ..novice_user.account.clone().unwrap()
             }),
         };
 
@@ -540,9 +540,9 @@ mod tests {
         // Test admin user
         let admin_user = User {
             session_token: Uuid::new_v4(),
-            account_opt: Some(Account {
+            account: Some(Account {
                 role: AccountRole::Admin,
-                ..novice_user.account_opt.as_ref().unwrap().clone()
+                ..novice_user.account.as_ref().unwrap().clone()
             }),
         };
 
@@ -557,19 +557,19 @@ mod tests {
             session_token: Uuid::new_v4(),
             username: "username".to_string(),
             password: "password123".to_string(),
-            confirm_password_opt: Some("password123".to_string()),
-            year_opt: None,
+            confirm_password: Some("password123".to_string()),
+            year: None,
         };
 
         // Test default state (unchecked)
         assert!(!credentials.year_checked());
 
         // Test with year checked
-        credentials.year_opt = Some("on".to_string());
+        credentials.year = Some("on".to_string());
         assert!(credentials.year_checked());
 
         // Test with incorrect value
-        credentials.year_opt = Some("yes".to_string());
+        credentials.year = Some("yes".to_string());
         assert!(!credentials.year_checked());
     }
 }

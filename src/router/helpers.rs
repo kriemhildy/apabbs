@@ -135,26 +135,25 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
 /// # Parameters
 /// - `tx`: Database transaction for queries
 /// - `ip_hash`: Hash of the client's IP address
-/// - `banned_account_id_opt`: Optional account ID to check for bans
-/// - `admin_account_id_opt`: Optional admin ID applying the ban
+/// - `banned_account_id`: Optional account ID to check for bans
+/// - `admin_account_id`: Optional admin ID applying the ban
 ///
 /// # Returns
 /// `Some(Response)` with a ban message if banned, `None` otherwise
 pub async fn check_for_ban(
     tx: &mut PgConnection,
     ip_hash: &str,
-    banned_account_id_opt: Option<i32>,
-    admin_account_id_opt: Option<i32>,
+    banned_account_id: Option<i32>,
+    admin_account_id: Option<i32>,
 ) -> Option<Response> {
     // Check for existing ban
-    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id_opt).await {
+    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await {
         return Some(ban_message(&expires_at_str));
     }
 
     // Check for rate limiting/flooding
     if ban::flooding(tx, ip_hash).await {
-        let expires_at_str =
-            ban::insert(tx, ip_hash, banned_account_id_opt, admin_account_id_opt).await;
+        let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await;
         ban::prune(tx, ip_hash).await;
         return Some(ban_message(&expires_at_str));
     }
@@ -292,7 +291,7 @@ pub async fn init_user(
     csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), Response> {
     // Process account cookie if present
-    let account_opt = match jar.get(ACCOUNT_COOKIE) {
+    let account = match jar.get(ACCOUNT_COOKIE) {
         None => None,
         Some(cookie) => {
             // Parse UUID from cookie value
@@ -319,7 +318,7 @@ pub async fn init_user(
     };
 
     // Process session cookie or create new session
-    let session_token_opt = match jar.get(SESSION_COOKIE) {
+    let session_token = match jar.get(SESSION_COOKIE) {
         None => None,
         Some(cookie) => match Uuid::try_parse(cookie.value()) {
             Err(_) => None,
@@ -327,7 +326,7 @@ pub async fn init_user(
         },
     };
 
-    let session_token = match session_token_opt {
+    let session_token = match session_token {
         None => {
             // Create new session if none exists
             let token = Uuid::new_v4();
@@ -350,7 +349,7 @@ pub async fn init_user(
 
     // Create user object and set timezone
     let user = User {
-        account_opt,
+        account,
         session_token,
     };
 

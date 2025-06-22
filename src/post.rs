@@ -72,8 +72,8 @@ pub enum MediaCategory {
 
 /// Represents a post in the system including its content, status, and associated media
 ///
-/// Posts can be associated with either a registered user account (account_id_opt)
-/// or an anonymous session (session_token_opt), but not both.
+/// Posts can be associated with either a registered user account (account_id)
+/// or an anonymous session (session_token), but not both.
 #[derive(sqlx::FromRow, serde::Serialize, Clone, Debug, Default)]
 pub struct Post {
     /// Unique database identifier for the post
@@ -81,48 +81,48 @@ pub struct Post {
     /// HTML-formatted content of the post
     pub body: String,
     /// Optional reference to the account that created this post
-    pub account_id_opt: Option<i32>,
+    pub account_id: Option<i32>,
     /// Current moderation/approval status of the post
     pub status: PostStatus,
     /// For anonymous posts, the session token of the creator
-    pub session_token_opt: Option<Uuid>,
+    pub session_token: Option<Uuid>,
     /// Anonymized hash of the creator's IP address for anti-abuse
-    pub ip_hash_opt: Option<String>,
+    pub ip_hash: Option<String>,
     /// Original filename of uploaded media, if present
-    pub media_filename_opt: Option<String>,
+    pub media_filename: Option<String>,
     /// Type of media (Image, Video, Audio) if present
-    pub media_category_opt: Option<MediaCategory>,
+    pub media_category: Option<MediaCategory>,
     /// MIME type of the media file if present
-    pub media_mime_type_opt: Option<String>,
+    pub media_mime_type: Option<String>,
     /// Filename of generated thumbnail if available
-    pub thumb_filename_opt: Option<String>,
+    pub thumb_filename: Option<String>,
     /// Unique URL-friendly identifier for the post
     pub key: String,
     /// Whether this post contains YouTube embeds
     pub youtube: bool,
     /// Character offset where the post should be truncated in previews
-    pub intro_limit_opt: Option<i32>,
+    pub intro_limit: Option<i32>,
     /// Width of the original media in pixels
-    pub media_width_opt: Option<i32>,
+    pub media_width: Option<i32>,
     /// Height of the original media in pixels
-    pub media_height_opt: Option<i32>,
+    pub media_height: Option<i32>,
     /// Width of the thumbnail in pixels
-    pub thumb_width_opt: Option<i32>,
+    pub thumb_width: Option<i32>,
     /// Height of the thumbnail in pixels
-    pub thumb_height_opt: Option<i32>,
+    pub thumb_height: Option<i32>,
     /// Filename of the poster image for video media
-    pub video_poster_opt: Option<String>,
+    pub video_poster: Option<String>,
     /// Filename of compatibility video (H.264) for non-Chromium browsers
-    pub compat_video_opt: Option<String>,
+    pub compat_video: Option<String>,
     /// Creation timestamp formatted according to RFC5322 for display
     #[sqlx(default)]
-    pub created_at_rfc5322_opt: Option<String>,
+    pub created_at_rfc5322: Option<String>,
     /// Creation timestamp formatted for HTML datetime attribute
     #[sqlx(default)]
-    pub created_at_html_opt: Option<String>,
+    pub created_at_html: Option<String>,
     /// Whether this post was created within the last 2 days
     #[sqlx(default)]
-    pub recent_opt: Option<bool>,
+    pub recent: Option<bool>,
 }
 
 impl Post {
@@ -138,19 +138,19 @@ impl Post {
     /// # Parameters
     /// - `tx`: Database connection
     /// - `user`: Current user with session and account info
-    /// - `post_id_opt`: Optional ID for pagination
+    /// - `post_id`: Optional ID for pagination
     /// - `invert`: Whether to invert the sort order
     pub async fn select(
         tx: &mut PgConnection,
         user: &User,
-        post_id_opt: Option<i32>,
+        post_id: Option<i32>,
         invert: bool,
     ) -> Vec<Self> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM posts WHERE (");
 
         // Filter by status based on user role
-        match user.account_opt {
+        match user.account {
             Some(ref account) => match account.role {
                 AccountRole::Admin => query_builder.push("status <> 'rejected' "),
                 AccountRole::Mod => query_builder.push("status NOT IN ('rejected', 'reported') "),
@@ -160,11 +160,11 @@ impl Post {
         };
 
         // Always show user's own posts
-        query_builder.push("OR session_token_opt = ");
+        query_builder.push("OR session_token = ");
         query_builder.push_bind(&user.session_token);
 
-        if let Some(ref account) = user.account_opt {
-            query_builder.push(" OR account_id_opt = ");
+        if let Some(ref account) = user.account {
+            query_builder.push(" OR account_id = ");
             query_builder.push_bind(account.id);
         }
 
@@ -178,7 +178,7 @@ impl Post {
         };
 
         // Add pagination constraint if post_id is provided
-        if let Some(post_id) = post_id_opt {
+        if let Some(post_id) = post_id {
             query_builder.push(&format!(" AND id {} ", operator));
             query_builder.push_bind(post_id);
         }
@@ -201,7 +201,7 @@ impl Post {
     /// to the system-defined page size.
     pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
         sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE account_id_opt = $1 ",
+            "SELECT * FROM posts WHERE account_id = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
         ))
         .bind(account_id)
@@ -227,18 +227,18 @@ impl Post {
     /// use uuid::Uuid;
     ///
     /// let session_token = Uuid::new_v4();
-    /// let user = User { session_token, account_opt: None };
-    /// let post = Post { session_token_opt: Some(session_token), ..Default::default() };
+    /// let user = User { session_token, account: None };
+    /// let post = Post { session_token: Some(session_token), ..Default::default() };
     /// assert!(post.author(&user));
     /// ```
     pub fn author(&self, user: &User) -> bool {
-        self.session_token_opt
+        self.session_token
             .as_ref()
             .is_some_and(|uuid| uuid == &user.session_token)
             || user
-                .account_opt
+                .account
                 .as_ref()
-                .is_some_and(|a| self.account_id_opt.is_some_and(|id| id == a.id))
+                .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
     /// Selects a post by its unique key with formatted timestamps
@@ -246,9 +246,9 @@ impl Post {
     /// Also includes a flag indicating if the post is recent (less than 2 days old)
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
-            "SELECT *, to_char(created_at, $1) AS created_at_rfc5322_opt, ",
-            "to_char(created_at, $2) AS created_at_html_opt, ",
-            "now() - interval '2 days' < created_at AS recent_opt FROM posts WHERE key = $3"
+            "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
+            "to_char(created_at, $2) AS created_at_html, ",
+            "now() - interval '2 days' < created_at AS recent FROM posts WHERE key = $3"
         ))
         .bind(POSTGRES_RFC5322_DATETIME)
         .bind(POSTGRES_HTML_DATETIME)
@@ -272,7 +272,7 @@ impl Post {
     /// Returns the decrypted file content as bytes.
     /// This operation is CPU-intensive and runs in a separate thread.
     pub async fn decrypt_media_file(&self) -> Vec<u8> {
-        if self.media_filename_opt.is_none() {
+        if self.media_filename.is_none() {
             panic!("No media bytes available");
         }
 
@@ -297,11 +297,11 @@ impl Post {
     ///
     /// Panics if the post has no associated media file.
     pub fn encrypted_media_path(&self) -> PathBuf {
-        if self.media_filename_opt.is_none() {
+        if self.media_filename.is_none() {
             panic!("Attempted to get encrypted_media_path for post without media");
         }
 
-        let encrypted_filename = format!("{}.gpg", self.media_filename_opt.as_ref().unwrap());
+        let encrypted_filename = format!("{}.gpg", self.media_filename.as_ref().unwrap());
         std::path::Path::new(UPLOADS_DIR)
             .join(&self.key)
             .join(encrypted_filename)
@@ -311,26 +311,26 @@ impl Post {
     ///
     /// Panics if the post has no associated media file.
     pub fn published_media_path(&self) -> PathBuf {
-        if self.media_filename_opt.is_none() {
+        if self.media_filename.is_none() {
             panic!("Attempted to get published_media_path for post without media");
         }
 
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(self.media_filename_opt.as_ref().unwrap())
+            .join(self.media_filename.as_ref().unwrap())
     }
 
     /// Returns the path where a thumbnail is stored after processing
     ///
     /// Panics if the post has no associated thumbnail.
     pub fn thumbnail_path(&self) -> PathBuf {
-        if self.thumb_filename_opt.is_none() {
+        if self.thumb_filename.is_none() {
             panic!("Attempted to get thumbnail_path for post without thumbnail");
         }
 
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
-            .join(self.thumb_filename_opt.as_ref().unwrap())
+            .join(self.thumb_filename.as_ref().unwrap())
     }
 
     /// Encrypts the provided bytes using GPG with the application's key
@@ -415,8 +415,8 @@ impl Post {
             .expect("thumbnail filename to str");
 
         sqlx::query(concat!(
-            "UPDATE posts SET thumb_filename_opt = $1, thumb_width_opt = $2, ",
-            "thumb_height_opt = $3 WHERE id = $4"
+            "UPDATE posts SET thumb_filename = $1, thumb_width = $2, ",
+            "thumb_height = $3 WHERE id = $4"
         ))
         .bind(thumbnail_filename)
         .bind(width)
@@ -444,7 +444,7 @@ impl Post {
             .expect("get compatibility video filename")
             .to_str()
             .expect("compatibility video filename to str");
-        sqlx::query("UPDATE posts SET compat_video_opt = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET compat_video = $1 WHERE id = $2")
             .bind(compat_filename)
             .bind(self.id)
             .execute(&mut *tx)
@@ -490,7 +490,7 @@ impl Post {
 
     /// Updates the media dimensions for a post in the database
     pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) {
-        sqlx::query("UPDATE posts SET media_width_opt = $1, media_height_opt = $2 WHERE id = $3")
+        sqlx::query("UPDATE posts SET media_width = $1, media_height = $2 WHERE id = $3")
             .bind(width)
             .bind(height)
             .bind(self.id)
@@ -507,7 +507,7 @@ impl Post {
             .to_str()
             .expect("media poster filename to str");
 
-        sqlx::query("UPDATE posts SET video_poster_opt = $1 WHERE id = $2")
+        sqlx::query("UPDATE posts SET video_poster = $1 WHERE id = $2")
             .bind(media_poster_filename)
             .bind(self.id)
             .execute(&mut *tx)
@@ -528,9 +528,9 @@ pub struct PostSubmission {
     /// Raw text content of the post before HTML processing
     pub body: String,
     /// Original filename of any uploaded media (if present)
-    pub media_filename_opt: Option<String>,
+    pub media_filename: Option<String>,
     /// Raw bytes of the uploaded media file (if present)
-    pub media_bytes_opt: Option<Vec<u8>>,
+    pub media_bytes: Option<Vec<u8>>,
 }
 
 impl PostSubmission {
@@ -578,31 +578,31 @@ impl PostSubmission {
         ip_hash: &str,
         key: &str,
     ) -> Post {
-        let (media_category_opt, media_mime_type_opt) =
-            Self::determine_media_type(self.media_filename_opt.as_deref());
-        let (session_token_opt, account_id_opt) = match user.account_opt {
+        let (media_category, media_mime_type) =
+            Self::determine_media_type(self.media_filename.as_deref());
+        let (session_token, account_id) = match user.account {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
         let html_body = self.body_to_html(key).await;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
-        let intro_limit_opt = Self::intro_limit(&html_body);
+        let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
-            "INSERT INTO posts (key, session_token_opt, account_id_opt, body, ip_hash_opt, ",
-            "media_filename_opt, media_category_opt, media_mime_type_opt, youtube, ",
-            "intro_limit_opt) ",
+            "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
+            "media_filename, media_category, media_mime_type, youtube, ",
+            "intro_limit) ",
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
         ))
         .bind(key)
-        .bind(session_token_opt)
-        .bind(account_id_opt)
+        .bind(session_token)
+        .bind(account_id)
         .bind(&html_body)
         .bind(ip_hash)
-        .bind(self.media_filename_opt.as_deref())
-        .bind(media_category_opt)
-        .bind(media_mime_type_opt.as_deref())
+        .bind(self.media_filename.as_deref())
+        .bind(media_category)
+        .bind(media_mime_type.as_deref())
         .bind(youtube)
-        .bind(intro_limit_opt)
+        .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
         .expect("insert new post")
@@ -743,7 +743,7 @@ impl PostSubmission {
             let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
             let youtube_video_id = &captures[3];
             println!("captures: {:?}", captures);
-            let youtube_timestamp_opt = if youtube_short {
+            let youtube_timestamp = if youtube_short {
                 None
             } else {
                 let url_str = &captures[1].replace("&amp;", "&");
@@ -754,10 +754,10 @@ impl PostSubmission {
                     .map(|(_, v)| v.to_string())
             };
             println!("youtube_video_id: {}", youtube_video_id);
-            println!("youtube_timestamp_opt: {:?}", youtube_timestamp_opt);
-            let thumbnail_tuple_opt =
+            println!("youtube_timestamp: {:?}", youtube_timestamp);
+            let thumbnail_tuple =
                 Self::download_youtube_thumbnail(&youtube_video_id, youtube_short).await;
-            let (local_thumbnail_url, width, height) = match thumbnail_tuple_opt {
+            let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (
                     path.to_str()
@@ -791,7 +791,7 @@ impl PostSubmission {
                 video_id = youtube_video_id,
                 thumbnail_url = local_thumbnail_url,
                 key = key,
-                timestamp = youtube_timestamp_opt
+                timestamp = youtube_timestamp
                     .map(|t| format!("&amp;t={}", t))
                     .unwrap_or_default(),
                 width = width,
@@ -823,15 +823,15 @@ impl PostSubmission {
     /// assert_eq!(mime, Some("application/octet-stream".to_string()));
     /// ```
     pub fn determine_media_type(
-        media_filename_opt: Option<&str>,
+        media_filename: Option<&str>,
     ) -> (Option<MediaCategory>, Option<String>) {
-        let media_filename = match media_filename_opt {
+        let media_filename = match media_filename {
             None => return (None, None),
             Some(media_filename) => media_filename,
         };
         use MediaCategory::*;
         let extension = media_filename.split('.').last();
-        let (media_category_opt, media_mime_type_str) = match extension {
+        let (media_category, media_mime_type_str) = match extension {
             Some(extension) => match extension.to_lowercase().as_str() {
                 "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
                 "gif" => (Some(Image), "image/gif"),
@@ -866,7 +866,7 @@ impl PostSubmission {
             },
             None => (None, APPLICATION_OCTET_STREAM),
         };
-        (media_category_opt, Some(media_mime_type_str.to_owned()))
+        (media_category, Some(media_mime_type_str.to_owned()))
     }
 
     /// Encrypts the uploaded file data for a post
@@ -879,7 +879,7 @@ impl PostSubmission {
     /// - Ok(()) if encryption succeeded
     /// - Err with a message if encryption failed
     pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
-        if self.media_bytes_opt.is_none() {
+        if self.media_bytes.is_none() {
             return Err("no media bytes");
         }
         let encrypted_file_path = post.encrypted_media_path();
@@ -887,7 +887,7 @@ impl PostSubmission {
         tokio::fs::create_dir(uploads_key_dir)
             .await
             .expect("create uploads key dir");
-        let result = post.gpg_encrypt(self.media_bytes_opt.unwrap()).await;
+        let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
         if result.is_err() {
             tokio::fs::remove_dir(uploads_key_dir)
                 .await
@@ -941,7 +941,7 @@ impl PostSubmission {
         // debug
         let mut youtube_iter = youtube_pattern.find_iter(slice);
         println!("first youtube_pattern match: {:?}", youtube_iter.next());
-        let youtube_limit_opt = match youtube_iter.next() {
+        let youtube_limit = match youtube_iter.next() {
             None => None,
             Some(mat) => {
                 println!("second youtube_pattern match: {:?}", mat);
@@ -954,25 +954,25 @@ impl PostSubmission {
         };
         // check for the maximum breaks
         let single_break_pattern = Regex::new("<br>\n").expect("regex builds");
-        let break_limit_opt = match single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS) {
+        let break_limit = match single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS) {
             None => None,
             Some(mat) => Some(mat.start() as i32),
         };
         // take the smallest of youtube and break limits
         println!(
-            "youtube_limit_opt: {:?}, break_limit_opt: {:?}",
-            youtube_limit_opt, break_limit_opt
+            "youtube_limit: {:?}, break_limit: {:?}",
+            youtube_limit, break_limit
         );
-        let min_limit_opt = match (youtube_limit_opt, break_limit_opt) {
+        let min_limit = match (youtube_limit, break_limit) {
             (None, None) => None,
             (Some(y), None) => Some(y),
             (None, Some(b)) => Some(b),
             (Some(y), Some(b)) => Some(y.min(b)),
         };
-        println!("min_limit_opt: {:?}", min_limit_opt);
-        if min_limit_opt.is_some() {
-            println!("intro: {}", &html[..min_limit_opt.unwrap() as usize]);
-            return min_limit_opt;
+        println!("min_limit: {:?}", min_limit);
+        if min_limit.is_some() {
+            println!("intro: {}", &html[..min_limit.unwrap() as usize]);
+            return min_limit;
         }
         // do not truncate if beneath the maximum intro length
         if html.len() <= MAX_INTRO_BYTES {
@@ -1257,7 +1257,7 @@ impl PostReview {
             // Rules for already approved or delisted posts
             Approved | Delisted => {
                 // Mods can only change recent posts
-                if post.status == Approved && *reviewer_role == Mod && !post.recent_opt.unwrap() {
+                if post.status == Approved && *reviewer_role == Mod && !post.recent.unwrap() {
                     return Err(RecentOnly);
                 }
 
@@ -1319,7 +1319,7 @@ impl PostReview {
         Self::write_media_file(&published_media_path, media_bytes).await;
 
         // Process according to media type
-        match post.media_category_opt {
+        match post.media_category {
             Some(MediaCategory::Image) => Self::process_image(tx, post).await?,
             Some(MediaCategory::Video) => Self::process_video(tx, post).await?,
             // Audio files and posts without media don't need processing
@@ -1708,7 +1708,7 @@ mod tests {
         // Case 4: Mod trying to report an approved post (valid action)
         let approved_post = Post {
             status: PostStatus::Approved,
-            recent_opt: Some(true),
+            recent: Some(true),
             ..Default::default()
         };
         let review = PostReview {
@@ -1723,7 +1723,7 @@ mod tests {
         // Case 5: Mod trying to modify a non-recent approved post (should fail)
         let old_post = Post {
             status: PostStatus::Approved,
-            recent_opt: Some(false),
+            recent: Some(false),
             ..Default::default()
         };
         let review = PostReview {
@@ -1743,19 +1743,19 @@ mod tests {
         let session_token = Uuid::new_v4();
         let user = User {
             session_token,
-            account_opt: None,
+            account: None,
         };
 
         // Create post with matching session token
         let post_by_session = Post {
-            session_token_opt: Some(session_token),
+            session_token: Some(session_token),
             ..Default::default()
         };
 
         // Create user with account but different session token
         let user_with_account = User {
             session_token: Uuid::new_v4(),
-            account_opt: Some(crate::user::Account {
+            account: Some(crate::user::Account {
                 id: 123,
                 username: String::from("testuser"),
                 role: AccountRole::Novice,
@@ -1767,8 +1767,8 @@ mod tests {
         // Create post with matching account ID
         let post_by_account = Post {
             id: 2,
-            session_token_opt: None,
-            account_id_opt: Some(123),
+            session_token: None,
+            account_id: Some(123),
             ..Default::default()
         };
 
@@ -1784,8 +1784,8 @@ mod tests {
     async fn media_paths() {
         let post = Post {
             key: String::from("abcd1234"),
-            media_filename_opt: Some(String::from("test.jpg")),
-            thumb_filename_opt: Some(String::from("tn_test.webp")),
+            media_filename: Some(String::from("test.jpg")),
+            thumb_filename: Some(String::from("tn_test.webp")),
             ..Default::default()
         };
 

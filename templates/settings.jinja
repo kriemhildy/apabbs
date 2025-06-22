@@ -1,12 +1,12 @@
 {# User settings page template for account management #}
 {% extends "layout.jinja" %}
 {# Get account information from the user object #}
-{% set account = user.account_opt %}
+{% set account = user.account %}
 {% block main %}
 <main>
     {# Display notification messages if present #}
-    {% if notice_opt is not none %}
-    {% set notice = notice_opt %}
+    {% if notice is not none %}
+    {% set notice = notice %}
     <p id="notice">{{ notice }}</p>
     {% endif %}
     <h2>Settings</h2>
