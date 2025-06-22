@@ -1365,14 +1365,17 @@ impl PostReview {
 
         // Generate a compatibility video for browser playback
         // Later, only do this if it's not already in the compatibility format.
-        let compatibility_path = Self::generate_compatibility_video(&published_media_path).await;
+        if !Self::video_is_compatible(&published_media_path).await {
+            let compatibility_path =
+                Self::generate_compatibility_video(&published_media_path).await;
 
-        if !compatibility_path.exists() {
-            return Err(String::from("Compatibility video generation failed"));
+            if !compatibility_path.exists() {
+                return Err(String::from("Compatibility video generation failed"));
+            }
+
+            // Update the database with the compatibility video path
+            post.update_compat_video(tx, &compatibility_path).await;
         }
-
-        // Update the database with the compatibility video path
-        post.update_compat_video(tx, &compatibility_path).await;
 
         // Generate a poster image from the video
         let video_poster_path = Self::generate_video_poster(&published_media_path).await;
@@ -1433,6 +1436,75 @@ impl PostReview {
             image_path, width, height
         );
         (width, height)
+    }
+
+    /// Use ffprobe to determine if a video needs a compatibility variant.
+    /// This is accomplished by checking if the video codec is H.264 and the audio codec is AAC.
+    /// It must also be 8-bit YUV 4:2:0 pixel format and have an MP4 container.
+    ///
+    /// # Parameters
+    /// - `video_path`: Path to the video file
+    ///
+    /// # Returns
+    /// `true` if the video is compatible, `false` if it needs conversion
+    pub async fn video_is_compatible(video_path: &PathBuf) -> bool {
+        println!("Checking video compatibility for: {:?}", video_path);
+        let video_path_str = video_path.to_str().unwrap().to_owned();
+
+        // Run ffprobe to get video codec information
+        let output = tokio::process::Command::new("ffprobe")
+            .args([
+                "-v",
+                "error", // Suppress non-error messages
+                "-select_streams",
+                "v:0", // Select the first video stream
+                "-show_entries",
+                "stream=codec_name,pix_fmt,profile,level",
+                "-of",
+                "default=noprint_wrappers=1", // Use key=value output
+                &video_path_str,              // Input video file
+            ])
+            .output()
+            .await
+            .expect("ffprobe command failed");
+
+        let output_str = String::from_utf8_lossy(&output.stdout);
+
+        println!("ffprobe output: {}", output_str);
+
+        // Parse the output by key
+        let mut codec = "";
+        let mut pix_fmt = "";
+        let mut profile = "";
+        let mut level = "";
+        for line in output_str.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("codec_name=") {
+                codec = rest;
+            } else if let Some(rest) = line.strip_prefix("pix_fmt=") {
+                pix_fmt = rest;
+            } else if let Some(rest) = line.strip_prefix("profile=") {
+                profile = rest;
+            } else if let Some(rest) = line.strip_prefix("level=") {
+                level = rest;
+            }
+        }
+
+        // Check if the video is compatible
+        if codec == "h264"
+            && pix_fmt == "yuv420p"
+            && ["Baseline", "Constrained Baseline", "Main", "High"].contains(&profile)
+            && level.parse::<i32>().unwrap_or(0) <= 42
+        {
+            println!("Video is compatible for web playback: {}", video_path_str);
+            return true; // Compatible video
+        }
+
+        println!(
+            "Video is not compatible for web playback: {}",
+            video_path_str
+        );
+        false // Needs conversion
     }
 
     /// Generates a browser-compatible video variant for playback
