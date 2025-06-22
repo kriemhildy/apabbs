@@ -139,11 +139,10 @@ function fixChromeVideoPosters(key) {
  * @returns {string|null} The post key or null if no posts exist
  */
 function latestPostKey() {
-    const postOpt = document.querySelector("div.post.approved");
-    if (postOpt === null) {
+    const post = document.querySelector("div.post.approved");
+    if (post === null) {
         return null;
     }
-    const post = postOpt;
     return post.id.replace("post-", "");
 }
 
@@ -152,11 +151,10 @@ function latestPostKey() {
  * Used when reconnecting or after device sleep/hibernation
  */
 function checkInterim() {
-    const keyOpt = latestPostKey();
-    if (keyOpt === null) {
+    const key = latestPostKey();
+    if (key === null) {
         return;
     }
-    const key = keyOpt;
     console.log("fetching interim post data since", key);
     fetch(`/interim/${key}`).then((response) => {
         console.log("interim response", response);
