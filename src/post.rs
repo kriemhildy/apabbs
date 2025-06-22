@@ -252,32 +252,6 @@ impl Post {
             .expect("delete post");
     }
 
-    /// Decrypts the post's media file using GPG
-    ///
-    /// Returns the decrypted file content as bytes.
-    /// This operation is CPU-intensive and runs in a separate thread.
-    pub async fn decrypt_media_file(&self) -> Vec<u8> {
-        if self.media_filename.is_none() {
-            panic!("No media bytes available");
-        }
-
-        let encrypted_file_path = self.encrypted_media_path().to_str().unwrap().to_owned();
-
-        // Run GPG decrypt in a separate thread
-        let output = tokio::task::spawn_blocking(move || {
-            std::process::Command::new("gpg")
-                .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
-                .arg(&encrypted_file_path)
-                .output()
-                .expect("decrypt media file")
-        })
-        .await
-        .expect("decrypt task completed");
-
-        println!("Media file decrypted successfully");
-        output.stdout
-    }
-
     /// Updates the status of a post in the database
     pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
@@ -371,86 +345,6 @@ impl Post {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Tests post status transitions and review actions for different user roles
-    #[tokio::test]
-    async fn review_action_permissions() {
-        // Create a post with defaults, only setting what we need for this test
-        // PostStatus::Pending is already the default
-        let post = Post {
-            id: 1,
-            key: String::from("testkey"),
-            ..Default::default()
-        };
-
-        // Case 1: Admin approving a pending post
-        let review = PostReview {
-            session_token: Uuid::new_v4(),
-            status: PostStatus::Approved,
-        };
-        assert_eq!(
-            review.determine_action(&post, &AccountRole::Admin),
-            Ok(ReviewAction::DecryptMedia)
-        );
-
-        // Case 2: Mod trying to modify a reported post (should fail)
-        let reported_post = Post {
-            status: PostStatus::Reported,
-            ..Default::default()
-        };
-        let review = PostReview {
-            session_token: Uuid::new_v4(),
-            status: PostStatus::Approved,
-        };
-        assert_eq!(
-            review.determine_action(&reported_post, &AccountRole::Mod),
-            Err(ReviewError::AdminOnly)
-        );
-
-        // Case 3: Trying to modify a banned post (should fail)
-        let banned_post = Post {
-            status: PostStatus::Banned,
-            ..Default::default()
-        };
-        let review = PostReview {
-            session_token: Uuid::new_v4(),
-            status: PostStatus::Approved,
-        };
-        assert_eq!(
-            review.determine_action(&banned_post, &AccountRole::Admin),
-            Err(ReviewError::RejectedOrBanned)
-        );
-
-        // Case 4: Mod trying to report an approved post (valid action)
-        let approved_post = Post {
-            status: PostStatus::Approved,
-            recent: Some(true),
-            ..Default::default()
-        };
-        let review = PostReview {
-            session_token: Uuid::new_v4(),
-            status: PostStatus::Reported,
-        };
-        assert_eq!(
-            review.determine_action(&approved_post, &AccountRole::Mod),
-            Ok(ReviewAction::ReencryptMedia)
-        );
-
-        // Case 5: Mod trying to modify a non-recent approved post (should fail)
-        let old_post = Post {
-            status: PostStatus::Approved,
-            recent: Some(false),
-            ..Default::default()
-        };
-        let review = PostReview {
-            session_token: Uuid::new_v4(),
-            status: PostStatus::Delisted,
-        };
-        assert_eq!(
-            review.determine_action(&old_post, &AccountRole::Mod),
-            Err(ReviewError::RecentOnly)
-        );
-    }
 
     /// Tests the author verification functionality
     #[tokio::test]

@@ -151,6 +151,32 @@ impl Post {
 
         result
     }
+
+    /// Decrypts the post's media file using GPG
+    ///
+    /// Returns the decrypted file content as bytes.
+    /// This operation is CPU-intensive and runs in a separate thread.
+    pub async fn decrypt_media_file(&self) -> Vec<u8> {
+        if self.media_filename.is_none() {
+            panic!("No media bytes available");
+        }
+
+        let encrypted_file_path = self.encrypted_media_path().to_str().unwrap().to_owned();
+
+        // Run GPG decrypt in a separate thread
+        let output = tokio::task::spawn_blocking(move || {
+            std::process::Command::new("gpg")
+                .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
+                .arg(&encrypted_file_path)
+                .output()
+                .expect("decrypt media file")
+        })
+        .await
+        .expect("decrypt task completed");
+
+        println!("Media file decrypted successfully");
+        output.stdout
+    }
 }
 
 impl PostSubmission {
