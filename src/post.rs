@@ -623,6 +623,7 @@ impl PostSubmission {
         video_id: &str,
         youtube_short: bool,
     ) -> Option<(PathBuf, i32, i32)> {
+        println!("Downloading YouTube thumbnail for video ID: {}", video_id);
         fn dimensions(size: &str) -> (i32, i32) {
             match size {
                 "maxresdefault" => (1280, 720),
@@ -1408,6 +1409,7 @@ impl PostReview {
     /// # Returns
     /// A tuple of (width, height) as integers
     pub async fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
+        println!("Getting image dimensions for: {:?}", image_path);
         let image_path_str = image_path.to_str().unwrap();
 
         // Helper function to extract specific field from vipsheader
@@ -1425,7 +1427,12 @@ impl PostReview {
         };
 
         // Get both dimensions in parallel
-        tokio::join!(vipsheader("width"), vipsheader("height"))
+        let (width, height) = tokio::join!(vipsheader("width"), vipsheader("height"));
+        println!(
+            "Image dimensions for {:?}: {}x{}",
+            image_path, width, height
+        );
+        (width, height)
     }
 
     /// Generates a browser-compatible video variant for playback
@@ -1440,6 +1447,7 @@ impl PostReview {
     /// # Returns
     /// Path to the generated compatibility video file (MP4)
     pub async fn generate_compatibility_video(video_path: &PathBuf) -> PathBuf {
+        println!("Generating compatibility video for: {:?}", video_path);
         let video_path_str = video_path.to_str().unwrap().to_owned();
         let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
         let compatibility_path_str = compatibility_path.to_str().unwrap().to_owned();
@@ -1479,6 +1487,7 @@ impl PostReview {
         .await
         .expect("ffmpeg task completed");
 
+        println!("Compatibility video generated at: {:?}", compatibility_path);
         compatibility_path
     }
 
@@ -1493,8 +1502,8 @@ impl PostReview {
     /// # Returns
     /// Path to the generated poster image file
     pub async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
+        println!("Generating video poster for: {:?}", video_path);
         let poster_path = video_path.with_extension("webp");
-        println!("poster_path: {:?}", poster_path);
 
         let video_path_str = video_path.to_str().unwrap().to_owned();
         let poster_path_str = poster_path.to_str().unwrap().to_owned();
@@ -1530,6 +1539,7 @@ impl PostReview {
         .await
         .expect("poster generation task completed");
 
+        println!("Video poster generated at: {:?}", poster_path);
         poster_path
     }
 }
