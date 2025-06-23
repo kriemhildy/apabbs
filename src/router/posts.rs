@@ -213,12 +213,7 @@ pub async fn submit_post(
         };
 
     // Check if user is banned
-    if let Some(response) =
-        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
-    {
-        tx.commit().await?;
-        return Ok(response);
-    }
+    check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await?;
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
