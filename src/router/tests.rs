@@ -952,6 +952,8 @@ async fn settings() {
 /// Tests updating the user's time zone setting.
 #[tokio::test]
 async fn update_time_zone() {
+    use apabbs::user::TimeZoneUpdate;
+
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN);
 
