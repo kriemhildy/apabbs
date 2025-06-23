@@ -360,7 +360,7 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
         .await
-        .expect("sets time zone");
+        .expect("query succeeds");
 }
 
 //==================================================================================================
@@ -460,5 +460,5 @@ pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
-        .expect("fetches timestamp from database")
+        .expect("query succeeds")
 }

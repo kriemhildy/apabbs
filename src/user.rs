@@ -111,7 +111,7 @@ impl Account {
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
-            .expect("selects by token")
+            .expect("query succeeds")
     }
 
     /// Retrieves an account by username, with formatted timestamps.
@@ -133,7 +133,7 @@ impl Account {
         .bind(username)
         .fetch_optional(&mut *tx)
         .await
-        .expect("selects by username")
+        .expect("query succeeds")
     }
 
     /// Generates and assigns a new authentication token for the account.
@@ -145,7 +145,7 @@ impl Account {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("updates token");
+            .expect("query succeeds");
     }
 }
 
@@ -172,7 +172,7 @@ impl TimeZoneUpdate {
         ))
         .fetch_all(&mut *tx)
         .await
-        .expect("selects time zones")
+        .expect("query succeeds")
     }
 
     /// Updates the time zone setting for a user account.
@@ -186,7 +186,7 @@ impl TimeZoneUpdate {
             .bind(account_id)
             .execute(&mut *tx)
             .await
-            .expect("updates time zone");
+            .expect("query succeeds");
     }
 }
 
@@ -215,7 +215,7 @@ impl Credentials {
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
-            .expect("checks username")
+            .expect("query succeeds")
     }
 
     /// Validates the credentials for registration.
@@ -294,7 +294,7 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .expect("inserts account")
+        .expect("query succeeds")
     }
 
     /// Authenticates a user with the provided credentials.
@@ -313,7 +313,7 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
-        .expect("selects by username and password")
+        .expect("query succeeds")
     }
 
     /// Updates the password for an existing account.
@@ -330,7 +330,7 @@ impl Credentials {
         .bind(&self.username)
         .execute(&mut *tx)
         .await
-        .expect("updates password");
+        .expect("query succeeds");
     }
 
     /// Checks if the year verification checkbox was checked.

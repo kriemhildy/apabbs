@@ -64,7 +64,7 @@ impl PostSubmission {
                     .bind(&key)
                     .fetch_one(&mut *tx)
                     .await
-                    .expect("checks key");
+                    .expect("query succeeds");
             if !exists {
                 return key;
             }
@@ -117,7 +117,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .expect("inserts new post")
+        .expect("query succeeds")
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -187,7 +187,7 @@ impl PostSubmission {
                 .arg(&remote_thumbnail_url)
                 .status()
                 .await
-                .expect("downloads");
+                .expect("downloads file");
             if curl_status.success() {
                 let (width, height) = dimensions(size);
                 return Some((local_thumbnail_path, width, height));
@@ -386,7 +386,7 @@ impl PostSubmission {
             return None;
         }
         // Truncate to the last break(s) before the limit
-        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("builds regex for breaks");
+        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("builds regex");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
             println!("Found last break(s) at byte: {}", mat.start());
             return Some(mat.start() as i32);
@@ -398,7 +398,7 @@ impl PostSubmission {
         // If no space found, use the last valid utf8 character index
         // Need to strip incomplete html entities
         // Check for & which is not terminated by a ;
-        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("builds regex for entity");
+        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("builds regex");
         if let Some(mat) = incomplete_entity_pattern.find(slice) {
             println!("Found incomplete entity at byte: {}", mat.start());
             return Some(mat.start() as i32);
@@ -437,7 +437,7 @@ impl PostHiding {
             .bind(&self.key)
             .execute(&mut *tx)
             .await
-            .expect("sets hidden");
+            .expect("query succeeds");
     }
 }
 

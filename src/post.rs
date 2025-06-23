@@ -180,7 +180,7 @@ impl Post {
             .build_query_as()
             .fetch_all(&mut *tx)
             .await
-            .expect("selects")
+            .expect("query succeeds")
     }
 
     /// Selects approved posts created by the specified account.
@@ -202,7 +202,7 @@ impl Post {
         .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
-        .expect("selects")
+        .expect("query succeeds")
     }
 
     /// Checks if the user is the author of this post.
@@ -260,7 +260,7 @@ impl Post {
         .bind(key)
         .fetch_optional(&mut *tx)
         .await
-        .expect("selects")
+        .expect("query succeeds")
     }
 
     /// Permanently deletes a post from the database.
@@ -272,7 +272,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("deletes");
+            .expect("query succeeds");
     }
 
     /// Updates the status of a post in the database.
@@ -286,7 +286,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("updates");
+            .expect("query succeeds");
     }
 
     /// Updates thumbnail metadata for a post.
@@ -319,7 +319,7 @@ impl Post {
         .bind(self.id)
         .execute(&mut *tx)
         .await
-        .expect("updates");
+        .expect("query succeeds");
     }
 
     /// Update the compatibility video filename for a post.
@@ -344,7 +344,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("updates");
+            .expect("query succeeds");
     }
 
     /// Updates the media dimensions for a post in the database.
@@ -360,7 +360,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("updates");
+            .expect("query succeeds");
     }
 
     /// Updates the poster filename for video posts.
@@ -383,7 +383,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("updates");
+            .expect("query succeeds");
     }
 }
 

@@ -68,7 +68,7 @@ pub async fn main() {
                 .bind(name)
                 .fetch_one(&db)
                 .await
-                .expect("checks migration");
+                .expect("query succeeds");
 
         if exists {
             continue;
@@ -82,7 +82,7 @@ pub async fn main() {
             .bind(name)
             .execute(&db)
             .await
-            .expect("records migration");
+            .expect("query succeeds");
     }
 }
 
@@ -107,7 +107,7 @@ pub async fn update_intro_limit(db: PgPool) {
             .bind(post.id)
             .execute(&mut *tx)
             .await
-            .expect("updates intro_limit");
+            .expect("query succeeds");
     }
     tx.commit().await.expect("commits");
 }
@@ -171,7 +171,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("updates youtube link");
+            .expect("query succeeds");
         }
 
         // Download thumbnail and get dimensions
@@ -206,7 +206,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("updates youtube thumbnail");
+            .expect("query succeeds");
         }
 
         // Avoid rate limiting
@@ -274,7 +274,7 @@ pub async fn uuid_to_key(db: PgPool) {
     sqlx::query("ALTER TABLE posts DROP COLUMN uuid")
         .execute(&mut *tx)
         .await
-        .expect("drops uuid");
+        .expect("query succeeds");
 
     tx.commit().await.expect("commits");
 }
