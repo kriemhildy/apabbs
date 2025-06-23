@@ -5,6 +5,7 @@
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
+use serde::Serialize;
 use sqlx::PgConnection;
 
 /// HTTP header name for the client's real IP address (set by reverse proxy).
@@ -420,7 +421,7 @@ pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> Str
 //==================================================================================================
 
 /// Information about the user's browser derived from the User-Agent header.
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct UserAgent {
     pub mac: bool,
     pub chromium: bool,

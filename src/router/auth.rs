@@ -4,6 +4,7 @@
 //! It handles session management, credential validation, and user authentication flows.
 
 use super::*;
+use serde::{Deserialize, Serialize};
 
 /// Displays the login form.
 ///
@@ -190,7 +191,7 @@ pub async fn create_account(
 }
 
 /// Represents a logout request.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Logout {
     /// Session token to invalidate during logout
     pub session_token: Uuid,

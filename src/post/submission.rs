@@ -6,6 +6,7 @@
 use crate::post::Post;
 use crate::user::User;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use std::path::PathBuf;
 use url::Url;
@@ -31,7 +32,7 @@ pub const MAX_INTRO_BREAKS: usize = 24;
 /// Contains all data needed to create a new post including the content,
 /// associated media files, and user identification information. Handles converting
 /// raw input into properly formatted post content with media processing.
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct PostSubmission {
     /// Session token of the user submitting the post
     pub session_token: Uuid,
@@ -413,7 +414,7 @@ impl PostSubmission {
 /// This structure contains the session token of the user requesting to hide a post
 /// and the unique key of the post to be hidden. Used primarily for moderation actions
 /// or user-initiated content hiding.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PostHiding {
     /// Session token of the user requesting to hide the post
     pub session_token: Uuid,

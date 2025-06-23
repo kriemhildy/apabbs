@@ -21,15 +21,14 @@ use crate::{
     user::{AccountRole, User},
 };
 pub use review::{PostReview, ReviewAction, ReviewError};
+use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::Path;
 pub use submission::{PostHiding, PostSubmission};
 use uuid::Uuid;
 
 /// Post status indicates the moderation/approval state of a post
-#[derive(
-    sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Copy, Default,
-)]
+#[derive(sqlx::Type, Serialize, Deserialize, PartialEq, Clone, Debug, Copy, Default)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "post_status", rename_all = "snake_case")]
 pub enum PostStatus {
@@ -44,7 +43,7 @@ pub enum PostStatus {
 }
 
 /// Media category identifies the type of media attached to a post
-#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug)]
+#[derive(sqlx::Type, Serialize, Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "media_category", rename_all = "snake_case")]
 pub enum MediaCategory {
@@ -57,7 +56,7 @@ pub enum MediaCategory {
 ///
 /// Posts can be associated with either a registered user account (account_id)
 /// or an anonymous session (session_token), but not both.
-#[derive(sqlx::FromRow, serde::Serialize, Clone, Debug, Default)]
+#[derive(sqlx::FromRow, Serialize, Clone, Debug, Default)]
 pub struct Post {
     /// Unique database identifier for the post
     pub id: i32,

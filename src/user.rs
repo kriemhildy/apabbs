@@ -12,6 +12,7 @@
 
 use crate::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use uuid::Uuid;
 
@@ -21,7 +22,7 @@ pub const BLOWFISH_ITERATIONS: i32 = 10;
 /// Role-based access control for user accounts.
 ///
 /// Defines the access level and permissions of a user within the system.
-#[derive(sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Clone, Debug, Default)]
+#[derive(sqlx::Type, Serialize, Deserialize, PartialEq, Clone, Debug, Default)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "account_role", rename_all = "snake_case")]
 pub enum AccountRole {
@@ -39,7 +40,7 @@ pub enum AccountRole {
 /// Represents a user in the system, either anonymous or authenticated.
 ///
 /// Contains the user's session token and optional account information.
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct User {
     /// The user's account details if they are logged in
     pub account: Option<Account>,
@@ -83,7 +84,7 @@ impl User {
 /// Represents a registered user account in the system.
 ///
 /// Contains all account details including credentials and preferences.
-#[derive(sqlx::FromRow, serde::Serialize, Default, Clone)]
+#[derive(sqlx::FromRow, Serialize, Default, Clone)]
 pub struct Account {
     pub id: i32,
     pub username: String,
@@ -150,7 +151,7 @@ impl Account {
 }
 
 /// Represents a request to update a user's time zone preference.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TimeZoneUpdate {
     pub session_token: Uuid,
     pub time_zone: String,
@@ -191,7 +192,7 @@ impl TimeZoneUpdate {
 }
 
 /// Represents user credentials for registration or authentication.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Credentials {
     pub session_token: Uuid,
     pub username: String,

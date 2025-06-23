@@ -6,6 +6,7 @@
 use super::Post;
 use super::PostStatus;
 use crate::user::AccountRole;
+use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use uuid::Uuid;
 
@@ -55,7 +56,7 @@ pub enum ReviewError {
 ///
 /// Contains the reviewer's session token and the proposed new status for the post.
 /// Used to process moderation decisions through the review workflow.
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PostReview {
     /// Session token of the user performing the review
     pub session_token: Uuid,
