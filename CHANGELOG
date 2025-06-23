@@ -1,3 +1,8 @@
+0.40.0
+
+Improve support for compatibility videos.
+Refactor code, splitting it up into submodules and making it more idiomatic.
+
 0.39.0
 
 Take a regular screenshot of the homepage to be embedded on Discord.
