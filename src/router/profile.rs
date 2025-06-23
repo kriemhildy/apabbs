@@ -1,6 +1,6 @@
 use super::*;
 
-/// Displays a user's profile page
+/// Displays a user's profile page.
 ///
 /// Shows information about a user and their public posts.
 pub async fn user_profile(
@@ -20,7 +20,7 @@ pub async fn user_profile(
 
     // Find account by username
     let account = match Account::select_by_username(&mut tx, &username).await {
-        None => return not_found("account does not exist"),
+        None => return not_found("User account does not exist"),
         Some(account) => account,
     };
 
@@ -44,7 +44,7 @@ pub async fn user_profile(
     (jar, html).into_response()
 }
 
-/// Displays the user settings page
+/// Displays the user settings page.
 ///
 /// Shows options for account management and preferences.
 pub async fn settings(
@@ -63,7 +63,7 @@ pub async fn settings(
 
     // Verify user is logged in
     if user.account.is_none() {
-        return unauthorized("not logged in");
+        return unauthorized("You must be logged in to access settings");
     }
 
     // Get time zones for selection
@@ -89,7 +89,7 @@ pub async fn settings(
     (jar, html).into_response()
 }
 
-/// Updates a user's time zone preference
+/// Updates a user's time zone preference.
 ///
 /// Changes the time zone setting for a logged-in user.
 pub async fn update_time_zone(
@@ -109,14 +109,14 @@ pub async fn update_time_zone(
 
     // Verify user is logged in
     let account = match user.account {
-        None => return unauthorized("not logged in"),
+        None => return unauthorized("You must be logged in to update your time zone"),
         Some(account) => account,
     };
 
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     if !time_zones.contains(&time_zone_update.time_zone) {
-        return bad_request("invalid time zone");
+        return bad_request("Invalid time zone selection");
     }
 
     // Update time zone preference
@@ -130,7 +130,7 @@ pub async fn update_time_zone(
     (jar, redirect).into_response()
 }
 
-/// Updates a user's password
+/// Updates a user's password.
 ///
 /// Changes the password for a logged-in user after validation.
 pub async fn update_password(
@@ -149,10 +149,10 @@ pub async fn update_password(
 
     // Verify user is logged in as the correct user
     match user.account {
-        None => return unauthorized("not logged in"),
+        None => return unauthorized("You must be logged in to update your password"),
         Some(account) => {
             if account.username != credentials.username {
-                return unauthorized("not logged in as this user");
+                return unauthorized("You are not logged in as this user");
             }
         }
     };
@@ -160,7 +160,7 @@ pub async fn update_password(
     // Validate new password
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return bad_request(&errors.join("\n"));
+        return bad_request(&format!("Password update failed:\n{}", errors.join("\n")));
     }
 
     // Update password

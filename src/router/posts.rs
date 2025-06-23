@@ -5,7 +5,7 @@ use axum::extract::{
 };
 use std::collections::HashMap;
 
-/// Handles the main index page and paginated content
+/// Handles the main index page and paginated content.
 ///
 /// Renders the home page with a list of posts, supporting pagination through
 /// the optional page key parameter.
@@ -68,7 +68,7 @@ pub async fn index(
     (jar, html).into_response()
 }
 
-/// Displays a single post in full-page view
+/// Displays a single post in full-page view.
 ///
 /// Renders a dedicated page for viewing a single post by its unique key.
 pub async fn solo_post(
@@ -109,7 +109,7 @@ pub async fn solo_post(
     (jar, html).into_response()
 }
 
-/// Handles post submission
+/// Handles post submission.
 ///
 /// Processes new post creation with optional media attachments.
 pub async fn submit_post(
@@ -123,32 +123,49 @@ pub async fn submit_post(
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap().to_owned();
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .expect("Failed to read multipart field")
+    {
+        let name = field
+            .name()
+            .expect("Multipart field missing name")
+            .to_owned();
         match name.as_str() {
             "session_token" => {
-                post_submission.session_token = match Uuid::try_parse(&field.text().await.unwrap())
-                {
-                    Err(_) => return bad_request("invalid session token"),
+                post_submission.session_token = match Uuid::try_parse(
+                    &field
+                        .text()
+                        .await
+                        .expect("Failed to read session_token field"),
+                ) {
+                    Err(_) => return bad_request("Invalid session token"),
                     Ok(uuid) => uuid,
                 };
             }
-            "body" => post_submission.body = field.text().await.unwrap(),
+            "body" => post_submission.body = field.text().await.expect("Failed to read body field"),
             "media" => {
                 if post_submission.media_filename.is_some() {
-                    return bad_request("only upload one media file");
+                    return bad_request("Only one media file can be uploaded");
                 }
                 let filename = match field.file_name() {
-                    None => return bad_request("media file has no filename"),
+                    None => return bad_request("Media file has no filename"),
                     Some(filename) => filename.to_owned(),
                 };
                 if filename.is_empty() {
                     continue;
                 }
                 post_submission.media_filename = Some(filename);
-                post_submission.media_bytes = Some(field.bytes().await.unwrap().to_vec());
+                post_submission.media_bytes = Some(
+                    field
+                        .bytes()
+                        .await
+                        .expect("Failed to read media bytes")
+                        .to_vec(),
+                );
             }
-            _ => return bad_request(&format!("unexpected field: {name}")),
+            _ => return bad_request(&format!("Unexpected field: {name}")),
         };
     }
 
@@ -172,7 +189,7 @@ pub async fn submit_post(
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
-        return bad_request("post cannot be empty unless there is a media file");
+        return bad_request("Post cannot be empty unless there is a media file");
     }
 
     // Generate unique key and insert post
@@ -203,7 +220,7 @@ pub async fn submit_post(
     (jar, response).into_response()
 }
 
-/// Hides a post from the user's view
+/// Hides a post from the user's view.
 ///
 /// Allows users to hide their rejected posts from view.
 pub async fn hide_post(
@@ -225,16 +242,15 @@ pub async fn hide_post(
     // Process post hiding if authorized and eligible
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await {
         if !post.author(&user) {
-            return unauthorized("not post author");
+            return unauthorized("You are not the author of this post");
         }
-
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await;
                 tx.commit().await.expect(COMMIT_FAILED_ERR);
             }
             Reported | Banned => (),
-            _ => return bad_request("post is not rejected, reported nor banned"),
+            _ => return bad_request("Post is not rejected, reported, or banned"),
         }
     };
 
@@ -248,7 +264,7 @@ pub async fn hide_post(
     (jar, response).into_response()
 }
 
-/// Handles WebSocket connections for real-time updates
+/// Handles WebSocket connections for real-time updates.
 ///
 /// Establishes a persistent connection to send new posts to the client as they're created.
 pub async fn web_socket(
@@ -309,7 +325,7 @@ pub async fn web_socket(
     upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user))
 }
 
-/// Fetches posts created after the latest approved post
+/// Fetches posts created after the latest approved post.
 ///
 /// Used for recovering updates since websocket interruption.
 pub async fn interim(

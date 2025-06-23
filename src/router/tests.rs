@@ -272,7 +272,7 @@ async fn select_latest_post_by_session_token(
         .bind(session_token)
         .fetch_optional(tx)
         .await
-        .expect("select post")
+        .expect("Failed to select post by session token")
 }
 
 /// Retrieves the most recent post by account ID.
@@ -288,7 +288,7 @@ async fn select_latest_post_by_account_id(tx: &mut PgConnection, account_id: i32
         .bind(account_id)
         .fetch_optional(tx)
         .await
-        .expect("select post")
+        .expect("Failed to select post by account id")
 }
 
 /// Deletes a test ban record.
