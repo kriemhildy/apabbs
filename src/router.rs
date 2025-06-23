@@ -1,8 +1,15 @@
 //! Web application routing and request handling.
 //!
-//! This module defines all HTTP routes and handlers for the application,
-//! implementing core functionality such as post management, user authentication,
-//! content moderation, and real-time updates via WebSockets.
+//! Defines all HTTP routes and handlers for the application, implementing core functionality
+//! such as post management, user authentication, content moderation, and real-time updates.
+//!
+//! # Modules
+//! - `auth`: Authentication and account management
+//! - `helpers`: Shared route helpers
+//! - `moderation`: Content moderation endpoints
+//! - `posts`: Post creation, listing, and interaction
+//! - `profile`: User profile and settings
+//! - `tests`: Route-level tests (cfg(test))
 
 mod auth;
 mod helpers;
@@ -28,33 +35,27 @@ use std::future::Future;
 use std::pin::Pin;
 use uuid::Uuid;
 
-/// Root path for the application
+/// Root path for the application.
 const ROOT: &str = "/";
 
-/// Type alias for background task futures
+/// Type alias for boxed background task futures.
 ///
 /// Used for tasks that need to run asynchronously after a request completes,
 /// such as media processing operations.
 type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
-//==================================================================================================
-/// URL path router
-//==================================================================================================
-
-/// Configures the application router with all available routes
-///
-/// Creates and returns a router configured with all endpoints and middleware.
+/// Configures the application router with all available routes and middleware.
 ///
 /// # Parameters
-/// - `state`: Application state accessible to all handlers
-/// - `trace`: Whether to enable request/response tracing for debugging
+/// - `state`: Application state accessible to all handlers.
+/// - `trace`: Whether to enable request/response tracing for debugging.
 ///
 /// # Returns
-/// Configured router ready to serve requests
+/// Configured router ready to serve requests.
 pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
 
-    // Define all routes with their respective handlers
+    // Define all routes with their respective handlers.
     let router = axum::Router::new()
         // Public content routes
         .route("/", get(posts::index))
@@ -92,7 +93,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         // File size limit for uploads
         .layer(DefaultBodyLimit::max(20_000_000)); // 20MB limit
 
-    // Optionally add HTTP tracing middleware
+    // Optionally add HTTP tracing middleware for debugging.
     let router = if trace {
         use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
         use tracing::Level;
