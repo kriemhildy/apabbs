@@ -1,6 +1,13 @@
-//! Core library functionality and shared utilities for the application.
+//! Anonymous Pre-Approval Bulletin Board System (APABBS)
+//! -----------------------------------------------------
 //!
-//! Provides constants, configuration helpers, and database access functions used throughout the app.
+//! The general philosophy of this forum system is that moderation of posts after
+//! they are published is a bad strategy. Trolls are usually content to get their
+//! message heard even if it comes at the cost of their (temporary) ban.
+//!
+//! Thus the only way to really allow anonymous conversation is to review every
+//! single post prior to its publication. [Only this will ensure that the fullness
+//! of the varied experience of the moderator will not go to waste.]
 
 pub mod ban;
 pub mod cron;
