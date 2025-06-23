@@ -1,11 +1,14 @@
 /* =============================================================================
-   This stylesheet defines the visual appearance for the entire application,
-   including layout, colors, and responsive behavior.
+   Application Stylesheet
+   -----------------------------------------------------------------------------
+   Defines the visual appearance, layout, color palette, and responsive behavior
+   for the entire application. Uses CSS variables for easy theming and supports
+   both dark and light modes. All sections are clearly commented for maintainability.
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
    Color Variables
-
+   -----------------------------------------------------------------------------
    Defines the color palette for both dark and light modes using CSS variables.
    All colors are referenced via these variables throughout the stylesheet.
    ----------------------------------------------------------------------------- */
@@ -17,8 +20,6 @@
     --border: #777;           /* Border color for inputs and divisions */
     --system: #9cdcda;        /* System message color and accent color */
     --review: #bebebe;        /* Color for review controls */
-
-    /* Post status colors */
     --pending: #111111;       /* Posts awaiting moderation */
     --processing: #111111;    /* Posts being processed */
     --delisted: #051d3a;      /* Posts hidden from main feed */
@@ -48,7 +49,7 @@
 
 /* -----------------------------------------------------------------------------
    Base Layout
-
+   -----------------------------------------------------------------------------
    Core layout settings for the document body and common elements.
    ----------------------------------------------------------------------------- */
 
@@ -74,7 +75,7 @@ textarea {
 
 /* -----------------------------------------------------------------------------
    Typography and Form Controls
-
+   -----------------------------------------------------------------------------
    Consistent font styling across all text and interactive elements.
    ----------------------------------------------------------------------------- */
 
@@ -93,22 +94,19 @@ button,
     text-size-adjust: none;
 }
 
-/* Text selection highlighting */
 ::selection {
-    background: var(--system);
+    background: var(--system);           /* Highlight selection with accent color */
     color: var(--back);
 }
 
-/* Disabled input styling */
 input:disabled {
-    color: var(--disabled);
+    color: var(--disabled);              /* Disabled input styling */
 }
 
-/* Spacing for form controls */
 input[type="submit"],
 button,
 select {
-    margin: 7px 0;
+    margin: 7px 0;                      /* Spacing for form controls */
 }
 
 input[type="text"],
@@ -116,37 +114,31 @@ input[type="password"] {
     margin: 4px 0;
 }
 
-/* Consistent border styling for form elements */
 input,
 textarea,
 select,
 button,
 ::file-selector-button {
-    border-radius: 5px;
+    border-radius: 5px;                  /* Consistent border styling */
     border-color: var(--border);
 }
 
 /* -----------------------------------------------------------------------------
    Links and Navigation
-
-   Styling for links, navigation bar, and headings.
    ----------------------------------------------------------------------------- */
 
-/* Standard link styling */
 a {
-    color: var(--system);
+    color: var(--system);                /* Standard link styling */
 }
 
-/* Top-right navigation bar */
 nav {
-    float: right;
+    float: right;                        /* Top-right navigation bar */
 }
 
 nav a {
     text-decoration: none;
 }
 
-/* Site title styling */
 h1 a {
     text-decoration: none;
     color: var(--fore);
@@ -158,8 +150,6 @@ h1 {
 
 /* -----------------------------------------------------------------------------
    Status Messages and System Elements
-
-   Styling for informational elements and moderation controls.
    ----------------------------------------------------------------------------- */
 
 .system {
@@ -174,40 +164,33 @@ h1 {
     text-decoration: none;
 }
 
-/* Moderation review controls */
 details.review form {
-    display: inline;
+    display: inline;                     /* Moderation review controls */
 }
 
 /* -----------------------------------------------------------------------------
    Post Layout and Styling
-
-   Grid-based layout for posts with responsive sizing and spacing.
    ----------------------------------------------------------------------------- */
 
-/* Posts container - flexbox layout */
 div#posts {
-    display: flex;
+    display: flex;                       /* Posts container - flexbox layout */
     flex-wrap: wrap;
-    gap: calc(1vh + 1vw + 16px);        /* Responsive spacing between posts */
+    gap: calc(1vh + 1vw + 16px);         /* Responsive spacing between posts */
     margin-top: 12px;
     margin-bottom: max(calc(4vh + 4vw - 50px), 12px); /* Responsive bottom margin */
     align-items: center;
 }
 
-/* Review section height on single post view */
 div.post.solo details.review {
-    height: 45px;
+    height: 45px;                        /* Review section height on single post view */
 }
 
-/* Individual post sizing in posts grid */
 div#posts div.post {
-    flex: clamp(300px, 34vh, 800px);    /* Responsive width with min/max bounds */
+    flex: clamp(300px, 34vh, 800px);     /* Individual post sizing in posts grid */
 }
 
-/* Base post layout using grid */
 div.post {
-    display: grid;
+    display: grid;                       /* Base post layout using grid */
     justify-content: center;
     gap: 8px;
     margin: 0 -8px;
@@ -216,23 +199,19 @@ div.post {
 
 /* -----------------------------------------------------------------------------
    Post Status Styling
-
-   Visual indicators for different post statuses (pending, rejected, etc.)
    ----------------------------------------------------------------------------- */
 
-/* Common padding for posts with status indicators */
 div.pending,
 div.delisted,
 div.reported,
 div.rejected,
 div.banned {
-    padding-top: 8px;
+    padding-top: 8px;                    /* Common padding for posts with status indicators */
     padding-bottom: 8px;
 }
 
-/* Background colors for different post statuses */
 div.pending {
-    background: var(--pending);
+    background: var(--pending);          /* Background colors for different post statuses */
 }
 
 div.processing {
@@ -257,119 +236,102 @@ div.banned {
 
 /* -----------------------------------------------------------------------------
    Post Content Elements
-
-   Styling for text content, media, and action buttons within posts.
    ----------------------------------------------------------------------------- */
 
-/* Post text content */
 div.post-body {
-    overflow-y: clip;               /* Prevent vertical scrolling */
-    overflow-wrap: anywhere;        /* Allow breaking words at any point */
-    max-width: 600px;               /* Maximum width for readability */
+    overflow-y: clip;                    /* Prevent vertical scrolling */
+    overflow-wrap: anywhere;             /* Allow breaking words at any point */
+    max-width: 600px;                    /* Maximum width for readability */
 }
 
-/* Media container in posts */
 div.media {
-    margin: 0 auto;
+    margin: 0 auto;                      /* Media container in posts */
     min-width: 300px;
     max-width: max-content;
     text-align: center;
 }
 
-/* Media element sizing */
 div.media img,
 div.media video,
 div.youtube-thumbnail img {
     max-width: max(300px, calc(100% + 16px));
-    margin: 0 -8px;                 /* Extend slightly beyond post boundaries */
+    margin: 0 -8px;                      /* Extend slightly beyond post boundaries */
     height: auto;
     width: auto;
 }
 
-/* Height constraints for media in post grid */
 div#posts div.media img,
 div#posts div.media video,
 div#posts div.youtube-thumbnail img {
-    max-height: clamp(300px, 80vh, 1200px);
+    max-height: clamp(300px, 80vh, 1200px); /* Height constraints for media in post grid */
 }
 
-/* "See more" arrow styling */
 div.arrow a {
-    text-decoration: none;
+    text-decoration: none;               /* "See more" arrow styling */
     font-size: 1.2em;
 }
 
-/* User link styling */
 div#user a {
-    text-decoration: none;
+    text-decoration: none;               /* User link styling */
 }
 
-/* Notification styling */
 p#notice {
-    color: var(--system);
+    color: var(--system);                /* Notification styling */
 }
 
 /* -----------------------------------------------------------------------------
    Loading Spinner
-
-   Animated spinner shown during form submissions.
    ----------------------------------------------------------------------------- */
 
 div#spinner {
     width: 10px;
     height: 10px;
     border: 2px solid var(--fore);
-    border-top-color: transparent;  /* Creates spinner effect */
+    border-top-color: transparent;       /* Creates spinner effect */
     border-radius: 50%;
     animation: spinner 0.85s linear infinite;
-    display: none;                  /* Hidden by default, shown via JavaScript */
+    display: none;                       /* Hidden by default, shown via JavaScript */
 }
 
 @keyframes spinner {
     to {
-        transform: rotate(360deg);  /* Full rotation animation */
+        transform: rotate(360deg);       /* Full rotation animation */
     }
 }
 
 /* -----------------------------------------------------------------------------
    Layout Helpers
-
-   Reusable layout components for forms and alignment.
    ----------------------------------------------------------------------------- */
 
-/* Horizontal row layout */
 div.row {
-    margin-top: 4px;
+    margin-top: 4px;                     /* Horizontal row layout */
     display: flex;
     gap: 6px;
     align-items: center;
 }
 
 div.row input[type="submit"] {
-    margin: unset;                  /* Reset margin for submit buttons in rows */
+    margin: unset;                       /* Reset margin for submit buttons in rows */
 }
 
-/* YouTube embeds */
 div.youtube {
-    margin: 0 auto;
+    margin: 0 auto;                      /* YouTube embeds */
     width: fit-content;
 }
 
 div.youtube-logo img {
     height: 1.7em;
-    filter: brightness(0.2) invert(1); /* Adjust YouTube logo color for dark mode */
+    filter: brightness(0.2) invert(1);   /* Adjust YouTube logo color for dark mode */
 }
 
-/* Invert YouTube logo filter for light mode */
 @media (prefers-color-scheme: light) {
     div.youtube-logo img {
-        filter: saturate(0) brightness(0.2);
+        filter: saturate(0) brightness(0.2); /* Invert YouTube logo filter for light mode */
     }
 }
 
-/* Checkbox alignment */
 div.checkbox-container {
-    display: flex;
+    display: flex;                       /* Checkbox alignment */
     align-items: center;
 }
 
@@ -379,43 +341,37 @@ div.checkbox-container label {
 
 /* -----------------------------------------------------------------------------
    Form Layouts
-
-   Grid-based form layouts with label alignment.
    ----------------------------------------------------------------------------- */
 
 form.grid {
-    display: grid;
+    display: grid;                       /* Grid-based form layouts with label alignment */
     grid-template-columns: max-content max-content; /* Label + input columns */
     column-gap: 5px;
     align-items: center;
 }
 
 form.grid label {
-    text-align: right;              /* Right align labels for readability */
+    text-align: right;                   /* Right align labels for readability */
 }
 
-/* Position form elements that should span grid columns */
 form.grid div.checkbox-container,
 form.grid input[type="submit"] {
-    grid-column: 2;
+    grid-column: 2;                      /* Position form elements that should span grid columns */
     justify-self: start;
 }
 
 /* -----------------------------------------------------------------------------
    Form Field Sizing
-
-   Specific sizing for different input types.
    ----------------------------------------------------------------------------- */
 
 input[type="password"] {
-    width: 31ch;                    /* Sized for typical password lengths */
+    width: 31ch;                         /* Sized for typical password lengths */
 }
 
 input#username {
-    width: 17ch;                    /* Sized for maximum username length */
+    width: 17ch;                         /* Sized for maximum username length */
 }
 
-/* "See more" link styling */
 div.see-more a {
-    text-decoration: none;
+    text-decoration: none;               /* "See more" link styling */
 }
