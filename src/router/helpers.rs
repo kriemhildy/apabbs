@@ -1,160 +1,112 @@
 //! Router helper functions and utilities.
 //!
-//! This module provides common utilities for HTTP request/response handling,
-//! cookie management, user authentication, security checks, and template rendering.
+//! Common utilities for HTTP request/response handling, cookie management,
+//! user authentication, security checks, and template rendering.
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
 
-/// HTTP header for the client's real IP address (when behind a proxy)
+// HTTP header constants
 pub const X_REAL_IP: &str = "X-Real-IP";
-
-/// HTTP header for Fetch metadata, indicating request mode (navigation vs. fetch)
 pub const SEC_FETCH_MODE: &str = "Sec-Fetch-Mode";
 
-/// Cookie name for storing the user's account authentication token
+// Cookie name constants
 pub const ACCOUNT_COOKIE: &str = "account";
-
-/// Cookie name for storing the user's session token
 pub const SESSION_COOKIE: &str = "session";
-
-/// Cookie name for storing temporary notification messages
 pub const NOTICE_COOKIE: &str = "notice";
 
 //==================================================================================================
 // Response Helpers
 //==================================================================================================
 
-/// Creates an HTTP response with the specified status code and message.
-///
-/// Formats the response body with the status code, reason phrase, and message.
-///
-/// # Parameters
-/// - `status`: The HTTP status code for the response
-/// - `msg`: The message to include in the response body
-///
-/// # Returns
-/// An HTTP response with the formatted body
+/// Create an HTTP response with the specified status code and message.
 fn http_status(status: StatusCode, msg: &str) -> Response {
     (
         status,
         format!(
             "{} {}\n\n{}",
             status.as_str(),
-            status.canonical_reason().expect("status reason"),
+            status.canonical_reason().unwrap_or("Unknown Status"),
             msg
         ),
     )
         .into_response()
 }
 
-/// Creates a 400 Bad Request response with the given message.
+/// 400 Bad Request response.
 pub fn bad_request(msg: &str) -> Response {
-    http_status(StatusCode::BAD_REQUEST, msg)
+    http_status(StatusCode::BAD_REQUEST, &format!("Bad Request: {msg}"))
 }
 
-/// Creates a 401 Unauthorized response with the given message.
+/// 401 Unauthorized response.
 pub fn unauthorized(msg: &str) -> Response {
-    http_status(StatusCode::UNAUTHORIZED, msg)
+    http_status(StatusCode::UNAUTHORIZED, &format!("Unauthorized: {msg}"))
 }
 
-/// Creates a 403 Forbidden response with the given message.
+/// 403 Forbidden response.
 pub fn forbidden(msg: &str) -> Response {
-    http_status(StatusCode::FORBIDDEN, msg)
+    http_status(StatusCode::FORBIDDEN, &format!("Forbidden: {msg}"))
 }
 
-/// Creates a 404 Not Found response with the given message.
+/// 404 Not Found response.
 pub fn not_found(msg: &str) -> Response {
-    http_status(StatusCode::NOT_FOUND, msg)
+    http_status(StatusCode::NOT_FOUND, &format!("Not Found: {msg}"))
 }
 
-/// Creates a 500 Internal Server Error response with the given message.
+/// 500 Internal Server Error response.
 pub fn internal_server_error(msg: &str) -> Response {
-    http_status(StatusCode::INTERNAL_SERVER_ERROR, msg)
+    http_status(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        &format!("Internal Server Error: {msg}"),
+    )
 }
 
-/// Creates a 403 Forbidden response for banned users with ban expiration information.
-///
-/// # Parameters
-/// - `expires_at_str`: A formatted string indicating when the ban expires
-///
-/// # Returns
-/// A 403 Forbidden response with the ban message
+/// 403 Forbidden response for banned users with ban expiration info.
 pub fn ban_message(expires_at_str: &str) -> Response {
-    let msg = format!("Banned until {expires_at_str}");
-    forbidden(&msg)
+    forbidden(&format!("Banned until {expires_at_str}"))
 }
 
 //==================================================================================================
 // Security Utilities
 //==================================================================================================
 
-/// Generates a hash of the client's IP address for tracking purposes.
-///
-/// Combines the application secret key with the client IP for a secure hash.
-///
-/// # Parameters
-/// - `headers`: HTTP headers containing the client IP
-///
-/// # Returns
-/// A secure hash of the client's IP address
+/// Generate a hash of the client's IP address for tracking.
 pub fn ip_hash(headers: &HeaderMap) -> String {
     let ip = headers
         .get(X_REAL_IP)
-        .expect("get IP header")
+        .expect("Missing X-Real-IP header")
         .to_str()
-        .expect("convert header to str");
+        .expect("X-Real-IP header is not valid UTF-8");
     sha256::digest(apabbs::secret_key() + ip)
 }
 
-/// Determines if a request is an AJAX/Fetch request rather than a page navigation.
-///
-/// Used to provide appropriate response types (JSON vs HTML redirect).
-///
-/// # Parameters
-/// - `headers`: HTTP headers from the client request
-///
-/// # Returns
-/// `true` if the request is an AJAX/Fetch request, `false` otherwise
+/// Determine if a request is an AJAX/Fetch request (not navigation).
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
     headers
         .get(SEC_FETCH_MODE)
-        .map(|v| v.to_str().expect("convert header to str"))
+        .map(|v| {
+            v.to_str()
+                .expect("Sec-Fetch-Mode header is not valid UTF-8")
+        })
         .is_some_and(|v| v != "navigate")
 }
 
-/// Checks if a user is banned and handles ban enforcement.
-///
-/// Verifies if the IP or account is banned, and also checks for
-/// request rate limiting to prevent flooding.
-///
-/// # Parameters
-/// - `tx`: Database transaction for queries
-/// - `ip_hash`: Hash of the client's IP address
-/// - `banned_account_id`: Optional account ID to check for bans
-/// - `admin_account_id`: Optional admin ID applying the ban
-///
-/// # Returns
-/// `Some(Response)` with a ban message if banned, `None` otherwise
+/// Check if a user is banned or rate-limited, returning a response if so.
 pub async fn check_for_ban(
     tx: &mut PgConnection,
     ip_hash: &str,
     banned_account_id: Option<i32>,
     admin_account_id: Option<i32>,
 ) -> Option<Response> {
-    // Check for existing ban
     if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await {
         return Some(ban_message(&expires_at_str));
     }
-
-    // Check for rate limiting/flooding
     if ban::flooding(tx, ip_hash).await {
         let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await;
         ban::prune(tx, ip_hash).await;
         return Some(ban_message(&expires_at_str));
     }
-
     None
 }
 
@@ -162,62 +114,31 @@ pub async fn check_for_ban(
 // Cookie Management
 //==================================================================================================
 
-/// Creates a cookie with appropriate security settings.
-///
-/// # Parameters
-/// - `name`: The cookie's name
-/// - `value`: The cookie's value
-/// - `permanent`: Whether the cookie should be persistent or session-only
-///
-/// # Returns
-/// A configured cookie with appropriate security settings
+/// Create a cookie with secure, HTTP-only, and SameSite settings.
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!apabbs::dev()) // Secure in production, not in development
-        .http_only(true) // Not accessible via JavaScript
-        .path("/") // Available on all paths
-        .same_site(SameSite::Lax) // Prevents CSRF while allowing linking
+        .secure(!apabbs::dev())
+        .http_only(true)
+        .path("/")
+        .same_site(SameSite::Lax)
         .build();
-
     if permanent {
-        cookie.make_permanent() // Extends expiration for long-term cookies
+        cookie.make_permanent()
     }
-
     cookie
 }
 
-/// Creates a cookie for removal (expiration).
-///
-/// # Parameters
-/// - `name`: The name of the cookie to remove
-///
-/// # Returns
-/// A cookie configured for removal
+/// Create a cookie for removal (expiration).
 pub fn removal_cookie(name: &str) -> Cookie<'static> {
     Cookie::build(name.to_owned()).path("/").build()
 }
 
-/// Adds a notice cookie with a temporary message.
-///
-/// Used for flash messages that display once after a redirect.
-///
-/// # Parameters
-/// - `jar`: The cookie jar to add to
-/// - `notice`: The message to store in the cookie
-///
-/// # Returns
-/// Updated cookie jar containing the notice cookie
+/// Add a notice cookie for flash messages.
 pub fn add_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
     jar.add(build_cookie(NOTICE_COOKIE, notice, false))
 }
 
-/// Removes the notice cookie and extracts its value.
-///
-/// # Parameters
-/// - `jar`: The cookie jar to remove from
-///
-/// # Returns
-/// A tuple containing the updated cookie jar and the optional notice message
+/// Remove the notice cookie and extract its value.
 pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
@@ -227,19 +148,10 @@ pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
         }
         None => None,
     };
-
     (jar, notice)
 }
 
-/// Adds the account token cookie for authentication.
-///
-/// # Parameters
-/// - `jar`: The cookie jar to add to
-/// - `account`: The account information to store
-/// - `credentials`: The credentials used for login, determining persistence
-///
-/// # Returns
-/// Updated cookie jar containing the account cookie
+/// Add the account token cookie for authentication.
 pub fn add_account_cookie(
     jar: CookieJar,
     account: &Account,
@@ -248,19 +160,12 @@ pub fn add_account_cookie(
     let cookie = build_cookie(
         ACCOUNT_COOKIE,
         &account.token.to_string(),
-        credentials.year_checked(), // Long-term cookie if user checked "remember me"
+        credentials.year_checked(),
     );
-
     jar.add(cookie)
 }
 
-/// Removes the account cookie for logout.
-///
-/// # Parameters
-/// - `jar`: The cookie jar to remove from
-///
-/// # Returns
-/// Updated cookie jar with the account cookie removed
+/// Remove the account cookie for logout.
 pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
 }
@@ -269,29 +174,18 @@ pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
 // User and Session Management
 //==================================================================================================
 
-/// Initializes a user session from cookies or creates a new session.
-///
+/// Initialize a user session from cookies or create a new session.
 /// Handles authentication, CSRF protection, and timezone settings.
-///
-/// # Parameters
-/// - `jar`: Cookie jar from the request
-/// - `tx`: Database transaction for queries
-/// - `method`: HTTP method of the request
-/// - `csrf_token`: Optional CSRF token from form submission
-///
-/// # Returns
-/// A Result containing either the user and updated cookie jar, or an error response
 pub async fn init_user(
     mut jar: CookieJar,
     tx: &mut PgConnection,
     method: Method,
     csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), Response> {
-    // Process account cookie if present
+    // Account cookie
     let account = match jar.get(ACCOUNT_COOKIE) {
         None => None,
         Some(cookie) => {
-            // Parse UUID from cookie value
             let token = match Uuid::try_parse(cookie.value()) {
                 Err(_) => {
                     jar = remove_account_cookie(jar);
@@ -299,8 +193,6 @@ pub async fn init_user(
                 }
                 Ok(uuid) => Some(uuid),
             };
-
-            // Look up account by token
             match token {
                 None => None,
                 Some(token) => match Account::select_by_token(tx, &token).await {
@@ -313,8 +205,7 @@ pub async fn init_user(
             }
         }
     };
-
-    // Process session cookie or create new session
+    // Session cookie
     let session_token = match jar.get(SESSION_COOKIE) {
         None => None,
         Some(cookie) => match Uuid::try_parse(cookie.value()) {
@@ -322,84 +213,57 @@ pub async fn init_user(
             Ok(uuid) => Some(uuid),
         },
     };
-
     let session_token = match session_token {
         None => {
-            // Create new session if none exists
             let token = Uuid::new_v4();
             jar = jar.add(build_cookie(SESSION_COOKIE, &token.to_string(), false));
             token
         }
         Some(token) => token,
     };
-
-    // CSRF protection for non-GET requests
+    // CSRF protection
     if method != Method::GET && csrf_token.is_none() {
-        return Err(unauthorized("CSRF token required"));
+        return Err(unauthorized("CSRF token is required for this request"));
     }
-
     if let Some(csrf_token) = csrf_token {
         if session_token != csrf_token {
-            return Err(unauthorized("CSRF token mismatch"));
+            return Err(unauthorized(
+                "CSRF token mismatch: possible forgery attempt",
+            ));
         }
     }
-
-    // Create user object and set timezone
     let user = User {
         account,
         session_token,
     };
-
     set_session_time_zone(tx, user.time_zone()).await;
-
     Ok((user, jar))
 }
 
-/// Sets the PostgreSQL session time zone to match the user preference.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `time_zone`: Time zone identifier to set
+/// Set the PostgreSQL session time zone to match the user preference.
 pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
-    // Cannot pass $1 variables to this command, but the value should be safe
-    // as it's validated against a list of known time zones when stored
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
         .await
-        .expect("set time zone");
+        .expect("Failed to set session time zone");
 }
 
 //==================================================================================================
 // Post and Content Management
 //==================================================================================================
 
-/// Retrieves a post and validates access permissions.
-///
-/// Ensures users can only view posts they are authorized to see based on
-/// post status and user roles.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `key`: Unique identifier for the post
-/// - `user`: Current user making the request
-///
-/// # Returns
-/// Either the requested post or an error response
+/// Retrieve a post and validate access permissions.
 pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, Response> {
     use PostStatus::*;
-
     match Post::select_by_key(tx, &key).await {
-        None => return Err(not_found("post does not exist")),
+        None => Err(not_found("Post does not exist")),
         Some(post) => {
-            // Check permission based on post status
             if [Reported, Rejected, Banned].contains(&post.status) && !user.admin() {
-                return Err(unauthorized("post is reported, rejected, or banned"));
+                return Err(unauthorized("Post is reported, rejected, or banned"));
             }
-
             if post.status == Pending && !(post.author(user) || user.mod_or_admin()) {
-                return Err(unauthorized("post is pending approval"));
+                return Err(unauthorized("Post is pending approval"));
             }
-
             Ok(post)
         }
     }
@@ -409,28 +273,23 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
 // Templating and Rendering
 //==================================================================================================
 
-/// Renders a template with the given context.
-///
-/// In development mode, clears the template cache on each request.
-///
-/// # Parameters
-/// - `state`: Application state containing the template engine
-/// - `name`: Template name to render
-/// - `ctx`: Context data to pass to the template
-///
-/// # Returns
-/// The rendered template as a string
+/// Render a template with the given context.
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
-    // In development mode, reload templates on each request
     if apabbs::dev() {
-        let mut env = state.jinja.write().expect("write jinja env");
+        let mut env = state
+            .jinja
+            .write()
+            .expect("Failed to acquire write lock for Jinja env");
         env.clear_templates();
     }
-
-    // Render the template with the provided context
-    let env = state.jinja.read().expect("read jinja env");
-    let tmpl = env.get_template(name).expect("get jinja template");
-    tmpl.render(ctx).expect("render template")
+    let env = state
+        .jinja
+        .read()
+        .expect("Failed to acquire read lock for Jinja env");
+    let tmpl = env
+        .get_template(name)
+        .expect("Template not found in Jinja environment");
+    tmpl.render(ctx).expect("Failed to render template")
 }
 
 //==================================================================================================
@@ -440,23 +299,13 @@ pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> Str
 /// Information about the user's browser derived from the User-Agent header.
 #[derive(serde::Serialize)]
 pub struct UserAgent {
-    /// Whether the client is on a Mac
     pub mac: bool,
-    /// Whether the client is using a Chromium-based browser
     pub chromium: bool,
 }
 
-/// Analyzes the User-Agent header to extract browser information.
-///
-/// # Parameters
-/// - `headers`: HTTP headers from the client request
-///
-/// # Returns
-/// Optional UserAgent information if available
+/// Analyze the User-Agent header to extract browser information.
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
-
-    // Extract and parse User-Agent header
     let user_agent_str = match headers.get(USER_AGENT) {
         None => return None,
         Some(header) => match header.to_str() {
@@ -464,25 +313,17 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
             Ok(ua) => ua,
         },
     };
-
-    // Determine browser characteristics
     Some(UserAgent {
         mac: user_agent_str.contains("Macintosh"),
         chromium: user_agent_str.contains("Chrome"),
     })
 }
 
-/// Returns a UTC timestamp string formatted as "year-month-date-hour" (e.g. "2025-06-15-14")
-///
-/// # Parameters
-/// - `tx`: Database transaction for performing the timestamp query
-///
-/// # Returns
-/// A string containing the UTC timestamp in "YYYY-MM-DD-HH" format
+/// Returns a UTC timestamp string formatted as "YYYY-MM-DD-HH".
 pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
     sqlx::query_scalar::<_, String>("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(apabbs::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
-        .expect("failed to fetch UTC timestamp from database")
+        .expect("Failed to fetch UTC timestamp from database")
 }

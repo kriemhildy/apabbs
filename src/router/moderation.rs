@@ -4,7 +4,7 @@
 
 use super::*;
 
-/// Processes post moderation actions
+/// Processes post moderation actions.
 ///
 /// Allows moderators and admins to approve, reject, or ban posts.
 pub async fn review_post(
@@ -30,18 +30,18 @@ pub async fn review_post(
 
     // Verify user has moderator privileges
     let account = match user.account {
-        None => return unauthorized("not logged in"),
+        None => return unauthorized("You must be logged in to moderate posts"),
         Some(account) => account,
     };
 
     match account.role {
         Admin | Mod => (),
-        _ => return unauthorized("not an admin or mod"),
+        _ => return unauthorized("You must be an admin or moderator to perform this action"),
     };
 
     // Get the post to review
     let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("post does not exist"),
+        None => return not_found("Post does not exist"),
         Some(post) => post,
     };
 
@@ -51,24 +51,25 @@ pub async fn review_post(
     // Handle various review actions
     let background_task: Option<BoxFuture> = match review_action {
         // Handle errors
-        Err(SameStatus) => return bad_request("post already has this status"),
-        Err(ReturnToPending) => return bad_request("cannot return post to pending"),
-        Err(ModOnly) => return unauthorized("only mods can report posts"),
-        Err(AdminOnly) => return unauthorized("only admins can ban or reject posts"),
-        Err(RejectedOrBanned) => return bad_request("cannot review a banned or rejected post"),
-        Err(RecentOnly) => return unauthorized("mods can only review approved posts for two days"),
-        Err(CurrentlyProcessing) => return bad_request("post is currently being processed"),
-        Err(ManualProcessing) => return bad_request("cannot manually set post to processing"),
+        Err(SameStatus) => return bad_request("Post already has this status"),
+        Err(ReturnToPending) => return bad_request("Cannot return post to pending"),
+        Err(ModOnly) => return unauthorized("Only moderators can report posts"),
+        Err(AdminOnly) => return unauthorized("Only admins can ban or reject posts"),
+        Err(RejectedOrBanned) => return bad_request("Cannot review a banned or rejected post"),
+        Err(RecentOnly) => {
+            return unauthorized("Moderators can only review approved posts for two days");
+        }
+        Err(CurrentlyProcessing) => return bad_request("Post is currently being processed"),
+        Err(ManualProcessing) => return bad_request("Cannot manually set post to processing"),
 
         // Handle media operations
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
-            // Do nothing if there is no media file
             if post.media_filename.is_none() {
                 None
             } else {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
-                    return not_found("encrypted media file does not exist");
+                    return not_found("Encrypted media file does not exist");
                 }
 
                 if review_action == Ok(DecryptMedia) {
@@ -85,7 +86,7 @@ pub async fn review_post(
                         if let Err(msg) =
                             PostReview::handle_decrypt_media(&mut tx, &initial_post).await
                         {
-                            println!("Error decrypting media: {}", msg);
+                            println!("Error decrypting media: {msg}");
                             return;
                         }
 
@@ -130,7 +131,6 @@ pub async fn review_post(
             if post.media_filename.as_ref().is_some() && post.published_media_path().exists() {
                 PostReview::delete_media_key_dir(&post.key).await;
             }
-
             None
         }
 
@@ -145,7 +145,7 @@ pub async fn review_post(
 
                 // Attempt media re-encryption
                 if let Err(msg) = initial_post.reencrypt_media_file().await {
-                    println!("Error re-encrypting media: {}", msg);
+                    println!("Error re-encrypting media: {msg}");
                     return;
                 }
 
@@ -194,7 +194,7 @@ pub async fn review_post(
 
     // Get updated post
     let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("post does not exist"),
+        None => return not_found("Post does not exist"),
         Some(post) => post,
     };
 
@@ -208,7 +208,7 @@ pub async fn review_post(
 
     // Ensure approved posts have thumbnails if needed
     if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
-        return internal_server_error("error setting post thumbnail");
+        return internal_server_error("Error setting post thumbnail");
     }
 
     tx.commit().await.expect(COMMIT_FAILED_ERR);
@@ -233,7 +233,7 @@ pub async fn review_post(
     (jar, response).into_response()
 }
 
-/// Serves decrypted media files to moderators
+/// Serves decrypted media files to moderators.
 ///
 /// Allows privileged users to access original media files.
 pub async fn decrypt_media(
@@ -252,31 +252,34 @@ pub async fn decrypt_media(
 
     // Verify user has required privileges
     if !user.mod_or_admin() {
-        return unauthorized("not a mod or admin");
+        return unauthorized("You must be a moderator or admin to access this media");
     }
 
     // Get the post
     let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("post does not exist"),
+        None => return not_found("Post does not exist"),
         Some(post) => post,
     };
 
     // Verify media exists
     if !post.encrypted_media_path().exists() {
-        return not_found("encrypted media file does not exist");
+        return not_found("Encrypted media file does not exist");
     }
 
     // Get media details
-    let media_filename = post.media_filename.as_ref().expect("read media filename");
+    let media_filename = post
+        .media_filename
+        .as_ref()
+        .expect("Media filename missing");
     let media_bytes = post.decrypt_media_file().await;
-    let content_type = post.media_mime_type.expect("read mime type");
+    let content_type = post.media_mime_type.expect("Media MIME type missing");
 
     // Set response headers for download
     let headers = [
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; filename="{}""#, media_filename),
+            &format!(r#"inline; filename=\"{}\""#, media_filename),
         ),
     ];
 

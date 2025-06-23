@@ -124,7 +124,10 @@ pub async fn create_account(
     // Validate credentials
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return bad_request(&format!("Invalid registration data:\n{}", errors.join("\n")));
+        return bad_request(&format!(
+            "Invalid registration data:\n{}",
+            errors.join("\n")
+        ));
     }
 
     // Check for IP bans
