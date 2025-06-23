@@ -1,6 +1,6 @@
 //! Application entry point and server initialization.
 //!
-//! This module sets up the web server, configures template rendering,
+//! Sets up the web server, configures template rendering,
 //! initializes background tasks, and manages application state.
 
 mod cron;
@@ -54,7 +54,7 @@ async fn app_state() -> AppState {
                 r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
                 r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
             ))
-            .expect("regex builds");
+            .expect("Failed to build regex for removing YouTube thumbnail links");
 
             re.replace_all(
                 body,
@@ -95,7 +95,7 @@ async fn app_state() -> AppState {
 async fn main() {
     // Load environment variables from .env file (fail fast if missing)
     if let Err(error) = dotenv::dotenv() {
-        eprintln!("Error loading .env file: {}", error);
+        eprintln!("Failed to load .env file: {error}");
         std::process::exit(1);
     }
 
@@ -106,7 +106,7 @@ async fn main() {
 
     // Ensure critical configuration is present
     if apabbs::secret_key().len() < 16 {
-        panic!("SECRET_KEY env must be at least 16 chars");
+        panic!("SECRET_KEY environment variable must be at least 16 characters");
     }
 
     // Start background tasks and scheduled jobs
@@ -134,5 +134,5 @@ async fn main() {
     // Start HTTP server
     axum::serve(listener, router)
         .await
-        .expect("HTTP server encountered an error");
+        .expect("HTTP server encountered an unrecoverable error");
 }

@@ -1,3 +1,8 @@
+//! Post submission logic and helpers.
+//!
+//! This module provides the `PostSubmission` struct and related logic for handling new post creation,
+//! media uploads, YouTube embed processing, and intro preview truncation.
+
 use crate::post::Post;
 use crate::user::User;
 use regex::Regex;
@@ -12,10 +17,10 @@ const MAX_YOUTUBE_EMBEDS: usize = 16; // Maximum number of YouTube embeds per po
 const MAX_INTRO_BYTES: usize = 1600; // Maximum number of bytes for post intro
 const MAX_INTRO_BREAKS: usize = 24; // Maximum number of line breaks in intro
 
-/// Represents a post submission from a user
+/// Represents a post submission from a user.
 ///
-/// This struct contains all data needed to create a new post including the content,
-/// associated media files, and user identification information. It handles converting
+/// Contains all data needed to create a new post including the content,
+/// associated media files, and user identification information. Handles converting
 /// raw input into properly formatted post content with media processing.
 #[derive(Default)]
 pub struct PostSubmission {
@@ -382,26 +387,27 @@ impl PostSubmission {
         if html.len() <= MAX_INTRO_BYTES {
             return None;
         }
-        // truncate to the last break(s)
-        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("regex builds");
+        // Truncate to the last break(s) before the limit
+        let multiple_breaks_pattern =
+            Regex::new("(?:<br>\n)+").expect("Failed to build regex for multiple breaks");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
-            println!("found last break(s): {}", mat.start());
+            println!("Found last break(s) at byte: {}", mat.start());
             return Some(mat.start() as i32);
         }
-        // if no breaks, truncate to the last space byte.
-        let last_space = slice.rfind(' ');
-        if last_space.is_some() {
-            return last_space.map(|p| p as i32);
+        // If no breaks, truncate to the last space byte
+        if let Some(last_space) = slice.rfind(' ') {
+            return Some(last_space as i32);
         }
-        // if no space found, use the last utf8 character index
-        // need to strip incomplete html entities
-        // check for & which is not terminated by a ;
-        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("regex builds");
+        // If no space found, use the last valid utf8 character index
+        // Need to strip incomplete html entities
+        // Check for & which is not terminated by a ;
+        let incomplete_entity_pattern =
+            Regex::new(r"&[^;]*$").expect("Failed to build regex for incomplete entity");
         if let Some(mat) = incomplete_entity_pattern.find(slice) {
-            println!("found incomplete entity: {}", mat.start());
+            println!("Found incomplete entity at byte: {}", mat.start());
             return Some(mat.start() as i32);
         }
-        // no incomplete entity, return last valid utf8 character index.
+        // No incomplete entity, return last valid utf8 character index
         Some(last_valid_utf8_index as i32)
     }
 }

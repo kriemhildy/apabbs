@@ -1,6 +1,11 @@
+//! Authentication and account management routes and handlers.
+//!
+//! This module provides endpoints for user login, registration, logout, and account token reset.
+//! It handles session management, credential validation, and user authentication flows.
+
 use super::*;
 
-/// Displays the login form
+/// Displays the login form.
 ///
 /// Renders the page for user authentication.
 pub async fn login_form(
@@ -32,7 +37,7 @@ pub async fn login_form(
     (jar, html).into_response()
 }
 
-/// Processes user login attempts
+/// Processes user login attempts.
 ///
 /// Authenticates users with provided credentials and sets session cookies.
 pub async fn authenticate(
@@ -65,7 +70,7 @@ pub async fn authenticate(
     (jar, redirect).into_response()
 }
 
-/// Displays the registration form
+/// Displays the registration form.
 ///
 /// Renders the page for creating a new account.
 pub async fn registration_form(
@@ -97,7 +102,7 @@ pub async fn registration_form(
     (jar, html).into_response()
 }
 
-/// Processes account creation requests
+/// Processes account creation requests.
 ///
 /// Validates registration information and creates new user accounts.
 pub async fn create_account(
@@ -154,7 +159,7 @@ pub struct Logout {
     pub session_token: Uuid,
 }
 
-/// Processes user logout requests
+/// Processes user logout requests.
 ///
 /// Clears authentication cookies and ends user session.
 pub async fn logout(
@@ -183,7 +188,7 @@ pub async fn logout(
     (jar, redirect).into_response()
 }
 
-/// Resets a user's authentication token
+/// Resets a user's authentication token.
 ///
 /// Invalidates all existing sessions for security purposes.
 pub async fn reset_account_token(

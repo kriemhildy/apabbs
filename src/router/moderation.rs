@@ -1,6 +1,7 @@
-//==================================================================================================
-// Admin and Moderator Handlers
-//==================================================================================================
+//! Admin and moderator post review and moderation handlers.
+//!
+//! This module provides endpoints for post review, approval, rejection, banning, and media decryption.
+//! It enforces business rules for moderator/admin actions and manages background media processing.
 
 use super::*;
 
@@ -270,9 +271,11 @@ pub async fn decrypt_media(
     let media_filename = post
         .media_filename
         .as_ref()
-        .expect("Media filename missing");
+        .expect("Media filename missing for decrypt_media");
     let media_bytes = post.decrypt_media_file().await;
-    let content_type = post.media_mime_type.expect("Media MIME type missing");
+    let content_type = post
+        .media_mime_type
+        .expect("Media MIME type missing for decrypt_media");
 
     // Set response headers for download
     let headers = [

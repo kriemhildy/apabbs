@@ -322,23 +322,30 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update media dimensions");
+            .expect("Failed to update media dimensions for post");
     }
 
-    /// Updates poster filename for videos
+    /// Updates the poster filename for video posts
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection
+    /// - `video_poster_path`: Path to the poster image file
+    ///
+    /// # Panics
+    /// Panics if the poster filename cannot be extracted or converted to a string.
     pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &PathBuf) {
         let media_poster_filename = video_poster_path
             .file_name()
-            .expect("get media poster filename")
+            .expect("Failed to get media poster filename")
             .to_str()
-            .expect("media poster filename to str");
+            .expect("Failed to convert media poster filename to str");
 
         sqlx::query("UPDATE posts SET video_poster = $1 WHERE id = $2")
             .bind(media_poster_filename)
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update post posters");
+            .expect("Failed to update post video poster");
     }
 }
 

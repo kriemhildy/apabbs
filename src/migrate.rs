@@ -1,7 +1,6 @@
 //! Database migration utilities for the application.
 //!
-//! This module provides functionality to run database migrations sequentially,
-//! tracking which ones have already been applied in a `_rust_migrations` table.
+//! Provides sequential database migrations, tracking applied migrations in the `_rust_migrations` table.
 
 use apabbs::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR};
 use sqlx::PgPool;
@@ -18,9 +17,7 @@ type MigrationFn = fn(PgPool) -> Pin<Box<dyn Future<Output = ()> + Send + 'stati
 /// This allows migrations to be tracked by name in the database.
 macro_rules! migrations {
     ($($func:ident),* $(,)?) => {
-        [$(
-            (stringify!($func), (|db| Box::pin($func(db))) as MigrationFn)
-        ),*]
+        [$((stringify!($func), (|db| Box::pin($func(db))) as MigrationFn)),*]
     };
 }
 
@@ -38,7 +35,7 @@ async fn main() {
 
     // Load environment variables from .env file
     if let Err(error) = dotenv::dotenv() {
-        eprintln!("Error loading .env file: {}", error);
+        eprintln!("Failed to load .env file: {error}");
         std::process::exit(1);
     }
 
@@ -53,13 +50,13 @@ async fn main() {
                 .bind(name)
                 .fetch_one(&db)
                 .await
-                .expect("check if migration needed");
+                .expect("Failed to check if migration is needed");
 
         if exists {
             continue;
         }
 
-        println!("migrating: {name}");
+        println!("Applying migration: {name}");
         func(db.clone()).await;
 
         // Record that migration was applied
@@ -67,7 +64,7 @@ async fn main() {
             .bind(name)
             .execute(&db)
             .await
-            .expect("insert migration record");
+            .expect("Failed to record applied migration");
     }
 }
 
@@ -80,7 +77,8 @@ async fn update_intro_limit(db: PgPool) {
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
-        .expect("fetch posts for migration");
+        .expect("Failed to fetch posts for intro_limit migration");
+
     for post in posts {
         let intro_limit = PostSubmission::intro_limit(&post.body);
         sqlx::query("UPDATE posts SET intro_limit = $1 WHERE id = $2")
@@ -88,7 +86,7 @@ async fn update_intro_limit(db: PgPool) {
             .bind(post.id)
             .execute(&mut *tx)
             .await
-            .expect("update post intro limit");
+            .expect("Failed to update post intro_limit");
     }
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
@@ -108,18 +106,17 @@ async fn download_youtube_thumbnails(db: PgPool) {
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
         "SELECT matches[1] AS video_id FROM ",
         "(SELECT regexp_matches(body, ",
-        r#"'<a href="https://www\.youtube\.com/(?:watch\?v=|shorts/)([\w\-]{11})', 'g') "#,
+        r#"'<a href=\"https://www\\.youtube\\.com/(?:watch\?v=|shorts/)([\w\-]{11})', 'g') "#,
         r#"FROM posts WHERE body LIKE '%<img src="/youtube/%' "#,
         "AND status IN ('approved', 'delisted')) ",
         " AS subquery(matches)"
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("selects youtube links");
+    .expect("Failed to select YouTube links");
 
-    // Process each video ID
     for video_id in video_ids {
-        println!("downloading thumbnail for video {}", video_id);
+        println!("Downloading thumbnail for video {video_id}");
 
         // Check if the YouTube video is a short
         let response_code = std::process::Command::new("curl")
@@ -132,12 +129,12 @@ async fn download_youtube_thumbnails(db: PgPool) {
             ])
             .arg(format!("https://www.youtube.com/shorts/{}", video_id))
             .output()
-            .expect("checks response code for youtube short")
+            .expect("Failed to check response code for YouTube short")
             .stdout;
         let short = response_code == b"'200'";
 
         if short {
-            println!("youtube is a short");
+            println!("Video is a YouTube short");
             // Update link URLs to use shorts format if needed
             sqlx::query(&format!(
                 concat!(
@@ -150,7 +147,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("updates youtube link to be short");
+            .expect("Failed to update YouTube link to shorts format");
         }
 
         // Download thumbnail and get dimensions
@@ -162,9 +159,9 @@ async fn download_youtube_thumbnails(db: PgPool) {
                 .to_str()
                 .unwrap()
                 .strip_prefix("pub")
-                .expect("strips pub prefix");
+                .expect("Failed to strip pub prefix from thumbnail path");
 
-            println!("saved to {thumbnail_url} ({width}x{height})");
+            println!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
 
             // Update post content with new thumbnail URL and dimensions
             sqlx::query(&format!(
@@ -185,7 +182,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("updates youtube thumbnail in posts");
+            .expect("Failed to update YouTube thumbnail in posts");
         }
 
         // Avoid rate limiting
@@ -210,14 +207,14 @@ async fn uuid_to_key(db: PgPool) {
     ))
     .fetch_one(&mut *tx)
     .await
-    .expect("check if uuid column exists");
+    .expect("Failed to check if uuid column exists");
 
     if !exists {
         println!("uuid column does not exist, skipping migration");
         return;
     }
 
-    // Define structure to hold UUID-key pairs
+    /// Structure to hold UUID-key pairs
     #[derive(sqlx::FromRow, Debug)]
     struct UuidKeyPair {
         uuid: Uuid,
@@ -230,28 +227,28 @@ async fn uuid_to_key(db: PgPool) {
     )
     .fetch_all(&mut *tx)
     .await
-    .expect("fetch posts for migration");
+    .expect("Failed to fetch posts for uuid_to_key migration");
 
     // Rename media directories
     for pair in pairs {
-        println!("migrating {} to {}", pair.uuid, pair.key);
+        println!("Migrating {} to {}", pair.uuid, pair.key);
         let uuid_dir = format!("pub/media/{}", pair.uuid);
 
         if !std::path::Path::new(&uuid_dir).exists() {
-            println!("media directory for uuid does not exist, skipping");
+            println!("Media directory for uuid does not exist, skipping");
             continue;
         }
 
-        tokio::fs::rename(uuid_dir, format!("pub/media/{}", pair.key))
+        tokio::fs::rename(&uuid_dir, format!("pub/media/{}", pair.key))
             .await
-            .expect("rename media directory");
+            .expect("Failed to rename media directory");
     }
 
     // Remove the UUID column now that it's no longer needed
     sqlx::query("ALTER TABLE posts DROP COLUMN uuid")
         .execute(&mut *tx)
         .await
-        .expect("drop uuid column");
+        .expect("Failed to drop uuid column");
 
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
@@ -271,33 +268,33 @@ async fn generate_image_thumbnails(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("selects posts with images");
+    .expect("Failed to select posts with images");
 
     for post in posts {
         let published_media_path = post.published_media_path();
         println!(
-            "generating thumbnail for media {}",
+            "Generating thumbnail for media {}",
             published_media_path.to_str().unwrap()
         );
 
         // Generate thumbnail
         let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path).await;
         if !thumbnail_path.exists() {
-            eprintln!("thumbnail not created successfully");
+            eprintln!("Thumbnail not created successfully");
             std::process::exit(1);
         }
 
         // Skip if thumbnail is larger than original (defeats the purpose)
         if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-            println!("thumbnail is larger, deleting");
+            println!("Thumbnail is larger than original, deleting");
             tokio::fs::remove_file(&thumbnail_path)
                 .await
-                .expect("remove thumbnail file");
+                .expect("Failed to remove thumbnail file");
             continue;
         }
 
         // Update database with thumbnail information
-        println!("setting thumb_filename, thumb_width, thumb_height");
+        println!("Setting thumb_filename, thumb_width, thumb_height");
         let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
         post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
             .await;
@@ -321,25 +318,25 @@ async fn add_image_dimensions(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("selects posts with images");
+    .expect("Failed to select posts with images");
 
     for post in posts {
         let published_media_path = post.published_media_path();
         println!(
-            "adding dimensions for media {}",
+            "Adding dimensions for media {}",
             published_media_path.to_str().unwrap()
         );
 
         // Update original image dimensions
         let (width, height) = PostReview::image_dimensions(&published_media_path).await;
-        println!("setting media image dimensions: {}x{}", width, height);
+        println!("Setting media image dimensions: {}x{}", width, height);
         post.update_media_dimensions(&mut *tx, width, height).await;
 
         // Update thumbnail dimensions if present
         if post.thumb_filename.is_some() {
             let thumbnail_path = post.thumbnail_path();
             let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
-            println!("setting thumbnail image dimensions: {}x{}", width, height);
+            println!("Setting thumbnail image dimensions: {}x{}", width, height);
             post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
                 .await;
         }
@@ -348,9 +345,7 @@ async fn add_image_dimensions(db: PgPool) {
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
-/// Process videos
-///
-/// Create posters, thumbnails, compatibility videos, and add dimensions.
+/// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
 async fn process_videos(db: PgPool) {
     use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
     let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
@@ -362,21 +357,21 @@ async fn process_videos(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("selects posts with videos");
+    .expect("Failed to select posts with videos");
 
     for post in posts {
-        println!("Processing video on post {}...", post.key);
+        println!("Processing video for post {}...", post.key);
         // Iterate over media files and delete all besides the source video
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(&post.key);
         if media_key_dir.exists() {
             let mut read_dir = tokio::fs::read_dir(&media_key_dir)
                 .await
-                .expect("read media directory");
+                .expect("Failed to read media directory");
 
             while let Some(entry) = read_dir
                 .next_entry()
                 .await
-                .expect("read next directory entry")
+                .expect("Failed to read next directory entry")
             {
                 let path = entry.path();
                 // Skip the source video file
@@ -386,13 +381,13 @@ async fn process_videos(db: PgPool) {
                     println!("Deleting old media file: {}", path.display());
                     tokio::fs::remove_file(&path)
                         .await
-                        .expect("Error removing old media file");
+                        .expect("Failed to remove old media file");
                 }
             }
         }
         PostReview::process_video(&mut *tx, &post)
             .await
-            .expect("Error process video");
+            .expect("Failed to process video");
         println!("Completed processing post {}", post.key);
     }
 

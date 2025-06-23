@@ -1,3 +1,8 @@
+//! User profile and settings routes and handlers.
+//!
+//! This module provides endpoints for displaying user profiles, managing account settings,
+//! updating time zones, and changing passwords. It enforces authentication and input validation.
+
 use super::*;
 
 /// Displays a user's profile page.

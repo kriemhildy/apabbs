@@ -1,10 +1,15 @@
+//! Post review actions, error types, and moderation logic.
+//!
+//! This module defines the review workflow for posts, including allowed status transitions,
+//! moderator/admin permissions, and the actions to take on post media during moderation.
+
 use super::Post;
 use super::PostStatus;
 use crate::user::AccountRole;
 use sqlx::PgConnection;
 use uuid::Uuid;
 
-/// Defines possible actions resulting from post review decisions
+/// Defines possible actions resulting from post review decisions.
 ///
 /// Each action represents a specific operation to perform on a post's media
 /// or status during the moderation workflow.

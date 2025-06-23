@@ -35,11 +35,16 @@ use tokio_cron_scheduler::Job;
 /// Panics if the scheduler cannot be created or started.
 pub async fn init() {
     use tokio_cron_scheduler::JobScheduler;
-    let sched = JobScheduler::new().await.expect("Failed to create job scheduler");
+    let sched = JobScheduler::new()
+        .await
+        .expect("Failed to create job scheduler");
 
     // Add all scheduled jobs to the scheduler
     for job in [scrub_ips(), generate_screenshot()] {
-        sched.add(job).await.expect("Failed to add job to scheduler");
+        sched
+            .add(job)
+            .await
+            .expect("Failed to add job to scheduler");
     }
 
     // Start the scheduler running
@@ -88,7 +93,8 @@ fn generate_screenshot() -> Job {
             // Ensure the output directory exists
             let output_path = Path::new("pub/screenshot.webp");
             if let Some(parent) = output_path.parent() {
-                std::fs::create_dir_all(parent).expect("Failed to create output directory for screenshot");
+                std::fs::create_dir_all(parent)
+                    .expect("Failed to create output directory for screenshot");
             }
 
             // Build the full output path

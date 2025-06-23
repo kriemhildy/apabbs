@@ -1,3 +1,8 @@
+//! Post content routes and real-time update handlers.
+//!
+//! This module provides endpoints for displaying, submitting, hiding, and streaming posts.
+//! It supports pagination, single post views, post creation with media, and websocket updates.
+
 use super::*;
 use axum::extract::{
     Multipart,

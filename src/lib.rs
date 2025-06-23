@@ -14,17 +14,18 @@ pub const COMMIT_FAILED_ERR: &str = "Failed to commit database transaction";
 
 // PostgreSQL datetime format strings
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
-pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM""#;
+pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM"#;
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
 
-/// Create a connection pool to the PostgreSQL database.
+/// Creates a connection pool to the PostgreSQL database.
 ///
 /// Uses the `DATABASE_URL` environment variable to establish a connection.
 ///
 /// # Panics
 /// Panics if `DATABASE_URL` is not set or the connection fails.
 pub async fn db() -> PgPool {
-    let url = std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
+    let url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL environment variable must be set for database connection");
     PgPool::connect(&url)
         .await
         .expect("Failed to connect to PostgreSQL database")
@@ -38,7 +39,9 @@ pub async fn db() -> PgPool {
 /// Panics if `PER_PAGE` is set but not a valid integer.
 pub fn per_page() -> usize {
     match std::env::var("PER_PAGE") {
-        Ok(per_page) => per_page.parse().expect("PER_PAGE must be a valid integer"),
+        Ok(per_page) => per_page
+            .parse()
+            .expect("PER_PAGE environment variable must be a valid integer"),
         Err(_) => 1000,
     }
 }
@@ -57,7 +60,7 @@ pub fn dev() -> bool {
 /// # Panics
 /// Panics if `HOST` is not set.
 pub fn host() -> String {
-    std::env::var("HOST").expect("HOST environment variable must be set")
+    std::env::var("HOST").expect("HOST environment variable must be set for host name")
 }
 
 /// Retrieves the application's secret key for secure operations.
@@ -67,5 +70,5 @@ pub fn host() -> String {
 /// # Panics
 /// Panics if `SECRET_KEY` is not set.
 pub fn secret_key() -> String {
-    std::env::var("SECRET_KEY").expect("SECRET_KEY environment variable must be set")
+    std::env::var("SECRET_KEY").expect("SECRET_KEY environment variable must be set for security")
 }
