@@ -157,7 +157,7 @@ impl Post {
     /// Decrypts the post's media file using GPG.
     ///
     /// # Returns
-    /// The decrypted file content as bytes (Vec<u8>).
+    /// The decrypted file content as bytes (`Vec<u8>`).
     ///
     /// # Panics
     /// Panics if the post has no associated media file.
@@ -191,7 +191,7 @@ impl PostSubmission {
     /// - `media_filename`: Optional filename to determine type from.
     ///
     /// # Returns
-    /// Tuple of (Option<MediaCategory>, Option<String>) for category and MIME type.
+    /// Tuple of (`Option<MediaCategory>`, `Option<String>`) for category and MIME type.
     ///
     /// # Examples
     ///
