@@ -39,15 +39,19 @@ pub async fn review_post(
 
     // Verify user has moderator privileges
     let account = match user.account {
-        None => return Ok(unauthorized("You must be logged in to moderate posts")),
+        None => {
+            return Err(Unauthorized(
+                "You must be logged in to moderate posts".to_owned(),
+            ));
+        }
         Some(account) => account,
     };
 
     match account.role {
         Admin | Mod => (),
         _ => {
-            return Ok(unauthorized(
-                "You must be an admin or moderator to perform this action",
+            return Err(Unauthorized(
+                "You must be an admin or moderator to perform this action".to_owned(),
             ));
         }
     };
@@ -64,18 +68,32 @@ pub async fn review_post(
     // Handle various review actions
     let background_task: Option<BoxFuture> = match review_action {
         // Handle errors
-        Err(SameStatus) => return Ok(bad_request("Post already has this status")),
-        Err(ReturnToPending) => return Ok(bad_request("Cannot return post to pending")),
-        Err(ModOnly) => return Ok(unauthorized("Only moderators can report posts")),
-        Err(AdminOnly) => return Ok(unauthorized("Only admins can ban or reject posts")),
-        Err(RejectedOrBanned) => return Ok(bad_request("Cannot review a banned or rejected post")),
-        Err(RecentOnly) => {
-            return Ok(unauthorized(
-                "Moderators can only review approved posts for two days",
+        Err(SameStatus) => return Err(BadRequest("Post already has this status".to_owned())),
+        Err(ReturnToPending) => return Err(BadRequest("Cannot return post to pending".to_owned())),
+        Err(ModOnly) => return Err(Unauthorized("Only moderators can report posts".to_owned())),
+        Err(AdminOnly) => {
+            return Err(Unauthorized(
+                "Only admins can ban or reject posts".to_owned(),
             ));
         }
-        Err(CurrentlyProcessing) => return Ok(bad_request("Post is currently being processed")),
-        Err(ManualProcessing) => return Ok(bad_request("Cannot manually set post to processing")),
+        Err(RejectedOrBanned) => {
+            return Err(BadRequest(
+                "Cannot review a banned or rejected post".to_owned(),
+            ));
+        }
+        Err(RecentOnly) => {
+            return Err(Unauthorized(
+                "Moderators can only review approved posts for two days".to_owned(),
+            ));
+        }
+        Err(CurrentlyProcessing) => {
+            return Err(BadRequest("Post is currently being processed".to_owned()));
+        }
+        Err(ManualProcessing) => {
+            return Err(BadRequest(
+                "Cannot manually set post to processing".to_owned(),
+            ));
+        }
 
         // Handle media operations
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
@@ -84,7 +102,7 @@ pub async fn review_post(
             } else {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
-                    return Ok(not_found("Encrypted media file does not exist"));
+                    return Err(NotFound("Encrypted media file does not exist".to_owned()));
                 }
 
                 if review_action == Ok(DecryptMedia) {
@@ -232,7 +250,9 @@ pub async fn review_post(
 
     // Ensure approved posts have thumbnails if needed
     if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
-        return Ok(internal_server_error("Error setting post thumbnail"));
+        return Err(InternalServerError(
+            "Error setting post thumbnail".to_owned(),
+        ));
     }
 
     tx.commit().await?;
@@ -282,8 +302,8 @@ pub async fn decrypt_media(
 
     // Verify user has required privileges
     if !user.mod_or_admin() {
-        return Ok(unauthorized(
-            "You must be a moderator or admin to access this media",
+        return Err(Unauthorized(
+            "You must be a moderator or admin to access this media".to_owned(),
         ));
     }
 
@@ -305,7 +325,9 @@ pub async fn decrypt_media(
         .ok_or(InternalServerError("Missing filename".to_owned()))?;
     let media_bytes = post.decrypt_media_file().await;
     if media_bytes.is_empty() {
-        return Ok(internal_server_error("Failed to decrypt media file"));
+        return Err(InternalServerError(
+            "Failed to decrypt media file".to_owned(),
+        ));
     }
     let content_type = post
         .media_mime_type

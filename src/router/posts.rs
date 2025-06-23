@@ -174,7 +174,7 @@ pub async fn submit_post(
             }
             "media" => {
                 if post_submission.media_filename.is_some() {
-                    return Ok(bad_request("Only one media file can be uploaded"));
+                    return Err(BadRequest("Only one media file can be uploaded".to_owned()));
                 }
                 let filename = field
                     .file_name()
@@ -207,8 +207,8 @@ pub async fn submit_post(
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
-        return Ok(bad_request(
-            "Post cannot be empty unless there is a media file",
+        return Err(BadRequest(
+            "Post cannot be empty unless there is a media file".to_owned(),
         ));
     }
 
@@ -219,7 +219,7 @@ pub async fn submit_post(
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            return Ok(internal_server_error(msg));
+            return Err(InternalServerError(msg.to_owned()));
         }
     }
 

@@ -70,12 +70,12 @@ pub async fn authenticate(
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await {
-        return Ok(not_found("Username does not exist"));
+        return Err(NotFound("Username does not exist".to_owned()));
     }
 
     // Validate credentials
     let jar = match credentials.authenticate(&mut tx).await {
-        None => return Ok(bad_request("Incorrect password")),
+        None => return Err(BadRequest("Incorrect password".to_owned())),
         Some(account) => add_account_cookie(jar, &account, &credentials),
     };
 
@@ -148,13 +148,13 @@ pub async fn create_account(
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await {
-        return Ok(bad_request("Username is already taken"));
+        return Err(BadRequest("Username is already taken".to_owned()));
     }
 
     // Validate credentials
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return Ok(bad_request(&format!(
+        return Err(BadRequest(format!(
             "Invalid registration data:\n{}",
             errors.join("\n")
         )));
@@ -206,7 +206,7 @@ pub async fn logout(
 
     // Verify user is logged in
     if user.account.is_none() {
-        return Ok(bad_request("You must be logged in to log out"));
+        return Err(BadRequest("You must be logged in to log out".to_owned()));
     }
 
     // Clear account cookie and redirect
@@ -241,7 +241,11 @@ pub async fn reset_account_token(
 
     // Verify user is logged in and reset token
     let jar = match user.account {
-        None => return Ok(bad_request("You must be logged in to reset your token")),
+        None => {
+            return Err(BadRequest(
+                "You must be logged in to reset your token".to_owned(),
+            ));
+        }
         Some(account) => {
             account.reset_token(&mut tx).await?;
             remove_account_cookie(jar)

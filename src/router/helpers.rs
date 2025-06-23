@@ -25,57 +25,6 @@ pub const SESSION_COOKIE: &str = "session";
 pub const NOTICE_COOKIE: &str = "notice";
 
 //==================================================================================================
-// Response Helpers
-//==================================================================================================
-
-/// Create an HTTP response with a specific status code and message.
-fn http_status(status: StatusCode, msg: &str) -> Response {
-    (
-        status,
-        format!(
-            "{} {}\n\n{}",
-            status.as_str(),
-            status.canonical_reason().unwrap_or("Unknown Status"),
-            msg
-        ),
-    )
-        .into_response()
-}
-
-/// Generate a 400 Bad Request response.
-pub fn bad_request(msg: &str) -> Response {
-    http_status(StatusCode::BAD_REQUEST, &format!("Bad Request: {msg}"))
-}
-
-/// Generate a 401 Unauthorized response.
-pub fn unauthorized(msg: &str) -> Response {
-    http_status(StatusCode::UNAUTHORIZED, &format!("Unauthorized: {msg}"))
-}
-
-/// Generate a 403 Forbidden response.
-pub fn forbidden(msg: &str) -> Response {
-    http_status(StatusCode::FORBIDDEN, &format!("Forbidden: {msg}"))
-}
-
-/// Generate a 404 Not Found response.
-pub fn not_found(msg: &str) -> Response {
-    http_status(StatusCode::NOT_FOUND, &format!("Not Found: {msg}"))
-}
-
-/// Generate a 500 Internal Server Error response.
-pub fn internal_server_error(msg: &str) -> Response {
-    http_status(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        &format!("Internal Server Error: {msg}"),
-    )
-}
-
-/// Generate a 403 Forbidden response for banned users.
-pub fn ban_message(expires_at_str: &str) -> Response {
-    forbidden(&format!("Banned until {expires_at_str}"))
-}
-
-//==================================================================================================
 // Security Utilities
 //==================================================================================================
 

@@ -81,7 +81,9 @@ pub async fn settings(
 
     // Verify user is logged in
     if user.account.is_none() {
-        return Ok(unauthorized("You must be logged in to access settings"));
+        return Err(Unauthorized(
+            "You must be logged in to access settings".to_owned(),
+        ));
     }
 
     // Get time zones for selection
@@ -133,8 +135,8 @@ pub async fn update_time_zone(
     // Verify user is logged in
     let account = match user.account {
         None => {
-            return Ok(unauthorized(
-                "You must be logged in to update your time zone",
+            return Err(Unauthorized(
+                "You must be logged in to update your time zone".to_owned(),
             ));
         }
         Some(account) => account,
@@ -143,7 +145,7 @@ pub async fn update_time_zone(
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     if !time_zones.contains(&time_zone_update.time_zone) {
-        return Ok(bad_request("Invalid time zone selection"));
+        return Err(BadRequest("Invalid time zone selection".to_owned()));
     }
 
     // Update time zone preference
@@ -183,13 +185,15 @@ pub async fn update_password(
     // Verify user is logged in as the correct user
     match user.account {
         None => {
-            return Ok(unauthorized(
-                "You must be logged in to update your password",
+            return Err(Unauthorized(
+                "You must be logged in to update your password".to_owned(),
             ));
         }
         Some(account) => {
             if account.username != credentials.username {
-                return Ok(unauthorized("You are not logged in as this user"));
+                return Err(Unauthorized(
+                    "You are not logged in as this user".to_owned(),
+                ));
             }
         }
     };
@@ -197,7 +201,7 @@ pub async fn update_password(
     // Validate new password
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return Ok(bad_request(&format!(
+        return Err(BadRequest(format!(
             "Password update failed:\n{}",
             errors.join("\n")
         )));
