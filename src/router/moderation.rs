@@ -26,34 +26,38 @@ pub async fn review_post(
     headers: HeaderMap,
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
-) -> Response {
+) -> Result<Response, AppError> {
     use AccountRole::*;
     use PostStatus::*;
     use ReviewAction::*;
     use ReviewError::*;
 
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Verify user has moderator privileges
     let account = match user.account {
-        None => return unauthorized("You must be logged in to moderate posts"),
+        None => return Ok(unauthorized("You must be logged in to moderate posts")),
         Some(account) => account,
     };
 
     match account.role {
         Admin | Mod => (),
-        _ => return unauthorized("You must be an admin or moderator to perform this action"),
+        _ => {
+            return Ok(unauthorized(
+                "You must be an admin or moderator to perform this action",
+            ));
+        }
     };
 
     // Get the post to review
     let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("Post does not exist"),
+        None => return Ok(not_found("Post does not exist")),
         Some(post) => post,
     };
 
@@ -63,16 +67,18 @@ pub async fn review_post(
     // Handle various review actions
     let background_task: Option<BoxFuture> = match review_action {
         // Handle errors
-        Err(SameStatus) => return bad_request("Post already has this status"),
-        Err(ReturnToPending) => return bad_request("Cannot return post to pending"),
-        Err(ModOnly) => return unauthorized("Only moderators can report posts"),
-        Err(AdminOnly) => return unauthorized("Only admins can ban or reject posts"),
-        Err(RejectedOrBanned) => return bad_request("Cannot review a banned or rejected post"),
+        Err(SameStatus) => return Ok(bad_request("Post already has this status")),
+        Err(ReturnToPending) => return Ok(bad_request("Cannot return post to pending")),
+        Err(ModOnly) => return Ok(unauthorized("Only moderators can report posts")),
+        Err(AdminOnly) => return Ok(unauthorized("Only admins can ban or reject posts")),
+        Err(RejectedOrBanned) => return Ok(bad_request("Cannot review a banned or rejected post")),
         Err(RecentOnly) => {
-            return unauthorized("Moderators can only review approved posts for two days");
+            return Ok(unauthorized(
+                "Moderators can only review approved posts for two days",
+            ));
         }
-        Err(CurrentlyProcessing) => return bad_request("Post is currently being processed"),
-        Err(ManualProcessing) => return bad_request("Cannot manually set post to processing"),
+        Err(CurrentlyProcessing) => return Ok(bad_request("Post is currently being processed")),
+        Err(ManualProcessing) => return Ok(bad_request("Cannot manually set post to processing")),
 
         // Handle media operations
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
@@ -81,7 +87,7 @@ pub async fn review_post(
             } else {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
-                    return not_found("Encrypted media file does not exist");
+                    return Ok(not_found("Encrypted media file does not exist"));
                 }
 
                 if review_action == Ok(DecryptMedia) {
@@ -206,7 +212,7 @@ pub async fn review_post(
 
     // Get updated post
     let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("Post does not exist"),
+        None => return Ok(not_found("Post does not exist")),
         Some(post) => post,
     };
 
@@ -220,10 +226,10 @@ pub async fn review_post(
 
     // Ensure approved posts have thumbnails if needed
     if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
-        return internal_server_error("Error setting post thumbnail");
+        return Ok(internal_server_error("Error setting post thumbnail"));
     }
 
-    tx.commit().await.expect("commits");
+    tx.commit().await?;
 
     // Notify clients of the update
     if state.sender.send(post).is_err() {
@@ -242,7 +248,7 @@ pub async fn review_post(
         Redirect::to(ROOT).into_response()
     };
 
-    (jar, response).into_response()
+    Ok((jar, response).into_response())
 }
 
 /// Serves decrypted media files to moderators.
@@ -262,44 +268,54 @@ pub async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Verify user has required privileges
     if !user.mod_or_admin() {
-        return unauthorized("You must be a moderator or admin to access this media");
+        return Ok(unauthorized(
+            "You must be a moderator or admin to access this media",
+        ));
     }
 
     // Get the post
     let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return not_found("Post does not exist"),
+        None => return Ok(not_found("Post does not exist")),
         Some(post) => post,
     };
 
     // Verify media exists
     if !post.encrypted_media_path().exists() {
-        return not_found("Encrypted media file does not exist");
+        return Ok(not_found("Encrypted media file does not exist"));
     }
 
     // Get media details
-    let media_filename = post.media_filename.as_ref().expect("has filename");
+    let media_filename = post
+        .media_filename
+        .as_ref()
+        .ok_or(AppError::OtherError("Missing filename".to_string()))?;
     let media_bytes = post.decrypt_media_file().await;
-    let content_type = post.media_mime_type.expect("has mime type");
+    if media_bytes.is_empty() {
+        return Ok(internal_server_error("Failed to decrypt media file"));
+    }
+    let content_type = post
+        .media_mime_type
+        .ok_or(AppError::OtherError("Missing MIME type".to_string()))?;
 
     // Set response headers for download
     let headers = [
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; filename="{}""#, media_filename),
+            &format!(r#"inline; filename=\"{}\""#, media_filename),
         ),
     ];
 
-    (jar, headers, media_bytes).into_response()
+    Ok((jar, headers, media_bytes).into_response())
 }

@@ -4,6 +4,7 @@
 //! It handles session management, credential validation, and user authentication flows.
 
 use super::*;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 /// Displays the login form.
@@ -23,12 +24,12 @@ pub async fn login_form(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
@@ -44,7 +45,7 @@ pub async fn login_form(
         ),
     ));
 
-    (jar, html).into_response()
+    Ok((jar, html).into_response())
 }
 
 /// Processes user login attempts.
@@ -64,29 +65,29 @@ pub async fn authenticate(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
     {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await {
-        return not_found("Username does not exist");
+        return Ok(not_found("Username does not exist"));
     }
 
     // Validate credentials
     let jar = match credentials.authenticate(&mut tx).await {
-        None => return bad_request("Incorrect password"),
+        None => return Ok(bad_request("Incorrect password")),
         Some(account) => add_account_cookie(jar, &account, &credentials),
     };
 
     let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
+    Ok((jar, redirect).into_response())
 }
 
 /// Displays the registration form.
@@ -106,12 +107,12 @@ pub async fn registration_form(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
@@ -127,7 +128,7 @@ pub async fn registration_form(
         ),
     ));
 
-    (jar, html).into_response()
+    Ok((jar, html).into_response())
 }
 
 /// Processes account creation requests.
@@ -149,45 +150,45 @@ pub async fn create_account(
     jar: CookieJar,
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
     {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await {
-        return bad_request("Username is already taken");
+        return Ok(bad_request("Username is already taken"));
     }
 
     // Validate credentials
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return bad_request(&format!(
+        return Ok(bad_request(&format!(
             "Invalid registration data:\n{}",
             errors.join("\n")
-        ));
+        )));
     }
 
     // Check for IP bans
     let ip_hash = ip_hash(&headers);
     if let Some(response) = check_for_ban(&mut tx, &ip_hash, None, None).await {
-        tx.commit().await.expect("commits");
-        return response;
+        tx.commit().await?;
+        return Ok(response);
     }
 
     // Create the account
     let account = credentials.register(&mut tx, &ip_hash).await;
     let jar = add_account_cookie(jar, &account, &credentials);
 
-    tx.commit().await.expect("commits");
+    tx.commit().await?;
 
     let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
+    Ok((jar, redirect).into_response())
 }
 
 /// Represents a logout request.
@@ -214,25 +215,25 @@ pub async fn logout(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(logout): Form<Logout>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Verify user is logged in
     if user.account.is_none() {
-        return bad_request("You must be logged in to log out");
+        return Ok(bad_request("You must be logged in to log out"));
     }
 
     // Clear account cookie and redirect
     let jar = remove_account_cookie(jar);
     let redirect = Redirect::to(ROOT);
 
-    (jar, redirect).into_response()
+    Ok((jar, redirect).into_response())
 }
 
 /// Resets a user's authentication token.
@@ -252,26 +253,26 @@ pub async fn reset_account_token(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(logout): Form<Logout>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Verify user is logged in and reset token
     let jar = match user.account {
-        None => return bad_request("You must be logged in to reset your token"),
+        None => return Ok(bad_request("You must be logged in to reset your token")),
         Some(account) => {
             account.reset_token(&mut tx).await;
             remove_account_cookie(jar)
         }
     };
 
-    tx.commit().await.expect("commits");
+    tx.commit().await?;
 
     let redirect = Redirect::to(ROOT);
-    (jar, redirect).into_response()
+    Ok((jar, redirect).into_response())
 }

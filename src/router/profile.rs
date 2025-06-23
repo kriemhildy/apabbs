@@ -24,18 +24,18 @@ pub async fn user_profile(
     Path(username): Path<String>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Find account by username
     let account = match Account::select_by_username(&mut tx, &username).await {
-        None => return not_found("User account does not exist"),
+        None => return Ok(not_found("User account does not exist")),
         Some(account) => account,
     };
 
@@ -56,7 +56,7 @@ pub async fn user_profile(
         ),
     ));
 
-    (jar, html).into_response()
+    Ok((jar, html).into_response())
 }
 
 /// Displays the user settings page.
@@ -76,18 +76,18 @@ pub async fn settings(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Verify user is logged in
     if user.account.is_none() {
-        return unauthorized("You must be logged in to access settings");
+        return Ok(unauthorized("You must be logged in to access settings"));
     }
 
     // Get time zones for selection
@@ -110,7 +110,7 @@ pub async fn settings(
         ),
     ));
 
-    (jar, html).into_response()
+    Ok((jar, html).into_response())
 }
 
 /// Updates a user's time zone preference.
@@ -130,37 +130,41 @@ pub async fn update_time_zone(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) =
         match init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await {
-            Err(response) => return response,
+            Err(response) => return Ok(response),
             Ok(tuple) => tuple,
         };
 
     // Verify user is logged in
     let account = match user.account {
-        None => return unauthorized("You must be logged in to update your time zone"),
+        None => {
+            return Ok(unauthorized(
+                "You must be logged in to update your time zone",
+            ));
+        }
         Some(account) => account,
     };
 
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
     if !time_zones.contains(&time_zone_update.time_zone) {
-        return bad_request("Invalid time zone selection");
+        return Ok(bad_request("Invalid time zone selection"));
     }
 
     // Update time zone preference
     time_zone_update.update(&mut tx, account.id).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await?;
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Time zone updated.");
     let redirect = Redirect::to("/settings").into_response();
 
-    (jar, redirect).into_response()
+    Ok((jar, redirect).into_response())
 }
 
 /// Updates a user's password.
@@ -180,21 +184,25 @@ pub async fn update_password(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Verify user is logged in as the correct user
     match user.account {
-        None => return unauthorized("You must be logged in to update your password"),
+        None => {
+            return Ok(unauthorized(
+                "You must be logged in to update your password",
+            ));
+        }
         Some(account) => {
             if account.username != credentials.username {
-                return unauthorized("You are not logged in as this user");
+                return Ok(unauthorized("You are not logged in as this user"));
             }
         }
     };
@@ -202,16 +210,19 @@ pub async fn update_password(
     // Validate new password
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return bad_request(&format!("Password update failed:\n{}", errors.join("\n")));
+        return Ok(bad_request(&format!(
+            "Password update failed:\n{}",
+            errors.join("\n")
+        )));
     }
 
     // Update password
     credentials.update_password(&mut tx).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await?;
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Password updated.");
     let redirect = Redirect::to("/settings").into_response();
 
-    (jar, redirect).into_response()
+    Ok((jar, redirect).into_response())
 }

@@ -6,7 +6,7 @@
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use serde::Serialize;
-use sqlx::PgConnection;
+use sqlx::{Error as SqlxError, PgConnection};
 
 /// HTTP header name for the client's real IP address (set by reverse proxy).
 pub const X_REAL_IP: &str = "X-Real-IP";
@@ -462,4 +462,31 @@ pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
         .fetch_one(tx)
         .await
         .expect("query succeeds")
+}
+
+/// Custom error type for application errors.
+#[derive(Debug)]
+pub enum AppError {
+    DatabaseError(SqlxError),
+    OtherError(String),
+}
+
+impl From<SqlxError> for AppError {
+    fn from(err: SqlxError) -> Self {
+        AppError::DatabaseError(err)
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, body) = match self {
+            AppError::DatabaseError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error occurred".to_string(),
+            ),
+            AppError::OtherError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+        };
+
+        (status, body).into_response()
+    }
 }

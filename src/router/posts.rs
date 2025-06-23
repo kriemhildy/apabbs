@@ -29,19 +29,19 @@ pub async fn index(
     jar: CookieJar,
     Path(path): Path<HashMap<String, String>>,
     headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Handle pagination parameter if present
     let page_post = match path.get("key") {
         Some(key) => match init_post(&mut tx, key, &user).await {
-            Err(response) => return response,
+            Err(response) => return Ok(response),
             Ok(post) => Some(post),
         },
         None => None,
@@ -79,7 +79,7 @@ pub async fn index(
         ),
     ));
 
-    (jar, html).into_response()
+    Ok((jar, html).into_response())
 }
 
 /// Displays a single post in full-page view.
@@ -101,18 +101,18 @@ pub async fn solo_post(
     jar: CookieJar,
     Path(key): Path<String>,
     headers: HeaderMap,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Get the requested post
     let post = match init_post(&mut tx, &key, &user).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(post) => post,
     };
 
@@ -130,7 +130,7 @@ pub async fn solo_post(
         ),
     ));
 
-    (jar, html).into_response()
+    Ok((jar, html).into_response())
 }
 
 /// Handles post submission.
@@ -152,38 +152,61 @@ pub async fn submit_post(
     jar: CookieJar,
     headers: HeaderMap,
     mut multipart: Multipart,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
-    while let Some(field) = multipart.next_field().await.expect("reads field") {
-        let name = field.name().expect("has name").to_owned();
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|_| AppError::OtherError("Failed to read field".to_string()))?
+    {
+        let name = field
+            .name()
+            .ok_or(AppError::OtherError("Missing field name".to_string()))?
+            .to_owned();
         match name.as_str() {
             "session_token" => {
                 post_submission.session_token =
-                    match Uuid::try_parse(&field.text().await.expect("reads session_token")) {
-                        Err(_) => return bad_request("Invalid session token"),
+                    match Uuid::try_parse(&field.text().await.map_err(|_| {
+                        AppError::OtherError("Failed to read session token".to_string())
+                    })?) {
+                        Err(_) => return Ok(bad_request("Invalid session token")),
                         Ok(uuid) => uuid,
                     };
             }
-            "body" => post_submission.body = field.text().await.expect("reads body"),
+            "body" => {
+                post_submission.body = field
+                    .text()
+                    .await
+                    .map_err(|_| AppError::OtherError("Failed to read body".to_string()))?
+            }
             "media" => {
                 if post_submission.media_filename.is_some() {
-                    return bad_request("Only one media file can be uploaded");
+                    return Ok(bad_request("Only one media file can be uploaded"));
                 }
-                let filename = match field.file_name() {
-                    None => return bad_request("Media file has no filename"),
-                    Some(filename) => filename.to_owned(),
-                };
+                let filename = field
+                    .file_name()
+                    .ok_or(AppError::OtherError(
+                        "Media file has no filename".to_string(),
+                    ))?
+                    .to_owned();
                 if filename.is_empty() {
                     continue;
                 }
                 post_submission.media_filename = Some(filename);
-                post_submission.media_bytes =
-                    Some(field.bytes().await.expect("reads media bytes").to_vec());
+                post_submission.media_bytes = Some(
+                    field
+                        .bytes()
+                        .await
+                        .map_err(|_| {
+                            AppError::OtherError("Failed to read media bytes".to_string())
+                        })?
+                        .to_vec(),
+                );
             }
-            _ => return bad_request(&format!("Unexpected field: {name}")),
+            _ => return Ok(bad_request(&format!("Unexpected field: {name}"))),
         };
     }
 
@@ -193,7 +216,7 @@ pub async fn submit_post(
     // Initialize user from session
     let (user, jar) =
         match init_user(jar, &mut tx, method, Some(post_submission.session_token)).await {
-            Err(response) => return response,
+            Err(response) => return Ok(response),
             Ok(tuple) => tuple,
         };
 
@@ -201,13 +224,15 @@ pub async fn submit_post(
     if let Some(response) =
         check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
     {
-        tx.commit().await.expect("commits");
-        return response;
+        tx.commit().await?;
+        return Ok(response);
     }
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
-        return bad_request("Post cannot be empty unless there is a media file");
+        return Ok(bad_request(
+            "Post cannot be empty unless there is a media file",
+        ));
     }
 
     // Generate unique key and insert post
@@ -217,11 +242,11 @@ pub async fn submit_post(
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            return internal_server_error(msg);
+            return Ok(internal_server_error(msg));
         }
     }
 
-    tx.commit().await.expect("commits");
+    tx.commit().await?;
 
     // Notify clients of new post
     if state.sender.send(post).is_err() {
@@ -235,7 +260,7 @@ pub async fn submit_post(
         Redirect::to(ROOT).into_response()
     };
 
-    (jar, response).into_response()
+    Ok((jar, response).into_response())
 }
 
 /// Hides a post from the user's view.
@@ -257,28 +282,28 @@ pub async fn hide_post(
     jar: CookieJar,
     headers: HeaderMap,
     Form(post_hiding): Form<PostHiding>,
-) -> Response {
+) -> Result<Response, AppError> {
     use PostStatus::*;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Process post hiding if authorized and eligible
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await {
         if !post.author(&user) {
-            return unauthorized("You are not the author of this post");
+            return Ok(unauthorized("You are not the author of this post"));
         }
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await;
-                tx.commit().await.expect("commits");
+                tx.commit().await?;
             }
             Reported | Banned => (),
-            _ => return bad_request("Post is not rejected, reported, or banned"),
+            _ => return Ok(bad_request("Post is not rejected, reported, or banned")),
         }
     };
 
@@ -289,7 +314,7 @@ pub async fn hide_post(
         Redirect::to(ROOT).into_response()
     };
 
-    (jar, response).into_response()
+    Ok((jar, response).into_response())
 }
 
 /// Handles WebSocket connections for real-time updates.
@@ -309,7 +334,7 @@ pub async fn web_socket(
     State(state): State<AppState>,
     jar: CookieJar,
     upgrade: WebSocketUpgrade,
-) -> Response {
+) -> Result<Response, AppError> {
     use tokio::sync::broadcast::Receiver;
 
     /// Inner function to process the WebSocket connection
@@ -349,17 +374,17 @@ pub async fn web_socket(
         }
     }
 
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, _jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Subscribe to broadcast channel and upgrade connection
     let receiver = state.sender.subscribe();
-    upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user))
+    Ok(upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user)))
 }
 
 /// Fetches posts created after the latest approved post.
@@ -379,18 +404,18 @@ pub async fn interim(
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
-) -> Response {
-    let mut tx = state.db.begin().await.expect("begins");
+) -> Result<Response, AppError> {
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(tuple) => tuple,
     };
 
     // Get the reference post
     let since_post = match init_post(&mut tx, &key, &user).await {
-        Err(response) => return response,
+        Err(response) => return Ok(response),
         Ok(post) => post,
     };
 
@@ -399,7 +424,7 @@ pub async fn interim(
     let new_posts = Post::select(&mut tx, &user, since_post_id, true).await;
 
     if new_posts.is_empty() {
-        return (jar, StatusCode::NO_CONTENT).into_response();
+        return Ok((jar, StatusCode::NO_CONTENT).into_response());
     }
 
     // Build JSON response with rendered HTML for each post
@@ -413,5 +438,5 @@ pub async fn interim(
     }
 
     let json = serde_json::json!({"posts": json_posts}).to_string();
-    (jar, json).into_response()
+    Ok((jar, json).into_response())
 }
