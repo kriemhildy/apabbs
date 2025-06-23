@@ -363,7 +363,10 @@ impl PostSubmission {
         };
         // check for the maximum breaks
         let single_break_pattern = Regex::new("<br>\n").expect("regex builds");
-        let break_limit = single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS).map(|mat| mat.start() as i32);
+        let break_limit = single_break_pattern
+            .find_iter(slice)
+            .nth(MAX_INTRO_BREAKS)
+            .map(|mat| mat.start() as i32);
         // take the smallest of youtube and break limits
         println!(
             "youtube_limit: {:?}, break_limit: {:?}",

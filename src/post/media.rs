@@ -2,7 +2,7 @@ use super::submission::PostSubmission;
 use super::{MediaCategory, Post, PostReview};
 use regex::Regex;
 use sqlx::PgConnection;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// File system directories
 pub const UPLOADS_DIR: &str = "uploads"; // Encrypted storage
@@ -282,7 +282,7 @@ impl PostReview {
     /// # Parameters
     /// - `published_media_path`: Path where the media should be stored
     /// - `media_bytes`: Raw bytes of the decrypted media file
-    pub async fn write_media_file(published_media_path: &PathBuf, media_bytes: Vec<u8>) {
+    pub async fn write_media_file(published_media_path: &Path, media_bytes: Vec<u8>) {
         let media_key_dir = published_media_path.parent().unwrap();
         tokio::fs::create_dir(media_key_dir)
             .await
@@ -302,7 +302,7 @@ impl PostReview {
     ///
     /// # Returns
     /// Path to the generated thumbnail file
-    pub async fn generate_image_thumbnail(published_media_path: &PathBuf) -> PathBuf {
+    pub async fn generate_image_thumbnail(published_media_path: &Path) -> PathBuf {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')
@@ -349,7 +349,7 @@ impl PostReview {
     ///
     /// # Returns
     /// Path where the derived file should be stored, in the same directory as the original
-    pub fn alternate_path(media_path: &PathBuf, prefix: &str, extension: &str) -> PathBuf {
+    pub fn alternate_path(media_path: &Path, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
             .expect("get media filename")
@@ -377,7 +377,7 @@ impl PostReview {
     ///
     /// # Returns
     /// `true` if the thumbnail is larger than the original, `false` otherwise
-    pub fn thumbnail_is_larger(thumbnail_path: &PathBuf, published_media_path: &PathBuf) -> bool {
+    pub fn thumbnail_is_larger(thumbnail_path: &Path, published_media_path: &Path) -> bool {
         let thumbnail_len = thumbnail_path.metadata().unwrap().len();
         let media_file_len = published_media_path.metadata().unwrap().len();
         thumbnail_len > media_file_len
@@ -389,7 +389,7 @@ impl PostReview {
     ///
     /// # Parameters
     /// - `encrypted_media_path`: Path to the encrypted media file
-    pub async fn delete_upload_key_dir(encrypted_media_path: &PathBuf) {
+    pub async fn delete_upload_key_dir(encrypted_media_path: &Path) {
         let uploads_key_dir = encrypted_media_path.parent().unwrap();
 
         tokio::fs::remove_file(&encrypted_media_path)
@@ -528,7 +528,7 @@ impl PostReview {
     ///
     /// # Returns
     /// A tuple of (width, height) as integers
-    pub async fn image_dimensions(image_path: &PathBuf) -> (i32, i32) {
+    pub async fn image_dimensions(image_path: &Path) -> (i32, i32) {
         println!("Getting image dimensions for: {:?}", image_path);
         let image_path_str = image_path.to_str().unwrap();
 
@@ -564,7 +564,7 @@ impl PostReview {
     ///
     /// # Returns
     /// `true` if the video is compatible, `false` if it needs conversion
-    pub async fn video_is_compatible(video_path: &PathBuf) -> bool {
+    pub async fn video_is_compatible(video_path: &Path) -> bool {
         println!("Checking video compatibility for: {:?}", video_path);
         let video_path_str = video_path
             .to_str()
@@ -638,7 +638,7 @@ impl PostReview {
     ///
     /// # Returns
     /// Path to the generated compatibility video file (MP4)
-    pub async fn generate_compatibility_video(video_path: &PathBuf) -> PathBuf {
+    pub async fn generate_compatibility_video(video_path: &Path) -> PathBuf {
         println!("Generating compatibility video for: {:?}", video_path);
         let video_path_str = video_path.to_str().unwrap().to_owned();
         let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
@@ -693,7 +693,7 @@ impl PostReview {
     ///
     /// # Returns
     /// Path to the generated poster image file
-    pub async fn generate_video_poster(video_path: &PathBuf) -> PathBuf {
+    pub async fn generate_video_poster(video_path: &Path) -> PathBuf {
         println!("Generating video poster for: {:?}", video_path);
         let poster_path = video_path.with_extension("webp");
 

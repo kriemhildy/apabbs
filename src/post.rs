@@ -24,7 +24,7 @@ use crate::{
 };
 pub use review::{PostReview, ReviewAction, ReviewError};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
-use std::path::PathBuf;
+use std::path::Path;
 pub use submission::{PostHiding, PostSubmission};
 use uuid::Uuid;
 
@@ -266,7 +266,7 @@ impl Post {
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
-        thumbnail_path: &PathBuf,
+        thumbnail_path: &Path,
         width: i32,
         height: i32,
     ) {
@@ -300,7 +300,7 @@ impl Post {
     ///
     /// # Panics
     /// Panics if the compatibility video filename cannot be extracted or converted to a string.
-    pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &PathBuf) {
+    pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &Path) {
         let compat_filename = compat_path
             .file_name()
             .expect("get compatibility video filename")
@@ -333,7 +333,7 @@ impl Post {
     ///
     /// # Panics
     /// Panics if the poster filename cannot be extracted or converted to a string.
-    pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &PathBuf) {
+    pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &Path) {
         let media_poster_filename = video_poster_path
             .file_name()
             .expect("Failed to get media poster filename")
