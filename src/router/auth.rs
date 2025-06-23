@@ -243,7 +243,7 @@ pub async fn reset_account_token(
     let jar = match user.account {
         None => return Ok(bad_request("You must be logged in to reset your token")),
         Some(account) => {
-            account.reset_token(&mut tx).await;
+            account.reset_token(&mut tx).await?;
             remove_account_cookie(jar)
         }
     };

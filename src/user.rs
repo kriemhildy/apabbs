@@ -107,12 +107,14 @@ impl Account {
     ///
     /// # Returns
     /// An optional `Account` matching the token.
-    pub async fn select_by_token(tx: &mut PgConnection, token: &Uuid) -> Option<Self> {
+    pub async fn select_by_token(
+        tx: &mut PgConnection,
+        token: &Uuid,
+    ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as("SELECT * FROM accounts WHERE token = $1")
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
-            .expect("query succeeds")
     }
 
     /// Retrieves an account by username, with formatted timestamps.
@@ -123,7 +125,10 @@ impl Account {
     ///
     /// # Returns
     /// An optional `Account` matching the username, with formatted timestamps.
-    pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
+    pub async fn select_by_username(
+        tx: &mut PgConnection,
+        username: &str,
+    ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
             "to_char(created_at, $2) AS created_at_html ",
@@ -134,19 +139,18 @@ impl Account {
         .bind(username)
         .fetch_optional(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Generates and assigns a new authentication token for the account.
     ///
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
-    pub async fn reset_token(&self, tx: &mut PgConnection) {
+    pub async fn reset_token(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE accounts SET token = gen_random_uuid() WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 }
 

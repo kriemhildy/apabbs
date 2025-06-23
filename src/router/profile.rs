@@ -31,8 +31,8 @@ pub async fn user_profile(
     let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Find account by username
-    let account = match Account::select_by_username(&mut tx, &username).await {
-        None => return Ok(not_found("User account does not exist")),
+    let account = match Account::select_by_username(&mut tx, &username).await? {
+        None => return Err(NotFound("User account does not exist".to_owned())),
         Some(account) => account,
     };
 

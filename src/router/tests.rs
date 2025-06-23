@@ -120,7 +120,8 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
             .expect("sets account as role");
         Account::select_by_username(tx, &account.username)
             .await
-            .unwrap()
+            .expect("query succeeds")
+            .expect("account exists")
     } else {
         account
     };
@@ -729,7 +730,8 @@ async fn create_account() {
     let mut tx = state.db.begin().await.expect("begins");
     let account = Account::select_by_username(&mut tx, &credentials.username)
         .await
-        .unwrap();
+        .expect("query succeeds")
+        .expect("account exists");
 
     // Clean up
     delete_test_account(&mut tx, &account).await;
@@ -804,7 +806,8 @@ async fn reset_account_token() {
     let mut tx = state.db.begin().await.expect("begins");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
-        .unwrap();
+        .expect("query succeeds")
+        .expect("account exists");
     assert_ne!(updated_account.token, account.token);
 
     // Clean up
@@ -990,7 +993,8 @@ async fn update_time_zone() {
     let mut tx = state.db.begin().await.expect("begins");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
-        .unwrap();
+        .expect("query succeeds")
+        .expect("account exists");
     assert_eq!(updated_account.time_zone, time_zone_update.time_zone);
 
     // Clean up
@@ -1034,7 +1038,8 @@ async fn update_password() {
     let mut tx = state.db.begin().await.expect("begins");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
-        .unwrap();
+        .expect("query succeeds")
+        .expect("account exists");
     assert!(
         credentials
             .authenticate(&mut tx)

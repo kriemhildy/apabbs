@@ -198,7 +198,7 @@ pub async fn init_user(
             };
             match token {
                 None => None,
-                Some(token) => match Account::select_by_token(tx, &token).await {
+                Some(token) => match Account::select_by_token(tx, &token).await? {
                     None => {
                         jar = remove_account_cookie(jar);
                         None
