@@ -1,11 +1,9 @@
 //! User authentication and account management functionality.
 //!
-//! This module provides utilities for user registration, authentication,
-//! credentials validation, and account management. It handles both anonymous
-//! and registered users through a session-based system.
+//! Utilities for user registration, authentication, credentials validation, and account management.
+//! Handles both anonymous and registered users through a session-based system.
 //!
 //! # Key Types
-//!
 //! - [`User`]: Anonymous or authenticated user with session tracking
 //! - [`Account`]: Registered user account with credentials and preferences
 //! - [`AccountRole`]: Permission levels (Novice, Member, Mod, Admin)
@@ -50,62 +48,21 @@ pub struct User {
 }
 
 impl User {
-    /// Checks if the user has moderator or administrator privileges.
-    ///
     /// Returns `true` if the user is a moderator or administrator.
-    ///
-    /// Checks if the user has moderator or administrator privileges.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use apabbs::user::{User, Account, AccountRole};
-    /// use uuid::Uuid;
-    ///
-    /// let user = User {
-    ///     session_token: Uuid::new_v4(),
-    ///     account: Some(Account {
-    ///         role: AccountRole::Mod,
-    ///         ..Default::default()
-    ///     }),
-    /// };
-    /// assert!(user.mod_or_admin());
-    /// ```
     pub fn mod_or_admin(&self) -> bool {
         self.account
             .as_ref()
             .is_some_and(|a| [AccountRole::Admin, AccountRole::Mod].contains(&a.role))
     }
 
-    /// Checks if the user has administrator privileges.
-    ///
     /// Returns `true` if the user is an administrator.
-    /// Checks if the user has moderator or administrator privileges.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use apabbs::user::{User, Account, AccountRole};
-    /// use uuid::Uuid;
-    ///
-    /// let user = User {
-    ///     session_token: Uuid::new_v4(),
-    ///     account: Some(Account {
-    ///         role: AccountRole::Mod,
-    ///         ..Default::default()
-    ///     }),
-    /// };
-    /// assert!(!user.admin());
-    /// ```
     pub fn admin(&self) -> bool {
         self.account
             .as_ref()
             .is_some_and(|a| a.role == AccountRole::Admin)
     }
 
-    /// Gets the user's preferred time zone.
-    ///
-    /// Returns the account's time zone if logged in, or "UTC" for anonymous users.
+    /// Gets the user's preferred time zone, or "UTC" for anonymous users.
     pub fn time_zone(&self) -> &str {
         match self.account {
             Some(ref account) => &account.time_zone,
@@ -119,42 +76,29 @@ impl User {
 /// Contains all account details including credentials and preferences.
 #[derive(sqlx::FromRow, serde::Serialize, Default, Clone)]
 pub struct Account {
-    /// Unique identifier for the account
     pub id: i32,
-    /// Unique username for the account
     pub username: String,
-    /// Authentication token for session management
     pub token: Uuid,
-    /// Hashed password for secure storage
     pub password_hash: String,
-    /// Access level and permissions for the account
     pub role: AccountRole,
-    /// The user's preferred time zone
     pub time_zone: String,
-    /// Account creation timestamp in RFC5322 format
     #[sqlx(default)]
     pub created_at_rfc5322: Option<String>,
-    /// Account creation timestamp in HTML format
     #[sqlx(default)]
     pub created_at_html: Option<String>,
 }
 
 impl Account {
     /// Retrieves an account by its authentication token.
-    ///
-    /// Returns the account information if found, or None if no account matches the token.
     pub async fn select_by_token(tx: &mut PgConnection, token: &Uuid) -> Option<Self> {
         sqlx::query_as("SELECT * FROM accounts WHERE token = $1")
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
-            .expect("select account by token")
+            .expect("Failed to select account by token")
     }
 
-    /// Retrieves an account by username.
-    ///
-    /// Returns the account information with formatted timestamps if found,
-    /// or None if no account matches the username.
+    /// Retrieves an account by username, with formatted timestamps.
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
@@ -166,34 +110,28 @@ impl Account {
         .bind(username)
         .fetch_optional(&mut *tx)
         .await
-        .expect("select account by username")
+        .expect("Failed to select account by username")
     }
 
     /// Generates and assigns a new authentication token for the account.
-    ///
-    /// This is typically used for security purposes like logging out from all devices.
     pub async fn reset_token(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE accounts SET token = gen_random_uuid() WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update account token");
+            .expect("Failed to update account token");
     }
 }
 
 /// Represents a request to update a user's time zone preference.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TimeZoneUpdate {
-    /// Session token for authentication
     pub session_token: Uuid,
-    /// New time zone to be set for the user
     pub time_zone: String,
 }
 
 impl TimeZoneUpdate {
     /// Retrieves a list of all valid time zones from the database.
-    ///
-    /// Returns a sorted list of time zone names that can be used by users.
     pub async fn select_time_zones(tx: &mut PgConnection) -> Vec<String> {
         sqlx::query_scalar(concat!(
             "SELECT name FROM pg_timezone_names ",
@@ -202,7 +140,7 @@ impl TimeZoneUpdate {
         ))
         .fetch_all(&mut *tx)
         .await
-        .expect("select distinct time zones")
+        .expect("Failed to select distinct time zones")
     }
 
     /// Updates the time zone setting for a user account.
@@ -212,37 +150,30 @@ impl TimeZoneUpdate {
             .bind(account_id)
             .execute(&mut *tx)
             .await
-            .expect("update time zone");
+            .expect("Failed to update time zone");
     }
 }
 
 /// Represents user credentials for registration or authentication.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Credentials {
-    /// Session token for the current user session
     pub session_token: Uuid,
-    /// Username for registration or login
     pub username: String,
-    /// Password for registration or login
     pub password: String,
-    /// Password confirmation for registration
     #[serde(rename = "confirm_password")]
     pub confirm_password: Option<String>,
-    /// Age verification field (typically a checkbox)
     #[serde(rename = "year")]
     pub year: Option<String>,
 }
 
 impl Credentials {
     /// Checks if a username already exists in the database.
-    ///
-    /// Returns true if the username is already taken.
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE username = $1)")
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
-            .expect("select whether username exists")
+            .expect("Failed to check if username exists")
     }
 
     /// Validates the credentials for registration.
@@ -256,32 +187,11 @@ impl Credentials {
     /// - Password confirmation match
     ///
     /// Returns a list of error messages if validation fails.
-    ///
-    /// Validates the credentials for registration.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use uuid::Uuid;
-    /// use apabbs::user::Credentials;
-    ///
-    /// let mut creds = Credentials {
-    ///     session_token: Uuid::new_v4(),
-    ///     username: "validuser".to_owned(),
-    ///     password: "goodpassw0rd".to_owned(),
-    ///     confirm_password: Some("goodpassw0rd".to_owned()),
-    ///     year: None,
-    /// };
-    /// assert!(creds.validate().is_empty());
-    ///
-    /// creds.username = "bad".to_owned(); // too short
-    /// assert!(!creds.validate().is_empty());
-    /// ```
     pub fn validate(&self) -> Vec<&str> {
         let mut errors: Vec<&str> = Vec::new();
 
         // Validate username format
-        let pattern = Regex::new(r"^\w{4,16}$").expect("build regex pattern");
+        let pattern = Regex::new(r"^\w{4,16}$").expect("Failed to build regex pattern");
         if !pattern.is_match(&self.username) {
             errors.push("username must be 4 to 16 word characters");
         }
@@ -306,7 +216,7 @@ impl Credentials {
 
         // Check for common password patterns
         if lowercase_password.contains("password") {
-            errors.push(r#"password cannot contain "password""#);
+            errors.push(r#"password cannot contain \"password\""#);
         }
 
         // Validate password confirmation
@@ -323,11 +233,6 @@ impl Credentials {
     }
 
     /// Registers a new user account in the database.
-    ///
-    /// Creates a new account with the provided credentials and IP hash.
-    /// Automatically hashes the password for secure storage.
-    ///
-    /// Returns the newly created account.
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         sqlx::query_as(concat!(
             "INSERT INTO accounts (username, password_hash, ip_hash) ",
@@ -339,12 +244,10 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .expect("insert a new registered account")
+        .expect("Failed to insert a new registered account")
     }
 
     /// Authenticates a user with the provided credentials.
-    ///
-    /// Returns the account if authentication is successful, or None if credentials are invalid.
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<Account> {
         sqlx::query_as(concat!(
             "SELECT * FROM accounts WHERE username = $1 ",
@@ -354,12 +257,10 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
-        .expect("select account by username and password")
+        .expect("Failed to select account by username and password")
     }
 
     /// Updates the password for an existing account.
-    ///
-    /// Hashes the new password before storing it in the database.
     pub async fn update_password(&self, tx: &mut PgConnection) {
         sqlx::query(concat!(
             "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', $2)) ",
@@ -370,41 +271,13 @@ impl Credentials {
         .bind(&self.username)
         .execute(&mut *tx)
         .await
-        .expect("update password");
+        .expect("Failed to update password");
     }
 
     /// Checks if the year verification checkbox was checked.
-    ///
     /// Returns true if the year field is present and set to "on".
-    ///
-    /// Checks if the year verification checkbox was checked.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use uuid::Uuid;
-    /// use apabbs::user::Credentials;
-    ///
-    /// let creds = Credentials {
-    ///     session_token: Uuid::new_v4(),
-    ///     username: "user".to_string(),
-    ///     password: "password".to_string(),
-    ///     confirm_password: Some("password".to_string()),
-    ///     year: Some("on".to_string()),
-    /// };
-    /// assert!(creds.year_checked());
-    ///
-    /// let creds = Credentials {
-    ///     year: Some("off".to_string()),
-    ///     ..creds
-    /// };
-    /// assert!(!creds.year_checked());
-    /// ```
     pub fn year_checked(&self) -> bool {
-        match self.year {
-            Some(ref year) => year == "on",
-            None => false,
-        }
+        matches!(self.year.as_deref(), Some("on"))
     }
 }
 

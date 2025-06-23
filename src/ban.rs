@@ -1,12 +1,10 @@
 //! User ban management and abuse prevention.
 //!
-//! This module provides functionality for managing temporary bans, detecting
-//! potential abuse, and protecting the system from malicious behavior. It
-//! handles IP-based and account-based restrictions to prevent spam and
-//! flooding.
+//! Provides functionality for managing temporary bans, detecting potential abuse,
+//! and protecting the system from malicious behavior. Handles IP-based and account-based
+//! restrictions to prevent spam and flooding.
 //!
 //! # Key Functions
-//!
 //! - [`insert`]: Creates a new temporary ban record
 //! - [`exists`]: Checks if an IP or account is currently banned
 //! - [`flooding`]: Detects excessive content creation from a single IP
@@ -14,32 +12,21 @@
 //! - [`scrub`]: Privacy-focused removal of IP data from older records
 //!
 //! # Rate Limiting
-//!
-//! The module implements rate limiting by tracking the combined count of new
-//! accounts and pending posts from each IP address. When this count exceeds
-//! [`MAX_CONTENT_PER_IP_DAILY`], the system considers it flooding and may
-//! apply temporary restrictions.
+//! Implements rate limiting by tracking the combined count of new accounts and pending posts
+//! from each IP address. When this count exceeds [`MAX_CONTENT_PER_IP_DAILY`], the system
+//! considers it flooding and may apply temporary restrictions.
 
 use crate::POSTGRES_RFC5322_DATETIME;
 use sqlx::PgConnection;
 
 /// Maximum combined count of new accounts and pending posts allowed from a single IP
-/// within a 24-hour period before considering it to be flooding
+/// within a 24-hour period before considering it to be flooding.
 pub const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
 
-/// Inserts a new ban record into the database
-///
-/// Creates a new entry in the bans table with the specified IP hash and optional
-/// account IDs. The ban will have an automatic expiration time set by the database.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `ip_hash`: Hash of the IP address to ban
-/// - `banned_account_id`: Optional ID of the account being banned
-/// - `admin_account_id`: Optional ID of the admin who created the ban
+/// Inserts a new ban record into the database.
 ///
 /// # Returns
-/// A string representation of the ban expiration time formatted according to RFC5322
+/// A string representation of the ban expiration time formatted according to RFC5322.
 pub async fn insert(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -56,21 +43,13 @@ pub async fn insert(
     .bind(POSTGRES_RFC5322_DATETIME)
     .fetch_one(&mut *tx)
     .await
-    .expect("insert ban")
+    .expect("Failed to insert ban record")
 }
 
-/// Checks if an active ban exists for an IP hash or account ID
-///
-/// Queries the database for unexpired bans matching either the IP hash
-/// or the account ID (if provided).
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `ip_hash`: Hash of the IP address to check
-/// - `banned_account_id`: Optional ID of the banned account
+/// Checks if an active ban exists for an IP hash or account ID.
 ///
 /// # Returns
-/// The expiration time of the ban if it exists and is unexpired, `None` otherwise
+/// The expiration time of the ban if it exists and is unexpired, `None` otherwise.
 pub async fn exists(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -85,19 +64,13 @@ pub async fn exists(
     .bind(banned_account_id)
     .fetch_optional(&mut *tx)
     .await
-    .expect("return expiration if ban exists")
+    .expect("Failed to check for active ban")
 }
 
-/// Counts new accounts created from an IP address within the past day
-///
-/// Used for rate limiting and anti-abuse detection.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `ip_hash`: Hash of the IP address to check
+/// Counts new accounts created from an IP address within the past day.
 ///
 /// # Returns
-/// The count of new accounts created from the IP address within the past day
+/// The count of new accounts created from the IP address within the past day.
 pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     sqlx::query_scalar(concat!(
         "SELECT count(*) FROM accounts WHERE ip_hash = $1 ",
@@ -106,19 +79,13 @@ pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("count new account registrations by IP")
+    .expect("Failed to count new account registrations by IP")
 }
 
-/// Counts pending posts created from an IP address within the past day
-///
-/// Used for rate limiting and anti-abuse detection.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `ip_hash`: Hash of the IP address to check
+/// Counts pending posts created from an IP address within the past day.
 ///
 /// # Returns
-/// The count of pending posts created from the IP address within the past day
+/// The count of pending posts created from the IP address within the past day.
 pub async fn new_posts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     sqlx::query_scalar(concat!(
         "SELECT count(*) FROM posts WHERE ip_hash = $1 ",
@@ -127,34 +94,23 @@ pub async fn new_posts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("count new pending posts by IP")
+    .expect("Failed to count new pending posts by IP")
 }
 
-/// Determines if an IP address is creating excessive content (flooding)
-///
-/// Combines the count of new accounts and pending posts from an IP address
-/// to determine if it exceeds the system's rate limits.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `ip_hash`: Hash of the IP address to check
+/// Determines if an IP address is creating excessive content (flooding).
 ///
 /// # Returns
-/// `true` if the IP is flooding (combined count >= MAX_CONTENT_PER_IP_DAILY), `false` otherwise
+/// `true` if the IP is flooding (combined count >= MAX_CONTENT_PER_IP_DAILY), `false` otherwise.
 pub async fn flooding(tx: &mut PgConnection, ip_hash: &str) -> bool {
     let new_accounts_count = new_accounts_count(tx, ip_hash).await;
     let new_posts_count = new_posts_count(tx, ip_hash).await;
     new_accounts_count + new_posts_count >= MAX_CONTENT_PER_IP_DAILY
 }
 
-/// Removes content from a banned IP address
+/// Removes content from a banned IP address.
 ///
 /// Deletes accounts that have only created pending posts and removes all
 /// pending posts associated with the IP address.
-///
-/// # Parameters
-/// - `tx`: Database transaction
-/// - `ip_hash`: Hash of the IP address to prune
 pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query(concat!(
         "DELETE FROM accounts WHERE ip_hash = $1 AND NOT ",
@@ -163,24 +119,20 @@ pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     .bind(ip_hash)
     .execute(&mut *tx)
     .await
-    .expect("delete banned accounts with only pending posts");
+    .expect("Failed to delete banned accounts with only pending posts");
 
     sqlx::query("DELETE FROM posts WHERE ip_hash = $1 AND status = 'pending'")
         .bind(ip_hash)
         .execute(&mut *tx)
         .await
-        .expect("delete banned posts which are pending");
+        .expect("Failed to delete banned posts which are pending");
 }
 
-/// Removes IP address data from older content for privacy
+/// Removes IP address data from older content for privacy.
 ///
-/// This function removes IP hash data from accounts and posts that are
-/// older than 1 day and are not in a state requiring IP tracking (like pending
-/// or banned posts). This improves user privacy by not storing IP data longer
-/// than necessary for moderation purposes.
-///
-/// # Parameters
-/// - `tx`: Database transaction
+/// Removes IP hash data from accounts and posts that are older than 1 day and are not in a state
+/// requiring IP tracking (like pending or banned posts). This improves user privacy by not storing
+/// IP data longer than necessary for moderation purposes.
 pub async fn scrub(tx: &mut PgConnection) {
     // Scrub IP data from accounts older than 1 day
     sqlx::query(concat!(
@@ -189,7 +141,7 @@ pub async fn scrub(tx: &mut PgConnection) {
     ))
     .execute(&mut *tx)
     .await
-    .expect("scrub ip_hash data from users");
+    .expect("Failed to scrub ip_hash data from users");
 
     // Scrub IP data from posts older than 1 day that don't need IP tracking
     sqlx::query(concat!(
@@ -199,5 +151,5 @@ pub async fn scrub(tx: &mut PgConnection) {
     ))
     .execute(&mut *tx)
     .await
-    .expect("scrub ip_hash data from posts and accounts");
+    .expect("Failed to scrub ip_hash data from posts");
 }
