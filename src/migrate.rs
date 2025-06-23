@@ -50,7 +50,7 @@ pub async fn main() {
                 .bind(name)
                 .fetch_one(&db)
                 .await
-                .expect("Failed to check if migration is needed");
+                .expect("checks migration");
 
         if exists {
             continue;
@@ -64,7 +64,7 @@ pub async fn main() {
             .bind(name)
             .execute(&db)
             .await
-            .expect("Failed to record applied migration");
+            .expect("records migration");
     }
 }
 
@@ -73,11 +73,11 @@ pub async fn main() {
 /// Recalculates the intro_limit field for all posts that have it set.
 pub async fn update_intro_limit(db: PgPool) {
     use apabbs::post::{Post, PostSubmission};
-    let mut tx = db.begin().await.expect("begin should succeed");
+    let mut tx = db.begin().await.expect("begins");
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
-        .expect("Failed to fetch posts for intro_limit migration");
+        .expect("fetches posts");
 
     for post in posts {
         let intro_limit = PostSubmission::intro_limit(&post.body);
@@ -86,9 +86,9 @@ pub async fn update_intro_limit(db: PgPool) {
             .bind(post.id)
             .execute(&mut *tx)
             .await
-            .expect("Failed to update post intro_limit");
+            .expect("updates intro_limit");
     }
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Downloads YouTube thumbnails for posts containing YouTube links.
@@ -100,7 +100,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
     use std::thread;
     use tokio::time::Duration;
 
-    let mut tx = db.begin().await.expect("begin should succeed");
+    let mut tx = db.begin().await.expect("begins");
 
     // Extract all YouTube video IDs from posts with YouTube embeds
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
@@ -113,7 +113,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Failed to select YouTube links");
+    .expect("selects youtube links");
 
     for video_id in video_ids {
         println!("Downloading thumbnail for video {video_id}");
@@ -129,7 +129,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
             ])
             .arg(format!("https://www.youtube.com/shorts/{}", video_id))
             .output()
-            .expect("Failed to check response code for YouTube short")
+            .expect("checks response code")
             .stdout;
         let short = response_code == b"'200'";
 
@@ -147,7 +147,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("Failed to update YouTube link to shorts format");
+            .expect("updates youtube link");
         }
 
         // Download thumbnail and get dimensions
@@ -159,7 +159,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
                 .to_str()
                 .unwrap()
                 .strip_prefix("pub")
-                .expect("Failed to strip pub prefix from thumbnail path");
+                .expect("strips pub prefix");
 
             println!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
 
@@ -182,14 +182,14 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("Failed to update YouTube thumbnail in posts");
+            .expect("updates youtube thumbnail");
         }
 
         // Avoid rate limiting
         thread::sleep(Duration::from_secs(1));
     }
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Migrates from UUID-based media paths to key-based paths.
@@ -198,7 +198,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
 /// and removes the now unused UUID column.
 pub async fn uuid_to_key(db: PgPool) {
     use uuid::Uuid;
-    let mut tx = db.begin().await.expect("begin should succeed");
+    let mut tx = db.begin().await.expect("begins");
 
     // Check if the UUID column exists before proceeding
     let exists: bool = sqlx::query_scalar(concat!(
@@ -207,7 +207,7 @@ pub async fn uuid_to_key(db: PgPool) {
     ))
     .fetch_one(&mut *tx)
     .await
-    .expect("Failed to check if uuid column exists");
+    .expect("checks uuid column");
 
     if !exists {
         println!("uuid column does not exist, skipping migration");
@@ -227,7 +227,7 @@ pub async fn uuid_to_key(db: PgPool) {
     )
     .fetch_all(&mut *tx)
     .await
-    .expect("Failed to fetch posts for uuid_to_key migration");
+    .expect("fetches posts");
 
     // Rename media directories
     for pair in pairs {
@@ -241,16 +241,16 @@ pub async fn uuid_to_key(db: PgPool) {
 
         tokio::fs::rename(&uuid_dir, format!("pub/media/{}", pair.key))
             .await
-            .expect("Failed to rename media directory");
+            .expect("renames dir");
     }
 
     // Remove the UUID column now that it's no longer needed
     sqlx::query("ALTER TABLE posts DROP COLUMN uuid")
         .execute(&mut *tx)
         .await
-        .expect("Failed to drop uuid column");
+        .expect("drops uuid");
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Generates thumbnails for image posts.
@@ -259,7 +259,7 @@ pub async fn uuid_to_key(db: PgPool) {
 /// updates the database with the thumbnail paths and dimensions.
 pub async fn generate_image_thumbnails(db: PgPool) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect("begin should succeed");
+    let mut tx = db.begin().await.expect("begins");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -268,7 +268,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Failed to select posts with images");
+    .expect("selects images");
 
     for post in posts {
         let published_media_path = post.published_media_path();
@@ -289,7 +289,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
             println!("Thumbnail is larger than original, deleting");
             tokio::fs::remove_file(&thumbnail_path)
                 .await
-                .expect("Failed to remove thumbnail file");
+                .expect("removes file");
             continue;
         }
 
@@ -300,7 +300,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
             .await;
     }
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Adds width and height information to image posts.
@@ -309,7 +309,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
 /// and their thumbnails.
 pub async fn add_image_dimensions(db: PgPool) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect("begin should succeed");
+    let mut tx = db.begin().await.expect("begins");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -318,7 +318,7 @@ pub async fn add_image_dimensions(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("select should succeed");
+    .expect("selects images");
 
     for post in posts {
         let published_media_path = post.published_media_path();
@@ -342,13 +342,13 @@ pub async fn add_image_dimensions(db: PgPool) {
         }
     }
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
 pub async fn process_videos(db: PgPool) {
     use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
-    let mut tx = db.begin().await.expect("begin should succeed");
+    let mut tx = db.begin().await.expect("begins");
 
     // Get all video posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -357,7 +357,7 @@ pub async fn process_videos(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("select should succeed");
+    .expect("selects videos");
 
     for post in posts {
         println!("Processing video for post {}...", post.key);
@@ -366,27 +366,25 @@ pub async fn process_videos(db: PgPool) {
         if media_key_dir.exists() {
             let mut read_dir = tokio::fs::read_dir(&media_key_dir)
                 .await
-                .expect("should read directory");
+                .expect("reads dir");
 
-            while let Some(entry) = read_dir.next_entry().await.expect("should read entry") {
+            while let Some(entry) = read_dir.next_entry().await.expect("reads entry") {
                 let path = entry.path();
                 // Skip the source video file
                 if path.file_name().unwrap().to_string_lossy()
                     != post.media_filename.as_ref().unwrap().as_str()
                 {
                     println!("Deleting old media file: {}", path.display());
-                    tokio::fs::remove_file(&path)
-                        .await
-                        .expect("should remove file");
+                    tokio::fs::remove_file(&path).await.expect("removes file");
                 }
             }
         }
         PostReview::process_video(&mut tx, &post)
             .await
-            .expect("should process video");
+            .expect("processes video");
         println!("Completed processing post {}", post.key);
     }
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
     println!("All video processing complete");
 }

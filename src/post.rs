@@ -177,7 +177,7 @@ impl Post {
             .build_query_as()
             .fetch_all(&mut *tx)
             .await
-            .expect("select should succeed")
+            .expect("selects")
     }
 
     /// Selects approved posts created by the specified account
@@ -193,7 +193,7 @@ impl Post {
         .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
-        .expect("select should succeed")
+        .expect("selects")
     }
 
     /// Checks if the user is the author of this post
@@ -240,7 +240,7 @@ impl Post {
         .bind(key)
         .fetch_optional(&mut *tx)
         .await
-        .expect("select should succeed")
+        .expect("selects")
     }
 
     /// Permanently deletes a post from the database
@@ -249,7 +249,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("delete should succeed");
+            .expect("deletes");
     }
 
     /// Updates the status of a post in the database
@@ -259,7 +259,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update should succeed");
+            .expect("updates");
     }
 
     /// Updates thumbnail metadata for a post
@@ -272,9 +272,9 @@ impl Post {
     ) {
         let thumbnail_filename = thumbnail_path
             .file_name()
-            .expect("filename should exist")
+            .expect("filename exists")
             .to_str()
-            .expect("filename should convert to str");
+            .expect("filename to str");
 
         sqlx::query(concat!(
             "UPDATE posts SET thumb_filename = $1, thumb_width = $2, ",
@@ -286,7 +286,7 @@ impl Post {
         .bind(self.id)
         .execute(&mut *tx)
         .await
-        .expect("update should succeed");
+        .expect("updates");
     }
 
     /// Update the compatibility video filename for a post
@@ -303,15 +303,15 @@ impl Post {
     pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &Path) {
         let compat_filename = compat_path
             .file_name()
-            .expect("get compatibility video filename")
+            .expect("filename exists")
             .to_str()
-            .expect("compatibility video filename to str");
+            .expect("filename to str");
         sqlx::query("UPDATE posts SET compat_video = $1 WHERE id = $2")
             .bind(compat_filename)
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update should succeed");
+            .expect("updates");
     }
 
     /// Updates the media dimensions for a post in the database
@@ -322,7 +322,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update should succeed");
+            .expect("updates");
     }
 
     /// Updates the poster filename for video posts
@@ -336,16 +336,16 @@ impl Post {
     pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &Path) {
         let media_poster_filename = video_poster_path
             .file_name()
-            .expect("filename should exist")
+            .expect("filename exists")
             .to_str()
-            .expect("filename should convert to str");
+            .expect("filename to str");
 
         sqlx::query("UPDATE posts SET video_poster = $1 WHERE id = $2")
             .bind(media_poster_filename)
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("update should succeed");
+            .expect("updates");
     }
 }
 

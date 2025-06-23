@@ -14,7 +14,7 @@ pub async fn login_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -46,7 +46,7 @@ pub async fn authenticate(
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
@@ -79,7 +79,7 @@ pub async fn registration_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -112,7 +112,7 @@ pub async fn create_account(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
@@ -138,7 +138,7 @@ pub async fn create_account(
     // Check for IP bans
     let ip_hash = ip_hash(&headers);
     if let Some(response) = check_for_ban(&mut tx, &ip_hash, None, None).await {
-        tx.commit().await.expect("commit should succeed");
+        tx.commit().await.expect("commits");
         return response;
     }
 
@@ -146,7 +146,7 @@ pub async fn create_account(
     let account = credentials.register(&mut tx, &ip_hash).await;
     let jar = add_account_cookie(jar, &account, &credentials);
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()
@@ -168,7 +168,7 @@ pub async fn logout(
     jar: CookieJar,
     Form(logout): Form<Logout>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
@@ -197,7 +197,7 @@ pub async fn reset_account_token(
     jar: CookieJar,
     Form(logout): Form<Logout>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
@@ -214,7 +214,7 @@ pub async fn reset_account_token(
         }
     };
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     let redirect = Redirect::to(ROOT);
     (jar, redirect).into_response()

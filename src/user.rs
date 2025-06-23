@@ -95,7 +95,7 @@ impl Account {
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
-            .expect("Failed to select account by token")
+            .expect("selects by token")
     }
 
     /// Retrieves an account by username, with formatted timestamps.
@@ -110,7 +110,7 @@ impl Account {
         .bind(username)
         .fetch_optional(&mut *tx)
         .await
-        .expect("Failed to select account by username")
+        .expect("selects by username")
     }
 
     /// Generates and assigns a new authentication token for the account.
@@ -119,7 +119,7 @@ impl Account {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("Failed to update account token");
+            .expect("updates token");
     }
 }
 
@@ -140,7 +140,7 @@ impl TimeZoneUpdate {
         ))
         .fetch_all(&mut *tx)
         .await
-        .expect("Failed to select distinct time zones")
+        .expect("selects time zones")
     }
 
     /// Updates the time zone setting for a user account.
@@ -150,7 +150,7 @@ impl TimeZoneUpdate {
             .bind(account_id)
             .execute(&mut *tx)
             .await
-            .expect("Failed to update time zone");
+            .expect("updates time zone");
     }
 }
 
@@ -173,7 +173,7 @@ impl Credentials {
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
-            .expect("Failed to check if username exists")
+            .expect("checks username")
     }
 
     /// Validates the credentials for registration.
@@ -191,7 +191,7 @@ impl Credentials {
         let mut errors: Vec<&str> = Vec::new();
 
         // Validate username format
-        let pattern = Regex::new(r"^\w{4,16}$").expect("Failed to build regex pattern");
+        let pattern = Regex::new(r"^\w{4,16}$").expect("builds pattern");
         if !pattern.is_match(&self.username) {
             errors.push("username must be 4 to 16 word characters");
         }
@@ -244,7 +244,7 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .expect("Failed to insert a new registered account")
+        .expect("inserts account")
     }
 
     /// Authenticates a user with the provided credentials.
@@ -257,7 +257,7 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
-        .expect("Failed to select account by username and password")
+        .expect("selects by username and password")
     }
 
     /// Updates the password for an existing account.
@@ -271,7 +271,7 @@ impl Credentials {
         .bind(&self.username)
         .execute(&mut *tx)
         .await
-        .expect("Failed to update password");
+        .expect("updates password");
     }
 
     /// Checks if the year verification checkbox was checked.

@@ -78,9 +78,9 @@ pub fn ban_message(expires_at_str: &str) -> Response {
 pub fn ip_hash(headers: &HeaderMap) -> String {
     let ip = headers
         .get(X_REAL_IP)
-        .expect("Missing X-Real-IP header")
+        .expect("has X-Real-IP")
         .to_str()
-        .expect("X-Real-IP header is not valid UTF-8");
+        .expect("is utf-8");
     sha256::digest(crate::secret_key() + ip)
 }
 
@@ -88,10 +88,7 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
     headers
         .get(SEC_FETCH_MODE)
-        .map(|v| {
-            v.to_str()
-                .expect("Sec-Fetch-Mode header is not valid UTF-8")
-        })
+        .map(|v| v.to_str().expect("is utf-8"))
         .is_some_and(|v| v != "navigate")
 }
 
@@ -245,7 +242,7 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
         .await
-        .expect("Failed to set session time zone");
+        .expect("sets time zone");
 }
 
 //==================================================================================================
@@ -276,20 +273,12 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
 /// Render a template with the given context.
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
     if crate::dev() {
-        let mut env = state
-            .jinja
-            .write()
-            .expect("Failed to acquire write lock for Jinja env");
+        let mut env = state.jinja.write().expect("gets write lock");
         env.clear_templates();
     }
-    let env = state
-        .jinja
-        .read()
-        .expect("Failed to acquire read lock for Jinja env");
-    let tmpl = env
-        .get_template(name)
-        .expect("Template not found in Jinja environment");
-    tmpl.render(ctx).expect("Failed to render template")
+    let env = state.jinja.read().expect("gets read lock");
+    let tmpl = env.get_template(name).expect("gets template");
+    tmpl.render(ctx).expect("renders")
 }
 
 //==================================================================================================
@@ -325,5 +314,5 @@ pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
-        .expect("Failed to fetch UTC timestamp from database")
+        .expect("fetches timestamp from database")
 }

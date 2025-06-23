@@ -61,7 +61,7 @@ impl PostSubmission {
                     .bind(&key)
                     .fetch_one(&mut *tx)
                     .await
-                    .expect("check if key exists");
+                    .expect("checks key");
             if !exists {
                 return key;
             }
@@ -115,7 +115,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .expect("insert new post")
+        .expect("inserts new post")
     }
 
     /// Downloads a YouTube thumbnail for the given video ID
@@ -147,23 +147,23 @@ impl PostSubmission {
         }
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         if video_id_dir.exists() {
-            if let Some(first_entry) = video_id_dir.read_dir().expect("reads video id dir").next() {
-                let existing_thumbnail_path = first_entry.expect("get first entry").path();
+            if let Some(first_entry) = video_id_dir.read_dir().expect("reads dir").next() {
+                let existing_thumbnail_path = first_entry.expect("gets entry").path();
                 let size = existing_thumbnail_path
                     .file_name()
-                    .expect("get file name")
+                    .expect("gets name")
                     .to_str()
-                    .expect("file name to str")
+                    .expect("converts name")
                     .split('.')
                     .next()
-                    .expect("get file name without extension");
+                    .expect("gets name part");
                 let (width, height) = dimensions(size);
                 return Some((existing_thumbnail_path, width, height));
             }
         } else {
             tokio::fs::create_dir(&video_id_dir)
                 .await
-                .expect("create youtube video id dir");
+                .expect("creates dir");
         }
         let thumbnail_sizes = if youtube_short {
             vec!["oar2"]
@@ -186,7 +186,7 @@ impl PostSubmission {
                 .arg(&remote_thumbnail_url)
                 .status()
                 .await
-                .expect("download youtube thumbnail");
+                .expect("downloads");
             if curl_status.success() {
                 let (width, height) = dimensions(size);
                 return Some((local_thumbnail_path, width, height));
@@ -218,8 +218,7 @@ impl PostSubmission {
             .replace("\r\n", "\n")
             .replace("\r", "\n")
             .replace("\n", "<br>\n");
-        let url_pattern =
-            Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex pattern");
+        let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         Self::embed_youtube(html, key).await
@@ -243,7 +242,7 @@ impl PostSubmission {
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*)">\S+</a> *(?:<br>)?$"#,
         );
-        let youtube_link_regex = Regex::new(youtube_link_pattern).expect("build regex pattern");
+        let youtube_link_regex = Regex::new(youtube_link_pattern).expect("builds regex");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
                 None => break,
@@ -257,7 +256,7 @@ impl PostSubmission {
                 None
             } else {
                 let url_str = &captures[1].replace("&amp;", "&");
-                let parsed_url = Url::parse(url_str).expect("parse youtube url");
+                let parsed_url = Url::parse(url_str).expect("parses url");
                 parsed_url
                     .query_pairs()
                     .find(|(k, _)| k == "t")
@@ -271,9 +270,9 @@ impl PostSubmission {
                 None => break,
                 Some((path, width, height)) => (
                     path.to_str()
-                        .expect("path to str")
+                        .expect("converts path")
                         .strip_prefix("pub")
-                        .expect("strip pub prefix")
+                        .expect("strips pub")
                         .to_owned(),
                     width,
                     height,
@@ -355,7 +354,7 @@ impl PostSubmission {
         println!("slice: {}", slice);
         // stop before a second youtube video
         let youtube_pattern =
-            Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("regex builds");
+            Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("builds regex");
         // debug
         let mut youtube_iter = youtube_pattern.find_iter(slice);
         println!("first youtube_pattern match: {:?}", youtube_iter.next());
@@ -365,13 +364,13 @@ impl PostSubmission {
                 println!("second youtube_pattern match: {:?}", mat);
                 let before_second_youtube = &slice[..mat.start()];
                 // strip any breaks or whitespace that might be present at the end
-                let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("regex builds");
+                let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("builds regex");
                 let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
                 Some(stripped.trim_end().len() as i32)
             }
         };
         // check for the maximum breaks
-        let single_break_pattern = Regex::new("<br>\n").expect("regex builds");
+        let single_break_pattern = Regex::new("<br>\n").expect("builds regex");
         let break_limit = single_break_pattern
             .find_iter(slice)
             .nth(MAX_INTRO_BREAKS)
@@ -397,8 +396,7 @@ impl PostSubmission {
             return None;
         }
         // Truncate to the last break(s) before the limit
-        let multiple_breaks_pattern =
-            Regex::new("(?:<br>\n)+").expect("Failed to build regex for multiple breaks");
+        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("builds regex for breaks");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
             println!("Found last break(s) at byte: {}", mat.start());
             return Some(mat.start() as i32);
@@ -410,8 +408,7 @@ impl PostSubmission {
         // If no space found, use the last valid utf8 character index
         // Need to strip incomplete html entities
         // Check for & which is not terminated by a ;
-        let incomplete_entity_pattern =
-            Regex::new(r"&[^;]*$").expect("Failed to build regex for incomplete entity");
+        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("builds regex for entity");
         if let Some(mat) = incomplete_entity_pattern.find(slice) {
             println!("Found incomplete entity at byte: {}", mat.start());
             return Some(mat.start() as i32);
@@ -453,7 +450,7 @@ impl PostHiding {
             .bind(&self.key)
             .execute(&mut *tx)
             .await
-            .expect("set hidden flag to true");
+            .expect("sets hidden");
     }
 }
 
@@ -672,23 +669,6 @@ mod tests {
             ..Default::default()
         };
 
-        // Check if test directory already exists
-        let video_id = "dQw4w9WgXcQ";
-        let youtube_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
-        let dir_existed = youtube_dir.exists();
-
-        if !dir_existed {
-            tokio::fs::create_dir_all(&youtube_dir)
-                .await
-                .expect("create test dir");
-
-            // Create fake thumbnail file
-            let test_thumbnail = youtube_dir.join("maxresdefault.jpg");
-            tokio::fs::write(&test_thumbnail, b"test")
-                .await
-                .expect("write test thumbnail");
-        }
-
         // Generate HTML with embeds containing timestamps
         let html = submission.body_to_html("testkey").await;
 
@@ -696,10 +676,5 @@ mod tests {
         assert!(html.contains("&amp;t=1m30s"));
         assert!(html.contains("&amp;t=25s"));
         assert!(html.contains("&amp;t=42"));
-
-        // Clean up only if we created the directory for this test
-        if !dir_existed {
-            tokio::fs::remove_dir_all(youtube_dir).await.ok();
-        }
     }
 }

@@ -80,16 +80,8 @@ impl Post {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
             .to_str()
-            .expect("Path to str conversion failed")
+            .expect("converts path")
             .to_owned();
-        let parent_dir = encrypted_media_path
-            .parent()
-            .expect("Encrypted media path has no parent");
-        if !parent_dir.exists() {
-            tokio::fs::create_dir_all(parent_dir)
-                .await
-                .map_err(|_| "Failed to create directory for encrypted media")?;
-        }
         let success = tokio::task::spawn_blocking(move || {
             let mut child = std::process::Command::new("gpg")
                 .args([
@@ -102,16 +94,15 @@ impl Post {
                 .arg(&encrypted_media_path_str)
                 .stdin(std::process::Stdio::piped())
                 .spawn()
-                .expect("Failed to spawn gpg for media encryption");
+                .expect("spawns gpg");
             if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes)
-                    .expect("Failed to write data to gpg stdin");
+                std::io::Write::write_all(&mut stdin, &bytes).expect("writes to gpg");
             }
-            let child_status = child.wait().expect("Failed to wait for gpg process");
+            let child_status = child.wait().expect("waits for gpg process");
             child_status.success()
         })
         .await
-        .expect("GPG encryption task did not complete");
+        .expect("completes gpg encryption");
         if success {
             println!(
                 "File encrypted successfully: {}",
@@ -128,23 +119,21 @@ impl Post {
     /// Used when media needs to be moved back from published to reported state.
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
         let encrypted_file_path = self.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path
-            .parent()
-            .expect("Encrypted file path has no parent");
+        let uploads_key_dir = encrypted_file_path.parent().expect("has parent");
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .expect("Failed to create uploads key dir");
+            .expect("creates uploads key dir");
         let media_file_path = self.published_media_path();
         let media_bytes = tokio::fs::read(&media_file_path)
             .await
-            .expect("Failed to read published media file");
+            .expect("reads published media");
         let result = self.gpg_encrypt(media_bytes).await;
         match result {
             Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
             Err(msg) => {
                 tokio::fs::remove_dir(uploads_key_dir)
                     .await
-                    .expect("Failed to remove uploads key dir after failed re-encryption");
+                    .expect("removes uploads key dir");
                 eprintln!("Re-encryption failed: {}", msg);
             }
         }
@@ -161,17 +150,17 @@ impl Post {
         let encrypted_file_path = self
             .encrypted_media_path()
             .to_str()
-            .expect("Path to str conversion failed")
+            .expect("converts path")
             .to_owned();
         let output = tokio::task::spawn_blocking(move || {
             std::process::Command::new("gpg")
                 .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
                 .arg(&encrypted_file_path)
                 .output()
-                .expect("Failed to decrypt media file")
+                .expect("decrypts")
         })
         .await
-        .expect("GPG decryption task did not complete");
+        .expect("completes gpg decryption");
         println!("Media file decrypted successfully");
         output.stdout
     }
@@ -260,12 +249,12 @@ impl PostSubmission {
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .expect("create uploads key dir");
+            .expect("creates uploads key dir");
         let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
         if result.is_err() {
             tokio::fs::remove_dir(uploads_key_dir)
                 .await
-                .expect("remove uploads key dir");
+                .expect("removes uploads key dir");
         }
         result
     }
@@ -284,10 +273,10 @@ impl PostReview {
         let media_key_dir = published_media_path.parent().unwrap();
         tokio::fs::create_dir(media_key_dir)
             .await
-            .expect("create media key dir");
+            .expect("creates media key dir");
         tokio::fs::write(&published_media_path, media_bytes)
             .await
-            .expect("write media file");
+            .expect("writes media file");
     }
 
     /// Generates a thumbnail image for a given media file
@@ -305,7 +294,7 @@ impl PostReview {
         let extension = media_path_str
             .split('.')
             .next_back()
-            .expect("get file extension");
+            .expect("gets file extension");
 
         // For animated images (GIF, WebP), extract the last frame as the thumbnail
         let vips_input_file_path = media_path_str.to_owned()
@@ -324,12 +313,12 @@ impl PostReview {
                 ])
                 .arg(&vips_input_file_path)
                 .output()
-                .expect("generate thumbnail");
+                .expect("generates thumbnail");
 
             println!("vipsthumbnail output: {:?}", command_output);
         })
         .await
-        .expect("vipsthumbnail task completed");
+        .expect("completes vipsthumbnail");
 
         Self::alternate_path(published_media_path, "tn_", ".webp")
     }
@@ -350,12 +339,12 @@ impl PostReview {
     pub fn alternate_path(media_path: &Path, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
-            .expect("get media filename")
+            .expect("gets media filename")
             .to_str()
-            .expect("media filename to str");
+            .expect("converts media filename");
 
         let key_dir = media_path.parent().unwrap();
-        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build extension regex pattern");
+        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("builds regex");
 
         // Create thumbnail filename with "tn_" prefix and specified extension
         let alternate_filename =
@@ -392,11 +381,11 @@ impl PostReview {
 
         tokio::fs::remove_file(&encrypted_media_path)
             .await
-            .expect("remove encrypted media file");
+            .expect("removes encrypted media");
 
         tokio::fs::remove_dir(&uploads_key_dir)
             .await
-            .expect("remove uploads key dir");
+            .expect("removes uploads key dir");
     }
 
     /// Deletes all media files associated with a post
@@ -410,7 +399,7 @@ impl PostReview {
 
         tokio::fs::remove_dir_all(&media_key_dir)
             .await
-            .expect("remove media key dir and its contents");
+            .expect("removes media key dir and its contents");
     }
 
     /// Handles the media decryption and processing workflow for a post
@@ -459,7 +448,7 @@ impl PostReview {
         if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
             tokio::fs::remove_file(&thumbnail_path)
                 .await
-                .expect("remove thumbnail file");
+                .expect("removes thumbnail file");
         } else {
             // Update the database with thumbnail information
             let (width, height) = Self::image_dimensions(&thumbnail_path).await;
@@ -536,12 +525,12 @@ impl PostReview {
                 .args(["-f", field, image_path_str])
                 .output()
                 .await
-                .expect("get image dimension");
+                .expect("gets image dimension");
 
             String::from_utf8_lossy(&output.stdout)
                 .trim()
                 .parse()
-                .expect("parses as i32")
+                .expect("parses i32")
         };
 
         // Get both dimensions in parallel
@@ -564,10 +553,7 @@ impl PostReview {
     /// `true` if the video is compatible, `false` if it needs conversion
     pub async fn video_is_compatible(video_path: &Path) -> bool {
         println!("Checking video compatibility for: {:?}", video_path);
-        let video_path_str = video_path
-            .to_str()
-            .expect("Failed to convert video path to str")
-            .to_owned();
+        let video_path_str = video_path.to_str().expect("converts path").to_owned();
 
         // Run ffprobe to get video codec information
         let output = tokio::process::Command::new("ffprobe")
@@ -584,7 +570,7 @@ impl PostReview {
             ])
             .output()
             .await
-            .expect("Failed to run ffprobe for video compatibility check");
+            .expect("runs ffprobe");
 
         let output_str = String::from_utf8_lossy(&output.stdout);
         println!("ffprobe output: {}", output_str);
@@ -670,12 +656,12 @@ impl PostReview {
                     &compatibility_path_str, // Output file
                 ])
                 .output()
-                .expect("generate video thumbnail");
+                .expect("generates video thumbnail");
 
             println!("ffmpeg output: {:?}", ffmpeg_output);
         })
         .await
-        .expect("ffmpeg task completed");
+        .expect("completes ffmpeg");
 
         println!("Compatibility video generated at: {:?}", compatibility_path);
         compatibility_path
@@ -722,12 +708,12 @@ impl PostReview {
                     &poster_path_str, // Output file
                 ])
                 .output()
-                .expect("generate video poster");
+                .expect("generates video poster");
 
             println!("ffmpeg output: {:?}", ffmpeg_output);
         })
         .await
-        .expect("poster generation task completed");
+        .expect("completes poster");
 
         println!("Video poster generated at: {:?}", poster_path);
         poster_path

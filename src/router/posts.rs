@@ -21,7 +21,7 @@ pub async fn index(
     Path(path): Path<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -83,7 +83,7 @@ pub async fn solo_post(
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -124,32 +124,21 @@ pub async fn submit_post(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .expect("Failed to read multipart field")
-    {
-        let name = field
-            .name()
-            .expect("Multipart field missing name")
-            .to_owned();
+    while let Some(field) = multipart.next_field().await.expect("reads field") {
+        let name = field.name().expect("has name").to_owned();
         match name.as_str() {
             "session_token" => {
-                post_submission.session_token = match Uuid::try_parse(
-                    &field
-                        .text()
-                        .await
-                        .expect("Failed to read session_token field"),
-                ) {
-                    Err(_) => return bad_request("Invalid session token"),
-                    Ok(uuid) => uuid,
-                };
+                post_submission.session_token =
+                    match Uuid::try_parse(&field.text().await.expect("reads session_token")) {
+                        Err(_) => return bad_request("Invalid session token"),
+                        Ok(uuid) => uuid,
+                    };
             }
-            "body" => post_submission.body = field.text().await.expect("Failed to read body field"),
+            "body" => post_submission.body = field.text().await.expect("reads body"),
             "media" => {
                 if post_submission.media_filename.is_some() {
                     return bad_request("Only one media file can be uploaded");
@@ -162,13 +151,8 @@ pub async fn submit_post(
                     continue;
                 }
                 post_submission.media_filename = Some(filename);
-                post_submission.media_bytes = Some(
-                    field
-                        .bytes()
-                        .await
-                        .expect("Failed to read media bytes")
-                        .to_vec(),
-                );
+                post_submission.media_bytes =
+                    Some(field.bytes().await.expect("reads media bytes").to_vec());
             }
             _ => return bad_request(&format!("Unexpected field: {name}")),
         };
@@ -188,7 +172,7 @@ pub async fn submit_post(
     if let Some(response) =
         check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
     {
-        tx.commit().await.expect("commit should succeed");
+        tx.commit().await.expect("commits");
         return response;
     }
 
@@ -208,7 +192,7 @@ pub async fn submit_post(
         }
     }
 
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Notify clients of new post
     if state.sender.send(post).is_err() {
@@ -236,7 +220,7 @@ pub async fn hide_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     use PostStatus::*;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
@@ -252,7 +236,7 @@ pub async fn hide_post(
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await;
-                tx.commit().await.expect("commit should succeed");
+                tx.commit().await.expect("commits");
             }
             Reported | Banned => (),
             _ => return bad_request("Post is not rejected, reported, or banned"),
@@ -317,7 +301,7 @@ pub async fn web_socket(
         }
     }
 
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, _jar) = match init_user(jar, &mut tx, method, None).await {
@@ -339,7 +323,7 @@ pub async fn interim(
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {

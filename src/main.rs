@@ -48,7 +48,5 @@ pub async fn main() {
     println!("Server listening on port {port}");
 
     // Start HTTP server
-    axum::serve(listener, router)
-        .await
-        .expect("HTTP server encountered an unrecoverable error");
+    axum::serve(listener, router).await.expect("server starts");
 }

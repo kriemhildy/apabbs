@@ -80,7 +80,7 @@ impl PostReview {
             .bind(self.status)
             .execute(&mut *tx)
             .await
-            .expect("insert post review");
+            .expect("inserts");
     }
 
     /// Determines what action should be taken for a review based on post state and user role

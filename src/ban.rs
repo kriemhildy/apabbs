@@ -49,7 +49,7 @@ pub async fn insert(
     .bind(POSTGRES_RFC5322_DATETIME)
     .fetch_one(&mut *tx)
     .await
-    .expect("Could not insert ban record into database")
+    .expect("inserts ban record")
 }
 
 /// Checks if an active ban exists for an IP hash or account ID.
@@ -75,7 +75,7 @@ pub async fn exists(
     .bind(banned_account_id)
     .fetch_optional(&mut *tx)
     .await
-    .expect("Could not check for active ban in database")
+    .expect("checks active ban")
 }
 
 /// Counts new accounts created from an IP address within the past day.
@@ -94,7 +94,7 @@ pub async fn new_accounts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("Could not count new account registrations by IP")
+    .expect("counts new accounts")
 }
 
 /// Counts pending posts created from an IP address within the past day.
@@ -113,7 +113,7 @@ pub async fn new_posts_count(tx: &mut PgConnection, ip_hash: &str) -> i64 {
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .expect("Could not count new pending posts by IP")
+    .expect("counts new posts")
 }
 
 /// Determines if an IP address is creating excessive content (flooding).
@@ -146,13 +146,13 @@ pub async fn prune(tx: &mut PgConnection, ip_hash: &str) {
     .bind(ip_hash)
     .execute(&mut *tx)
     .await
-    .expect("Could not delete banned accounts with only pending posts");
+    .expect("deletes banned accounts");
 
     sqlx::query("DELETE FROM posts WHERE ip_hash = $1 AND status = 'pending'")
         .bind(ip_hash)
         .execute(&mut *tx)
         .await
-        .expect("Could not delete banned posts which are pending");
+        .expect("deletes banned posts");
 }
 
 /// Removes IP address data from older content for privacy.
@@ -171,7 +171,7 @@ pub async fn scrub(tx: &mut PgConnection) {
     ))
     .execute(&mut *tx)
     .await
-    .expect("Could not scrub ip_hash data from users");
+    .expect("scrubs user ip_hash");
 
     // Scrub IP data from posts older than 1 day that don't need IP tracking
     sqlx::query(concat!(
@@ -181,5 +181,5 @@ pub async fn scrub(tx: &mut PgConnection) {
     ))
     .execute(&mut *tx)
     .await
-    .expect("Could not scrub ip_hash data from posts");
+    .expect("scrubs post ip_hash");
 }

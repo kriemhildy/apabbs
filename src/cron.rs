@@ -36,20 +36,15 @@ use tokio_cron_scheduler::Job;
 /// Panics if the scheduler cannot be created or started.
 pub async fn init() {
     use tokio_cron_scheduler::JobScheduler;
-    let sched = JobScheduler::new()
-        .await
-        .expect("Failed to create job scheduler");
+    let sched = JobScheduler::new().await.expect("creates job scheduler");
 
     // Add all scheduled jobs to the scheduler
     for job in [scrub_ips(), generate_screenshot()] {
-        sched
-            .add(job)
-            .await
-            .expect("Failed to add job to scheduler");
+        sched.add(job).await.expect("adds job to scheduler");
     }
 
     // Start the scheduler running
-    sched.start().await.expect("Failed to start job scheduler");
+    sched.start().await.expect("starts job scheduler");
 }
 
 /// Creates a scheduled job that removes old IP hash data for privacy.
@@ -60,18 +55,18 @@ pub fn scrub_ips() -> Job {
         Box::pin(async move {
             // Connect to the database and start a transaction
             let db = crate::db().await;
-            let mut tx = db.begin().await.expect("begin should succeed");
+            let mut tx = db.begin().await.expect("begins transaction");
 
             // Execute the IP scrubbing operation
             ban::scrub(&mut tx).await;
 
             // Commit the transaction
-            tx.commit().await.expect("commit should succeed");
+            tx.commit().await.expect("commits transaction");
 
             println!("Old IP hashes scrubbed");
         })
     })
-    .expect("Failed to create IP scrub job")
+    .expect("creates ip scrub job")
 }
 
 /// Creates a scheduled job that takes a screenshot of the application.
@@ -93,15 +88,11 @@ pub fn generate_screenshot() -> Job {
 
             // Ensure the output directory exists
             let output_path = Path::new("pub/screenshot.webp");
-            if let Some(parent) = output_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .expect("Failed to create output directory for screenshot");
-            }
 
             // Build the full output path
             let output_path_str = output_path
                 .to_str()
-                .expect("Failed to convert screenshot path to string")
+                .expect("converts path to string")
                 .to_owned();
             let url_clone = url.clone();
             let output_path_str_clone = output_path_str.clone();
@@ -120,10 +111,10 @@ pub fn generate_screenshot() -> Job {
                     ])
                     .stderr(std::process::Stdio::null())
                     .status()
-                    .expect("Failed to execute Chromium command for screenshot")
+                    .expect("executes chromium command")
             })
             .await
-            .expect("Screenshot task did not complete");
+            .expect("completes screenshot task");
 
             if status.success() {
                 println!("Screenshot saved to {}", output_path_str);
@@ -135,5 +126,5 @@ pub fn generate_screenshot() -> Job {
             }
         })
     })
-    .expect("Failed to create screenshot job")
+    .expect("creates screenshot job")
 }

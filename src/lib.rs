@@ -37,11 +37,8 @@ pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
 /// # Panics
 /// Panics if `DATABASE_URL` is not set or the connection fails.
 pub async fn db() -> PgPool {
-    let url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL environment variable must be set for database connection");
-    PgPool::connect(&url)
-        .await
-        .expect("Failed to connect to PostgreSQL database")
+    let url = std::env::var("DATABASE_URL").expect("sets database env var");
+    PgPool::connect(&url).await.expect("connects to postgres")
 }
 
 /// Returns the number of items to show per page.
@@ -52,9 +49,7 @@ pub async fn db() -> PgPool {
 /// Panics if `PER_PAGE` is set but not a valid integer.
 pub fn per_page() -> usize {
     match std::env::var("PER_PAGE") {
-        Ok(per_page) => per_page
-            .parse()
-            .expect("PER_PAGE environment variable must be a valid integer"),
+        Ok(per_page) => per_page.parse().expect("per_page env var is integer"),
         Err(_) => 1000,
     }
 }
@@ -73,7 +68,7 @@ pub fn dev() -> bool {
 /// # Panics
 /// Panics if `HOST` is not set.
 pub fn host() -> String {
-    std::env::var("HOST").expect("HOST environment variable must be set for host name")
+    std::env::var("HOST").expect("sets host env var")
 }
 
 /// Retrieves the application's secret key for secure operations.
@@ -83,7 +78,7 @@ pub fn host() -> String {
 /// # Panics
 /// Panics if `SECRET_KEY` is not set.
 pub fn secret_key() -> String {
-    std::env::var("SECRET_KEY").expect("SECRET_KEY environment variable must be set for security")
+    std::env::var("SECRET_KEY").expect("sets secret key env var")
 }
 
 /// Shared application state accessible to all request handlers.
@@ -128,7 +123,7 @@ pub async fn app_state() -> AppState {
                 r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
                 r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
             ))
-            .expect("Failed to build regex for removing YouTube thumbnail links");
+            .expect("builds regex");
 
             re.replace_all(
                 body,

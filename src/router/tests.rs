@@ -117,7 +117,7 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
             .bind(account.id)
             .execute(&mut *tx)
             .await
-            .expect("set account as role");
+            .expect("sets account as role");
         Account::select_by_username(tx, &account.username)
             .await
             .unwrap()
@@ -141,7 +141,7 @@ async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
         .bind(account.id)
         .execute(tx)
         .await
-        .expect("delete test account");
+        .expect("deletes test account");
 }
 
 /// Creates a test post with optional media attachment.
@@ -166,7 +166,7 @@ async fn create_test_post(
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
             (
                 Some(path.file_name().unwrap().to_str().unwrap().to_owned()),
-                Some(tokio::fs::read(path).await.expect("read test media file")),
+                Some(tokio::fs::read(path).await.expect("reads test media file")),
             )
         }
         None => (None, None),
@@ -215,7 +215,7 @@ async fn create_test_post(
 /// `true` if the cookie condition is met, `false` otherwise
 fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -> bool {
     response.headers().get_all(SET_COOKIE).iter().any(|h| {
-        let s = h.to_str().expect("header to str");
+        let s = h.to_str().expect("converts header");
         s.contains(cookie) && (removed == s.contains("Max-Age=0"))
     })
 }
@@ -272,7 +272,7 @@ async fn select_latest_post_by_session_token(
         .bind(session_token)
         .fetch_optional(tx)
         .await
-        .expect("Failed to select post by session token")
+        .expect("selects by session token")
 }
 
 /// Retrieves the most recent post by account ID.
@@ -288,7 +288,7 @@ async fn select_latest_post_by_account_id(tx: &mut PgConnection, account_id: i32
         .bind(account_id)
         .fetch_optional(tx)
         .await
-        .expect("Failed to select post by account id")
+        .expect("selects by account id")
 }
 
 /// Deletes a test ban record.
@@ -301,7 +301,7 @@ async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
         .bind(ip_hash)
         .execute(tx)
         .await
-        .expect("delete test ban");
+        .expect("deletes ban");
 }
 
 //==================================================================================================
@@ -343,9 +343,9 @@ async fn solo_post() {
 
     // Create a test post
     let user = test_user(None);
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Request the post page
     let uri = format!("/{}", &post.key);
@@ -359,9 +359,9 @@ async fn solo_post() {
     assert!(!body_str.contains(r#"<div id="posts">"#));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     post.delete(&mut tx).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests pagination for the index page.
@@ -371,11 +371,11 @@ async fn index_with_page() {
 
     // Create test posts
     let user = test_user(None);
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Request a specific page
     let uri = format!("/page/{}", &post2.key);
@@ -397,11 +397,11 @@ async fn index_with_page() {
     assert!(post2_index < post1_index);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     post1.delete(&mut tx).await;
     post2.delete(&mut tx).await;
     post3.delete(&mut tx).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests submitting a text-only post.
@@ -431,7 +431,7 @@ async fn submit_post_without_media() {
     let response = router.oneshot(request).await.unwrap();
 
     // Verify post was created correctly
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
@@ -447,7 +447,7 @@ async fn submit_post_without_media() {
 
     // Clean up
     post.delete(&mut tx).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests submitting a post with an image attachment.
@@ -480,7 +480,7 @@ async fn submit_post_with_media() {
     let response = router.oneshot(request).await.unwrap();
 
     // Verify post was created with media
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
@@ -493,7 +493,7 @@ async fn submit_post_with_media() {
 
     // Clean up
     post.delete(&mut tx).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
     let encrypted_file_path = post.encrypted_media_path();
     PostReview::delete_upload_key_dir(&encrypted_file_path).await;
 }
@@ -504,9 +504,9 @@ async fn submit_post_with_account() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
     let account = user.account.as_ref().unwrap();
 
     // Create form data
@@ -528,7 +528,7 @@ async fn submit_post_with_account() {
     let response = router.oneshot(request).await.unwrap();
 
     // Verify post was created with account association
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let account_post = select_latest_post_by_account_id(&mut tx, account.id)
         .await
         .unwrap();
@@ -542,14 +542,14 @@ async fn submit_post_with_account() {
     // Clean up
     account_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests automatic banning functionality for suspicious activity.
 #[tokio::test]
 async fn autoban() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
 
     // Create several accounts from the same IP
@@ -592,7 +592,7 @@ async fn autoban() {
     assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 6);
     assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());
     assert!(ban::flooding(&mut tx, &ban_ip_hash()).await);
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Attempt another post to trigger the ban
     let mut form = FormData::new(Vec::new());
@@ -618,7 +618,7 @@ async fn autoban() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 
     // Verify ban state after ban
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_some());
     assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
     assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 0);
@@ -626,7 +626,7 @@ async fn autoban() {
 
     // Clean up
     delete_test_ban(&mut tx, &ban_ip_hash()).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests the login form page rendering.
@@ -650,11 +650,11 @@ async fn authenticate() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
     let credentials = test_credentials(&user);
     let account = credentials.register(&mut tx, &local_ip_hash()).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Attempt login
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
@@ -674,9 +674,9 @@ async fn authenticate() {
     assert!(response_adds_cookie(&response, ACCOUNT_COOKIE));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     delete_test_account(&mut tx, &account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests the account registration form page.
@@ -721,14 +721,14 @@ async fn create_account() {
     assert!(response_adds_cookie(&response, ACCOUNT_COOKIE));
 
     // Verify account was created
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let account = Account::select_by_username(&mut tx, &credentials.username)
         .await
         .unwrap();
 
     // Clean up
     delete_test_account(&mut tx, &account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests logging out from a user account.
@@ -737,10 +737,10 @@ async fn logout() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Submit logout request
     let logout = Logout {
@@ -761,9 +761,9 @@ async fn logout() {
     assert!(response_removes_cookie(&response, ACCOUNT_COOKIE));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests resetting the account token.
@@ -772,10 +772,10 @@ async fn reset_account_token() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Submit token reset request
     let logout = Logout {
@@ -796,7 +796,7 @@ async fn reset_account_token() {
     assert!(response_removes_cookie(&response, ACCOUNT_COOKIE));
 
     // Verify token was updated
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
         .unwrap();
@@ -804,14 +804,14 @@ async fn reset_account_token() {
 
     // Clean up
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests hiding a post from the user interface.
 #[tokio::test]
 async fn hide_post() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
 
     // Create a post and admin user
@@ -819,7 +819,7 @@ async fn hide_post() {
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin_user.account.as_ref().unwrap();
     post.update_status(&mut tx, PostStatus::Rejected).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Submit hide post request
     let post_hiding = PostHiding {
@@ -842,24 +842,24 @@ async fn hide_post() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests interim post visibility (posts not yet approved).
 #[tokio::test]
 async fn interim() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
 
     // Create approved and pending posts
     let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Request the interim page
     let request = Request::builder()
@@ -881,23 +881,23 @@ async fn interim() {
     assert!(post2_index < post3_index);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     post1.delete(&mut tx).await;
     post2.delete(&mut tx).await;
     post3.delete(&mut tx).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests user profile page rendering.
 #[tokio::test]
 async fn user_profile() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Request the user profile page
     let request = Request::builder()
@@ -912,21 +912,21 @@ async fn user_profile() {
     assert!(body_str.contains(&account.username));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests the settings page rendering and functionality.
 #[tokio::test]
 async fn settings() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Request the settings page
     let request = Request::builder()
@@ -943,9 +943,9 @@ async fn settings() {
     assert!(body_str.contains("Settings"));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests updating the user's time zone setting.
@@ -954,12 +954,12 @@ async fn update_time_zone() {
     use crate::user::TimeZoneUpdate;
 
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Submit time zone update
     let time_zone_update = TimeZoneUpdate {
@@ -980,7 +980,7 @@ async fn update_time_zone() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify time zone was updated
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
         .unwrap();
@@ -988,19 +988,19 @@ async fn update_time_zone() {
 
     // Clean up
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests updating the user's password.
 #[tokio::test]
 async fn update_password() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Submit password update
     let credentials = Credentials {
@@ -1024,7 +1024,7 @@ async fn update_password() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify password was updated
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
         .unwrap();
@@ -1037,20 +1037,20 @@ async fn update_password() {
 
     // Clean up
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests reviewing a post with a normal image.
 #[tokio::test]
 async fn review_post_with_normal_image() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     let post_review = PostReview {
         session_token: user.session_token,
@@ -1070,9 +1070,9 @@ async fn review_post_with_normal_image() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Initial check - post should be in processing state
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
@@ -1082,9 +1082,9 @@ async fn review_post_with_normal_image() {
 
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
-        let mut tx = state.db.begin().await.expect("begin should succeed");
+        let mut tx = state.db.begin().await.expect("begins");
         let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-        tx.commit().await.expect("commit should succeed");
+        tx.commit().await.expect("commits");
 
         if updated_post.status != PostStatus::Processing {
             processed = true;
@@ -1109,25 +1109,25 @@ async fn review_post_with_normal_image() {
     );
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
     final_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests reviewing a post with a small image.
 #[tokio::test]
 async fn review_post_with_small_image() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     let post_review = PostReview {
         session_token: user.session_token,
@@ -1147,9 +1147,9 @@ async fn review_post_with_small_image() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Initial check - post should be in processing state
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
@@ -1159,9 +1159,9 @@ async fn review_post_with_small_image() {
 
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
-        let mut tx = state.db.begin().await.expect("begin should succeed");
+        let mut tx = state.db.begin().await.expect("begins");
         let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-        tx.commit().await.expect("commit should succeed");
+        tx.commit().await.expect("commits");
 
         if updated_post.status != PostStatus::Processing {
             processed = true;
@@ -1187,25 +1187,25 @@ async fn review_post_with_small_image() {
     );
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
     final_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests reviewing a post with a video.
 #[tokio::test]
 async fn review_post_with_video() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("video.mp4"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     let post_review = PostReview {
         session_token: user.session_token,
@@ -1225,9 +1225,9 @@ async fn review_post_with_video() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Initial check - post should be in processing state
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
@@ -1237,9 +1237,9 @@ async fn review_post_with_video() {
 
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
-        let mut tx = state.db.begin().await.expect("begin should succeed");
+        let mut tx = state.db.begin().await.expect("begins");
         let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
-        tx.commit().await.expect("commit should succeed");
+        tx.commit().await.expect("commits");
 
         if updated_post.status != PostStatus::Processing {
             processed = true;
@@ -1267,25 +1267,24 @@ async fn review_post_with_video() {
     );
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
     final_post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
 
 /// Tests decrypting and serving media files.
 #[tokio::test]
 async fn decrypt_media() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let anon_user = test_user(None);
     let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
-    let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Request the encrypted media
     let key = format!("/decrypt-media/{}", &post.key);
@@ -1304,11 +1303,10 @@ async fn decrypt_media() {
     assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     post.delete(&mut tx).await;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commit should succeed");
-    PostReview::delete_upload_key_dir(&encrypted_media_path).await;
+    tx.commit().await.expect("commits");
 }
 
 /// Tests establishing a WebSocket connection and receiving real-time updates.
@@ -1320,10 +1318,10 @@ async fn websocket_connection() {
     let (router, state) = init_test().await;
 
     // Create a test post to trigger notifications
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
     let test_post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 
     // Start a server for testing
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1338,16 +1336,16 @@ async fn websocket_connection() {
 
     // Send a post update through the broadcast channel
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &test_post.key).await.unwrap();
-    tx.commit().await.expect("commit should succeed");
-    state.sender.send(post.clone()).expect("send post update");
+    tx.commit().await.expect("commits");
+    state.sender.send(post.clone()).expect("sends post");
 
     // Wait for and verify message reception
     let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
         .await
-        .expect("receive message timeout")
-        .expect("receive message")
+        .expect("waits for message")
+        .expect("message received")
         .unwrap();
 
     // Check content
@@ -1363,7 +1361,7 @@ async fn websocket_connection() {
     ws_client.close(None).await.unwrap();
     server_handle.abort(); // Stop the server
 
-    let mut tx = state.db.begin().await.expect("begin should succeed");
+    let mut tx = state.db.begin().await.expect("begins");
     test_post.delete(&mut tx).await;
-    tx.commit().await.expect("commit should succeed");
+    tx.commit().await.expect("commits");
 }
