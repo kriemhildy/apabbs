@@ -198,7 +198,9 @@ async fn create_test_post(
     match status {
         PostStatus::Pending => post,
         _ => {
-            post.update_status(tx, status).await;
+            post.update_status(tx, status)
+                .await
+                .expect("query succeeds");
             Post::select_by_key(tx, &post.key)
                 .await
                 .expect("query succeeds")
@@ -363,7 +365,7 @@ async fn solo_post() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    post.delete(&mut tx).await;
+    post.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
 }
 
@@ -401,9 +403,9 @@ async fn index_with_page() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    post1.delete(&mut tx).await;
-    post2.delete(&mut tx).await;
-    post3.delete(&mut tx).await;
+    post1.delete(&mut tx).await.expect("query succeeds");
+    post2.delete(&mut tx).await.expect("query succeeds");
+    post3.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
 }
 
@@ -449,7 +451,7 @@ async fn submit_post_without_media() {
     assert_eq!(post.status, PostStatus::Pending);
 
     // Clean up
-    post.delete(&mut tx).await;
+    post.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
 }
 
@@ -495,7 +497,7 @@ async fn submit_post_with_media() {
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
 
     // Clean up
-    post.delete(&mut tx).await;
+    post.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
     let encrypted_file_path = post.encrypted_media_path();
     PostReview::delete_upload_key_dir(&encrypted_file_path).await;
@@ -543,7 +545,7 @@ async fn submit_post_with_account() {
     assert_eq!(account_post.session_token, None);
 
     // Clean up
-    account_post.delete(&mut tx).await;
+    account_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
 }
@@ -821,7 +823,9 @@ async fn hide_post() {
     let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin_user.account.as_ref().unwrap();
-    post.update_status(&mut tx, PostStatus::Rejected).await;
+    post.update_status(&mut tx, PostStatus::Rejected)
+        .await
+        .expect("query succeeds");
     tx.commit().await.expect("commits");
 
     // Submit hide post request
@@ -846,7 +850,7 @@ async fn hide_post() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    post.delete(&mut tx).await;
+    post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
 }
@@ -885,9 +889,9 @@ async fn interim() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    post1.delete(&mut tx).await;
-    post2.delete(&mut tx).await;
-    post3.delete(&mut tx).await;
+    post1.delete(&mut tx).await.expect("query succeeds");
+    post2.delete(&mut tx).await.expect("query succeeds");
+    post3.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
 }
 
@@ -1089,7 +1093,10 @@ async fn review_post_with_normal_image() {
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("begins");
-        let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key)
+            .await
+            .expect("query succeeds")
+            .expect("post exists");
         tx.commit().await.expect("commits");
 
         if updated_post.status != PostStatus::Processing {
@@ -1116,9 +1123,12 @@ async fn review_post_with_normal_image() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let final_post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     PostReview::delete_media_key_dir(&post.key).await;
-    final_post.delete(&mut tx).await;
+    final_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
 }
@@ -1154,7 +1164,10 @@ async fn review_post_with_small_image() {
 
     // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect("begins");
-    let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     tx.commit().await.expect("commits");
     assert_eq!(post.status, PostStatus::Processing);
 
@@ -1166,7 +1179,10 @@ async fn review_post_with_small_image() {
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("begins");
-        let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key)
+            .await
+            .expect("query succeeds")
+            .expect("post exists");
         tx.commit().await.expect("commits");
 
         if updated_post.status != PostStatus::Processing {
@@ -1194,9 +1210,12 @@ async fn review_post_with_small_image() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let final_post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     PostReview::delete_media_key_dir(&post.key).await;
-    final_post.delete(&mut tx).await;
+    final_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
 }
@@ -1232,7 +1251,10 @@ async fn review_post_with_video() {
 
     // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect("begins");
-    let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     tx.commit().await.expect("commits");
     assert_eq!(post.status, PostStatus::Processing);
 
@@ -1244,7 +1266,10 @@ async fn review_post_with_video() {
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("begins");
-        let updated_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key)
+            .await
+            .expect("query succeeds")
+            .expect("post exists");
         tx.commit().await.expect("commits");
 
         if updated_post.status != PostStatus::Processing {
@@ -1274,9 +1299,12 @@ async fn review_post_with_video() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let final_post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     PostReview::delete_media_key_dir(&post.key).await;
-    final_post.delete(&mut tx).await;
+    final_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
 }
@@ -1310,7 +1338,7 @@ async fn decrypt_media() {
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
-    post.delete(&mut tx).await;
+    post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
 }
@@ -1343,7 +1371,10 @@ async fn websocket_connection() {
     // Send a post update through the broadcast channel
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
     let mut tx = state.db.begin().await.expect("begins");
-    let post = Post::select_by_key(&mut tx, &test_post.key).await.unwrap();
+    let post = Post::select_by_key(&mut tx, &test_post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     tx.commit().await.expect("commits");
     state.sender.send(post.clone()).expect("sends post");
 
@@ -1368,6 +1399,6 @@ async fn websocket_connection() {
     server_handle.abort(); // Stop the server
 
     let mut tx = state.db.begin().await.expect("begins");
-    test_post.delete(&mut tx).await;
+    test_post.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
 }

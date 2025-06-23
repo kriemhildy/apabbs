@@ -467,12 +467,15 @@ impl PostReview {
             // Update the database with thumbnail information
             let (width, height) = Self::image_dimensions(&thumbnail_path).await;
             post.update_thumbnail(tx, &thumbnail_path, width, height)
-                .await;
+                .await
+                .expect("query succeeds");
         }
 
         // Update the media dimensions in the database
         let (width, height) = Self::image_dimensions(&published_media_path).await;
-        post.update_media_dimensions(tx, width, height).await;
+        post.update_media_dimensions(tx, width, height)
+            .await
+            .expect("query succeeds");
 
         Ok(())
     }
@@ -499,17 +502,22 @@ impl PostReview {
             }
 
             // Update the database with the compatibility video path
-            post.update_compat_video(tx, &compatibility_path).await;
+            post.update_compat_video(tx, &compatibility_path)
+                .await
+                .expect("query succeeds");
         }
 
         // Generate a poster image from the video
         let video_poster_path = Self::generate_video_poster(&published_media_path).await;
-        post.update_poster(tx, &video_poster_path).await;
+        post.update_poster(tx, &video_poster_path)
+            .await
+            .expect("query succeeds");
 
         // Update the post with media dimensions and poster
         let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
         post.update_media_dimensions(tx, media_width, media_height)
-            .await;
+            .await
+            .expect("query succeeds");
 
         // Check if dimensions are large enough to necessitate a thumbnail
         if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
@@ -523,7 +531,8 @@ impl PostReview {
 
             // Update the post with thumbnail info
             post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
-                .await;
+                .await
+                .expect("query succeeds");
         }
 
         Ok(())

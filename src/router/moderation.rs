@@ -111,7 +111,8 @@ pub async fn review_post(
                         // Update post status
                         initial_post
                             .update_status(&mut tx, post_review.status)
-                            .await;
+                            .await
+                            .expect("query succeeds");
 
                         // Get updated post
                         let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
@@ -172,7 +173,8 @@ pub async fn review_post(
                 // Update post status
                 initial_post
                     .update_status(&mut tx, post_review.status)
-                    .await;
+                    .await
+                    .expect("query succeeds");
 
                 // Get updated post
                 let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
@@ -212,7 +214,9 @@ pub async fn review_post(
     };
 
     // Update post status and record review action
-    post.update_status(&mut tx, status).await;
+    post.update_status(&mut tx, status)
+        .await
+        .expect("query succeeds");
     post_review.insert(&mut tx, account.id, post.id).await;
 
     // Get updated post
@@ -226,7 +230,7 @@ pub async fn review_post(
         if let Some(ip_hash) = post.ip_hash.as_ref() {
             ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await;
         }
-        post.delete(&mut tx).await;
+        post.delete(&mut tx).await.expect("query succeeds");
     }
 
     // Ensure approved posts have thumbnails if needed

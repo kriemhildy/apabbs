@@ -172,9 +172,7 @@ impl Post {
         qb.push_bind(limit as i32);
 
         // Execute query
-        qb.build_query_as()
-            .fetch_all(&mut *tx)
-            .await
+        qb.build_query_as().fetch_all(&mut *tx).await
     }
 
     /// Selects approved posts created by the specified account.
@@ -187,7 +185,10 @@ impl Post {
     ///
     /// # Returns
     /// A vector of approved posts by the author, or a database error.
-    pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn select_by_author(
+        tx: &mut PgConnection,
+        account_id: i32,
+    ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
@@ -242,7 +243,10 @@ impl Post {
     ///
     /// # Returns
     /// An optional post matching the key, with formatted timestamps, or a database error.
-    pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Result<Option<Self>, sqlx::Error> {
+    pub async fn select_by_key(
+        tx: &mut PgConnection,
+        key: &str,
+    ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
             "to_char(created_at, $2) AS created_at_html, ",
@@ -278,7 +282,11 @@ impl Post {
     ///
     /// # Returns
     /// Ok(()) if successful, or a database error.
-    pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) -> Result<(), sqlx::Error> {
+    pub async fn update_status(
+        &self,
+        tx: &mut PgConnection,
+        new_status: PostStatus,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
             .bind(self.id)
@@ -337,7 +345,11 @@ impl Post {
     ///
     /// # Panics
     /// Panics if the compatibility video filename cannot be extracted or converted to a string.
-    pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &Path) -> Result<(), sqlx::Error> {
+    pub async fn update_compat_video(
+        &self,
+        tx: &mut PgConnection,
+        compat_path: &Path,
+    ) -> Result<(), sqlx::Error> {
         let compat_filename = compat_path
             .file_name()
             .expect("filename exists")
@@ -360,7 +372,12 @@ impl Post {
     ///
     /// # Returns
     /// Ok(()) if successful, or a database error.
-    pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) -> Result<(), sqlx::Error> {
+    pub async fn update_media_dimensions(
+        &self,
+        tx: &mut PgConnection,
+        width: i32,
+        height: i32,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE posts SET media_width = $1, media_height = $2 WHERE id = $3")
             .bind(width)
             .bind(height)
@@ -381,7 +398,11 @@ impl Post {
     ///
     /// # Panics
     /// Panics if the poster filename cannot be extracted or converted to a string.
-    pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &Path) -> Result<(), sqlx::Error> {
+    pub async fn update_poster(
+        &self,
+        tx: &mut PgConnection,
+        video_poster_path: &Path,
+    ) -> Result<(), sqlx::Error> {
         let media_poster_filename = video_poster_path
             .file_name()
             .expect("filename exists")

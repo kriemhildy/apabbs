@@ -251,7 +251,11 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
 //==================================================================================================
 
 /// Retrieve a post and validate access permissions.
-pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, ResponseError> {
+pub async fn init_post(
+    tx: &mut PgConnection,
+    key: &str,
+    user: &User,
+) -> Result<Post, ResponseError> {
     use PostStatus::*;
     match Post::select_by_key(tx, key).await? {
         None => Err(NotFound("Post does not exist".to_owned())),
