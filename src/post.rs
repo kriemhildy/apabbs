@@ -132,29 +132,28 @@ impl Post {
         post_id: Option<i32>,
         invert: bool,
     ) -> Vec<Self> {
-        let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT * FROM posts WHERE (");
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT * FROM posts WHERE (");
 
         // Filter by status based on user role
         match user.account {
             Some(ref account) => match account.role {
-                AccountRole::Admin => query_builder.push("status <> 'rejected' "),
-                AccountRole::Mod => query_builder.push("status NOT IN ('rejected', 'reported') "),
-                _ => query_builder.push("status = 'approved' "),
+                AccountRole::Admin => qb.push("status <> 'rejected' "),
+                AccountRole::Mod => qb.push("status NOT IN ('rejected', 'reported') "),
+                _ => qb.push("status = 'approved' "),
             },
-            None => query_builder.push("status = 'approved' "),
+            None => qb.push("status = 'approved' "),
         };
 
         // Always show user's own posts
-        query_builder.push("OR session_token = ");
-        query_builder.push_bind(user.session_token);
+        qb.push("OR session_token = ");
+        qb.push_bind(user.session_token);
 
         if let Some(ref account) = user.account {
-            query_builder.push(" OR account_id = ");
-            query_builder.push_bind(account.id);
+            qb.push(" OR account_id = ");
+            qb.push_bind(account.id);
         }
 
-        query_builder.push(") AND hidden = false");
+        qb.push(") AND hidden = false");
 
         // Set up pagination parameters
         let (operator, order, limit) = if invert {
@@ -165,17 +164,16 @@ impl Post {
 
         // Add pagination constraint if post_id is provided
         if let Some(post_id) = post_id {
-            query_builder.push(format!(" AND id {} ", operator));
-            query_builder.push_bind(post_id);
+            qb.push(format!(" AND id {} ", operator));
+            qb.push_bind(post_id);
         }
 
         // Add ordering and limit
-        query_builder.push(format!(" ORDER BY id {} LIMIT ", order));
-        query_builder.push_bind(limit as i32);
+        qb.push(format!(" ORDER BY id {} LIMIT ", order));
+        qb.push_bind(limit as i32);
 
         // Execute query
-        query_builder
-            .build_query_as()
+        qb.build_query_as()
             .fetch_all(&mut *tx)
             .await
             .expect("query succeeds")
