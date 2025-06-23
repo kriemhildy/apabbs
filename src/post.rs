@@ -124,13 +124,13 @@ impl Post {
     /// - `invert`: Whether to invert the sort order
     ///
     /// # Returns
-    /// A vector of posts visible to the user.
+    /// A vector of posts visible to the user, or a database error.
     pub async fn select(
         tx: &mut PgConnection,
         user: &User,
         post_id: Option<i32>,
         invert: bool,
-    ) -> Vec<Self> {
+    ) -> Result<Vec<Self>, sqlx::Error> {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT * FROM posts WHERE (");
 
         // Filter by status based on user role
@@ -175,7 +175,6 @@ impl Post {
         qb.build_query_as()
             .fetch_all(&mut *tx)
             .await
-            .expect("query succeeds")
     }
 
     /// Selects approved posts created by the specified account.
@@ -187,8 +186,8 @@ impl Post {
     /// - `account_id`: Account ID of the author
     ///
     /// # Returns
-    /// A vector of approved posts by the author.
-    pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
+    /// A vector of approved posts by the author, or a database error.
+    pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
@@ -197,7 +196,6 @@ impl Post {
         .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Checks if the user is the author of this post.
@@ -243,8 +241,8 @@ impl Post {
     /// - `key`: Unique key of the post
     ///
     /// # Returns
-    /// An optional post matching the key, with formatted timestamps.
-    pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
+    /// An optional post matching the key, with formatted timestamps, or a database error.
+    pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
             "to_char(created_at, $2) AS created_at_html, ",
@@ -255,19 +253,21 @@ impl Post {
         .bind(key)
         .fetch_optional(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Permanently deletes a post from the database.
     ///
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
-    pub async fn delete(&self, tx: &mut PgConnection) {
+    ///
+    /// # Returns
+    /// Ok(()) if successful, or a database error.
+    pub async fn delete(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM posts WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 
     /// Updates the status of a post in the database.
@@ -275,13 +275,16 @@ impl Post {
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
     /// - `new_status`: The new status to set for the post
-    pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) {
+    ///
+    /// # Returns
+    /// Ok(()) if successful, or a database error.
+    pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 
     /// Updates thumbnail metadata for a post.
@@ -291,13 +294,16 @@ impl Post {
     /// - `thumbnail_path`: Path to the thumbnail image
     /// - `width`: Width of the thumbnail in pixels
     /// - `height`: Height of the thumbnail in pixels
+    ///
+    /// # Returns
+    /// Ok(()) if successful, or a database error.
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
         thumbnail_path: &Path,
         width: i32,
         height: i32,
-    ) {
+    ) -> Result<(), sqlx::Error> {
         let thumbnail_filename = thumbnail_path
             .file_name()
             .expect("filename exists")
@@ -314,7 +320,7 @@ impl Post {
         .bind(self.id)
         .execute(&mut *tx)
         .await
-        .expect("query succeeds");
+        .map(|_| ())
     }
 
     /// Update the compatibility video filename for a post.
@@ -326,9 +332,12 @@ impl Post {
     /// - `tx`: Database connection (mutable reference)
     /// - `compat_path`: Path to the compatibility video file
     ///
+    /// # Returns
+    /// Ok(()) if successful, or a database error.
+    ///
     /// # Panics
     /// Panics if the compatibility video filename cannot be extracted or converted to a string.
-    pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &Path) {
+    pub async fn update_compat_video(&self, tx: &mut PgConnection, compat_path: &Path) -> Result<(), sqlx::Error> {
         let compat_filename = compat_path
             .file_name()
             .expect("filename exists")
@@ -339,7 +348,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 
     /// Updates the media dimensions for a post in the database.
@@ -348,14 +357,17 @@ impl Post {
     /// - `tx`: Database connection (mutable reference)
     /// - `width`: Width of the media in pixels
     /// - `height`: Height of the media in pixels
-    pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) {
+    ///
+    /// # Returns
+    /// Ok(()) if successful, or a database error.
+    pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE posts SET media_width = $1, media_height = $2 WHERE id = $3")
             .bind(width)
             .bind(height)
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 
     /// Updates the poster filename for video posts.
@@ -364,9 +376,12 @@ impl Post {
     /// - `tx`: Database connection (mutable reference)
     /// - `video_poster_path`: Path to the poster image file
     ///
+    /// # Returns
+    /// Ok(()) if successful, or a database error.
+    ///
     /// # Panics
     /// Panics if the poster filename cannot be extracted or converted to a string.
-    pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &Path) {
+    pub async fn update_poster(&self, tx: &mut PgConnection, video_poster_path: &Path) -> Result<(), sqlx::Error> {
         let media_poster_filename = video_poster_path
             .file_name()
             .expect("filename exists")
@@ -378,7 +393,7 @@ impl Post {
             .bind(self.id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 }
 

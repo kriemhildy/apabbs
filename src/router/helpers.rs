@@ -251,16 +251,18 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
 //==================================================================================================
 
 /// Retrieve a post and validate access permissions.
-pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, Response> {
+pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, ResponseError> {
     use PostStatus::*;
-    match Post::select_by_key(tx, key).await {
-        None => Err(not_found("Post does not exist")),
+    match Post::select_by_key(tx, key).await? {
+        None => Err(NotFound("Post does not exist".to_owned())),
         Some(post) => {
             if [Reported, Rejected, Banned].contains(&post.status) && !user.admin() {
-                return Err(unauthorized("Post is reported, rejected, or banned"));
+                return Err(Unauthorized(
+                    "Post is reported, rejected, or banned".to_owned(),
+                ));
             }
             if post.status == Pending && !(post.author(user) || user.mod_or_admin()) {
-                return Err(unauthorized("Post is pending approval"));
+                return Err(Unauthorized("Post is pending approval".to_owned()));
             }
             Ok(post)
         }

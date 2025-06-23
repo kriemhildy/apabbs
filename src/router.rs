@@ -33,7 +33,6 @@ use axum::{
 };
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
-use sqlx::Error as SqlxError;
 use std::{future::Future, pin::Pin};
 use uuid::Uuid;
 
@@ -50,27 +49,42 @@ pub const ROOT: &str = "/";
 
 /// Custom error type for application errors.
 #[derive(Debug)]
-pub enum AppError {
-    DatabaseError(SqlxError),
-    OtherError(String),
+pub enum ResponseError {
+    DatabaseError(sqlx::Error),
+    InternalServerError(String),
+    NotFound(String),
+    Unauthorized(String),
+    Forbidden(String),
+    BadRequest(String),
+    Banned(String),
 }
 
-/// Convert a `SqlxError` into an `AppError`.
-impl From<SqlxError> for AppError {
-    fn from(err: SqlxError) -> Self {
-        AppError::DatabaseError(err)
+use ResponseError::*;
+
+/// Convert an `sqlx::Error` into a `ResponseError`.
+impl From<sqlx::Error> for ResponseError {
+    fn from(err: sqlx::Error) -> Self {
+        DatabaseError(err)
     }
 }
 
-/// Convert an `AppError` into an HTTP response.
-impl IntoResponse for AppError {
+/// Convert a `ResponseError` into an HTTP response.
+impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
         let (status, body) = match self {
-            AppError::DatabaseError(_) => (
+            DatabaseError(err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Database error occurred".to_string(),
+                format!("Database error occurred: {}", err),
             ),
-            AppError::OtherError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+            BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            Banned(expires_at_str) => (
+                StatusCode::FORBIDDEN,
+                format!("Banned until {expires_at_str}"),
+            ),
         };
 
         (status, body).into_response()
@@ -105,12 +119,21 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/interim/{key}", get(posts::interim))
         // Authentication and account management
         .route("/login", get(auth::login_form).post(auth::authenticate))
-        .route("/register", get(auth::registration_form).post(auth::create_account))
+        .route(
+            "/register",
+            get(auth::registration_form).post(auth::create_account),
+        )
         .route("/user/{username}", get(profile::user_profile))
         .route("/settings", get(profile::settings))
         .route("/settings/logout", post(auth::logout))
-        .route("/settings/reset-account-token", post(auth::reset_account_token))
-        .route("/settings/update-time-zone", post(profile::update_time_zone))
+        .route(
+            "/settings/reset-account-token",
+            post(auth::reset_account_token),
+        )
+        .route(
+            "/settings/update-time-zone",
+            post(profile::update_time_zone),
+        )
         .route("/settings/update-password", post(profile::update_password))
         // Real-time updates
         .route("/web-socket", get(posts::web_socket))

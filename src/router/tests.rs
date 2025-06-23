@@ -199,7 +199,10 @@ async fn create_test_post(
         PostStatus::Pending => post,
         _ => {
             post.update_status(tx, status).await;
-            Post::select_by_key(tx, &post.key).await.unwrap()
+            Post::select_by_key(tx, &post.key)
+                .await
+                .expect("query succeeds")
+                .expect("post exists")
         }
     }
 }
@@ -1071,7 +1074,10 @@ async fn review_post_with_normal_image() {
 
     // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect("begins");
-    let post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
+    let post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("query succeeds")
+        .expect("post exists");
     tx.commit().await.expect("commits");
     assert_eq!(post.status, PostStatus::Processing);
 

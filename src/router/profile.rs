@@ -24,7 +24,7 @@ pub async fn user_profile(
     Path(username): Path<String>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -40,7 +40,7 @@ pub async fn user_profile(
     };
 
     // Get user's public posts
-    let posts = Post::select_by_author(&mut tx, account.id).await;
+    let posts = Post::select_by_author(&mut tx, account.id).await?;
 
     // Render profile page
     let html = Html(render(
@@ -76,7 +76,7 @@ pub async fn settings(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -130,7 +130,7 @@ pub async fn update_time_zone(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -184,7 +184,7 @@ pub async fn update_password(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session

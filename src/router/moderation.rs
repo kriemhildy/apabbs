@@ -26,7 +26,7 @@ pub async fn review_post(
     headers: HeaderMap,
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     use AccountRole::*;
     use PostStatus::*;
     use ReviewAction::*;
@@ -56,8 +56,8 @@ pub async fn review_post(
     };
 
     // Get the post to review
-    let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return Ok(not_found("Post does not exist")),
+    let post = match Post::select_by_key(&mut tx, &key).await? {
+        None => return Err(NotFound("Post does not exist".to_owned())),
         Some(post) => post,
     };
 
@@ -104,7 +104,7 @@ pub async fn review_post(
                         if let Err(msg) =
                             PostReview::handle_decrypt_media(&mut tx, &initial_post).await
                         {
-                            println!("Error decrypting media: {msg}");
+                            eprintln!("Error decrypting media: {msg}");
                             return;
                         }
 
@@ -114,21 +114,23 @@ pub async fn review_post(
                             .await;
 
                         // Get updated post
-                        let updated_post =
-                            match Post::select_by_key(&mut tx, &initial_post.key).await {
-                                None => {
-                                    println!("Post does not exist after decrypting media");
-                                    return;
-                                }
-                                Some(post) => post,
-                            };
+                        let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
+                            .await
+                            .expect("query succeeds")
+                        {
+                            None => {
+                                eprintln!("Post does not exist after decrypting media");
+                                return;
+                            }
+                            Some(post) => post,
+                        };
 
                         tx.commit().await.expect("commits");
 
                         // Clean up and notify clients
                         PostReview::delete_upload_key_dir(&encrypted_media_path).await;
                         if state.sender.send(updated_post).is_err() {
-                            println!("No active receivers to send to");
+                            eprintln!("No active receivers to send to");
                         }
                     }
 
@@ -163,7 +165,7 @@ pub async fn review_post(
 
                 // Attempt media re-encryption
                 if let Err(msg) = initial_post.reencrypt_media_file().await {
-                    println!("Error re-encrypting media: {msg}");
+                    eprintln!("Error re-encrypting media: {msg}");
                     return;
                 }
 
@@ -173,9 +175,12 @@ pub async fn review_post(
                     .await;
 
                 // Get updated post
-                let updated_post = match Post::select_by_key(&mut tx, &initial_post.key).await {
+                let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
+                    .await
+                    .expect("query succeeds")
+                {
                     None => {
-                        println!("Post does not exist after re-encrypting media");
+                        eprintln!("Post does not exist after re-encrypting media");
                         return;
                     }
                     Some(post) => post,
@@ -185,7 +190,7 @@ pub async fn review_post(
 
                 // Notify clients
                 if state.sender.send(updated_post).is_err() {
-                    println!("No active receivers to send to");
+                    eprintln!("No active receivers to send to");
                 }
             }
 
@@ -211,8 +216,8 @@ pub async fn review_post(
     post_review.insert(&mut tx, account.id, post.id).await;
 
     // Get updated post
-    let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return Ok(not_found("Post does not exist")),
+    let post = match Post::select_by_key(&mut tx, &key).await? {
+        None => return Err(NotFound("Post does not exist".to_owned())),
         Some(post) => post,
     };
 
@@ -268,7 +273,7 @@ pub async fn decrypt_media(
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -285,28 +290,28 @@ pub async fn decrypt_media(
     }
 
     // Get the post
-    let post = match Post::select_by_key(&mut tx, &key).await {
-        None => return Ok(not_found("Post does not exist")),
+    let post = match Post::select_by_key(&mut tx, &key).await? {
+        None => return Err(NotFound("Post does not exist".to_owned())),
         Some(post) => post,
     };
 
     // Verify media exists
     if !post.encrypted_media_path().exists() {
-        return Ok(not_found("Encrypted media file does not exist"));
+        return Err(NotFound("Encrypted media file does not exist".to_owned()));
     }
 
     // Get media details
     let media_filename = post
         .media_filename
         .as_ref()
-        .ok_or(AppError::OtherError("Missing filename".to_string()))?;
+        .ok_or(InternalServerError("Missing filename".to_owned()))?;
     let media_bytes = post.decrypt_media_file().await;
     if media_bytes.is_empty() {
         return Ok(internal_server_error("Failed to decrypt media file"));
     }
     let content_type = post
         .media_mime_type
-        .ok_or(AppError::OtherError("Missing MIME type".to_string()))?;
+        .ok_or(InternalServerError("Missing MIME type".to_owned()))?;
 
     // Set response headers for download
     let headers = [

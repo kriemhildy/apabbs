@@ -24,7 +24,7 @@ pub async fn login_form(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -65,7 +65,7 @@ pub async fn authenticate(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -107,7 +107,7 @@ pub async fn registration_form(
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -150,7 +150,7 @@ pub async fn create_account(
     jar: CookieJar,
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -215,7 +215,7 @@ pub async fn logout(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(logout): Form<Logout>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -253,7 +253,7 @@ pub async fn reset_account_token(
     State(state): State<AppState>,
     jar: CookieJar,
     Form(logout): Form<Logout>,
-) -> Result<Response, AppError> {
+) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
