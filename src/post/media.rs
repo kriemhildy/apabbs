@@ -416,8 +416,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(String)` with an error message if processing failed
-    pub async fn handle_decrypt_media(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+    /// - `Err(&'static str)` with an error message if processing failed
+    pub async fn handle_decrypt_media(
+        tx: &mut PgConnection,
+        post: &Post,
+    ) -> Result<(), &'static str> {
         // Decrypt the media file
         let media_bytes = post.decrypt_media_file().await;
 
@@ -444,15 +447,15 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(String)` with an error message if processing failed
-    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+    /// - `Err(&'static str)` with an error message if processing failed
+    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), &'static str> {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
         let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
 
         if !thumbnail_path.exists() {
-            return Err(ERR_THUMBNAIL_FAILED.to_owned());
+            return Err(ERR_THUMBNAIL_FAILED);
         }
 
         // If thumbnail is larger than original, don't use it
@@ -482,8 +485,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(String)` with an error message if processing failed
-    pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
+    /// - `Err(&'static str)` with an error message if processing failed
+    pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), &'static str> {
         let published_media_path = post.published_media_path();
 
         // Generate a compatibility video for browser playback
@@ -493,7 +496,7 @@ impl PostReview {
                 Self::generate_compatibility_video(&published_media_path).await;
 
             if !compatibility_path.exists() {
-                return Err(String::from("Compatibility video generation failed"));
+                return Err("Compatibility video generation failed");
             }
 
             // Update the database with the compatibility video path
@@ -514,7 +517,7 @@ impl PostReview {
             let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await;
 
             if !thumbnail_path.exists() {
-                return Err(ERR_THUMBNAIL_FAILED.to_owned());
+                return Err(ERR_THUMBNAIL_FAILED);
             }
 
             let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await;
