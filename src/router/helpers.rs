@@ -457,7 +457,7 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 /// # Returns
 /// A UTC timestamp string for the current hour.
 pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
-    sqlx::query_scalar::<_, String>("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
+    sqlx::query_scalar("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
