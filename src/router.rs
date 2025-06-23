@@ -6,27 +6,21 @@
 
 mod auth;
 mod helpers;
+mod moderation;
+mod posts;
+mod profile;
 #[cfg(test)]
 mod tests;
-mod profile;
-mod posts;
-mod moderation;
 
 use crate::AppState;
-use apabbs::{
-    BEGIN, COMMIT, ban,
-    post::{Post, PostReview, PostStatus, ReviewAction, ReviewError},
-    user::{Account, AccountRole, Credentials, User},
-};
+use apabbs::{BEGIN, COMMIT, ban, post::*, user::*};
 use axum::{
-    extract::{
-        DefaultBodyLimit, Path, State,
-    },
+    extract::{DefaultBodyLimit, Path, State},
     http::{
         Method, StatusCode,
         header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderMap},
     },
-    response::{Form, IntoResponse, Redirect, Response},
+    response::{Form, Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
@@ -74,12 +68,21 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/interim/{key}", get(posts::interim))
         // Authentication and account management
         .route("/login", get(auth::login_form).post(auth::authenticate))
-        .route("/register", get(auth::registration_form).post(auth::create_account))
+        .route(
+            "/register",
+            get(auth::registration_form).post(auth::create_account),
+        )
         .route("/user/{username}", get(profile::user_profile))
         .route("/settings", get(profile::settings))
         .route("/settings/logout", post(auth::logout))
-        .route("/settings/reset-account-token", post(auth::reset_account_token))
-        .route("/settings/update-time-zone", post(profile::update_time_zone))
+        .route(
+            "/settings/reset-account-token",
+            post(auth::reset_account_token),
+        )
+        .route(
+            "/settings/update-time-zone",
+            post(profile::update_time_zone),
+        )
         .route("/settings/update-password", post(profile::update_password))
         // Real-time updates
         .route("/web-socket", get(posts::web_socket))

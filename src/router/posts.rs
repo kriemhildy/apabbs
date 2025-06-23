@@ -1,18 +1,6 @@
 use super::*;
-use apabbs::{
-    post::{PostHiding, PostStatus, PostSubmission},
-    user::AccountRole,
-};
-use axum::{
-    extract::{
-        Form, Multipart, Path, State,
-        ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
-    },
-    http::{HeaderMap, Method, StatusCode},
-    response::{Html, IntoResponse, Redirect, Response},
-};
+use axum::extract::{Multipart, ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade}};
 use std::collections::HashMap;
-use uuid::Uuid;
 
 /// Handles the main index page and paginated content
 ///

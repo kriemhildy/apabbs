@@ -3,10 +3,7 @@
 //! This module provides common utilities for HTTP request/response handling,
 //! cookie management, user authentication, security checks, and template rendering.
 
-use super::{
-    Account, AppState, CookieJar, Credentials, HeaderMap, IntoResponse, Method, Post, PostStatus,
-    Response, StatusCode, User, Uuid, ban,
-};
+use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
 
@@ -482,7 +479,7 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 ///
 /// # Returns
 /// A string containing the UTC timestamp in "YYYY-MM-DD-HH" format
-pub async fn utc_hour_timestamp(tx: &mut sqlx::PgConnection) -> String {
+pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
     sqlx::query_scalar::<_, String>("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(apabbs::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
