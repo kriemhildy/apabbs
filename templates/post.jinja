@@ -4,7 +4,7 @@
     {###################################################################################}
     {# Body #}
     {###################################################################################}
-    {% if post.body|length > 0 and status != "banned" %}
+    {% if post.body|length > 0 and post.status != "banned" %}
     <div class="post-body">
         {% filter indent(8) %}
         {# Handle YouTube embeds differently in solo view #}
