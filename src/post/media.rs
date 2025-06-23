@@ -175,15 +175,15 @@ impl PostSubmission {
     /// use apabbs::post::{PostSubmission, MediaCategory};
     /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.jpg"));
     /// assert_eq!(cat, Some(MediaCategory::Image));
-    /// assert_eq!(mime, Some("image/jpeg".to_string()));
+    /// assert_eq!(mime, Some("image/jpeg".to_owned()));
     ///
     /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.mp3"));
     /// assert_eq!(cat, Some(MediaCategory::Audio));
-    /// assert_eq!(mime, Some("audio/mpeg".to_string()));
+    /// assert_eq!(mime, Some("audio/mpeg".to_owned()));
     ///
     /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.unknown"));
     /// assert_eq!(cat, None);
-    /// assert_eq!(mime, Some("application/octet-stream".to_string()));
+    /// assert_eq!(mime, Some("application/octet-stream".to_owned()));
     /// ```
     pub fn determine_media_type(
         media_filename: Option<&str>,
@@ -730,22 +730,22 @@ mod tests {
         // Test image file types
         let (category, mime) = PostSubmission::determine_media_type(Some("test.jpg"));
         assert_eq!(category, Some(MediaCategory::Image));
-        assert_eq!(mime, Some("image/jpeg".to_string()));
+        assert_eq!(mime, Some("image/jpeg".to_owned()));
 
         // Test video file types
         let (category, mime) = PostSubmission::determine_media_type(Some("video.mp4"));
         assert_eq!(category, Some(MediaCategory::Video));
-        assert_eq!(mime, Some("video/mp4".to_string()));
+        assert_eq!(mime, Some("video/mp4".to_owned()));
 
         // Test audio file types
         let (category, mime) = PostSubmission::determine_media_type(Some("audio.mp3"));
         assert_eq!(category, Some(MediaCategory::Audio));
-        assert_eq!(mime, Some("audio/mpeg".to_string()));
+        assert_eq!(mime, Some("audio/mpeg".to_owned()));
 
         // Test unknown file type
         let (category, mime) = PostSubmission::determine_media_type(Some("document.pdf"));
         assert_eq!(category, None);
-        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
+        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_owned()));
 
         // Test no file
         let (category, mime) = PostSubmission::determine_media_type(None);

@@ -377,11 +377,11 @@ mod tests {
             session_token: Uuid::new_v4(),
             account: Some(Account {
                 id: 1,
-                username: "novice".to_string(),
+                username: "novice".to_owned(),
                 token: Uuid::new_v4(),
-                password_hash: "hash".to_string(),
+                password_hash: "hash".to_owned(),
                 role: AccountRole::Novice,
-                time_zone: "America/New_York".to_string(),
+                time_zone: "America/New_York".to_owned(),
                 ..Default::default()
             }),
         };
@@ -420,9 +420,9 @@ mod tests {
     async fn year_checkbox_validation() {
         let mut credentials = Credentials {
             session_token: Uuid::new_v4(),
-            username: "username".to_string(),
-            password: "password123".to_string(),
-            confirm_password: Some("password123".to_string()),
+            username: "username".to_owned(),
+            password: "password123".to_owned(),
+            confirm_password: Some("password123".to_owned()),
             year: None,
         };
 
@@ -430,11 +430,11 @@ mod tests {
         assert!(!credentials.year_checked());
 
         // Test with year checked
-        credentials.year = Some("on".to_string());
+        credentials.year = Some("on".to_owned());
         assert!(credentials.year_checked());
 
         // Test with incorrect value
-        credentials.year = Some("yes".to_string());
+        credentials.year = Some("yes".to_owned());
         assert!(!credentials.year_checked());
     }
 }
