@@ -12,8 +12,6 @@
 //! - `PostReview`: Moderation actions for post approval/rejection
 //! - `PostHiding`: User requests to hide their own posts
 
-// TODO: split this into smaller files
-
 pub mod media;
 pub mod review;
 pub mod submission;

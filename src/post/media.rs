@@ -489,8 +489,7 @@ impl PostReview {
     pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), &'static str> {
         let published_media_path = post.published_media_path();
 
-        // Generate a compatibility video for browser playback
-        // Later, only do this if it's not already in the compatibility format.
+        // If necessary, generate a compatibility video for browser playback
         if !Self::video_is_compatible(&published_media_path).await {
             let compatibility_path =
                 Self::generate_compatibility_video(&published_media_path).await;
