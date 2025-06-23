@@ -23,10 +23,10 @@ pub const MAX_THUMB_WIDTH: i32 = 1280;
 pub const MAX_THUMB_HEIGHT: i32 = 2160;
 
 /// Default MIME type for unknown or binary file types.
-const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
+pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 /// Error message used when thumbnail generation fails.
-const ERR_THUMBNAIL_FAILED: &str = "Thumbnail was not created successfully";
+pub const ERR_THUMBNAIL_FAILED: &str = "Thumbnail was not created successfully";
 
 impl Post {
     /// Returns the path where an encrypted media file is stored.
@@ -76,7 +76,7 @@ impl Post {
     /// # Returns
     /// - Ok(()) if encryption succeeded
     /// - Err with a message if encryption failed
-    async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
+    pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
             .to_str()

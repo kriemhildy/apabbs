@@ -9,12 +9,13 @@ use std::pin::Pin;
 
 /// Type alias for migration functions that take a database connection pool
 /// and return an async operation.
-type MigrationFn = fn(PgPool) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+pub type MigrationFn = fn(PgPool) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
 /// Macro to create an array of migration functions paired with their names.
 ///
 /// Each function name is converted to a string and paired with the function itself.
 /// This allows migrations to be tracked by name in the database.
+#[macro_export]
 macro_rules! migrations {
     ($($func:ident),* $(,)?) => {
         [$((stringify!($func), (|db| Box::pin($func(db))) as MigrationFn)),*]
@@ -22,7 +23,7 @@ macro_rules! migrations {
 }
 
 #[tokio::main]
-async fn main() {
+pub async fn main() {
     // Register all migrations in the order they should be applied
     let migrations = migrations![
         uuid_to_key,
@@ -71,7 +72,7 @@ async fn main() {
 /// Updates post intro_limit values based on content analysis.
 ///
 /// Recalculates the intro_limit field for all posts that have it set.
-async fn update_intro_limit(db: PgPool) {
+pub async fn update_intro_limit(db: PgPool) {
     use apabbs::post::{Post, PostSubmission};
     let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
@@ -95,7 +96,7 @@ async fn update_intro_limit(db: PgPool) {
 ///
 /// Finds YouTube links in posts, determines if they're shorts or regular videos,
 /// downloads appropriate thumbnails, and updates post content with the new thumbnail URLs.
-async fn download_youtube_thumbnails(db: PgPool) {
+pub async fn download_youtube_thumbnails(db: PgPool) {
     use apabbs::post::PostSubmission;
     use std::thread;
     use tokio::time::Duration;
@@ -196,7 +197,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
 ///
 /// Renames media directories from UUID format to the new key format
 /// and removes the now unused UUID column.
-async fn uuid_to_key(db: PgPool) {
+pub async fn uuid_to_key(db: PgPool) {
     use uuid::Uuid;
     let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
@@ -257,7 +258,7 @@ async fn uuid_to_key(db: PgPool) {
 ///
 /// Creates smaller versions of images for faster loading and
 /// updates the database with the thumbnail paths and dimensions.
-async fn generate_image_thumbnails(db: PgPool) {
+pub async fn generate_image_thumbnails(db: PgPool) {
     use apabbs::post::{Post, PostReview};
     let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
@@ -307,7 +308,7 @@ async fn generate_image_thumbnails(db: PgPool) {
 ///
 /// Updates the database with dimension information for both original images
 /// and their thumbnails.
-async fn add_image_dimensions(db: PgPool) {
+pub async fn add_image_dimensions(db: PgPool) {
     use apabbs::post::{Post, PostReview};
     let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
@@ -346,7 +347,7 @@ async fn add_image_dimensions(db: PgPool) {
 }
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
-async fn process_videos(db: PgPool) {
+pub async fn process_videos(db: PgPool) {
     use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
     let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 

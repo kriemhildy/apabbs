@@ -11,11 +11,20 @@ use std::path::PathBuf;
 use url::Url;
 use uuid::Uuid;
 
-const KEY_LENGTH: usize = 8; // Length of randomly generated post keys
-pub const YOUTUBE_DIR: &str = "pub/youtube"; // YouTube thumbnail cache
-const MAX_YOUTUBE_EMBEDS: usize = 16; // Maximum number of YouTube embeds per post
-const MAX_INTRO_BYTES: usize = 1600; // Maximum number of bytes for post intro
-const MAX_INTRO_BREAKS: usize = 24; // Maximum number of line breaks in intro
+/// Length (in characters) of randomly generated post keys for new posts.
+pub const KEY_LENGTH: usize = 8;
+
+/// Directory path for caching downloaded YouTube thumbnails for posts.
+pub const YOUTUBE_DIR: &str = "pub/youtube";
+
+/// Maximum number of YouTube video embeds allowed per post.
+pub const MAX_YOUTUBE_EMBEDS: usize = 16;
+
+/// Maximum number of bytes allowed for a post intro preview (truncation limit).
+pub const MAX_INTRO_BYTES: usize = 1600;
+
+/// Maximum number of line breaks allowed in a post intro preview.
+pub const MAX_INTRO_BREAKS: usize = 24;
 
 /// Represents a post submission from a user.
 ///
@@ -227,7 +236,7 @@ impl PostSubmission {
     ///
     /// # Returns
     /// The HTML content with YouTube embeds
-    async fn embed_youtube(mut html: String, key: &str) -> String {
+    pub async fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,

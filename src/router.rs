@@ -11,13 +11,13 @@
 //! - `profile`: User profile and settings
 //! - `tests`: Route-level tests (cfg(test))
 
-mod auth;
-mod helpers;
-mod moderation;
-mod posts;
-mod profile;
+pub mod auth;
+pub mod helpers;
+pub mod moderation;
+pub mod posts;
+pub mod profile;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 use crate::AppState;
 use crate::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban, post::*, user::*};

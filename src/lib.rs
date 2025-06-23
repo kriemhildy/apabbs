@@ -92,11 +92,11 @@ pub fn secret_key() -> String {
 #[derive(Clone)]
 pub struct AppState {
     /// Database connection pool
-    db: PgPool,
+    pub db: PgPool,
     /// Template rendering environment with filters and loaders
-    jinja: Arc<RwLock<Environment<'static>>>,
+    pub jinja: Arc<RwLock<Environment<'static>>>,
     /// Broadcast channel for real-time updates
-    sender: Arc<Sender<Post>>,
+    pub sender: Arc<Sender<Post>>,
 }
 
 /// Initializes the application state.

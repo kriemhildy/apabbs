@@ -8,7 +8,7 @@
 /// Sets up the environment, initializes application state,
 /// configures the HTTP server, and starts listening for requests.
 #[tokio::main]
-async fn main() {
+pub async fn main() {
     // Load environment variables from .env file (fail fast if missing)
     if let Err(error) = dotenv::dotenv() {
         eprintln!("Failed to load .env file: {error}");
