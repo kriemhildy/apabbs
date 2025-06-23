@@ -21,12 +21,6 @@ use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
-/// Error message used when beginning a database transaction fails.
-pub const BEGIN_FAILED_ERR: &str = "Failed to begin database transaction";
-
-/// Error message used when committing a database transaction fails.
-pub const COMMIT_FAILED_ERR: &str = "Failed to commit database transaction";
-
 /// Format string for RFC 5322-style datetime in PostgreSQL queries.
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 

@@ -21,7 +21,7 @@ pub async fn review_post(
     use ReviewAction::*;
     use ReviewError::*;
 
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
@@ -81,7 +81,7 @@ pub async fn review_post(
                         post_review: PostReview,
                         encrypted_media_path: std::path::PathBuf,
                     ) {
-                        let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+                        let mut tx = state.db.begin().await.expect("begin should succeed");
 
                         // Attempt media decryption
                         if let Err(msg) =
@@ -106,7 +106,7 @@ pub async fn review_post(
                                 Some(post) => post,
                             };
 
-                        tx.commit().await.expect(COMMIT_FAILED_ERR);
+                        tx.commit().await.expect("commit should succeed");
 
                         // Clean up and notify clients
                         PostReview::delete_upload_key_dir(&encrypted_media_path).await;
@@ -142,7 +142,7 @@ pub async fn review_post(
                 initial_post: Post,
                 post_review: PostReview,
             ) {
-                let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+                let mut tx = state.db.begin().await.expect("begin should succeed");
 
                 // Attempt media re-encryption
                 if let Err(msg) = initial_post.reencrypt_media_file().await {
@@ -164,7 +164,7 @@ pub async fn review_post(
                     Some(post) => post,
                 };
 
-                tx.commit().await.expect(COMMIT_FAILED_ERR);
+                tx.commit().await.expect("commit should succeed");
 
                 // Notify clients
                 if state.sender.send(updated_post).is_err() {
@@ -212,7 +212,7 @@ pub async fn review_post(
         return internal_server_error("Error setting post thumbnail");
     }
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 
     // Notify clients of the update
     if state.sender.send(post).is_err() {
@@ -243,7 +243,7 @@ pub async fn decrypt_media(
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {

@@ -21,7 +21,7 @@ pub async fn index(
     Path(path): Path<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -83,7 +83,7 @@ pub async fn solo_post(
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -124,7 +124,7 @@ pub async fn submit_post(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
@@ -188,7 +188,7 @@ pub async fn submit_post(
     if let Some(response) =
         check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
     {
-        tx.commit().await.expect(COMMIT_FAILED_ERR);
+        tx.commit().await.expect("commit should succeed");
         return response;
     }
 
@@ -208,7 +208,7 @@ pub async fn submit_post(
         }
     }
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 
     // Notify clients of new post
     if state.sender.send(post).is_err() {
@@ -236,7 +236,7 @@ pub async fn hide_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Response {
     use PostStatus::*;
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
@@ -252,7 +252,7 @@ pub async fn hide_post(
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await;
-                tx.commit().await.expect(COMMIT_FAILED_ERR);
+                tx.commit().await.expect("commit should succeed");
             }
             Reported | Banned => (),
             _ => return bad_request("Post is not rejected, reported, or banned"),
@@ -317,7 +317,7 @@ pub async fn web_socket(
         }
     }
 
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, _jar) = match init_user(jar, &mut tx, method, None).await {
@@ -339,7 +339,7 @@ pub async fn interim(
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = state.db.begin().await.expect("begin should succeed");
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {

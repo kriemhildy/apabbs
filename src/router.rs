@@ -20,7 +20,7 @@ pub mod profile;
 pub mod tests;
 
 use crate::AppState;
-use crate::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban, post::*, user::*};
+use crate::{ban, post::*, user::*};
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
     http::{

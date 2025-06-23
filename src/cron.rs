@@ -24,7 +24,7 @@
 //! * * * * * *
 //! ```
 
-use crate::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban};
+use crate::ban;
 use tokio_cron_scheduler::Job;
 
 /// Initializes and starts the scheduled job system.
@@ -60,13 +60,13 @@ pub fn scrub_ips() -> Job {
         Box::pin(async move {
             // Connect to the database and start a transaction
             let db = crate::db().await;
-            let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+            let mut tx = db.begin().await.expect("begin should succeed");
 
             // Execute the IP scrubbing operation
             ban::scrub(&mut tx).await;
 
             // Commit the transaction
-            tx.commit().await.expect(COMMIT_FAILED_ERR);
+            tx.commit().await.expect("commit should succeed");
 
             println!("Old IP hashes scrubbed");
         })

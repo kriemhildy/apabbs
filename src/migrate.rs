@@ -2,7 +2,6 @@
 //!
 //! Provides sequential database migrations, tracking applied migrations in the `_rust_migrations` table.
 
-use apabbs::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR};
 use sqlx::PgPool;
 use std::future::Future;
 use std::pin::Pin;
@@ -74,7 +73,7 @@ pub async fn main() {
 /// Recalculates the intro_limit field for all posts that have it set.
 pub async fn update_intro_limit(db: PgPool) {
     use apabbs::post::{Post, PostSubmission};
-    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = db.begin().await.expect("begin should succeed");
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
@@ -89,7 +88,7 @@ pub async fn update_intro_limit(db: PgPool) {
             .await
             .expect("Failed to update post intro_limit");
     }
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 }
 
 /// Downloads YouTube thumbnails for posts containing YouTube links.
@@ -101,7 +100,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
     use std::thread;
     use tokio::time::Duration;
 
-    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = db.begin().await.expect("begin should succeed");
 
     // Extract all YouTube video IDs from posts with YouTube embeds
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
@@ -190,7 +189,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
         thread::sleep(Duration::from_secs(1));
     }
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 }
 
 /// Migrates from UUID-based media paths to key-based paths.
@@ -199,7 +198,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
 /// and removes the now unused UUID column.
 pub async fn uuid_to_key(db: PgPool) {
     use uuid::Uuid;
-    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = db.begin().await.expect("begin should succeed");
 
     // Check if the UUID column exists before proceeding
     let exists: bool = sqlx::query_scalar(concat!(
@@ -251,7 +250,7 @@ pub async fn uuid_to_key(db: PgPool) {
         .await
         .expect("Failed to drop uuid column");
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 }
 
 /// Generates thumbnails for image posts.
@@ -260,7 +259,7 @@ pub async fn uuid_to_key(db: PgPool) {
 /// updates the database with the thumbnail paths and dimensions.
 pub async fn generate_image_thumbnails(db: PgPool) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = db.begin().await.expect("begin should succeed");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -301,7 +300,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
             .await;
     }
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 }
 
 /// Adds width and height information to image posts.
@@ -310,7 +309,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
 /// and their thumbnails.
 pub async fn add_image_dimensions(db: PgPool) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = db.begin().await.expect("begin should succeed");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -319,7 +318,7 @@ pub async fn add_image_dimensions(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Failed to select posts with images");
+    .expect("select should succeed");
 
     for post in posts {
         let published_media_path = post.published_media_path();
@@ -343,13 +342,13 @@ pub async fn add_image_dimensions(db: PgPool) {
         }
     }
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
 }
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
 pub async fn process_videos(db: PgPool) {
     use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
-    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
+    let mut tx = db.begin().await.expect("begin should succeed");
 
     // Get all video posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -358,7 +357,7 @@ pub async fn process_videos(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("query should succeed");
+    .expect("select should succeed");
 
     for post in posts {
         println!("Processing video for post {}...", post.key);
@@ -369,11 +368,7 @@ pub async fn process_videos(db: PgPool) {
                 .await
                 .expect("should read directory");
 
-            while let Some(entry) = read_dir
-                .next_entry()
-                .await
-                .expect("should read entry")
-            {
+            while let Some(entry) = read_dir.next_entry().await.expect("should read entry") {
                 let path = entry.path();
                 // Skip the source video file
                 if path.file_name().unwrap().to_string_lossy()
@@ -392,6 +387,6 @@ pub async fn process_videos(db: PgPool) {
         println!("Completed processing post {}", post.key);
     }
 
-    tx.commit().await.expect(COMMIT_FAILED_ERR);
+    tx.commit().await.expect("commit should succeed");
     println!("All video processing complete");
 }
