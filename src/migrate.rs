@@ -358,7 +358,7 @@ pub async fn process_videos(db: PgPool) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Failed to select posts with videos");
+    .expect("query should succeed");
 
     for post in posts {
         println!("Processing video for post {}...", post.key);
@@ -367,12 +367,12 @@ pub async fn process_videos(db: PgPool) {
         if media_key_dir.exists() {
             let mut read_dir = tokio::fs::read_dir(&media_key_dir)
                 .await
-                .expect("Failed to read media directory");
+                .expect("should read directory");
 
             while let Some(entry) = read_dir
                 .next_entry()
                 .await
-                .expect("Failed to read next directory entry")
+                .expect("should read entry")
             {
                 let path = entry.path();
                 // Skip the source video file
@@ -382,13 +382,13 @@ pub async fn process_videos(db: PgPool) {
                     println!("Deleting old media file: {}", path.display());
                     tokio::fs::remove_file(&path)
                         .await
-                        .expect("Failed to remove old media file");
+                        .expect("should remove file");
                 }
             }
         }
         PostReview::process_video(&mut tx, &post)
             .await
-            .expect("Failed to process video");
+            .expect("should process video");
         println!("Completed processing post {}", post.key);
     }
 
