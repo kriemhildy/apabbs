@@ -296,7 +296,7 @@ async fn generate_image_thumbnails(db: PgPool) {
         // Update database with thumbnail information
         println!("Setting thumb_filename, thumb_width, thumb_height");
         let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
-        post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
+        post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
             .await;
     }
 
@@ -330,14 +330,14 @@ async fn add_image_dimensions(db: PgPool) {
         // Update original image dimensions
         let (width, height) = PostReview::image_dimensions(&published_media_path).await;
         println!("Setting media image dimensions: {}x{}", width, height);
-        post.update_media_dimensions(&mut *tx, width, height).await;
+        post.update_media_dimensions(&mut tx, width, height).await;
 
         // Update thumbnail dimensions if present
         if post.thumb_filename.is_some() {
             let thumbnail_path = post.thumbnail_path();
             let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
             println!("Setting thumbnail image dimensions: {}x{}", width, height);
-            post.update_thumbnail(&mut *tx, &thumbnail_path, width, height)
+            post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
                 .await;
         }
     }
@@ -385,7 +385,7 @@ async fn process_videos(db: PgPool) {
                 }
             }
         }
-        PostReview::process_video(&mut *tx, &post)
+        PostReview::process_video(&mut tx, &post)
             .await
             .expect("Failed to process video");
         println!("Completed processing post {}", post.key);

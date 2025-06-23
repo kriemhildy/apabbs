@@ -282,7 +282,7 @@ pub async fn decrypt_media(
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!(r#"inline; filename=\"{}\""#, media_filename),
+            &format!(r#"inline; filename="{}""#, media_filename),
         ),
     ];
 

@@ -248,7 +248,7 @@ impl PostSubmission {
                 None
             } else {
                 let url_str = &captures[1].replace("&amp;", "&");
-                let parsed_url = Url::parse(&url_str).expect("parse youtube url");
+                let parsed_url = Url::parse(url_str).expect("parse youtube url");
                 parsed_url
                     .query_pairs()
                     .find(|(k, _)| k == "t")
@@ -257,7 +257,7 @@ impl PostSubmission {
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp: {:?}", youtube_timestamp);
             let thumbnail_tuple =
-                Self::download_youtube_thumbnail(&youtube_video_id, youtube_short).await;
+                Self::download_youtube_thumbnail(youtube_video_id, youtube_short).await;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (
@@ -328,7 +328,7 @@ impl PostSubmission {
     /// ```
     pub fn intro_limit(html: &str) -> Option<i32> {
         println!("html.len(): {}", html.len());
-        if html.len() == 0 {
+        if html.is_empty() {
             return None;
         }
         // get a slice of the maximum intro bytes limited to the last valid utf8 character
@@ -363,10 +363,7 @@ impl PostSubmission {
         };
         // check for the maximum breaks
         let single_break_pattern = Regex::new("<br>\n").expect("regex builds");
-        let break_limit = match single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS) {
-            None => None,
-            Some(mat) => Some(mat.start() as i32),
-        };
+        let break_limit = single_break_pattern.find_iter(slice).nth(MAX_INTRO_BREAKS).map(|mat| mat.start() as i32);
         // take the smallest of youtube and break limits
         println!(
             "youtube_limit: {:?}, break_limit: {:?}",

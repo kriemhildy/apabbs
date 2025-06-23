@@ -206,7 +206,7 @@ impl PostSubmission {
             Some(media_filename) => media_filename,
         };
         use MediaCategory::*;
-        let extension = media_filename.split('.').last();
+        let extension = media_filename.split('.').next_back();
         let (media_category, media_mime_type_str) = match extension {
             Some(extension) => match extension.to_lowercase().as_str() {
                 "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => (Some(Image), "image/jpeg"),
@@ -306,7 +306,7 @@ impl PostReview {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
             .split('.')
-            .last()
+            .next_back()
             .expect("get file extension");
 
         // For animated images (GIF, WebP), extract the last frame as the thumbnail

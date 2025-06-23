@@ -844,7 +844,7 @@ async fn hide_post() {
     // Clean up
     let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
@@ -863,7 +863,7 @@ async fn interim() {
 
     // Request the interim page
     let request = Request::builder()
-        .uri(&format!("/interim/{}", &post1.key))
+        .uri(format!("/interim/{}", &post1.key))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -901,7 +901,7 @@ async fn user_profile() {
 
     // Request the user profile page
     let request = Request::builder()
-        .uri(&format!("/user/{}", &account.username))
+        .uri(format!("/user/{}", &account.username))
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -1113,7 +1113,7 @@ async fn review_post_with_normal_image() {
     let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
     final_post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
@@ -1191,7 +1191,7 @@ async fn review_post_with_small_image() {
     let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
     final_post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
@@ -1271,7 +1271,7 @@ async fn review_post_with_video() {
     let final_post = Post::select_by_key(&mut tx, &post.key).await.unwrap();
     PostReview::delete_media_key_dir(&post.key).await;
     final_post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
@@ -1306,7 +1306,7 @@ async fn decrypt_media() {
     // Clean up
     let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
     post.delete(&mut tx).await;
-    delete_test_account(&mut tx, &account).await;
+    delete_test_account(&mut tx, account).await;
     tx.commit().await.expect(COMMIT_FAILED_ERR);
     PostReview::delete_upload_key_dir(&encrypted_media_path).await;
 }

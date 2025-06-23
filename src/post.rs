@@ -146,7 +146,7 @@ impl Post {
 
         // Always show user's own posts
         query_builder.push("OR session_token = ");
-        query_builder.push_bind(&user.session_token);
+        query_builder.push_bind(user.session_token);
 
         if let Some(ref account) = user.account {
             query_builder.push(" OR account_id = ");
@@ -164,12 +164,12 @@ impl Post {
 
         // Add pagination constraint if post_id is provided
         if let Some(post_id) = post_id {
-            query_builder.push(&format!(" AND id {} ", operator));
+            query_builder.push(format!(" AND id {} ", operator));
             query_builder.push_bind(post_id);
         }
 
         // Add ordering and limit
-        query_builder.push(&format!(" ORDER BY id {} LIMIT ", order));
+        query_builder.push(format!(" ORDER BY id {} LIMIT ", order));
         query_builder.push_bind(limit as i32);
 
         // Execute query

@@ -208,10 +208,7 @@ pub async fn init_user(
     // Session cookie
     let session_token = match jar.get(SESSION_COOKIE) {
         None => None,
-        Some(cookie) => match Uuid::try_parse(cookie.value()) {
-            Err(_) => None,
-            Ok(uuid) => Some(uuid),
-        },
+        Some(cookie) => Uuid::try_parse(cookie.value()).ok(),
     };
     let session_token = match session_token {
         None => {
@@ -255,7 +252,7 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
 /// Retrieve a post and validate access permissions.
 pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, Response> {
     use PostStatus::*;
-    match Post::select_by_key(tx, &key).await {
+    match Post::select_by_key(tx, key).await {
         None => Err(not_found("Post does not exist")),
         Some(post) => {
             if [Reported, Rejected, Banned].contains(&post.status) && !user.admin() {

@@ -77,7 +77,7 @@ impl PostReview {
         sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
             .bind(account_id)
             .bind(post_id)
-            .bind(&self.status)
+            .bind(self.status)
             .execute(&mut *tx)
             .await
             .expect("insert post review");

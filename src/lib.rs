@@ -50,7 +50,7 @@ pub fn per_page() -> usize {
 ///
 /// Development mode is enabled when the `DEV` environment variable is set to "1".
 pub fn dev() -> bool {
-    std::env::var("DEV").map_or(false, |v| v == "1")
+    std::env::var("DEV").is_ok_and(|v| v == "1")
 }
 
 /// Returns the host domain name for the application.
