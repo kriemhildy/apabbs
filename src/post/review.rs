@@ -65,12 +65,12 @@ pub struct PostReview {
 }
 
 impl PostReview {
-    /// Records a review action in the database
+    /// Records a review action in the database.
     ///
     /// Creates an entry in the reviews table to track moderation activity.
     ///
     /// # Parameters
-    /// - `tx`: Database transaction
+    /// - `tx`: Database transaction (mutable reference)
     /// - `account_id`: ID of the account performing the review
     /// - `post_id`: ID of the post being reviewed
     pub async fn insert(&self, tx: &mut PgConnection, account_id: i32, post_id: i32) {
@@ -83,9 +83,9 @@ impl PostReview {
             .expect("inserts");
     }
 
-    /// Determines what action should be taken for a review based on post state and user role
+    /// Determines what action should be taken for a review based on post state and user role.
     ///
-    /// This method implements the business rules that govern post moderation:
+    /// Implements the business rules that govern post moderation:
     /// - Which transitions between post statuses are allowed
     /// - Which roles can perform which actions
     /// - What should happen to media files during each transition

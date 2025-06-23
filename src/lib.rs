@@ -34,6 +34,9 @@ pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
 ///
 /// Uses the `DATABASE_URL` environment variable to establish a connection.
 ///
+/// # Returns
+/// A `PgPool` database connection pool.
+///
 /// # Panics
 /// Panics if `DATABASE_URL` is not set or the connection fails.
 pub async fn db() -> PgPool {
@@ -44,6 +47,9 @@ pub async fn db() -> PgPool {
 /// Returns the number of items to show per page.
 ///
 /// Uses the `PER_PAGE` environment variable if set, otherwise defaults to 1000.
+///
+/// # Returns
+/// The number of items per page as a `usize`.
 ///
 /// # Panics
 /// Panics if `PER_PAGE` is set but not a valid integer.
@@ -57,6 +63,9 @@ pub fn per_page() -> usize {
 /// Checks if the application is running in development mode.
 ///
 /// Development mode is enabled when the `DEV` environment variable is set to "1".
+///
+/// # Returns
+/// `true` if in development mode, `false` otherwise.
 pub fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
 }
@@ -64,6 +73,9 @@ pub fn dev() -> bool {
 /// Returns the host domain name for the application.
 ///
 /// Uses the `HOST` environment variable.
+///
+/// # Returns
+/// The host domain as a `String`.
 ///
 /// # Panics
 /// Panics if `HOST` is not set.
@@ -75,6 +87,9 @@ pub fn host() -> String {
 ///
 /// The secret key is used for encryption, cookie signing, and other security features.
 ///
+/// # Returns
+/// The secret key as a `String`.
+///
 /// # Panics
 /// Panics if `SECRET_KEY` is not set.
 pub fn secret_key() -> String {
@@ -83,8 +98,7 @@ pub fn secret_key() -> String {
 
 /// Shared application state accessible to all request handlers.
 ///
-/// Contains database connections, template rendering engine,
-/// and event broadcasting channels.
+/// Contains database connections, template rendering engine, and event broadcasting channels.
 #[derive(Clone)]
 pub struct AppState {
     /// Database connection pool
@@ -97,8 +111,7 @@ pub struct AppState {
 
 /// Initializes the application state.
 ///
-/// Sets up database connections, configures template rendering,
-/// and creates a broadcast channel for real-time updates.
+/// Sets up database connections, configures template rendering, and creates a broadcast channel for real-time updates.
 ///
 /// # Returns
 /// Configured application state ready for use by request handlers.
@@ -118,6 +131,13 @@ pub async fn app_state() -> AppState {
         env.set_trim_blocks(true);
 
         // Template filter to remove link wrappers from YouTube thumbnails
+        /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
+        ///
+        /// # Parameters
+        /// - `body`: The HTML body string to process
+        ///
+        /// # Returns
+        /// The HTML string with YouTube thumbnail links replaced by plain images.
         fn remove_youtube_thumbnail_links(body: &str) -> String {
             let re = Regex::new(concat!(
                 r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
@@ -140,6 +160,14 @@ pub async fn app_state() -> AppState {
         );
 
         // Template filter to slice a string to a specific byte length
+        /// Template filter to slice a string to a specific byte length.
+        ///
+        /// # Parameters
+        /// - `body`: The string to slice
+        /// - `end`: The byte index to slice to
+        ///
+        /// # Returns
+        /// The sliced string up to the specified byte index.
         fn byte_slice(body: &str, end: usize) -> String {
             // Ensure we don't exceed the string length
             let end = end.min(body.len());

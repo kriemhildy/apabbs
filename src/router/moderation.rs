@@ -7,7 +7,18 @@ use super::*;
 
 /// Processes post moderation actions.
 ///
-/// Allows moderators and admins to approve, reject, or ban posts.
+/// Allows moderators and admins to approve, reject, ban, or re-encrypt posts, enforcing business rules and managing background media processing.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for request context
+/// - `Path(key)`: Path parameter for the post key
+/// - `Form(post_review)`: Form data containing the post review action
+///
+/// # Returns
+/// A `Response` indicating the result of the moderation action, with background processing as needed.
 pub async fn review_post(
     method: Method,
     State(state): State<AppState>,
@@ -236,7 +247,16 @@ pub async fn review_post(
 
 /// Serves decrypted media files to moderators.
 ///
-/// Allows privileged users to access original media files.
+/// Allows privileged users to access original media files for moderation or review.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Path(key)`: Path parameter for the post key
+///
+/// # Returns
+/// A `Response` containing the decrypted media file for download or inline viewing.
 pub async fn decrypt_media(
     method: Method,
     State(state): State<AppState>,

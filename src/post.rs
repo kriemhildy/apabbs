@@ -111,7 +111,7 @@ pub struct Post {
 }
 
 impl Post {
-    /// Selects posts visible to the user according to their access level
+    /// Selects posts visible to the user according to their access level.
     ///
     /// Filters posts by status based on the user's role:
     /// - Admins: all posts except rejected
@@ -121,10 +121,13 @@ impl Post {
     /// Additionally shows posts created by the user regardless of status.
     ///
     /// # Parameters
-    /// - `tx`: Database connection
+    /// - `tx`: Database connection (mutable reference)
     /// - `user`: Current user with session and account info
     /// - `post_id`: Optional ID for pagination
     /// - `invert`: Whether to invert the sort order
+    ///
+    /// # Returns
+    /// A vector of posts visible to the user.
     pub async fn select(
         tx: &mut PgConnection,
         user: &User,
@@ -180,10 +183,16 @@ impl Post {
             .expect("selects")
     }
 
-    /// Selects approved posts created by the specified account
+    /// Selects approved posts created by the specified account.
     ///
-    /// Returns only posts with status 'approved' and limits the result
-    /// to the system-defined page size.
+    /// Returns only posts with status 'approved' and limits the result to the system-defined page size.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `account_id`: Account ID of the author
+    ///
+    /// # Returns
+    /// A vector of approved posts by the author.
     pub async fn select_by_author(tx: &mut PgConnection, account_id: i32) -> Vec<Self> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id = $1 ",
@@ -196,13 +205,17 @@ impl Post {
         .expect("selects")
     }
 
-    /// Checks if the user is the author of this post
+    /// Checks if the user is the author of this post.
     ///
     /// Returns true if either:
     /// - The post's session token matches the user's session token
     /// - The post's account ID matches the user's account ID
     ///
-    /// Checks if the user is the author of this post
+    /// # Parameters
+    /// - `user`: The user to check against
+    ///
+    /// # Returns
+    /// `true` if the user is the author, `false` otherwise.
     ///
     /// # Examples
     ///
@@ -226,9 +239,16 @@ impl Post {
                 .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
-    /// Selects a post by its unique key with formatted timestamps
+    /// Selects a post by its unique key with formatted timestamps.
     ///
-    /// Also includes a flag indicating if the post is recent (less than 2 days old)
+    /// Also includes a flag indicating if the post is recent (less than 2 days old).
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `key`: Unique key of the post
+    ///
+    /// # Returns
+    /// An optional post matching the key, with formatted timestamps.
     pub async fn select_by_key(tx: &mut PgConnection, key: &str) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
@@ -243,7 +263,10 @@ impl Post {
         .expect("selects")
     }
 
-    /// Permanently deletes a post from the database
+    /// Permanently deletes a post from the database.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
     pub async fn delete(&self, tx: &mut PgConnection) {
         sqlx::query("DELETE FROM posts WHERE id = $1")
             .bind(self.id)
@@ -252,7 +275,11 @@ impl Post {
             .expect("deletes");
     }
 
-    /// Updates the status of a post in the database
+    /// Updates the status of a post in the database.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `new_status`: The new status to set for the post
     pub async fn update_status(&self, tx: &mut PgConnection, new_status: PostStatus) {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
@@ -262,7 +289,13 @@ impl Post {
             .expect("updates");
     }
 
-    /// Updates thumbnail metadata for a post
+    /// Updates thumbnail metadata for a post.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `thumbnail_path`: Path to the thumbnail image
+    /// - `width`: Width of the thumbnail in pixels
+    /// - `height`: Height of the thumbnail in pixels
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
@@ -289,13 +322,13 @@ impl Post {
         .expect("updates");
     }
 
-    /// Update the compatibility video filename for a post
+    /// Update the compatibility video filename for a post.
     ///
-    ///  This is used to store a fallback video format for browsers that do not support
-    ///  the primary video format (e.g., H.264 for non-Chromium browsers).
+    /// This is used to store a fallback video format for browsers that do not support
+    /// the primary video format (e.g., H.264 for non-Chromium browsers).
     ///
     /// # Parameters
-    /// - `tx`: Database connection
+    /// - `tx`: Database connection (mutable reference)
     /// - `compat_path`: Path to the compatibility video file
     ///
     /// # Panics
@@ -314,7 +347,12 @@ impl Post {
             .expect("updates");
     }
 
-    /// Updates the media dimensions for a post in the database
+    /// Updates the media dimensions for a post in the database.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `width`: Width of the media in pixels
+    /// - `height`: Height of the media in pixels
     pub async fn update_media_dimensions(&self, tx: &mut PgConnection, width: i32, height: i32) {
         sqlx::query("UPDATE posts SET media_width = $1, media_height = $2 WHERE id = $3")
             .bind(width)
@@ -325,10 +363,10 @@ impl Post {
             .expect("updates");
     }
 
-    /// Updates the poster filename for video posts
+    /// Updates the poster filename for video posts.
     ///
     /// # Parameters
-    /// - `tx`: Database connection
+    /// - `tx`: Database connection (mutable reference)
     /// - `video_poster_path`: Path to the poster image file
     ///
     /// # Panics

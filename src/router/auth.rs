@@ -8,6 +8,15 @@ use super::*;
 /// Displays the login form.
 ///
 /// Renders the page for user authentication.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state (database, config, etc.)
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for user agent analysis
+///
+/// # Returns
+/// A rendered login form as a `Response`.
 pub async fn login_form(
     method: Method,
     State(state): State<AppState>,
@@ -40,6 +49,15 @@ pub async fn login_form(
 /// Processes user login attempts.
 ///
 /// Authenticates users with provided credentials and sets session cookies.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Form(credentials)`: User credentials submitted via form
+///
+/// # Returns
+/// Redirects to the root page on success, or an error response on failure.
 pub async fn authenticate(
     method: Method,
     State(state): State<AppState>,
@@ -73,6 +91,15 @@ pub async fn authenticate(
 /// Displays the registration form.
 ///
 /// Renders the page for creating a new account.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for user agent analysis
+///
+/// # Returns
+/// A rendered registration form as a `Response`.
 pub async fn registration_form(
     method: Method,
     State(state): State<AppState>,
@@ -105,6 +132,16 @@ pub async fn registration_form(
 /// Processes account creation requests.
 ///
 /// Validates registration information and creates new user accounts.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for IP hash and ban checks
+/// - `Form(credentials)`: User credentials submitted via form
+///
+/// # Returns
+/// Redirects to the root page on success, or an error response on failure.
 pub async fn create_account(
     method: Method,
     State(state): State<AppState>,
@@ -162,6 +199,15 @@ pub struct Logout {
 /// Processes user logout requests.
 ///
 /// Clears authentication cookies and ends user session.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Form(logout)`: Logout request containing session token
+///
+/// # Returns
+/// Redirects to the root page after logout.
 pub async fn logout(
     method: Method,
     State(state): State<AppState>,
@@ -191,6 +237,15 @@ pub async fn logout(
 /// Resets a user's authentication token.
 ///
 /// Invalidates all existing sessions for security purposes.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Form(logout)`: Logout request containing session token
+///
+/// # Returns
+/// Redirects to the root page after resetting the token.
 pub async fn reset_account_token(
     method: Method,
     State(state): State<AppState>,

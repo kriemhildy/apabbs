@@ -5,8 +5,11 @@
 
 /// Application entry point.
 ///
-/// Sets up the environment, initializes application state,
-/// configures the HTTP server, and starts listening for requests.
+/// Sets up the environment, initializes application state, configures the HTTP server,
+/// starts background tasks, and begins listening for incoming requests.
+///
+/// # Returns
+/// This function does not return; it runs the server until process exit.
 #[tokio::main]
 pub async fn main() {
     // Load environment variables from .env file (fail fast if missing)

@@ -8,6 +8,16 @@ use super::*;
 /// Displays a user's profile page.
 ///
 /// Shows information about a user and their public posts.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `Path(username)`: Path parameter for the username
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for user agent analysis
+///
+/// # Returns
+/// A `Response` containing the rendered user profile page.
 pub async fn user_profile(
     method: Method,
     State(state): State<AppState>,
@@ -52,6 +62,15 @@ pub async fn user_profile(
 /// Displays the user settings page.
 ///
 /// Shows options for account management and preferences.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for user agent analysis
+///
+/// # Returns
+/// A `Response` containing the rendered settings page.
 pub async fn settings(
     method: Method,
     State(state): State<AppState>,
@@ -96,7 +115,16 @@ pub async fn settings(
 
 /// Updates a user's time zone preference.
 ///
-/// Changes the time zone setting for a logged-in user.
+/// Changes the time zone setting for a logged-in user after validation.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Form(time_zone_update)`: Form data containing the new time zone
+///
+/// # Returns
+/// A `Response` redirecting to the settings page with a confirmation notice.
 pub async fn update_time_zone(
     method: Method,
     State(state): State<AppState>,
@@ -138,6 +166,15 @@ pub async fn update_time_zone(
 /// Updates a user's password.
 ///
 /// Changes the password for a logged-in user after validation.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Form(credentials)`: Form data containing the new password and credentials
+///
+/// # Returns
+/// A `Response` redirecting to the settings page with a confirmation notice.
 pub async fn update_password(
     method: Method,
     State(state): State<AppState>,

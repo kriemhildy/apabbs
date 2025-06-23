@@ -12,8 +12,17 @@ use std::collections::HashMap;
 
 /// Handles the main index page and paginated content.
 ///
-/// Renders the home page with a list of posts, supporting pagination through
-/// the optional page key parameter.
+/// Renders the home page with a list of posts, supporting pagination through the optional page key parameter.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Path(path)`: Path parameters as a map (for pagination key)
+/// - `headers`: HTTP headers for user agent analysis
+///
+/// # Returns
+/// A `Response` containing the rendered index page.
 pub async fn index(
     method: Method,
     State(state): State<AppState>,
@@ -76,6 +85,16 @@ pub async fn index(
 /// Displays a single post in full-page view.
 ///
 /// Renders a dedicated page for viewing a single post by its unique key.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Path(key)`: Path parameter for the post key
+/// - `headers`: HTTP headers for user agent analysis
+///
+/// # Returns
+/// A `Response` containing the rendered solo post page.
 pub async fn solo_post(
     method: Method,
     State(state): State<AppState>,
@@ -117,6 +136,16 @@ pub async fn solo_post(
 /// Handles post submission.
 ///
 /// Processes new post creation with optional media attachments.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for IP hash and validation
+/// - `multipart`: Multipart form data for post content and media
+///
+/// # Returns
+/// A `Response` indicating the result of the post submission.
 pub async fn submit_post(
     method: Method,
     State(state): State<AppState>,
@@ -212,6 +241,16 @@ pub async fn submit_post(
 /// Hides a post from the user's view.
 ///
 /// Allows users to hide their rejected posts from view.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `headers`: HTTP headers for request context
+/// - `Form(post_hiding)`: Form data containing the post hiding request
+///
+/// # Returns
+/// A `Response` indicating the result of the hide action.
 pub async fn hide_post(
     method: Method,
     State(state): State<AppState>,
@@ -256,6 +295,15 @@ pub async fn hide_post(
 /// Handles WebSocket connections for real-time updates.
 ///
 /// Establishes a persistent connection to send new posts to the client as they're created.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `upgrade`: WebSocket upgrade request
+///
+/// # Returns
+/// A `Response` that upgrades the connection to a WebSocket.
 pub async fn web_socket(
     method: Method,
     State(state): State<AppState>,
@@ -317,6 +365,15 @@ pub async fn web_socket(
 /// Fetches posts created after the latest approved post.
 ///
 /// Used for recovering updates since websocket interruption.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Path(key)`: Path parameter for the reference post key
+///
+/// # Returns
+/// A `Response` containing new posts as rendered HTML in JSON format.
 pub async fn interim(
     method: Method,
     State(state): State<AppState>,

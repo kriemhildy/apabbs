@@ -32,6 +32,9 @@ use tokio_cron_scheduler::Job;
 /// Creates a new job scheduler, adds all scheduled jobs to it (e.g., IP scrubbing, screenshot),
 /// and starts the scheduler running in the background for the application's lifetime.
 ///
+/// # Returns
+/// Nothing. Runs jobs in the background for the application's lifetime.
+///
 /// # Panics
 /// Panics if the scheduler cannot be created or started.
 pub async fn init() {
@@ -50,6 +53,9 @@ pub async fn init() {
 /// Creates a scheduled job that removes old IP hash data for privacy.
 ///
 /// Runs daily at 11:00 AM (0 0 11 * * *).
+///
+/// # Returns
+/// A `Job` that performs the IP scrubbing operation.
 pub fn scrub_ips() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
@@ -73,6 +79,9 @@ pub fn scrub_ips() -> Job {
 ///
 /// Runs hourly at XX:55:00 (0 55 * * * *).
 /// Saves the screenshot to `pub/screenshot.webp`.
+///
+/// # Returns
+/// A `Job` that performs the screenshot operation.
 pub fn generate_screenshot() -> Job {
     Job::new_async("0 55 * * * *", |_uuid, _l| {
         Box::pin(async move {

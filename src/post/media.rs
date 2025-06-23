@@ -31,6 +31,9 @@ pub const ERR_THUMBNAIL_FAILED: &str = "Thumbnail was not created successfully";
 impl Post {
     /// Returns the path where an encrypted media file is stored.
     ///
+    /// # Returns
+    /// PathBuf to the encrypted media file for this post.
+    ///
     /// # Panics
     /// Panics if the post has no associated media file.
     pub fn encrypted_media_path(&self) -> PathBuf {
@@ -45,6 +48,9 @@ impl Post {
 
     /// Returns the path where published media is stored after processing.
     ///
+    /// # Returns
+    /// PathBuf to the published (decrypted) media file for this post.
+    ///
     /// # Panics
     /// Panics if the post has no associated media file.
     pub fn published_media_path(&self) -> PathBuf {
@@ -57,6 +63,9 @@ impl Post {
     }
 
     /// Returns the path where a thumbnail is stored after processing.
+    ///
+    /// # Returns
+    /// PathBuf to the thumbnail file for this post.
     ///
     /// # Panics
     /// Panics if the post has no associated thumbnail.
@@ -71,11 +80,12 @@ impl Post {
 
     /// Encrypts the provided bytes using GPG with the application's key.
     ///
-    /// Creates necessary directories, runs GPG to encrypt data, and handles cleanup on error.
+    /// # Parameters
+    /// - `bytes`: The raw bytes of the media file to encrypt.
     ///
     /// # Returns
     /// - Ok(()) if encryption succeeded
-    /// - Err with a message if encryption failed
+    /// - Err(&str) if encryption failed
     pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
@@ -117,6 +127,10 @@ impl Post {
     /// Re-encrypts a media file that has already been published.
     ///
     /// Used when media needs to be moved back from published to reported state.
+    ///
+    /// # Returns
+    /// - Ok(()) if re-encryption succeeded
+    /// - Err(&str) if re-encryption failed
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().expect("has parent");
@@ -142,7 +156,11 @@ impl Post {
 
     /// Decrypts the post's media file using GPG.
     ///
-    /// Returns the decrypted file content as bytes. This operation is CPU-intensive and runs in a separate thread.
+    /// # Returns
+    /// The decrypted file content as bytes (Vec<u8>).
+    ///
+    /// # Panics
+    /// Panics if the post has no associated media file.
     pub async fn decrypt_media_file(&self) -> Vec<u8> {
         if self.media_filename.is_none() {
             panic!("Cannot decrypt media: post has no media file");
@@ -167,7 +185,13 @@ impl Post {
 }
 
 impl PostSubmission {
-    /// Determines the media type (category and MIME type) based on the file extension
+    /// Determines the media type (category and MIME type) based on the file extension.
+    ///
+    /// # Parameters
+    /// - `media_filename`: Optional filename to determine type from.
+    ///
+    /// # Returns
+    /// Tuple of (Option<MediaCategory>, Option<String>) for category and MIME type.
     ///
     /// # Examples
     ///
@@ -232,15 +256,14 @@ impl PostSubmission {
         (media_category, Some(media_mime_type_str.to_owned()))
     }
 
-    /// Encrypts the uploaded file data for a post
+    /// Encrypts the uploaded file data for a post.
     ///
-    /// This function handles the encryption of media bytes using the post's
-    /// encryption key. It also manages the creation of necessary directories
-    /// and cleans up in case of errors.
+    /// # Parameters
+    /// - `post`: The Post to associate the encrypted file with.
     ///
     /// # Returns
     /// - Ok(()) if encryption succeeded
-    /// - Err with a message if encryption failed
+    /// - Err(&str) if encryption failed or no media bytes present
     pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
         if self.media_bytes.is_none() {
             return Err("no media bytes");
@@ -261,10 +284,7 @@ impl PostSubmission {
 }
 
 impl PostReview {
-    /// Writes decrypted media file bytes to the public directory
-    ///
-    /// Creates the necessary directory structure and writes the media bytes
-    /// to the destination file for public access.
+    /// Writes decrypted media file bytes to the public directory.
     ///
     /// # Parameters
     /// - `published_media_path`: Path where the media should be stored
@@ -279,16 +299,13 @@ impl PostReview {
             .expect("writes media file");
     }
 
-    /// Generates a thumbnail image for a given media file
-    ///
-    /// Uses the vipsthumbnail utility to create a properly sized thumbnail.
-    /// Handles special cases for animated image formats by extracting the last frame.
+    /// Generates a thumbnail image for a given media file.
     ///
     /// # Parameters
     /// - `published_media_path`: Path to the original image file
     ///
     /// # Returns
-    /// Path to the generated thumbnail file
+    /// Path to the generated thumbnail file (PathBuf)
     pub async fn generate_image_thumbnail(published_media_path: &Path) -> PathBuf {
         let media_path_str = published_media_path.to_str().unwrap();
         let extension = media_path_str
@@ -323,11 +340,7 @@ impl PostReview {
         Self::alternate_path(published_media_path, "tn_", ".webp")
     }
 
-    /// Constructs an alternate file path for a derived media file
-    ///
-    /// Generates a new file path in the same directory as the original, using the provided
-    /// prefix and file extension. This is used for creating paths for thumbnails, compatibility
-    /// videos, or other media variants derived from the original file.
+    /// Constructs an alternate file path for a derived media file.
     ///
     /// # Parameters
     /// - `media_path`: Path to the original media file
@@ -353,10 +366,7 @@ impl PostReview {
         key_dir.join(&alternate_filename)
     }
 
-    /// Determines if a thumbnail file is larger than the original media file
-    ///
-    /// Used to decide if the thumbnail provides any benefit over the original.
-    /// If the thumbnail is larger, it's better to use the original file instead.
+    /// Determines if a thumbnail file is larger than the original media file.
     ///
     /// # Parameters
     /// - `thumbnail_path`: Path to the thumbnail file
@@ -370,9 +380,7 @@ impl PostReview {
         thumbnail_len > media_file_len
     }
 
-    /// Deletes an encrypted media file and its containing directory
-    ///
-    /// Used when rejecting or banning a post to clean up the encrypted media.
+    /// Deletes an encrypted media file and its containing directory.
     ///
     /// # Parameters
     /// - `encrypted_media_path`: Path to the encrypted media file
@@ -388,9 +396,7 @@ impl PostReview {
             .expect("removes uploads key dir");
     }
 
-    /// Deletes all media files associated with a post
-    ///
-    /// Removes the entire directory containing a post's media files.
+    /// Deletes all media files associated with a post.
     ///
     /// # Parameters
     /// - `key`: The unique key of the post whose media should be deleted
@@ -402,14 +408,11 @@ impl PostReview {
             .expect("removes media key dir and its contents");
     }
 
-    /// Handles the media decryption and processing workflow for a post
-    ///
-    /// This method decrypts the post's media file, processes it according to its type,
-    /// generates appropriate thumbnails, and updates the database with metadata.
+    /// Handles the media decryption and processing workflow for a post.
     ///
     /// # Parameters
-    /// - `tx`: Database connection
-    /// - `post`: The post whose media should be decrypted
+    /// - `tx`: Database connection (mutable reference)
+    /// - `post`: The post whose media should be decrypted and processed
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
@@ -433,7 +436,15 @@ impl PostReview {
         Ok(())
     }
 
-    /// Process image media
+    /// Process image media for a post.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `post`: The post whose image media should be processed
+    ///
+    /// # Returns
+    /// - `Ok(())` if processing was successful
+    /// - `Err(String)` with an error message if processing failed
     pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
         let published_media_path = post.published_media_path();
 
@@ -463,7 +474,15 @@ impl PostReview {
         Ok(())
     }
 
-    /// Process video media
+    /// Process video media for a post.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `post`: The post whose video media should be processed
+    ///
+    /// # Returns
+    /// - `Ok(())` if processing was successful
+    /// - `Err(String)` with an error message if processing failed
     pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), String> {
         let published_media_path = post.published_media_path();
 
@@ -508,13 +527,13 @@ impl PostReview {
         Ok(())
     }
 
-    /// Determines the dimensions of an image using the vipsheader utility
+    /// Determines the dimensions of an image using the vipsheader utility.
     ///
     /// # Parameters
     /// - `image_path`: Path to the image file
     ///
     /// # Returns
-    /// A tuple of (width, height) as integers
+    /// A tuple of (width, height) as integers (i32, i32)
     pub async fn image_dimensions(image_path: &Path) -> (i32, i32) {
         println!("Getting image dimensions for: {:?}", image_path);
         let image_path_str = image_path.to_str().unwrap();
@@ -543,8 +562,6 @@ impl PostReview {
     }
 
     /// Determines if a video is compatible for web playback using ffprobe.
-    ///
-    /// Checks for H.264 video codec, AAC audio codec, 8-bit YUV 4:2:0 pixel format, and MP4 container.
     ///
     /// # Parameters
     /// - `video_path`: Path to the video file
@@ -613,10 +630,6 @@ impl PostReview {
 
     /// Generates a browser-compatible video variant for playback.
     ///
-    /// Converts the input video to an H.264/AVC MP4 file with AAC audio, suitable for maximum browser compatibility.
-    /// The output is intended as a fallback for browsers that do not support the original video format. The
-    /// generated file is saved alongside the original with a "cm_" prefix and ".mp4" extension.
-    ///
     /// # Parameters
     /// - `video_path`: Path to the original video file
     ///
@@ -667,16 +680,13 @@ impl PostReview {
         compatibility_path
     }
 
-    /// Generates a poster image (still frame) from a video file
-    ///
-    /// Extracts a single frame at the 1-second mark of the video and saves it
-    /// as a WebP image to serve as a poster/preview for the video.
+    /// Generates a poster image (still frame) from a video file.
     ///
     /// # Parameters
     /// - `video_path`: Path to the video file
     ///
     /// # Returns
-    /// Path to the generated poster image file
+    /// Path to the generated poster image file (WebP)
     pub async fn generate_video_poster(video_path: &Path) -> PathBuf {
         println!("Generating video poster for: {:?}", video_path);
         let poster_path = video_path.with_extension("webp");

@@ -49,6 +49,9 @@ pub struct User {
 
 impl User {
     /// Returns `true` if the user is a moderator or administrator.
+    ///
+    /// # Returns
+    /// `true` if the user has Mod or Admin role, `false` otherwise.
     pub fn mod_or_admin(&self) -> bool {
         self.account
             .as_ref()
@@ -56,6 +59,9 @@ impl User {
     }
 
     /// Returns `true` if the user is an administrator.
+    ///
+    /// # Returns
+    /// `true` if the user has Admin role, `false` otherwise.
     pub fn admin(&self) -> bool {
         self.account
             .as_ref()
@@ -63,6 +69,9 @@ impl User {
     }
 
     /// Gets the user's preferred time zone, or "UTC" for anonymous users.
+    ///
+    /// # Returns
+    /// The user's preferred time zone as a string slice.
     pub fn time_zone(&self) -> &str {
         match self.account {
             Some(ref account) => &account.time_zone,
@@ -90,6 +99,13 @@ pub struct Account {
 
 impl Account {
     /// Retrieves an account by its authentication token.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `token`: Authentication token to search for
+    ///
+    /// # Returns
+    /// An optional `Account` matching the token.
     pub async fn select_by_token(tx: &mut PgConnection, token: &Uuid) -> Option<Self> {
         sqlx::query_as("SELECT * FROM accounts WHERE token = $1")
             .bind(token)
@@ -99,6 +115,13 @@ impl Account {
     }
 
     /// Retrieves an account by username, with formatted timestamps.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `username`: Username to search for
+    ///
+    /// # Returns
+    /// An optional `Account` matching the username, with formatted timestamps.
     pub async fn select_by_username(tx: &mut PgConnection, username: &str) -> Option<Self> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
@@ -114,6 +137,9 @@ impl Account {
     }
 
     /// Generates and assigns a new authentication token for the account.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
     pub async fn reset_token(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE accounts SET token = gen_random_uuid() WHERE id = $1")
             .bind(self.id)
@@ -132,6 +158,12 @@ pub struct TimeZoneUpdate {
 
 impl TimeZoneUpdate {
     /// Retrieves a list of all valid time zones from the database.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    ///
+    /// # Returns
+    /// A vector of valid time zone names.
     pub async fn select_time_zones(tx: &mut PgConnection) -> Vec<String> {
         sqlx::query_scalar(concat!(
             "SELECT name FROM pg_timezone_names ",
@@ -144,6 +176,10 @@ impl TimeZoneUpdate {
     }
 
     /// Updates the time zone setting for a user account.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `account_id`: ID of the account to update
     pub async fn update(&self, tx: &mut PgConnection, account_id: i32) {
         sqlx::query("UPDATE accounts SET time_zone = $1 WHERE id = $2")
             .bind(&self.time_zone)
@@ -168,6 +204,12 @@ pub struct Credentials {
 
 impl Credentials {
     /// Checks if a username already exists in the database.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    ///
+    /// # Returns
+    /// `true` if the username exists, `false` otherwise.
     pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE username = $1)")
             .bind(&self.username)
@@ -186,7 +228,8 @@ impl Credentials {
     /// - Common password check ("password")
     /// - Password confirmation match
     ///
-    /// Returns a list of error messages if validation fails.
+    /// # Returns
+    /// A list of error messages if validation fails.
     pub fn validate(&self) -> Vec<&str> {
         let mut errors: Vec<&str> = Vec::new();
 
@@ -233,6 +276,13 @@ impl Credentials {
     }
 
     /// Registers a new user account in the database.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    /// - `ip_hash`: Anonymized IP hash for the user
+    ///
+    /// # Returns
+    /// The newly created `Account`.
     pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
         sqlx::query_as(concat!(
             "INSERT INTO accounts (username, password_hash, ip_hash) ",
@@ -248,6 +298,12 @@ impl Credentials {
     }
 
     /// Authenticates a user with the provided credentials.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
+    ///
+    /// # Returns
+    /// An optional `Account` if authentication succeeds.
     pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<Account> {
         sqlx::query_as(concat!(
             "SELECT * FROM accounts WHERE username = $1 ",
@@ -261,6 +317,9 @@ impl Credentials {
     }
 
     /// Updates the password for an existing account.
+    ///
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference)
     pub async fn update_password(&self, tx: &mut PgConnection) {
         sqlx::query(concat!(
             "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', $2)) ",
@@ -275,7 +334,9 @@ impl Credentials {
     }
 
     /// Checks if the year verification checkbox was checked.
-    /// Returns true if the year field is present and set to "on".
+    ///
+    /// # Returns
+    /// `true` if the year field is present and set to "on", `false` otherwise.
     pub fn year_checked(&self) -> bool {
         matches!(self.year.as_deref(), Some("on"))
     }

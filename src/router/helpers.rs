@@ -24,6 +24,13 @@ pub const NOTICE_COOKIE: &str = "notice";
 //==================================================================================================
 
 /// Create an HTTP response with the specified status code and message.
+///
+/// # Parameters
+/// - `status`: HTTP status code to use
+/// - `msg`: Message body for the response
+///
+/// # Returns
+/// An HTTP `Response` with the given status and message.
 fn http_status(status: StatusCode, msg: &str) -> Response {
     (
         status,
@@ -38,26 +45,56 @@ fn http_status(status: StatusCode, msg: &str) -> Response {
 }
 
 /// 400 Bad Request response.
+///
+/// # Parameters
+/// - `msg`: Error message to display
+///
+/// # Returns
+/// A 400 Bad Request `Response`.
 pub fn bad_request(msg: &str) -> Response {
     http_status(StatusCode::BAD_REQUEST, &format!("Bad Request: {msg}"))
 }
 
 /// 401 Unauthorized response.
+///
+/// # Parameters
+/// - `msg`: Error message to display
+///
+/// # Returns
+/// A 401 Unauthorized `Response`.
 pub fn unauthorized(msg: &str) -> Response {
     http_status(StatusCode::UNAUTHORIZED, &format!("Unauthorized: {msg}"))
 }
 
 /// 403 Forbidden response.
+///
+/// # Parameters
+/// - `msg`: Error message to display
+///
+/// # Returns
+/// A 403 Forbidden `Response`.
 pub fn forbidden(msg: &str) -> Response {
     http_status(StatusCode::FORBIDDEN, &format!("Forbidden: {msg}"))
 }
 
 /// 404 Not Found response.
+///
+/// # Parameters
+/// - `msg`: Error message to display
+///
+/// # Returns
+/// A 404 Not Found `Response`.
 pub fn not_found(msg: &str) -> Response {
     http_status(StatusCode::NOT_FOUND, &format!("Not Found: {msg}"))
 }
 
 /// 500 Internal Server Error response.
+///
+/// # Parameters
+/// - `msg`: Error message to display
+///
+/// # Returns
+/// A 500 Internal Server Error `Response`.
 pub fn internal_server_error(msg: &str) -> Response {
     http_status(
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -66,6 +103,12 @@ pub fn internal_server_error(msg: &str) -> Response {
 }
 
 /// 403 Forbidden response for banned users with ban expiration info.
+///
+/// # Parameters
+/// - `expires_at_str`: Expiration time string for the ban
+///
+/// # Returns
+/// A 403 Forbidden `Response` with ban info.
 pub fn ban_message(expires_at_str: &str) -> Response {
     forbidden(&format!("Banned until {expires_at_str}"))
 }
@@ -75,6 +118,12 @@ pub fn ban_message(expires_at_str: &str) -> Response {
 //==================================================================================================
 
 /// Generate a hash of the client's IP address for tracking.
+///
+/// # Parameters
+/// - `headers`: HTTP headers containing the IP address
+///
+/// # Returns
+/// A SHA-256 hash string of the IP address and secret key.
 pub fn ip_hash(headers: &HeaderMap) -> String {
     let ip = headers
         .get(X_REAL_IP)
@@ -85,6 +134,12 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
 }
 
 /// Determine if a request is an AJAX/Fetch request (not navigation).
+///
+/// # Parameters
+/// - `headers`: HTTP headers to inspect
+///
+/// # Returns
+/// `true` if the request is a fetch (not navigation), `false` otherwise.
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
     headers
         .get(SEC_FETCH_MODE)
@@ -93,6 +148,15 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
 }
 
 /// Check if a user is banned or rate-limited, returning a response if so.
+///
+/// # Parameters
+/// - `tx`: Database connection (mutable reference)
+/// - `ip_hash`: Hash of the user's IP address
+/// - `banned_account_id`: Optional account ID if user is banned
+/// - `admin_account_id`: Optional admin account ID
+///
+/// # Returns
+/// An optional `Response` if the user is banned or rate-limited.
 pub async fn check_for_ban(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -115,6 +179,14 @@ pub async fn check_for_ban(
 //==================================================================================================
 
 /// Create a cookie with secure, HTTP-only, and SameSite settings.
+///
+/// # Parameters
+/// - `name`: Name of the cookie
+/// - `value`: Value to store in the cookie
+/// - `permanent`: Whether the cookie should be permanent
+///
+/// # Returns
+/// A configured `Cookie` object.
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!crate::dev())
@@ -129,16 +201,35 @@ pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static>
 }
 
 /// Create a cookie for removal (expiration).
+///
+/// # Parameters
+/// - `name`: Name of the cookie to remove
+///
+/// # Returns
+/// A `Cookie` object configured for removal.
 pub fn removal_cookie(name: &str) -> Cookie<'static> {
     Cookie::build(name.to_owned()).path("/").build()
 }
 
 /// Add a notice cookie for flash messages.
+///
+/// # Parameters
+/// - `jar`: The current `CookieJar`
+/// - `notice`: The notice message to add
+///
+/// # Returns
+/// The updated `CookieJar` with the notice cookie added.
 pub fn add_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
     jar.add(build_cookie(NOTICE_COOKIE, notice, false))
 }
 
 /// Remove the notice cookie and extract its value.
+///
+/// # Parameters
+/// - `jar`: The current `CookieJar`
+///
+/// # Returns
+/// A tuple of the updated `CookieJar` and the notice value (if present).
 pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
@@ -152,6 +243,14 @@ pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
 }
 
 /// Add the account token cookie for authentication.
+///
+/// # Parameters
+/// - `jar`: The current `CookieJar`
+/// - `account`: The user's account
+/// - `credentials`: The user's credentials
+///
+/// # Returns
+/// The updated `CookieJar` with the account cookie added.
 pub fn add_account_cookie(
     jar: CookieJar,
     account: &Account,
@@ -166,6 +265,12 @@ pub fn add_account_cookie(
 }
 
 /// Remove the account cookie for logout.
+///
+/// # Parameters
+/// - `jar`: The current `CookieJar`
+///
+/// # Returns
+/// The updated `CookieJar` with the account cookie removed.
 pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
 }
@@ -176,6 +281,15 @@ pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
 
 /// Initialize a user session from cookies or create a new session.
 /// Handles authentication, CSRF protection, and timezone settings.
+///
+/// # Parameters
+/// - `jar`: The current `CookieJar`
+/// - `tx`: Database connection (mutable reference)
+/// - `method`: HTTP method of the request
+/// - `csrf_token`: Optional CSRF token for validation
+///
+/// # Returns
+/// Result containing a tuple of the `User` and updated `CookieJar`, or a `Response` on error.
 pub async fn init_user(
     mut jar: CookieJar,
     tx: &mut PgConnection,
@@ -238,6 +352,10 @@ pub async fn init_user(
 }
 
 /// Set the PostgreSQL session time zone to match the user preference.
+///
+/// # Parameters
+/// - `tx`: Database connection (mutable reference)
+/// - `time_zone`: The user's preferred time zone string
 pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
@@ -250,6 +368,14 @@ pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
 //==================================================================================================
 
 /// Retrieve a post and validate access permissions.
+///
+/// # Parameters
+/// - `tx`: Database connection (mutable reference)
+/// - `key`: Unique key of the post
+/// - `user`: The current user
+///
+/// # Returns
+/// Result containing the `Post` if accessible, or a `Response` on error.
 pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<Post, Response> {
     use PostStatus::*;
     match Post::select_by_key(tx, key).await {
@@ -271,6 +397,14 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
 //==================================================================================================
 
 /// Render a template with the given context.
+///
+/// # Parameters
+/// - `state`: Application state
+/// - `name`: Name of the template to render
+/// - `ctx`: Context data for the template
+///
+/// # Returns
+/// Rendered template as a `String`.
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
     if crate::dev() {
         let mut env = state.jinja.write().expect("gets write lock");
@@ -293,6 +427,12 @@ pub struct UserAgent {
 }
 
 /// Analyze the User-Agent header to extract browser information.
+///
+/// # Parameters
+/// - `headers`: HTTP headers containing the User-Agent
+///
+/// # Returns
+/// An optional `UserAgent` struct with browser info.
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
     let user_agent_str = match headers.get(USER_AGENT) {
@@ -309,6 +449,12 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 }
 
 /// Returns a UTC timestamp string formatted as "YYYY-MM-DD-HH".
+///
+/// # Parameters
+/// - `tx`: Database connection (mutable reference)
+///
+/// # Returns
+/// A UTC timestamp string for the current hour.
 pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
     sqlx::query_scalar::<_, String>("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(crate::POSTGRES_UTC_HOUR)

@@ -47,11 +47,11 @@ type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 /// Configures the application router with all available routes and middleware.
 ///
 /// # Parameters
-/// - `state`: Application state accessible to all handlers.
-/// - `trace`: Whether to enable request/response tracing for debugging.
+/// - `state`: Application state accessible to all handlers
+/// - `trace`: Whether to enable request/response tracing for debugging
 ///
 /// # Returns
-/// Configured router ready to serve requests.
+/// Configured `axum::Router` ready to serve requests.
 pub fn router(state: AppState, trace: bool) -> axum::Router {
     use axum::routing::{get, post};
 

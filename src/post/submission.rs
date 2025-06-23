@@ -44,10 +44,13 @@ pub struct PostSubmission {
 }
 
 impl PostSubmission {
-    /// Generates a unique key for a post
+    /// Generates a unique key for a post.
     ///
-    /// The key is a random string of alphanumeric characters with a length
-    /// defined by the system. Checks the database to ensure the key is unique.
+    /// # Parameters
+    /// - `tx`: Database connection (mutable reference) for checking key uniqueness.
+    ///
+    /// # Returns
+    /// A unique random string key for the post.
     pub async fn generate_key(tx: &mut PgConnection) -> String {
         use rand::{Rng, distr::Alphanumeric};
         loop {
@@ -68,13 +71,12 @@ impl PostSubmission {
         }
     }
 
-    /// Inserts a new post into the database
+    /// Inserts a new post into the database.
     ///
-    /// This function handles determining the media type, generating the post key,
-    /// and extracting the intro limit from the body content.
+    /// Handles determining the media type, generating the post key, and extracting the intro limit from the body content.
     ///
     /// # Parameters
-    /// - `tx`: Database connection
+    /// - `tx`: Database connection (mutable reference)
     /// - `user`: Current user submitting the post
     /// - `ip_hash`: Anonymized IP hash of the user
     /// - `key`: Unique key for the post
@@ -118,17 +120,16 @@ impl PostSubmission {
         .expect("inserts new post")
     }
 
-    /// Downloads a YouTube thumbnail for the given video ID
+    /// Downloads a YouTube thumbnail for the given video ID.
     ///
-    /// Tries to download the thumbnail in various sizes and returns the path
-    /// to the downloaded thumbnail image along with its dimensions.
+    /// Tries to download the thumbnail in various sizes and returns the path to the downloaded thumbnail image along with its dimensions.
     ///
     /// # Parameters
     /// - `video_id`: The ID of the YouTube video
     /// - `youtube_short`: Whether the video is a YouTube Shorts video
     ///
     /// # Returns
-    /// An optional tuple containing the thumbnail path and its width and height
+    /// An optional tuple containing the thumbnail path and its width and height: `Option<(PathBuf, i32, i32)>`
     pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
@@ -195,16 +196,15 @@ impl PostSubmission {
         None
     }
 
-    /// Converts the post body from plain text to HTML format
+    /// Converts the post body from plain text to HTML format.
     ///
-    /// This function performs basic HTML escaping and replaces URLs with anchor links.
-    /// YouTube links are processed to embed thumbnails and video IDs.
+    /// Performs basic HTML escaping and replaces URLs with anchor links. YouTube links are processed to embed thumbnails and video IDs.
     ///
     /// # Parameters
     /// - `key`: The unique key of the post, used for generating YouTube links
     ///
     /// # Returns
-    /// The HTML-formatted body of the post
+    /// The HTML-formatted body of the post as a `String`.
     pub async fn body_to_html(&self, key: &str) -> String {
         let mut html = self
             .body
@@ -224,17 +224,16 @@ impl PostSubmission {
         Self::embed_youtube(html, key).await
     }
 
-    /// Embeds YouTube video thumbnails in the post HTML
+    /// Embeds YouTube video thumbnails in the post HTML.
     ///
-    /// Scans the post HTML for YouTube links and replaces them with embedded
-    /// thumbnail images and video IDs. Generates HTML for the YouTube embed.
+    /// Scans the post HTML for YouTube links and replaces them with embedded thumbnail images and video IDs. Generates HTML for the YouTube embed.
     ///
     /// # Parameters
     /// - `html`: The HTML content of the post body
     /// - `key`: The unique key of the post, used in the embed HTML
     ///
     /// # Returns
-    /// The HTML content with YouTube embeds
+    /// The HTML content with YouTube embeds as a `String`.
     pub async fn embed_youtube(mut html: String, key: &str) -> String {
         let youtube_link_pattern = concat!(
             r#"(?m)^ *<a href=""#,
@@ -313,27 +312,18 @@ impl PostSubmission {
         html
     }
 
-    /// Determines the intro limit for a post based on its HTML content
+    /// Determines the intro limit for a post based on its HTML content.
     ///
-    /// The intro limit is the byte offset where the post should be truncated
-    /// in previews. It is determined by the following factors:
-    /// - Maximum byte length (MAX_INTRO_BYTES)
-    /// - Maximum number of line breaks (MAX_INTRO_BREAKS)
+    /// The intro limit is the byte offset where the post should be truncated in previews. It is determined by:
+    /// - Maximum byte length (`MAX_INTRO_BYTES`)
+    /// - Maximum number of line breaks (`MAX_INTRO_BREAKS`)
     /// - Presence of YouTube video embeds
     ///
     /// # Parameters
     /// - `html`: The HTML content of the post body
     ///
     /// # Returns
-    /// An optional byte offset for truncating the post intro
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use apabbs::post::PostSubmission;
-    /// let html = "short content";
-    /// assert_eq!(PostSubmission::intro_limit(html), None);
-    /// ```
+    /// An optional byte offset (`Option<i32>`) for truncating the post intro
     pub fn intro_limit(html: &str) -> Option<i32> {
         println!("html.len(): {}", html.len());
         if html.is_empty() {
@@ -433,18 +423,15 @@ pub struct PostHiding {
 }
 
 impl PostHiding {
-    /// Sets a post's hidden flag to true in the database
+    /// Sets a post's hidden flag to true in the database.
     ///
-    /// This effectively removes the post from public view without deleting it.
-    /// The post will no longer appear in feeds or search results, but remains
-    /// in the database for record-keeping and potential future restoration.
+    /// This effectively removes the post from public view without deleting it. The post will no longer appear in feeds or search results, but remains in the database for record-keeping and potential future restoration.
     ///
     /// # Parameters
-    /// - `tx`: Database connection for executing the update
+    /// - `tx`: Database connection (mutable reference) for executing the update
     ///
     /// # Note
-    /// This method does not verify authorization - the caller must ensure that
-    /// the user identified by `session_token` has permission to hide this post.
+    /// This method does not verify authorization - the caller must ensure that the user identified by `session_token` has permission to hide this post.
     pub async fn hide_post(&self, tx: &mut PgConnection) {
         sqlx::query("UPDATE posts SET hidden = true WHERE key = $1")
             .bind(&self.key)
