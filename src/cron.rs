@@ -1,15 +1,16 @@
-//! Scheduled job management for recurring system tasks.
+//! Background job scheduling and automated maintenance tasks.
 //!
-//! Provides functionality for setting up and managing scheduled background tasks
-//! that run at specific intervals. Handles maintenance operations like database cleanup,
-//! privacy protection, and content management tasks.
+//! This module sets up and manages recurring background jobs using cron-like schedules.
+//! It handles automated maintenance such as database cleanup (e.g., scrubbing old IP hashes for privacy)
+//! and periodic content management (e.g., generating application screenshots for status pages).
 //!
 //! # Key Functions
-//! - [`init`]: Sets up and starts the job scheduler system
-//! - [`scrub_ips`]: Creates a job to remove old IP data for privacy
+//! - [`init`]: Initializes and starts the job scheduler system.
+//! - [`scrub_ips`]: Schedules a daily job to remove old IP data for privacy protection.
+//! - [`generate_screenshot`]: Schedules an hourly job to capture a screenshot of the application.
 //!
-//! # Cron Schedule Format
-//! Uses the standard cron format for scheduling jobs:
+//! # Scheduling Format
+//! Uses standard cron syntax for job timing:
 //!
 //! ```text
 //! ┌──────────────── second (0 - 59)
@@ -23,7 +24,7 @@
 //! * * * * * *
 //! ```
 
-use apabbs::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban};
+use crate::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban};
 use tokio_cron_scheduler::Job;
 
 /// Initializes and starts the scheduled job system.
@@ -54,11 +55,11 @@ pub async fn init() {
 /// Creates a scheduled job that removes old IP hash data for privacy.
 ///
 /// Runs daily at 11:00 AM (0 0 11 * * *).
-fn scrub_ips() -> Job {
+pub fn scrub_ips() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
             // Connect to the database and start a transaction
-            let db = apabbs::db().await;
+            let db = crate::db().await;
             let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
             // Execute the IP scrubbing operation
@@ -77,17 +78,17 @@ fn scrub_ips() -> Job {
 ///
 /// Runs hourly at XX:55:00 (0 55 * * * *).
 /// Saves the screenshot to `pub/screenshot.webp`.
-fn generate_screenshot() -> Job {
+pub fn generate_screenshot() -> Job {
     Job::new_async("0 55 * * * *", |_uuid, _l| {
         Box::pin(async move {
             use std::path::Path;
             use std::process::Command;
 
             // Determine the URL to screenshot
-            let url = if apabbs::dev() {
+            let url = if crate::dev() {
                 String::from("http://localhost")
             } else {
-                format!("https://{}", apabbs::host())
+                format!("https://{}", crate::host())
             };
 
             // Ensure the output directory exists

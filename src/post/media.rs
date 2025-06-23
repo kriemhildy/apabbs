@@ -1,85 +1,95 @@
+//! Media file management and processing for posts.
+//!
+//! Handles encryption, decryption, thumbnail and poster generation, compatibility conversion,
+//! and file system operations for post media. Provides helpers for MIME type detection,
+//! path construction, and media processing workflows. All error messages and panics are
+//! descriptive and actionable for maintainability.
+
 use super::submission::PostSubmission;
 use super::{MediaCategory, Post, PostReview};
 use regex::Regex;
 use sqlx::PgConnection;
 use std::path::{Path, PathBuf};
 
-/// File system directories
-pub const UPLOADS_DIR: &str = "uploads"; // Encrypted storage
-pub const MEDIA_DIR: &str = "pub/media"; // Published media
+/// Directory name for encrypted (at-rest) media file storage.
+pub const UPLOADS_DIR: &str = "uploads";
 
-/// Content limits
-const MAX_THUMB_WIDTH: i32 = 1280; // Maximum width for thumbnails
-const MAX_THUMB_HEIGHT: i32 = 2160; // Maximum height for thumbnails
+/// Directory name for published (decrypted) media files accessible to users.
+pub const MEDIA_DIR: &str = "pub/media";
 
-/// MIME types
+/// Maximum allowed width (in pixels) for generated thumbnails.
+pub const MAX_THUMB_WIDTH: i32 = 1280;
+/// Maximum allowed height (in pixels) for generated thumbnails.
+pub const MAX_THUMB_HEIGHT: i32 = 2160;
+
+/// Default MIME type for unknown or binary file types.
 const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
-/// Error messages
-const ERR_THUMBNAIL_FAILED: &str = "Thumbnail not created successfully";
+/// Error message used when thumbnail generation fails.
+const ERR_THUMBNAIL_FAILED: &str = "Thumbnail was not created successfully";
 
 impl Post {
-    /// Returns the path where an encrypted media file is stored
+    /// Returns the path where an encrypted media file is stored.
     ///
+    /// # Panics
     /// Panics if the post has no associated media file.
     pub fn encrypted_media_path(&self) -> PathBuf {
         if self.media_filename.is_none() {
-            panic!("Attempted to get encrypted_media_path for post without media");
+            panic!("Cannot get encrypted_media_path: post has no media file");
         }
-
         let encrypted_filename = format!("{}.gpg", self.media_filename.as_ref().unwrap());
         std::path::Path::new(UPLOADS_DIR)
             .join(&self.key)
             .join(encrypted_filename)
     }
 
-    /// Returns the path where published media is stored after processing
+    /// Returns the path where published media is stored after processing.
     ///
+    /// # Panics
     /// Panics if the post has no associated media file.
     pub fn published_media_path(&self) -> PathBuf {
         if self.media_filename.is_none() {
-            panic!("Attempted to get published_media_path for post without media");
+            panic!("Cannot get published_media_path: post has no media file");
         }
-
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
             .join(self.media_filename.as_ref().unwrap())
     }
 
-    /// Returns the path where a thumbnail is stored after processing
+    /// Returns the path where a thumbnail is stored after processing.
     ///
+    /// # Panics
     /// Panics if the post has no associated thumbnail.
     pub fn thumbnail_path(&self) -> PathBuf {
         if self.thumb_filename.is_none() {
-            panic!("Attempted to get thumbnail_path for post without thumbnail");
+            panic!("Cannot get thumbnail_path: post has no thumbnail");
         }
-
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
             .join(self.thumb_filename.as_ref().unwrap())
     }
 
-    /// Encrypts the provided bytes using GPG with the application's key
+    /// Encrypts the provided bytes using GPG with the application's key.
     ///
-    /// This function creates necessary directories, runs GPG to encrypt data,
-    /// and handles cleanup in case of errors.
+    /// Creates necessary directories, runs GPG to encrypt data, and handles cleanup on error.
     ///
-    /// Returns:
+    /// # Returns
     /// - Ok(()) if encryption succeeded
     /// - Err with a message if encryption failed
     async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
         let encrypted_media_path = self.encrypted_media_path();
-        let encrypted_media_path_str = encrypted_media_path.to_str().unwrap().to_owned();
-
-        // Ensure parent directory exists
-        let parent_dir = encrypted_media_path.parent().unwrap();
+        let encrypted_media_path_str = encrypted_media_path
+            .to_str()
+            .expect("Path to str conversion failed")
+            .to_owned();
+        let parent_dir = encrypted_media_path
+            .parent()
+            .expect("Encrypted media path has no parent");
         if !parent_dir.exists() {
             tokio::fs::create_dir_all(parent_dir)
                 .await
                 .map_err(|_| "Failed to create directory for encrypted media")?;
         }
-
-        // Run GPG encrypt in a separate thread to avoid blocking the async runtime
         let success = tokio::task::spawn_blocking(move || {
             let mut child = std::process::Command::new("gpg")
                 .args([
@@ -92,19 +102,16 @@ impl Post {
                 .arg(&encrypted_media_path_str)
                 .stdin(std::process::Stdio::piped())
                 .spawn()
-                .expect("spawn gpg to encrypt media file");
-
-            // Write data to stdin
+                .expect("Failed to spawn gpg for media encryption");
             if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes).expect("write data to stdin");
+                std::io::Write::write_all(&mut stdin, &bytes)
+                    .expect("Failed to write data to gpg stdin");
             }
-
-            let child_status = child.wait().expect("wait for gpg to finish");
+            let child_status = child.wait().expect("Failed to wait for gpg process");
             child_status.success()
         })
         .await
-        .expect("encrypt task completed");
-
+        .expect("GPG encryption task did not complete");
         if success {
             println!(
                 "File encrypted successfully: {}",
@@ -116,64 +123,55 @@ impl Post {
         }
     }
 
-    /// Re-encrypts a media file that has already been published
+    /// Re-encrypts a media file that has already been published.
     ///
-    /// This is used when media needs to be moved back from published to reported state.
+    /// Used when media needs to be moved back from published to reported state.
     pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
         let encrypted_file_path = self.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
-
-        // Create the directory for encrypted content
+        let uploads_key_dir = encrypted_file_path
+            .parent()
+            .expect("Encrypted file path has no parent");
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .expect("create uploads key dir");
-
-        // Read the published media file
+            .expect("Failed to create uploads key dir");
         let media_file_path = self.published_media_path();
         let media_bytes = tokio::fs::read(&media_file_path)
             .await
-            .expect("read media file");
-
-        // Try to encrypt the file
+            .expect("Failed to read published media file");
         let result = self.gpg_encrypt(media_bytes).await;
-
         match result {
-            // If encryption succeeded, clean up the published media
             Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
-            // If encryption failed, clean up the temp directory
             Err(msg) => {
                 tokio::fs::remove_dir(uploads_key_dir)
                     .await
-                    .expect("remove uploads key dir");
+                    .expect("Failed to remove uploads key dir after failed re-encryption");
                 eprintln!("Re-encryption failed: {}", msg);
             }
         }
-
         result
     }
 
-    /// Decrypts the post's media file using GPG
+    /// Decrypts the post's media file using GPG.
     ///
-    /// Returns the decrypted file content as bytes.
-    /// This operation is CPU-intensive and runs in a separate thread.
+    /// Returns the decrypted file content as bytes. This operation is CPU-intensive and runs in a separate thread.
     pub async fn decrypt_media_file(&self) -> Vec<u8> {
         if self.media_filename.is_none() {
-            panic!("No media bytes available");
+            panic!("Cannot decrypt media: post has no media file");
         }
-
-        let encrypted_file_path = self.encrypted_media_path().to_str().unwrap().to_owned();
-
-        // Run GPG decrypt in a separate thread
+        let encrypted_file_path = self
+            .encrypted_media_path()
+            .to_str()
+            .expect("Path to str conversion failed")
+            .to_owned();
         let output = tokio::task::spawn_blocking(move || {
             std::process::Command::new("gpg")
                 .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
                 .arg(&encrypted_file_path)
                 .output()
-                .expect("decrypt media file")
+                .expect("Failed to decrypt media file")
         })
         .await
-        .expect("decrypt task completed");
-
+        .expect("GPG decryption task did not complete");
         println!("Media file decrypted successfully");
         output.stdout
     }

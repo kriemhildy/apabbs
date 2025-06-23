@@ -43,7 +43,7 @@ pub async fn index(
     let mut posts = Post::select(&mut tx, &user, page_post_id, false).await;
 
     // Check if there's a next page by seeing if we got more posts than our page size
-    let prior_page_post = if posts.len() <= apabbs::per_page() {
+    let prior_page_post = if posts.len() <= crate::per_page() {
         None
     } else {
         posts.pop()
@@ -57,8 +57,8 @@ pub async fn index(
         &state,
         "index.jinja",
         minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
+            dev => crate::dev(),
+            host => crate::host(),
             user_agent => analyze_user_agent(&headers),
             nav => true,
             user,
@@ -102,8 +102,8 @@ pub async fn solo_post(
         &state,
         "solo.jinja",
         minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
+            dev => crate::dev(),
+            host => crate::host(),
             user_agent => analyze_user_agent(&headers),
             user,
             post,

@@ -37,8 +37,8 @@ pub async fn user_profile(
         &state,
         "profile.jinja",
         minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
+            dev => crate::dev(),
+            host => crate::host(),
             user_agent => analyze_user_agent(&headers),
             user,
             account,
@@ -82,8 +82,8 @@ pub async fn settings(
         &state,
         "settings.jinja",
         minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
+            dev => crate::dev(),
+            host => crate::host(),
             user_agent => analyze_user_agent(&headers),
             user,
             time_zones,

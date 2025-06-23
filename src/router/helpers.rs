@@ -7,13 +7,16 @@ use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::PgConnection;
 
-// HTTP header constants
+/// HTTP header name for the client's real IP address (set by reverse proxy).
 pub const X_REAL_IP: &str = "X-Real-IP";
+/// HTTP header name for fetch mode (used to detect AJAX/fetch requests).
 pub const SEC_FETCH_MODE: &str = "Sec-Fetch-Mode";
 
-// Cookie name constants
+/// Cookie name for the user's account authentication token.
 pub const ACCOUNT_COOKIE: &str = "account";
+/// Cookie name for the user's session token.
 pub const SESSION_COOKIE: &str = "session";
+/// Cookie name for flash notice messages.
 pub const NOTICE_COOKIE: &str = "notice";
 
 //==================================================================================================
@@ -78,7 +81,7 @@ pub fn ip_hash(headers: &HeaderMap) -> String {
         .expect("Missing X-Real-IP header")
         .to_str()
         .expect("X-Real-IP header is not valid UTF-8");
-    sha256::digest(apabbs::secret_key() + ip)
+    sha256::digest(crate::secret_key() + ip)
 }
 
 /// Determine if a request is an AJAX/Fetch request (not navigation).
@@ -117,7 +120,7 @@ pub async fn check_for_ban(
 /// Create a cookie with secure, HTTP-only, and SameSite settings.
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
-        .secure(!apabbs::dev())
+        .secure(!crate::dev())
         .http_only(true)
         .path("/")
         .same_site(SameSite::Lax)
@@ -272,7 +275,7 @@ pub async fn init_post(tx: &mut PgConnection, key: &str, user: &User) -> Result<
 
 /// Render a template with the given context.
 pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
-    if apabbs::dev() {
+    if crate::dev() {
         let mut env = state
             .jinja
             .write()
@@ -319,7 +322,7 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 /// Returns a UTC timestamp string formatted as "YYYY-MM-DD-HH".
 pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
     sqlx::query_scalar::<_, String>("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
-        .bind(apabbs::POSTGRES_UTC_HOUR)
+        .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
         .expect("Failed to fetch UTC timestamp from database")

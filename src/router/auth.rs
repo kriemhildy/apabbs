@@ -27,8 +27,8 @@ pub async fn login_form(
         &state,
         "login.jinja",
         minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
+            dev => crate::dev(),
+            host => crate::host(),
             user_agent => analyze_user_agent(&headers),
             user,
         ),
@@ -92,8 +92,8 @@ pub async fn registration_form(
         &state,
         "register.jinja",
         minijinja::context!(
-            dev => apabbs::dev(),
-            host => apabbs::host(),
+            dev => crate::dev(),
+            host => crate::host(),
             user_agent => analyze_user_agent(&headers),
             user,
         ),

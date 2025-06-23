@@ -43,7 +43,7 @@ const TEST_MEDIA_DIR: &str = "tests/media";
 /// # Panics
 /// Panics if not running in development mode
 async fn init_test() -> (Router, AppState) {
-    if !apabbs::dev() {
+    if !crate::dev() {
         panic!("not in dev mode");
     }
     let state = crate::app_state().await;
@@ -87,7 +87,7 @@ fn test_user(account: Option<Account>) -> User {
 /// # Returns
 /// A secure hash of the local IP address for testing
 fn local_ip_hash() -> String {
-    sha256::digest(apabbs::secret_key() + LOCAL_IP)
+    sha256::digest(crate::secret_key() + LOCAL_IP)
 }
 
 /// Generates a hash for the ban testing IP address.
@@ -95,7 +95,7 @@ fn local_ip_hash() -> String {
 /// # Returns
 /// A secure hash of the ban testing IP address
 fn ban_ip_hash() -> String {
-    sha256::digest(apabbs::secret_key() + BAN_IP)
+    sha256::digest(crate::secret_key() + BAN_IP)
 }
 
 /// Creates a test account with the specified role.
@@ -333,7 +333,7 @@ async fn index() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
     assert!(body_str.contains(r#"<div id="posts">"#));
-    assert!(body_str.contains(&apabbs::host()));
+    assert!(body_str.contains(&crate::host()));
 }
 
 /// Tests viewing a single post page.
@@ -951,7 +951,7 @@ async fn settings() {
 /// Tests updating the user's time zone setting.
 #[tokio::test]
 async fn update_time_zone() {
-    use apabbs::user::TimeZoneUpdate;
+    use crate::user::TimeZoneUpdate;
 
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);

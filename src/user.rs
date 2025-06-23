@@ -16,7 +16,7 @@ use sqlx::PgConnection;
 use uuid::Uuid;
 
 /// The number of iterations used for Blowfish password hashing.
-const BLOWFISH_ITERATIONS: i32 = 10;
+pub const BLOWFISH_ITERATIONS: i32 = 10;
 
 /// Role-based access control for user accounts.
 ///
