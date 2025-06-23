@@ -13,7 +13,7 @@ mod profile;
 mod tests;
 
 use crate::AppState;
-use apabbs::{BEGIN, COMMIT, ban, post::*, user::*};
+use apabbs::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban, post::*, user::*};
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
     http::{

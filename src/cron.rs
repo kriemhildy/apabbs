@@ -26,7 +26,7 @@
 //! * * * * * *
 //! ```
 
-use apabbs::{BEGIN, COMMIT, ban};
+use apabbs::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR, ban};
 use tokio_cron_scheduler::Job;
 
 /// Initializes and starts the scheduled job system
@@ -68,13 +68,13 @@ fn scrub_ips() -> Job {
         Box::pin(async move {
             // Connect to the database and start a transaction
             let db = apabbs::db().await;
-            let mut tx = db.begin().await.expect(BEGIN);
+            let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
             // Execute the IP scrubbing operation
             ban::scrub(&mut tx).await;
 
             // Commit the transaction
-            tx.commit().await.expect(COMMIT);
+            tx.commit().await.expect(COMMIT_FAILED_ERR);
 
             println!("old IP hashes scrubbed");
         })

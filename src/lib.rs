@@ -10,10 +10,10 @@ pub mod user;
 use sqlx::PgPool;
 
 /// Transaction beginning statement for database operations
-pub const BEGIN: &str = "begin transaction";
+pub const BEGIN_FAILED_ERR: &str = "Failed to begin database transaction";
 
 /// Transaction commit statement for database operations
-pub const COMMIT: &str = "commit transaction";
+pub const COMMIT_FAILED_ERR: &str = "Failed to commit database transaction";
 
 /// Format string for RFC5322-compliant datetime display in PostgreSQL
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";

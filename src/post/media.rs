@@ -1,8 +1,8 @@
 use super::submission::PostSubmission;
 use super::{MediaCategory, Post, PostReview};
 use regex::Regex;
-use std::path::PathBuf;
 use sqlx::PgConnection;
+use std::path::PathBuf;
 
 /// File system directories
 pub const UPLOADS_DIR: &str = "uploads"; // Encrypted storage

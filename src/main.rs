@@ -119,7 +119,8 @@ async fn main() {
     let router = router::router(state, true);
 
     // Get server port from environment or use default
-    let port = std::env::var("PORT").ok()
+    let port = std::env::var("PORT")
+        .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(7878);
 

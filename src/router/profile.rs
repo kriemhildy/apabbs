@@ -10,7 +10,7 @@ pub async fn user_profile(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
+    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -53,7 +53,7 @@ pub async fn settings(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
+    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, None).await {
@@ -98,7 +98,7 @@ pub async fn update_time_zone(
     jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
+    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Initialize user from session
     let (user, jar) =
@@ -121,7 +121,7 @@ pub async fn update_time_zone(
 
     // Update time zone preference
     time_zone_update.update(&mut tx, account.id).await;
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Time zone updated.");
@@ -139,7 +139,7 @@ pub async fn update_password(
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Response {
-    let mut tx = state.db.begin().await.expect(BEGIN);
+    let mut tx = state.db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Initialize user from session
     let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
@@ -165,7 +165,7 @@ pub async fn update_password(
 
     // Update password
     credentials.update_password(&mut tx).await;
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Password updated.");

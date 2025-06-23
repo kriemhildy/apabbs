@@ -3,7 +3,7 @@
 //! This module provides functionality to run database migrations sequentially,
 //! tracking which ones have already been applied in a `_rust_migrations` table.
 
-use apabbs::{BEGIN, COMMIT};
+use apabbs::{BEGIN_FAILED_ERR, COMMIT_FAILED_ERR};
 use sqlx::PgPool;
 use std::future::Future;
 use std::pin::Pin;
@@ -76,7 +76,7 @@ async fn main() {
 /// Recalculates the intro_limit field for all posts that have it set.
 async fn update_intro_limit(db: PgPool) {
     use apabbs::post::{Post, PostSubmission};
-    let mut tx = db.begin().await.expect(BEGIN);
+    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
@@ -90,7 +90,7 @@ async fn update_intro_limit(db: PgPool) {
             .await
             .expect("update post intro limit");
     }
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
 /// Downloads YouTube thumbnails for posts containing YouTube links.
@@ -102,7 +102,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
     use std::thread;
     use tokio::time::Duration;
 
-    let mut tx = db.begin().await.expect(BEGIN);
+    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Extract all YouTube video IDs from posts with YouTube embeds
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
@@ -192,7 +192,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
         thread::sleep(Duration::from_secs(1));
     }
 
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
 /// Migrates from UUID-based media paths to key-based paths.
@@ -201,7 +201,7 @@ async fn download_youtube_thumbnails(db: PgPool) {
 /// and removes the now unused UUID column.
 async fn uuid_to_key(db: PgPool) {
     use uuid::Uuid;
-    let mut tx = db.begin().await.expect(BEGIN);
+    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Check if the UUID column exists before proceeding
     let exists: bool = sqlx::query_scalar(concat!(
@@ -253,7 +253,7 @@ async fn uuid_to_key(db: PgPool) {
         .await
         .expect("drop uuid column");
 
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
 /// Generates thumbnails for image posts.
@@ -262,7 +262,7 @@ async fn uuid_to_key(db: PgPool) {
 /// updates the database with the thumbnail paths and dimensions.
 async fn generate_image_thumbnails(db: PgPool) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect(BEGIN);
+    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -303,7 +303,7 @@ async fn generate_image_thumbnails(db: PgPool) {
             .await;
     }
 
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
 /// Adds width and height information to image posts.
@@ -312,7 +312,7 @@ async fn generate_image_thumbnails(db: PgPool) {
 /// and their thumbnails.
 async fn add_image_dimensions(db: PgPool) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect(BEGIN);
+    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -345,7 +345,7 @@ async fn add_image_dimensions(db: PgPool) {
         }
     }
 
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
 }
 
 /// Process videos
@@ -353,7 +353,7 @@ async fn add_image_dimensions(db: PgPool) {
 /// Create posters, thumbnails, compatibility videos, and add dimensions.
 async fn process_videos(db: PgPool) {
     use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
-    let mut tx = db.begin().await.expect(BEGIN);
+    let mut tx = db.begin().await.expect(BEGIN_FAILED_ERR);
 
     // Get all video posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -396,6 +396,6 @@ async fn process_videos(db: PgPool) {
         println!("Completed processing post {}", post.key);
     }
 
-    tx.commit().await.expect(COMMIT);
+    tx.commit().await.expect(COMMIT_FAILED_ERR);
     println!("All video processing complete");
 }

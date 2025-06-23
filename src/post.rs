@@ -14,9 +14,9 @@
 
 // TODO: split this into smaller files
 
+pub mod media;
 pub mod review;
 pub mod submission;
-pub mod media;
 
 use crate::{
     POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME,
