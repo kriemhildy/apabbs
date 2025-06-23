@@ -28,10 +28,7 @@ pub async fn user_profile(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Find account by username
     let account = match Account::select_by_username(&mut tx, &username).await {
@@ -80,10 +77,7 @@ pub async fn settings(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -134,11 +128,7 @@ pub async fn update_time_zone(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) =
-        match init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await {
-            Err(response) => return Ok(response),
-            Ok(tuple) => tuple,
-        };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await?;
 
     // Verify user is logged in
     let account = match user.account {
@@ -188,10 +178,7 @@ pub async fn update_password(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
 
     // Verify user is logged in as the correct user
     match user.account {

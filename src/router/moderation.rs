@@ -35,10 +35,7 @@ pub async fn review_post(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_review.session_token)).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_review.session_token)).await?;
 
     // Verify user has moderator privileges
     let account = match user.account {
@@ -281,10 +278,7 @@ pub async fn decrypt_media(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Verify user has required privileges
     if !user.mod_or_admin() {

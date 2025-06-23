@@ -185,7 +185,7 @@ pub async fn init_user(
     tx: &mut PgConnection,
     method: Method,
     csrf_token: Option<Uuid>,
-) -> Result<(User, CookieJar), Response> {
+) -> Result<(User, CookieJar), ResponseError> {
     let account = match jar.get(ACCOUNT_COOKIE) {
         None => None,
         Some(cookie) => {
@@ -221,12 +221,14 @@ pub async fn init_user(
         Some(token) => token,
     };
     if method != Method::GET && csrf_token.is_none() {
-        return Err(unauthorized("CSRF token is required for this request"));
+        return Err(Unauthorized(
+            "CSRF token required for non-GET requests".to_owned(),
+        ));
     }
     if let Some(csrf_token) = csrf_token {
         if session_token != csrf_token {
-            return Err(unauthorized(
-                "CSRF token mismatch: possible forgery attempt",
+            return Err(Unauthorized(
+                "CSRF token mismatch: possible forgery attempt".to_owned(),
             ));
         }
     }

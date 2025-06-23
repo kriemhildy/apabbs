@@ -28,10 +28,7 @@ pub async fn login_form(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Render the login form
     let html = Html(render(
@@ -69,11 +66,7 @@ pub async fn authenticate(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
-    {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await {
@@ -111,10 +104,7 @@ pub async fn registration_form(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Render the registration form
     let html = Html(render(
@@ -154,11 +144,7 @@ pub async fn create_account(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (_user, jar) = match init_user(jar, &mut tx, method, Some(credentials.session_token)).await
-    {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await {
@@ -216,10 +202,7 @@ pub async fn logout(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -254,10 +237,7 @@ pub async fn reset_account_token(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(logout.session_token)).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await?;
 
     // Verify user is logged in and reset token
     let jar = match user.account {

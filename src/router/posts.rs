@@ -33,10 +33,7 @@ pub async fn index(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Handle pagination parameter if present
     let page_post = match path.get("key") {
@@ -102,10 +99,7 @@ pub async fn solo_post(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Get the requested post
     let post = init_post(&mut tx, &key, &user).await?;
@@ -206,11 +200,7 @@ pub async fn submit_post(
     let ip_hash = ip_hash(&headers);
 
     // Initialize user from session
-    let (user, jar) =
-        match init_user(jar, &mut tx, method, Some(post_submission.session_token)).await {
-            Err(response) => return Ok(response),
-            Ok(tuple) => tuple,
-        };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token)).await?;
 
     // Check if user is banned
     check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await?;
@@ -274,10 +264,7 @@ pub async fn hide_post(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await?;
 
     // Process post hiding if authorized and eligible
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await? {
@@ -370,10 +357,7 @@ pub async fn web_socket(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, _jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, _jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Subscribe to broadcast channel and upgrade connection
     let receiver = state.sender.subscribe();
@@ -401,10 +385,7 @@ pub async fn interim(
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
-    let (user, jar) = match init_user(jar, &mut tx, method, None).await {
-        Err(response) => return Ok(response),
-        Ok(tuple) => tuple,
-    };
+    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
 
     // Get the reference post
     let since_post = init_post(&mut tx, &key, &user).await?;
