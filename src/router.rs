@@ -92,28 +92,18 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         // File size limit for uploads
         .layer(DefaultBodyLimit::max(20_000_000)); // 20MB limit
 
-    // Apply tracing middleware if enabled
+    // Optionally add HTTP tracing middleware
     let router = if trace {
-        let trace_layer = {
-            use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
-            use tracing::Level;
+        use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+        use tracing::Level;
 
-            // Initialize tracing with debug level
-            tracing_subscriber::fmt()
-                .with_max_level(Level::DEBUG)
-                .try_init()
-                .expect("initialize tracing");
-
-            // Configure trace layer
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
-                .on_response(DefaultOnResponse::new().level(Level::DEBUG))
-        };
+        let trace_layer = TraceLayer::new_for_http()
+            .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
+            .on_response(DefaultOnResponse::new().level(Level::DEBUG));
         router.layer(trace_layer)
     } else {
         router
     };
 
-    // Attach application state
     router.with_state(state)
 }

@@ -93,41 +93,45 @@ async fn app_state() -> AppState {
 /// configures the HTTP server, and starts listening for requests.
 #[tokio::main]
 async fn main() {
-    // Load environment variables from .env file
+    // Load environment variables from .env file (fail fast if missing)
     if let Err(error) = dotenv::dotenv() {
         eprintln!("Error loading .env file: {}", error);
         std::process::exit(1);
     }
 
-    // Validate critical configuration
+    // Initialize global tracing subscriber for logging and diagnostics
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
+    // Ensure critical configuration is present
     if apabbs::secret_key().len() < 16 {
         panic!("SECRET_KEY env must be at least 16 chars");
     }
 
-    // Initialize background tasks and scheduled jobs
+    // Start background tasks and scheduled jobs
     cron::init().await;
 
-    // Initialize application state
+    // Build application state (DB, templates, broadcast channel)
     let state = app_state().await;
 
-    // Configure router with request handlers
+    // Build router with all routes and middleware
     let router = router::router(state, true);
 
-    // Determine server port from environment or use default
-    let port = match std::env::var("PORT") {
-        Ok(port) => port.parse().expect("parse PORT env"),
-        Err(_) => 7878,
-    };
+    // Get server port from environment or use default
+    let port = std::env::var("PORT").ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(7878);
 
-    // Bind server to network address
+    // Bind to network address
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
-        .expect(&format!("listen on port {port}"));
+        .unwrap_or_else(|_| panic!("Failed to bind to 0.0.0.0:{port}"));
 
     println!("Server listening on port {port}");
 
     // Start HTTP server
     axum::serve(listener, router)
         .await
-        .expect("server terminated unexpectedly");
+        .expect("HTTP server encountered an error");
 }
