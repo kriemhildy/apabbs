@@ -5,7 +5,7 @@
 
 use super::auth::Logout;
 use super::*;
-use apabbs::{post::MediaCategory, user::AccountRole};
+use apabbs::{post::{PostSubmission, PostHiding, MediaCategory}, user::AccountRole};
 use axum::{
     Router,
     body::Body,
