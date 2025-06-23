@@ -42,7 +42,7 @@ const ROOT: &str = "/";
 ///
 /// Used for tasks that need to run asynchronously after a request completes,
 /// such as media processing operations.
-type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
+pub type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 /// Configures the application router with all available routes and middleware.
 ///
