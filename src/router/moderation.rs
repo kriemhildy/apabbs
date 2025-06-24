@@ -129,45 +129,6 @@ pub async fn review_post(
 
         // Handle media re-encryption
         Ok(ReencryptMedia) => {
-            async fn reencrypt_media_task(
-                state: AppState,
-                initial_post: Post,
-                post_review: PostReview,
-            ) {
-                let mut tx = state.db.begin().await.expect("begins");
-
-                // Attempt media re-encryption
-                if let Err(msg) = initial_post.reencrypt_media_file().await {
-                    eprintln!("Error re-encrypting media: {msg}");
-                    return;
-                }
-
-                // Update post status
-                initial_post
-                    .update_status(&mut tx, post_review.status)
-                    .await
-                    .expect("query succeeds");
-
-                // Get updated post
-                let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
-                    .await
-                    .expect("query succeeds")
-                {
-                    None => {
-                        eprintln!("Post does not exist after re-encrypting media");
-                        return;
-                    }
-                    Some(post) => post,
-                };
-
-                tx.commit().await.expect("commits");
-
-                // Notify clients
-                if state.sender.send(updated_post).is_err() {
-                    eprintln!("No active receivers to send to");
-                }
-            }
-
             Some(Box::pin(reencrypt_media_task(
                 state.clone(),
                 post.clone(),
@@ -350,5 +311,50 @@ pub async fn decrypt_media_task(
 
     if let Err(e) = result {
         eprintln!("Error in decrypt_media_task: {e}");
+    }
+}
+
+pub async fn reencrypt_media_task(
+    state: AppState,
+    initial_post: Post,
+    post_review: PostReview,
+) {
+    let result: Result<(), Box<dyn std::error::Error>> = async {
+        let mut tx = state.db.begin().await.map_err(|e| format!("Failed to begin database transaction: {e}"))?;
+
+        // Attempt media re-encryption
+        initial_post.reencrypt_media_file()
+            .await
+            .map_err(|e| format!("Failed to re-encrypt media: {e}"))?;
+
+        // Update post status
+        initial_post
+            .update_status(&mut tx, post_review.status)
+            .await
+            .map_err(|e| format!("Failed to update post status: {e}"))?;
+
+        // Get updated post
+        let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
+            .await
+            .map_err(|e| format!("Failed to select updated post by key: {e}"))?
+        {
+            None => {
+                eprintln!("Post does not exist after re-encrypting media");
+                return Ok(());
+            }
+            Some(post) => post,
+        };
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {e}"))?;
+
+        // Notify clients
+        if state.sender.send(updated_post).is_err() {
+            eprintln!("No active receivers to send to");
+        }
+        Ok(())
+    }.await;
+
+    if let Err(e) = result {
+        eprintln!("Error in reencrypt_media_task: {e}");
     }
 }
