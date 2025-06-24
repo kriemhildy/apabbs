@@ -272,9 +272,9 @@ impl PostSubmission {
                 None => break,
                 Some((path, width, height)) => (
                     path.to_str()
-                        .expect("converts path")
+                        .ok_or("Failed to convert thumbnail path to string")?
                         .strip_prefix("pub")
-                        .expect("strips pub")
+                        .ok_or("Failed to strip 'pub' prefix from thumbnail path")?
                         .to_owned(),
                     width,
                     height,
