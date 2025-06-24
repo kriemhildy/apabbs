@@ -5,6 +5,10 @@
 
 use super::*;
 
+// =========================
+// Profile Display Endpoints
+// =========================
+
 /// Displays a user's profile page.
 ///
 /// Shows information about a user and their public posts.
@@ -17,7 +21,7 @@ use super::*;
 /// - `headers`: HTTP headers for user agent analysis
 ///
 /// # Returns
-/// A `Response` containing the rendered user profile page.
+/// A `Response` containing the rendered user profile page, or an error if the user or posts cannot be found.
 pub async fn user_profile(
     method: Method,
     State(state): State<AppState>,
@@ -25,19 +29,31 @@ pub async fn user_profile(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        e
+    })?;
 
-    // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    // Initialize user from session (may be anonymous)
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
-    // Find account by username
-    let account = match Account::select_by_username(&mut tx, &username).await? {
+    // Find account by username (returns NotFound if user does not exist)
+    let account = match Account::select_by_username(&mut tx, &username).await.map_err(|e| {
+        tracing::error!("Failed to select account by username: {:?}", e);
+        e
+    })? {
         None => return Err(NotFound("User account does not exist".to_owned())),
         Some(account) => account,
     };
 
     // Get user's public posts
-    let posts = Post::select_by_author(&mut tx, account.id).await?;
+    let posts = Post::select_by_author(&mut tx, account.id).await.map_err(|e| {
+        tracing::error!("Failed to select posts by author: {:?}", e);
+        e
+    })?;
 
     // Render profile page
     let html = Html(render(
@@ -56,9 +72,13 @@ pub async fn user_profile(
     Ok((jar, html).into_response())
 }
 
+// =========================
+// Settings Display & Update
+// =========================
+
 /// Displays the user settings page.
 ///
-/// Shows options for account management and preferences.
+/// Shows options for account management and preferences. Requires the user to be logged in.
 ///
 /// # Parameters
 /// - `method`: HTTP method of the request
@@ -67,17 +87,23 @@ pub async fn user_profile(
 /// - `headers`: HTTP headers for user agent analysis
 ///
 /// # Returns
-/// A `Response` containing the rendered settings page.
+/// A `Response` containing the rendered settings page, or an error if the user is not logged in.
 pub async fn settings(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        e
+    })?;
 
-    // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    // Initialize user from session (must be logged in)
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -87,9 +113,12 @@ pub async fn settings(
     }
 
     // Get time zones for selection
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await.map_err(|e| {
+        tracing::error!("Failed to select time zones: {:?}", e);
+        e
+    })?;
 
-    // Check for notice messages
+    // Check for notice messages (e.g., after successful update)
     let (jar, notice) = remove_notice_cookie(jar);
 
     // Render settings page
@@ -109,9 +138,13 @@ pub async fn settings(
     Ok((jar, html).into_response())
 }
 
+// =========================
+// Settings Update Handlers
+// =========================
+
 /// Updates a user's time zone preference.
 ///
-/// Changes the time zone setting for a logged-in user after validation.
+/// Changes the time zone setting for a logged-in user after validation. Requires authentication and a valid time zone.
 ///
 /// # Parameters
 /// - `method`: HTTP method of the request
@@ -120,17 +153,23 @@ pub async fn settings(
 /// - `Form(time_zone_update)`: Form data containing the new time zone
 ///
 /// # Returns
-/// A `Response` redirecting to the settings page with a confirmation notice.
+/// A `Response` redirecting to the settings page with a confirmation notice, or an error if validation fails.
 pub async fn update_time_zone(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        e
+    })?;
 
-    // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await?;
+    // Initialize user from session (must be logged in)
+    let (user, jar) = init_user(jar, &mut tx, method, Some(time_zone_update.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in
     let account = match user.account {
@@ -143,7 +182,10 @@ pub async fn update_time_zone(
     };
 
     // Validate time zone
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await.map_err(|e| {
+        tracing::error!("Failed to select time zones: {:?}", e);
+        e
+    })?;
     if !time_zones.contains(&time_zone_update.time_zone) {
         return Err(BadRequest("Invalid time zone selection".to_owned()));
     }
@@ -152,8 +194,14 @@ pub async fn update_time_zone(
     time_zone_update
         .update(&mut tx, account.id)
         .await
-        .expect("query succeeds");
-    tx.commit().await?;
+        .map_err(|e| {
+            tracing::error!("Failed to update time zone: {:?}", e);
+            e
+        })?;
+    tx.commit().await.map_err(|e| {
+        tracing::error!("Failed to commit transaction: {:?}", e);
+        e
+    })?;
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Time zone updated.");
@@ -164,7 +212,7 @@ pub async fn update_time_zone(
 
 /// Updates a user's password.
 ///
-/// Changes the password for a logged-in user after validation.
+/// Changes the password for a logged-in user after validation. Requires authentication and password validation.
 ///
 /// # Parameters
 /// - `method`: HTTP method of the request
@@ -173,17 +221,23 @@ pub async fn update_time_zone(
 /// - `Form(credentials)`: Form data containing the new password and credentials
 ///
 /// # Returns
-/// A `Response` redirecting to the settings page with a confirmation notice.
+/// A `Response` redirecting to the settings page with a confirmation notice, or an error if validation fails.
 pub async fn update_password(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        e
+    })?;
 
-    // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
+    // Initialize user from session (must be logged in)
+    let (user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in as the correct user
     match user.account {
@@ -214,8 +268,14 @@ pub async fn update_password(
     credentials
         .update_password(&mut tx)
         .await
-        .expect("query succeeds");
-    tx.commit().await?;
+        .map_err(|e| {
+            tracing::error!("Failed to update password: {:?}", e);
+            e
+        })?;
+    tx.commit().await.map_err(|e| {
+        tracing::error!("Failed to commit transaction: {:?}", e);
+        e
+    })?;
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Password updated.");
