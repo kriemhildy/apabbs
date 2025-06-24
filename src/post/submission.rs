@@ -144,28 +144,26 @@ impl PostSubmission {
                 "mqdefault" => (320, 180),
                 "default" => (120, 90),
                 "oar2" => (1080, 1920),
-                _ => panic!("invalid thumbnail size"),
+                _ => panic!("Invalid thumbnail size"),
             }
         }
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         if video_id_dir.exists() {
             if let Some(first_entry) = video_id_dir.read_dir()?.next() {
-                let existing_thumbnail_path = first_entry.expect("gets entry").path();
+                let existing_thumbnail_path = first_entry?.path();
                 let size = existing_thumbnail_path
                     .file_name()
-                    .expect("gets name")
+                    .ok_or("Filename does not exist")?
                     .to_str()
-                    .expect("converts name")
+                    .ok_or("Filename is not valid UTF-8")?
                     .split('.')
                     .next()
-                    .expect("gets name part");
+                    .ok_or("Filename does not have a basename")?;
                 let (width, height) = dimensions(size);
                 return Ok(Some((existing_thumbnail_path, width, height)));
             }
         } else {
-            tokio::fs::create_dir(&video_id_dir)
-                .await
-                .expect("creates dir");
+            tokio::fs::create_dir(&video_id_dir).await?
         }
         let thumbnail_sizes = if youtube_short {
             vec!["oar2"]
@@ -187,8 +185,7 @@ impl PostSubmission {
                 .arg(&local_thumbnail_path)
                 .arg(&remote_thumbnail_url)
                 .status()
-                .await
-                .expect("downloads file");
+                .await?;
             if curl_status.success() {
                 let (width, height) = dimensions(size);
                 return Ok(Some((local_thumbnail_path, width, height)));
