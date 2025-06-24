@@ -182,10 +182,13 @@ async fn create_test_post(
     };
 
     // Insert post
-    let key = PostSubmission::generate_key(tx).await;
+    let key = PostSubmission::generate_key(tx)
+        .await
+        .expect("query succeeds");
     let post = post_submission
         .insert(tx, user, &local_ip_hash(), &key)
-        .await;
+        .await
+        .expect("query succeeds");
 
     // Process media if present
     if media_filename.is_some() {
@@ -574,10 +577,13 @@ async fn autoban() {
     };
     for _ in 0..5 {
         post_submission.session_token = Uuid::new_v4();
-        let key = PostSubmission::generate_key(&mut tx).await;
+        let key = PostSubmission::generate_key(&mut tx)
+            .await
+            .expect("query succeeds");
         post_submission
             .insert(&mut tx, &user, &ban_ip_hash(), &key)
-            .await;
+            .await
+            .expect("query succeeds");
     }
 
     // Verify state before flooding threshold is reached
@@ -607,10 +613,13 @@ async fn autoban() {
 
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
-    let key = PostSubmission::generate_key(&mut tx).await;
+    let key = PostSubmission::generate_key(&mut tx)
+        .await
+        .expect("query succeeds");
     post_submission
         .insert(&mut tx, &user, &ban_ip_hash(), &key)
-        .await;
+        .await
+        .expect("query succeeds");
 
     // Verify flooding is detected but ban not yet applied
     assert_eq!(

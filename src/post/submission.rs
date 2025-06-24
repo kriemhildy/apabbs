@@ -52,7 +52,7 @@ impl PostSubmission {
     ///
     /// # Returns
     /// A unique random string key for the post.
-    pub async fn generate_key(tx: &mut PgConnection) -> String {
+    pub async fn generate_key(tx: &mut PgConnection) -> Result<String, sqlx::Error> {
         use rand::{Rng, distr::Alphanumeric};
         loop {
             let key = rand::rng()
@@ -64,10 +64,9 @@ impl PostSubmission {
                 sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE key = $1)")
                     .bind(&key)
                     .fetch_one(&mut *tx)
-                    .await
-                    .expect("query succeeds");
+                    .await?;
             if !exists {
-                return key;
+                return Ok(key);
             }
         }
     }
@@ -90,7 +89,7 @@ impl PostSubmission {
         user: &User,
         ip_hash: &str,
         key: &str,
-    ) -> Post {
+    ) -> Result<Post, sqlx::Error> {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_filename.as_deref());
         let (session_token, account_id) = match user.account {
@@ -98,7 +97,7 @@ impl PostSubmission {
             None => (Some(self.session_token), None),
         };
         let html_body = self.body_to_html(key).await;
-        let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
+        let youtube = html_body.contains(r#"<a href=\"https://www.youtube.com\"#);
         let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
@@ -118,7 +117,6 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -433,12 +431,12 @@ impl PostHiding {
     ///
     /// # Note
     /// This method does not verify authorization - the caller must ensure that the user identified by `session_token` has permission to hide this post.
-    pub async fn hide_post(&self, tx: &mut PgConnection) {
+    pub async fn hide_post(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE posts SET hidden = true WHERE key = $1")
             .bind(&self.key)
             .execute(&mut *tx)
-            .await
-            .expect("query succeeds");
+            .await?;
+        Ok(())
     }
 }
 

@@ -218,8 +218,10 @@ pub async fn submit_post(
     }
 
     // Generate unique key and insert post
-    let key = PostSubmission::generate_key(&mut tx).await;
-    let post = post_submission.insert(&mut tx, &user, &ip_hash, &key).await;
+    let key = PostSubmission::generate_key(&mut tx).await?;
+    let post = post_submission
+        .insert(&mut tx, &user, &ip_hash, &key)
+        .await?;
 
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
@@ -280,7 +282,7 @@ pub async fn hide_post(
         }
         match post.status {
             Rejected => {
-                post_hiding.hide_post(&mut tx).await;
+                post_hiding.hide_post(&mut tx).await?;
                 tx.commit().await?;
             }
             Reported | Banned => (),
