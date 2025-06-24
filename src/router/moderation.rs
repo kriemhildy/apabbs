@@ -243,7 +243,9 @@ pub async fn review_post(
     // Handle banned post cleanup
     if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
-            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await;
+            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id))
+                .await
+                .expect("query succeeds");
         }
         post.delete(&mut tx).await.expect("query succeeds");
     }

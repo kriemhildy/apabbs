@@ -204,7 +204,7 @@ pub async fn submit_post(
 
     // Check if user is banned
     if let Some(expires_at_str) =
-        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
+        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await?
     {
         tx.commit().await?;
         return Err(Banned(expires_at_str));

@@ -581,10 +581,29 @@ async fn autoban() {
     }
 
     // Verify state before flooding threshold is reached
-    assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
-    assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 5);
-    assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());
-    assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
+    assert_eq!(
+        ban::new_accounts_count(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds"),
+        3
+    );
+    assert_eq!(
+        ban::new_posts_count(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds"),
+        5
+    );
+    assert!(
+        ban::exists(&mut tx, &ban_ip_hash(), None)
+            .await
+            .expect("query succeeds")
+            .is_none()
+    );
+    assert!(
+        !ban::flooding(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds")
+    );
 
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
@@ -594,10 +613,29 @@ async fn autoban() {
         .await;
 
     // Verify flooding is detected but ban not yet applied
-    assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 3);
-    assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 6);
-    assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_none());
-    assert!(ban::flooding(&mut tx, &ban_ip_hash()).await);
+    assert_eq!(
+        ban::new_accounts_count(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds"),
+        3
+    );
+    assert_eq!(
+        ban::new_posts_count(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds"),
+        6
+    );
+    assert!(
+        ban::exists(&mut tx, &ban_ip_hash(), None)
+            .await
+            .expect("query succeeds")
+            .is_none()
+    );
+    assert!(
+        ban::flooding(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds")
+    );
     tx.commit().await.expect("commits");
 
     // Attempt another post to trigger the ban
@@ -625,10 +663,29 @@ async fn autoban() {
 
     // Verify ban state after ban
     let mut tx = state.db.begin().await.expect("begins");
-    assert!(ban::exists(&mut tx, &ban_ip_hash(), None).await.is_some());
-    assert!(!ban::flooding(&mut tx, &ban_ip_hash()).await);
-    assert_eq!(ban::new_accounts_count(&mut tx, &ban_ip_hash()).await, 0);
-    assert_eq!(ban::new_posts_count(&mut tx, &ban_ip_hash()).await, 0);
+    assert!(
+        ban::exists(&mut tx, &ban_ip_hash(), None)
+            .await
+            .expect("query succeeds")
+            .is_some()
+    );
+    assert!(
+        !ban::flooding(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds")
+    );
+    assert_eq!(
+        ban::new_accounts_count(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds"),
+        0
+    );
+    assert_eq!(
+        ban::new_posts_count(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds"),
+        0
+    );
 
     // Clean up
     delete_test_ban(&mut tx, &ban_ip_hash()).await;

@@ -64,7 +64,7 @@ pub fn scrub_ips() -> Job {
             let mut tx = db.begin().await.expect("begins transaction");
 
             // Execute the IP scrubbing operation
-            ban::scrub(&mut tx).await;
+            ban::scrub(&mut tx).await.expect("query succeeds");
 
             // Commit the transaction
             tx.commit().await.expect("commits transaction");

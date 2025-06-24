@@ -52,16 +52,16 @@ pub async fn check_for_ban(
     ip_hash: &str,
     banned_account_id: Option<i32>,
     admin_account_id: Option<i32>,
-) -> Option<String> {
-    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await {
-        return Some(expires_at_str);
+) -> Result<Option<String>, sqlx::Error> {
+    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await? {
+        return Ok(Some(expires_at_str));
     }
-    if ban::flooding(tx, ip_hash).await {
-        let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await;
-        ban::prune(tx, ip_hash).await;
-        return Some(expires_at_str);
+    if ban::flooding(tx, ip_hash).await? {
+        let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await?;
+        ban::prune(tx, ip_hash).await?;
+        return Ok(Some(expires_at_str));
     }
-    None
+    Ok(None)
 }
 
 //==================================================================================================
