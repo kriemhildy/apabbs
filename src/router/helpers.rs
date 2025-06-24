@@ -13,22 +13,25 @@ use sqlx::PgConnection;
 // Constants
 //==================================================================================================
 
-/// HTTP header name for the client's real IP address.
+/// HTTP header name for the client's real IP address, as set by the reverse proxy (e.g., nginx).
 pub const X_REAL_IP: &str = "X-Real-IP";
-/// HTTP header name for fetch mode.
+/// HTTP header name for fetch mode, used to distinguish AJAX/fetch requests from navigation.
 pub const SEC_FETCH_MODE: &str = "Sec-Fetch-Mode";
-/// Cookie name for the user's account authentication token.
+/// Cookie name for the user's account authentication token, used for persistent login.
 pub const ACCOUNT_COOKIE: &str = "account";
-/// Cookie name for the user's session token.
+/// Cookie name for the user's session token, used for CSRF protection and session tracking.
 pub const SESSION_COOKIE: &str = "session";
-/// Cookie name for flash notice messages.
+/// Cookie name for flash notice messages, used to display one-time notifications to the user.
 pub const NOTICE_COOKIE: &str = "notice";
 
 //==================================================================================================
 // Security Utilities
 //==================================================================================================
 
-/// Generate a hash of the client's IP address.
+/// Generate a hash of the client's IP address for tracking and ban enforcement.
+///
+/// # Errors
+/// Returns a `BadRequest` error if the required header is missing or invalid.
 pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
     let ip = headers
         .get(X_REAL_IP)
@@ -38,7 +41,9 @@ pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
     Ok(sha256::digest(crate::secret_key() + ip))
 }
 
-/// Check if a request is an AJAX/Fetch request.
+/// Determine if a request is an AJAX/fetch request (not a navigation).
+///
+/// Returns `true` if the `Sec-Fetch-Mode` header is present and not equal to "navigate".
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
     headers
         .get(SEC_FETCH_MODE)
@@ -47,7 +52,22 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
         .unwrap_or(false)
 }
 
-/// Check if a user is banned or rate-limited.
+/// Check if a user is banned or rate-limited based on IP hash and account ID.
+///
+/// This function checks two conditions:
+/// 1. If the user is already banned (by IP or account), it returns the ban expiration string.
+/// 2. If the user is flooding (rate-limited), it inserts a new ban, prunes old bans, and returns the new ban expiration string.
+///
+/// # Arguments
+/// * `tx` - A mutable reference to the PostgreSQL connection/transaction.
+/// * `ip_hash` - The hash of the user's IP address.
+/// * `banned_account_id` - The account ID to check for a ban (if any).
+/// * `admin_account_id` - The admin account ID responsible for the ban (if any).
+///
+/// # Returns
+/// * `Ok(Some(String))` if the user is banned or newly banned (expiration string).
+/// * `Ok(None)` if the user is not banned.
+/// * `Err(sqlx::Error)` if a database error occurs.
 pub async fn check_for_ban(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -70,6 +90,17 @@ pub async fn check_for_ban(
 //==================================================================================================
 
 /// Create a cookie with secure, HTTP-only, and SameSite settings.
+///
+/// This function builds a cookie with the given name and value, sets it to be secure (unless in dev mode),
+/// HTTP-only, and SameSite=Lax. If `permanent` is true, the cookie will persist after the browser closes.
+///
+/// # Arguments
+/// * `name` - The name of the cookie.
+/// * `value` - The value to store in the cookie.
+/// * `permanent` - Whether the cookie should be persistent.
+///
+/// # Returns
+/// A configured `Cookie` instance.
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
     let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
         .secure(!crate::dev())
@@ -83,17 +114,40 @@ pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static>
     cookie
 }
 
-/// Create a cookie for removal.
+/// Create a cookie for removal by setting its expiration in the past.
+///
+/// # Arguments
+/// * `name` - The name of the cookie to remove.
+///
+/// # Returns
+/// A `Cookie` instance configured for removal.
 pub fn removal_cookie(name: &str) -> Cookie<'static> {
     Cookie::build(name.to_owned()).path("/").build()
 }
 
-/// Add a notice cookie for flash messages.
+/// Add a notice cookie for flash messages to the cookie jar.
+///
+/// This function adds a one-time notice message to the user's cookies, which can be displayed on the next page load.
+///
+/// # Arguments
+/// * `jar` - The current `CookieJar`.
+/// * `notice` - The notice message to add.
+///
+/// # Returns
+/// The updated `CookieJar` with the notice cookie added.
 pub fn add_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
     jar.add(build_cookie(NOTICE_COOKIE, notice, false))
 }
 
-/// Remove the notice cookie and extract its value.
+/// Remove the notice cookie from the jar and extract its value, if present.
+///
+/// This function removes the notice cookie and returns its value (if any) along with the updated jar.
+///
+/// # Arguments
+/// * `jar` - The current `CookieJar`.
+///
+/// # Returns
+/// A tuple of the updated `CookieJar` and an `Option<String>` containing the notice value.
 pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
@@ -106,7 +160,17 @@ pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     (jar, notice)
 }
 
-/// Add the account token cookie for authentication.
+/// Add the account token cookie for authentication to the cookie jar.
+///
+/// This function adds a persistent authentication cookie for the user's account.
+///
+/// # Arguments
+/// * `jar` - The current `CookieJar`.
+/// * `account` - The user's account.
+/// * `credentials` - The user's credentials (used to determine permanence).
+///
+/// # Returns
+/// The updated `CookieJar` with the account cookie added.
 pub fn add_account_cookie(
     jar: CookieJar,
     account: &Account,
@@ -120,7 +184,13 @@ pub fn add_account_cookie(
     jar.add(cookie)
 }
 
-/// Remove the account cookie for logout.
+/// Remove the account cookie from the jar for logout.
+///
+/// # Arguments
+/// * `jar` - The current `CookieJar`.
+///
+/// # Returns
+/// The updated `CookieJar` with the account cookie removed.
 pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
 }
@@ -129,7 +199,12 @@ pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
 // User and Session Management
 //==================================================================================================
 
-/// Initialize a user session from cookies or create a new session.
+/// Initialize a user session from cookies or create a new session if none exists.
+///
+/// Handles CSRF protection and sets the session time zone.
+///
+/// # Errors
+/// Returns `Unauthorized` for CSRF failures or invalid tokens.
 pub async fn init_user(
     mut jar: CookieJar,
     tx: &mut PgConnection,
@@ -190,7 +265,9 @@ pub async fn init_user(
     Ok((user, jar))
 }
 
-/// Set the PostgreSQL session time zone.
+/// Set the PostgreSQL session time zone for the current connection.
+///
+/// This ensures that all time-related queries use the user's preferred time zone.
 pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
@@ -205,7 +282,22 @@ pub async fn set_session_time_zone(
 // Post and Content Management
 //==================================================================================================
 
-/// Retrieve a post and validate access permissions.
+/// Retrieve a post by key and validate access permissions for the current user.
+///
+/// This function fetches a post from the database and checks if the user is allowed to view it.
+/// - If the post is reported, rejected, or banned, only admins can view it.
+/// - If the post is pending, only the author or a moderator/admin can view it.
+///
+/// # Arguments
+/// * `tx` - A mutable reference to the PostgreSQL connection/transaction.
+/// * `key` - The unique key identifying the post.
+/// * `user` - The current user making the request.
+///
+/// # Returns
+/// * `Ok(Post)` if the post exists and the user has access.
+/// * `Err(NotFound)` if the post does not exist.
+/// * `Err(Unauthorized)` if the user is not allowed to view the post.
+/// * `Err(sqlx::Error)` if a database error occurs (propagated by `?`).
 pub async fn init_post(
     tx: &mut PgConnection,
     key: &str,
@@ -232,7 +324,19 @@ pub async fn init_post(
 // Templating and Rendering
 //==================================================================================================
 
-/// Render a template with the given context.
+/// Render a template with the given context using the application's Jinja environment.
+///
+/// This function acquires a lock on the Jinja environment, reloads templates in development mode,
+/// fetches the requested template, and renders it with the provided context.
+///
+/// # Arguments
+/// * `state` - The application state containing the Jinja environment.
+/// * `name` - The name of the template to render.
+/// * `ctx` - The context to pass to the template.
+///
+/// # Returns
+/// * `Ok(String)` containing the rendered HTML.
+/// * `Err(InternalServerError)` if a lock cannot be acquired, the template is missing, or rendering fails.
 pub fn render(
     state: &AppState,
     name: &str,
@@ -258,14 +362,25 @@ pub fn render(
 // Browser and Client Detection
 //==================================================================================================
 
-/// Information about the user's browser.
+/// Information about the user's browser, used for feature detection and analytics.
 #[derive(Serialize)]
 pub struct UserAgent {
+    /// True if the browser is running on macOS.
     pub mac: bool,
+    /// True if the browser is based on Chromium (e.g., Chrome, Edge).
     pub chromium: bool,
 }
 
-/// Analyze the User-Agent header.
+/// Analyze the User-Agent header to detect platform and browser engine.
+///
+/// This function inspects the `User-Agent` header to determine if the client is using macOS and/or a Chromium-based browser.
+///
+/// # Arguments
+/// * `headers` - The HTTP headers from the request.
+///
+/// # Returns
+/// * `Some(UserAgent)` if the header is present and parsed.
+/// * `None` if the header is missing or invalid.
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
     let user_agent_str = match headers.get(USER_AGENT) {
@@ -281,7 +396,16 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     })
 }
 
-/// Generate a UTC timestamp string.
+/// Generate a UTC timestamp string for the current hour.
+///
+/// This function queries the database for the current timestamp in UTC, formatted according to the application's settings.
+///
+/// # Arguments
+/// * `tx` - A mutable reference to the PostgreSQL connection/transaction.
+///
+/// # Returns
+/// * `Ok(String)` containing the formatted UTC hour timestamp.
+/// * `Err(sqlx::Error)` if the query fails.
 pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> Result<String, sqlx::Error> {
     sqlx::query_scalar("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(crate::POSTGRES_UTC_HOUR)
