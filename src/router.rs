@@ -78,14 +78,20 @@ impl From<Box<dyn Error>> for ResponseError {
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
         let (status, body) = match self {
-            InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
-            Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
-            BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            InternalServerError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("500 Internal Server Error\n\n{msg}"),
+            ),
+            NotFound(msg) => (StatusCode::NOT_FOUND, format!("404 Not Found\n\n{msg}")),
+            Unauthorized(msg) => (
+                StatusCode::UNAUTHORIZED,
+                format!("401 Unauthorized\n\n{msg}"),
+            ),
+            Forbidden(msg) => (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")),
+            BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")),
             Banned(expires_at_str) => (
                 StatusCode::FORBIDDEN,
-                format!("Banned until {expires_at_str}"),
+                format!("403 Forbidden\n\nBanned until {expires_at_str}"),
             ),
         };
 
