@@ -236,23 +236,26 @@ impl PostSubmission {
     /// # Returns
     /// The HTML content with YouTube embeds as a `String`.
     pub async fn embed_youtube(mut html: String, key: &str) -> Result<String, Box<dyn Error>> {
-        const YOUTUBE_LINK_PATTERN: &str = concat!(
+        // If this changes, will need to update the regex as well
+        const STANDARD_PATH: &str = "watch?v=";
+        const SHORTS_PATH: &str = "shorts/";
+        const LINK_PATTERN: &str = concat!(
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*)">\S+</a> *(?:<br>)?$"#,
         );
-        let youtube_link_regex = Regex::new(YOUTUBE_LINK_PATTERN).expect("builds regex");
+        let link_regex = Regex::new(LINK_PATTERN).expect("builds regex");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
-            let captures = match youtube_link_regex.captures(&html) {
+            let captures = match link_regex.captures(&html) {
                 None => break,
                 Some(captures) => captures,
             };
             // youtu.be has no match for 2, but is always not a short
-            let youtube_short = captures.get(2).is_some_and(|m| m.as_str() == "shorts/");
-            let youtube_video_id = &captures[3];
+            let short = captures.get(2).is_some_and(|m| m.as_str() == SHORTS_PATH);
+            let video_id = &captures[3];
             println!("captures: {:?}", captures);
-            let youtube_timestamp = if youtube_short {
+            let timestamp = if short {
                 None
             } else {
                 let url_str = &captures[1].replace("&amp;", "&");
@@ -262,10 +265,9 @@ impl PostSubmission {
                     .find(|(k, _)| k == "t")
                     .map(|(_, v)| v.to_string())
             };
-            println!("youtube_video_id: {}", youtube_video_id);
-            println!("youtube_timestamp: {:?}", youtube_timestamp);
-            let thumbnail_tuple =
-                Self::download_youtube_thumbnail(youtube_video_id, youtube_short).await?;
+            println!("video_id: {}", video_id);
+            println!("timestamp: {:?}", timestamp);
+            let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short).await?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (
@@ -278,8 +280,8 @@ impl PostSubmission {
                     height,
                 ),
             };
-            let youtube_url_path = if youtube_short { "shorts/" } else { "watch?v=" };
-            let youtube_thumbnail_link = format!(
+            let url_path = if short { SHORTS_PATH } else { STANDARD_PATH };
+            let thumbnail_link = format!(
                 concat!(
                     "<div class=\"youtube\">\n",
                     "    <div class=\"youtube-logo\">\n",
@@ -296,19 +298,17 @@ impl PostSubmission {
                     "    </div>\n",
                     "</div>",
                 ),
-                url_path = youtube_url_path,
-                video_id = youtube_video_id,
+                url_path = url_path,
+                video_id = video_id,
                 thumbnail_url = local_thumbnail_url,
                 key = key,
-                timestamp = youtube_timestamp
+                timestamp = timestamp
                     .map(|t| format!("&amp;t={}", t))
                     .unwrap_or_default(),
                 width = width,
                 height = height,
             );
-            html = youtube_link_regex
-                .replace(&html, youtube_thumbnail_link)
-                .to_string();
+            html = link_regex.replace(&html, thumbnail_link).to_string();
         }
         Ok(html)
     }
