@@ -15,8 +15,8 @@
 //! - Thumbnails are validated for approved posts
 //!
 //! # Error Handling
-//! - All errors are logged and returned as appropriate HTTP responses
-//! - User-facing errors are clear and actionable
+//! - All errors are logged using `tracing` macros and returned as appropriate HTTP responses
+//! - User-facing errors are clear, actionable, and capitalized
 //!
 //! # Background Tasks
 //! - Media decryption and re-encryption are performed asynchronously
@@ -59,7 +59,7 @@ pub async fn review_post(
     use ReviewError::*;
 
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to begin database transaction");
+        tracing::error!("Failed to begin database transaction: {:?}", e);
         ResponseError::InternalServerError("Database transaction error".to_string())
     })?;
 
@@ -68,7 +68,7 @@ pub async fn review_post(
         .await
         .map_err(|e| {
             tracing::warn!("Failed to initialize user session: {:?}", e);
-            ResponseError::Unauthorized("Session initialization failed".to_string())
+            e
         })?;
 
     // Verify user has moderator privileges
@@ -91,13 +91,10 @@ pub async fn review_post(
     };
 
     // Get the post to review
-    let post = match Post::select_by_key(&mut tx, &key).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to select post by key");
+    let post = Post::select_by_key(&mut tx, &key).await.map_err(|e| {
+        tracing::error!("Failed to select post by key: {:?}", e);
         ResponseError::InternalServerError("Failed to fetch post".to_string())
-    })? {
-        None => return Err(NotFound("Post does not exist".to_string())),
-        Some(post) => post,
-    };
+    })?.ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Determine appropriate review action
     let review_action = post_review.determine_action(&post, &account.role);
@@ -185,25 +182,22 @@ pub async fn review_post(
 
     // Update post status and record review action
     post.update_status(&mut tx, status).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to update post status");
+        tracing::error!("Failed to update post status: {:?}", e);
         ResponseError::InternalServerError("Failed to update post status".to_string())
     })?;
     post_review
         .insert(&mut tx, account.id, post.id)
         .await
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to insert post review");
+            tracing::error!("Failed to insert post review: {:?}", e);
             ResponseError::InternalServerError("Failed to record review action".to_string())
         })?;
 
     // Get updated post
-    let post = match Post::select_by_key(&mut tx, &key).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to select updated post by key");
+    let post = Post::select_by_key(&mut tx, &key).await.map_err(|e| {
+        tracing::error!("Failed to select updated post by key: {:?}", e);
         ResponseError::InternalServerError("Failed to fetch updated post".to_string())
-    })? {
-        None => return Err(NotFound("Post does not exist".to_string())),
-        Some(post) => post,
-    };
+    })?.ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Handle banned post cleanup
     if post.status == Banned {
@@ -221,13 +215,13 @@ pub async fn review_post(
     }
 
     tx.commit().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to commit transaction");
+        tracing::error!("Failed to commit transaction: {:?}", e);
         ResponseError::InternalServerError("Failed to commit transaction".to_string())
     })?;
 
     // Notify clients of the update
-    if state.sender.send(post).is_err() {
-        println!("No active receivers to send to");
+    if let Err(e) = state.sender.send(post) {
+        tracing::warn!("No active receivers to send to: {:?}", e);
     }
 
     // Start background task if needed
@@ -271,14 +265,14 @@ pub async fn decrypt_media(
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to begin database transaction");
+        tracing::error!("Failed to begin database transaction: {:?}", e);
         ResponseError::InternalServerError("Database transaction error".to_string())
     })?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
         tracing::warn!("Failed to initialize user session: {:?}", e);
-        ResponseError::Unauthorized("Session initialization failed".to_string())
+        e
     })?;
 
     // Verify user has required privileges
@@ -289,13 +283,10 @@ pub async fn decrypt_media(
     }
 
     // Get the post
-    let post = match Post::select_by_key(&mut tx, &key).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to select post by key");
+    let post = Post::select_by_key(&mut tx, &key).await.map_err(|e| {
+        tracing::error!("Failed to select post by key: {:?}", e);
         ResponseError::InternalServerError("Failed to fetch post".to_string())
-    })? {
-        None => return Err(NotFound("Post does not exist".to_string())),
-        Some(post) => post,
-    };
+    })?.ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Verify media exists
     if !post.encrypted_media_path().exists() {
@@ -308,7 +299,7 @@ pub async fn decrypt_media(
         .as_ref()
         .ok_or_else(|| InternalServerError("Missing filename".to_string()))?;
     let media_bytes = post.decrypt_media_file().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to decrypt media file");
+        tracing::error!("Failed to decrypt media file: {:?}", e);
         ResponseError::InternalServerError("Failed to decrypt media file".to_string())
     })?;
     if media_bytes.is_empty() {
@@ -339,7 +330,7 @@ pub async fn decrypt_media(
 /// Background task for decrypting media and updating post status.
 ///
 /// Handles media decryption, post status update, cleanup, and client notification asynchronously.
-/// Logs errors to stderr if any step fails.
+/// Logs errors using `tracing::error!` if any step fails.
 pub async fn decrypt_media_task(
     state: AppState,
     initial_post: Post,
@@ -351,100 +342,88 @@ pub async fn decrypt_media_task(
             .db
             .begin()
             .await
-            .map_err(|e| format!("Failed to begin database transaction: {e}"))?;
+            .map_err(|e| format!("Failed to begin database transaction: {:?}", e))?;
 
         // Attempt media decryption
         PostReview::handle_decrypt_media(&mut tx, &initial_post)
             .await
-            .map_err(|e| format!("Failed to decrypt media: {e}"))?;
+            .map_err(|e| format!("Failed to decrypt media: {:?}", e))?;
 
         // Update post status
         initial_post
             .update_status(&mut tx, post_review.status)
             .await
-            .map_err(|e| format!("Failed to update post status: {e}"))?;
+            .map_err(|e| format!("Failed to update post status: {:?}", e))?;
 
         // Get updated post
-        let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
+        let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
             .await
-            .map_err(|e| format!("Failed to select updated post by key: {e}"))?
-        {
-            None => {
-                eprintln!("Post does not exist after decrypting media");
-                return Ok(());
-            }
-            Some(post) => post,
-        };
+            .map_err(|e| format!("Failed to select updated post by key: {:?}", e))?
+            .ok_or_else(|| "Post does not exist after decrypting media".to_string())?;
 
         tx.commit()
             .await
-            .map_err(|e| format!("Failed to commit transaction: {e}"))?;
+            .map_err(|e| format!("Failed to commit transaction: {:?}", e))?;
 
         // Clean up and notify clients
         PostReview::delete_upload_key_dir(&encrypted_media_path)
             .await
-            .map_err(|e| format!("Failed to delete upload directory: {e}"))?;
-        if state.sender.send(updated_post).is_err() {
-            eprintln!("No active receivers to send to");
+            .map_err(|e| format!("Failed to delete upload directory: {:?}", e))?;
+        if let Err(e) = state.sender.send(updated_post) {
+            tracing::warn!("No active receivers to send to: {:?}", e);
         }
         Ok(())
     }
     .await;
 
     if let Err(e) = result {
-        eprintln!("Error in decrypt_media_task: {e}");
+        tracing::error!("Error in decrypt_media_task: {:?}", e);
     }
 }
 
 /// Background task for re-encrypting media and updating post status.
 ///
 /// Handles media re-encryption, post status update, and client notification asynchronously.
-/// Logs errors to stderr if any step fails.
+/// Logs errors using `tracing::error!` if any step fails.
 pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_review: PostReview) {
     let result: Result<(), Box<dyn std::error::Error>> = async {
         let mut tx = state
             .db
             .begin()
             .await
-            .map_err(|e| format!("Failed to begin database transaction: {e}"))?;
+            .map_err(|e| format!("Failed to begin database transaction: {:?}", e))?;
 
         // Attempt media re-encryption
         initial_post
             .reencrypt_media_file()
             .await
-            .map_err(|e| format!("Failed to re-encrypt media: {e}"))?;
+            .map_err(|e| format!("Failed to re-encrypt media: {:?}", e))?;
 
         // Update post status
         initial_post
             .update_status(&mut tx, post_review.status)
             .await
-            .map_err(|e| format!("Failed to update post status: {e}"))?;
+            .map_err(|e| format!("Failed to update post status: {:?}", e))?;
 
         // Get updated post
-        let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
+        let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
             .await
-            .map_err(|e| format!("Failed to select updated post by key: {e}"))?
-        {
-            None => {
-                eprintln!("Post does not exist after re-encrypting media");
-                return Ok(());
-            }
-            Some(post) => post,
-        };
+            .map_err(|e| format!("Failed to select updated post by key: {:?}", e))?
+            .ok_or_else(|| "Post does not exist after re-encrypting media".to_string())?;
 
         tx.commit()
             .await
-            .map_err(|e| format!("Failed to commit transaction: {e}"))?;
+            .map_err(|e| format!("Failed to commit transaction: {:?}", e))?;
 
         // Notify clients
-        if state.sender.send(updated_post).is_err() {
-            eprintln!("No active receivers to send to");
+        if let Err(e) = state.sender.send(updated_post) {
+            tracing::warn!("No active receivers to send to: {:?}", e);
         }
         Ok(())
     }
     .await;
 
     if let Err(e) = result {
-        eprintln!("Error in reencrypt_media_task: {e}");
+        tracing::error!("Error in reencrypt_media_task: {:?}", e);
     }
 }
