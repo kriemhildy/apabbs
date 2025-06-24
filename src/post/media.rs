@@ -9,8 +9,8 @@ use super::submission::PostSubmission;
 use super::{MediaCategory, Post, PostReview};
 use regex::Regex;
 use sqlx::PgConnection;
-use std::path::{Path, PathBuf};
 use std::error::Error;
+use std::path::{Path, PathBuf};
 
 /// Directory name for encrypted (at-rest) media file storage.
 pub const UPLOADS_DIR: &str = "uploads";
@@ -25,9 +25,6 @@ pub const MAX_THUMB_HEIGHT: i32 = 2160;
 
 /// Default MIME type for unknown or binary file types.
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
-
-/// Error message used when thumbnail generation fails.
-pub const ERR_THUMBNAIL_FAILED: &str = "Thumbnail was not created successfully";
 
 impl Post {
     /// Returns the path where an encrypted media file is stored.
@@ -110,7 +107,9 @@ impl Post {
                 std::io::Write::write_all(&mut stdin, &bytes)
                     .map_err(|e| format!("Failed to write to gpg stdin: {}", e))?;
             }
-            let child_status = child.wait().map_err(|e| format!("Failed to wait for gpg: {}", e))?;
+            let child_status = child
+                .wait()
+                .map_err(|e| format!("Failed to wait for gpg: {}", e))?;
             if child_status.success() {
                 Ok::<(), Box<dyn Error + Send + Sync>>(())
             } else {
@@ -135,7 +134,9 @@ impl Post {
     /// - Err(Box<dyn Error>) if re-encryption failed
     pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_file_path = self.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().ok_or("Encrypted file path has no parent")?;
+        let uploads_key_dir = encrypted_file_path
+            .parent()
+            .ok_or("Encrypted file path has no parent")?;
         tokio::fs::create_dir(uploads_key_dir)
             .await
             .map_err(|e| format!("Failed to create uploads key dir: {}", e))?;
@@ -266,12 +267,17 @@ impl PostSubmission {
     /// # Returns
     /// - Ok(()) if encryption succeeded
     /// - Err(Box<dyn Error>) if encryption failed or no media bytes present
-    pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn encrypt_uploaded_file(
+        self,
+        post: &Post,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if self.media_bytes.is_none() {
             return Err("no media bytes".into());
         }
         let encrypted_file_path = post.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().ok_or("encrypted file path has no parent")?;
+        let uploads_key_dir = encrypted_file_path
+            .parent()
+            .ok_or("encrypted file path has no parent")?;
         tokio::fs::create_dir(uploads_key_dir)
             .await
             .map_err(|e| format!("failed to create uploads key dir: {}", e))?;
@@ -291,14 +297,24 @@ impl PostReview {
     /// # Parameters
     /// - `published_media_path`: Path where the media should be stored
     /// - `media_bytes`: Raw bytes of the decrypted media file
-    pub async fn write_media_file(published_media_path: &Path, media_bytes: Vec<u8>) {
-        let media_key_dir = published_media_path.parent().unwrap();
+    ///
+    /// # Returns
+    /// - Ok(()) if the file was written successfully
+    /// - Err(Box<dyn Error + Send + Sync>) if an error occurred
+    pub async fn write_media_file(
+        published_media_path: &Path,
+        media_bytes: Vec<u8>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let media_key_dir = published_media_path
+            .parent()
+            .ok_or("Failed to get parent directory for media file")?;
         tokio::fs::create_dir(media_key_dir)
             .await
-            .expect("creates media key dir");
+            .map_err(|e| format!("Failed to create media key dir: {}", e))?;
         tokio::fs::write(&published_media_path, media_bytes)
             .await
-            .expect("writes media file");
+            .map_err(|e| format!("Failed to write media file: {}", e))?;
+        Ok(())
     }
 
     /// Generates a thumbnail image for a given media file.
@@ -417,18 +433,18 @@ impl PostReview {
     /// - `post`: The post whose media should be decrypted and processed
     ///
     /// # Returns
-    /// - `Ok(())` if processing was successful
-    /// - `Err(&'static str)` with an error message if processing failed
+    /// - Ok(()) if processing was successful
+    /// - Err(Box<dyn Error + Send + Sync>) with an error message if processing failed
     pub async fn handle_decrypt_media(
         tx: &mut PgConnection,
         post: &Post,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Decrypt the media file
-        let media_bytes = post.decrypt_media_file().await.map_err(|_| "Failed to decrypt media")?;
+        let media_bytes = post.decrypt_media_file().await?;
 
         // Write the decrypted file to the published media directory
         let published_media_path = post.published_media_path();
-        Self::write_media_file(&published_media_path, media_bytes).await;
+        Self::write_media_file(&published_media_path, media_bytes).await?;
 
         // Process according to media type
         match post.media_category {
@@ -448,36 +464,36 @@ impl PostReview {
     /// - `post`: The post whose image media should be processed
     ///
     /// # Returns
-    /// - `Ok(())` if processing was successful
-    /// - `Err(&'static str)` with an error message if processing failed
-    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), &'static str> {
+    /// - Ok(()) if processing was successful
+    /// - Err(Box<dyn Error + Send + Sync>) with an error message if processing failed
+    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
         let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
 
         if !thumbnail_path.exists() {
-            return Err(ERR_THUMBNAIL_FAILED);
+            return Err("Thumbnail was not created successfully".into());
         }
 
         // If thumbnail is larger than original, don't use it
         if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
             tokio::fs::remove_file(&thumbnail_path)
                 .await
-                .expect("removes thumbnail file");
+                .map_err(|e| format!("Failed to remove thumbnail file: {}", e))?;
         } else {
             // Update the database with thumbnail information
             let (width, height) = Self::image_dimensions(&thumbnail_path).await;
             post.update_thumbnail(tx, &thumbnail_path, width, height)
                 .await
-                .expect("query succeeds");
+                .map_err(|e| format!("Failed to update thumbnail in DB: {}", e))?;
         }
 
         // Update the media dimensions in the database
         let (width, height) = Self::image_dimensions(&published_media_path).await;
         post.update_media_dimensions(tx, width, height)
             .await
-            .expect("query succeeds");
+            .map_err(|e| format!("Failed to update media dimensions in DB: {}", e))?;
 
         Ok(())
     }
@@ -526,7 +542,7 @@ impl PostReview {
             let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await;
 
             if !thumbnail_path.exists() {
-                return Err(ERR_THUMBNAIL_FAILED);
+                return Err("Thumbnail was not created successfully".into());
             }
 
             let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await;
