@@ -74,14 +74,19 @@ impl PostReview {
     /// - `tx`: Database transaction (mutable reference)
     /// - `account_id`: ID of the account performing the review
     /// - `post_id`: ID of the post being reviewed
-    pub async fn insert(&self, tx: &mut PgConnection, account_id: i32, post_id: i32) {
+    pub async fn insert(
+        &self,
+        tx: &mut PgConnection,
+        account_id: i32,
+        post_id: i32,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
             .bind(account_id)
             .bind(post_id)
             .bind(self.status)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 
     /// Determines what action should be taken for a review based on post state and user role.

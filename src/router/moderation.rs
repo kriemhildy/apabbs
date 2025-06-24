@@ -232,7 +232,7 @@ pub async fn review_post(
     post.update_status(&mut tx, status)
         .await
         .expect("query succeeds");
-    post_review.insert(&mut tx, account.id, post.id).await;
+    post_review.insert(&mut tx, account.id, post.id).await?;
 
     // Get updated post
     let post = match Post::select_by_key(&mut tx, &key).await? {
