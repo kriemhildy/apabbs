@@ -88,7 +88,7 @@ impl Post {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
             .to_str()
-            .ok_or("Failed to convert encrypted_media_path to string")?
+            .ok_or("failed to convert encrypted media path to string")?
             .to_owned();
         tokio::task::spawn_blocking(move || {
             let mut child = std::process::Command::new("gpg")
@@ -102,22 +102,22 @@ impl Post {
                 .arg(&encrypted_media_path_str)
                 .stdin(std::process::Stdio::piped())
                 .spawn()
-                .map_err(|e| format!("Failed to spawn gpg: {}", e))?;
+                .map_err(|e| format!("failed to spawn gpg process: {e}"))?;
             if let Some(mut stdin) = child.stdin.take() {
                 std::io::Write::write_all(&mut stdin, &bytes)
-                    .map_err(|e| format!("Failed to write to gpg stdin: {}", e))?;
+                    .map_err(|e| format!("failed to write to gpg stdin: {e}"))?;
             }
             let child_status = child
                 .wait()
-                .map_err(|e| format!("Failed to wait for gpg: {}", e))?;
+                .map_err(|e| format!("failed to wait for gpg process: {e}"))?;
             if child_status.success() {
                 Ok::<(), Box<dyn Error + Send + Sync>>(())
             } else {
-                Err("GPG failed to encrypt file".into())
+                Err("gpg failed to encrypt file".into())
             }
         })
         .await
-        .map_err(|e| format!("Failed to complete gpg encryption: {}", e))??;
+        .map_err(|e| format!("failed to complete gpg encryption: {e}"))??;
         println!(
             "File encrypted successfully: {}",
             encrypted_media_path.display()
@@ -136,25 +136,34 @@ impl Post {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path
             .parent()
-            .ok_or("Encrypted file path has no parent")?;
+            .ok_or("encrypted file path has no parent directory")?;
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .map_err(|e| format!("Failed to create uploads key dir: {}", e))?;
+            .map_err(|e| format!("failed to create uploads key directory: {e}"))?;
         let media_file_path = self.published_media_path();
         let media_bytes = tokio::fs::read(&media_file_path)
             .await
-            .map_err(|e| format!("Failed to read published media: {}", e))?;
-        let result = self.gpg_encrypt(media_bytes).await;
+            .map_err(|e| format!("failed to read published media file: {e}"))?;
+        let result = self
+            .gpg_encrypt(media_bytes)
+            .await
+            .map_err(|e| format!("failed to encrypt media during re-encryption: {e}"));
         match result {
-            Ok(()) => PostReview::delete_media_key_dir(&self.key).await?,
+            Ok(()) => PostReview::delete_media_key_dir(&self.key)
+                .await
+                .map_err(|e| {
+                    format!("failed to delete media key directory after re-encryption: {e}")
+                })?,
             Err(ref msg) => {
-                tokio::fs::remove_dir(uploads_key_dir)
-                    .await
-                    .map_err(|e| format!("Failed to remove uploads key dir: {}", e))?;
-                eprintln!("Re-encryption failed: {}", msg);
+                tokio::fs::remove_dir(uploads_key_dir).await.map_err(|e| {
+                    format!(
+                        "failed to remove uploads key directory after failed re-encryption: {e}"
+                    )
+                })?;
+                eprintln!("Re-encryption failed: {msg}");
             }
         }
-        result
+        result.map_err(|e| e.into())
     }
 
     /// Decrypts the post's media file using GPG.
@@ -163,24 +172,24 @@ impl Post {
     /// The decrypted file content as bytes (`Vec<u8>`), or an error if decryption fails.
     pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         if self.media_filename.is_none() {
-            return Err("Cannot decrypt media: post has no media file".into());
+            return Err("cannot decrypt media: post has no media file".into());
         }
         let encrypted_file_path = self
             .encrypted_media_path()
             .to_str()
-            .ok_or("Failed to convert encrypted_media_path to string")?
+            .ok_or("failed to convert encrypted media path to string")?
             .to_owned();
         let output = tokio::task::spawn_blocking(move || {
             std::process::Command::new("gpg")
                 .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
                 .arg(&encrypted_file_path)
                 .output()
-                .map_err(|e| format!("Failed to run gpg for decryption: {}", e))
+                .map_err(|e| format!("failed to run gpg for decryption: {e}"))
         })
         .await
-        .map_err(|e| format!("Failed to complete gpg decryption: {}", e))??;
+        .map_err(|e| format!("failed to complete gpg decryption: {e}"))??;
         if !output.status.success() {
-            return Err(format!("GPG failed to decrypt file: status {}", output.status).into());
+            return Err(format!("gpg failed to decrypt file, status: {}", output.status).into());
         }
         println!("Media file decrypted successfully");
         Ok(output.stdout)
@@ -266,26 +275,26 @@ impl PostSubmission {
     ///
     /// # Returns
     /// - Ok(()) if encryption succeeded
-    /// - Err(Box<dyn Error>) if encryption failed or no media bytes present
+    /// - Err(Box<dyn Error>)
     pub async fn encrypt_uploaded_file(
         self,
         post: &Post,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if self.media_bytes.is_none() {
-            return Err("no media bytes".into());
+            return Err("no media bytes provided for encryption".into());
         }
         let encrypted_file_path = post.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path
             .parent()
-            .ok_or("encrypted file path has no parent")?;
+            .ok_or("encrypted file path has no parent directory")?;
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .map_err(|e| format!("failed to create uploads key dir: {}", e))?;
+            .map_err(|e| format!("failed to create uploads key directory: {e}"))?;
         let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
         if result.is_err() {
-            tokio::fs::remove_dir(uploads_key_dir)
-                .await
-                .map_err(|e| format!("failed to remove uploads key dir: {}", e))?;
+            tokio::fs::remove_dir(uploads_key_dir).await.map_err(|e| {
+                format!("failed to remove uploads key directory after failed encryption: {e}")
+            })?;
         }
         result
     }
@@ -307,13 +316,13 @@ impl PostReview {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = published_media_path
             .parent()
-            .ok_or("Failed to get parent directory for media file")?;
+            .ok_or("failed to get parent directory for media file")?;
         tokio::fs::create_dir(media_key_dir)
             .await
-            .map_err(|e| format!("Failed to create media key dir: {}", e))?;
+            .map_err(|e| format!("failed to create media key directory: {e}"))?;
         tokio::fs::write(&published_media_path, media_bytes)
             .await
-            .map_err(|e| format!("Failed to write media file: {}", e))?;
+            .map_err(|e| format!("failed to write media file: {e}"))?;
         Ok(())
     }
 
@@ -329,12 +338,12 @@ impl PostReview {
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         let media_path_str = published_media_path
             .to_str()
-            .ok_or("Failed to convert published_media_path to string")?
+            .ok_or("failed to convert published_media_path to string")?
             .to_owned();
         let extension = media_path_str
             .split('.')
             .next_back()
-            .ok_or("Failed to get file extension")?;
+            .ok_or("failed to get file extension from published media path")?;
 
         // For animated images (GIF, WebP), extract the last frame as the thumbnail
         let vips_input_file_path = media_path_str.to_owned()
@@ -355,10 +364,10 @@ impl PostReview {
                 .output()
         })
         .await
-        .map_err(|e| format!("Failed to complete vipsthumbnail: {}", e))?;
+        .map_err(|e| format!("failed to complete vipsthumbnail: {e}"))?;
 
         let command_output =
-            vips_result.map_err(|e| format!("Failed to run vipsthumbnail: {}", e))?;
+            vips_result.map_err(|e| format!("failed to run vipsthumbnail: {e}"))?;
         println!(
             "vipsthumbnail output: status={:?}, stderr={:?}",
             command_output.status,
@@ -367,7 +376,7 @@ impl PostReview {
 
         if !command_output.status.success() {
             return Err(format!(
-                "vipsthumbnail failed with status {}: {}",
+                "vipsthumbnail failed, status: {}. stderr: {}",
                 command_output.status,
                 String::from_utf8_lossy(&command_output.stderr)
             )
@@ -376,7 +385,7 @@ impl PostReview {
 
         let thumb_path = Self::alternate_path(published_media_path, "tn_", ".webp");
         if !thumb_path.exists() {
-            return Err("Thumbnail was not created successfully".into());
+            return Err("thumbnail was not created successfully".into());
         }
         Ok(thumb_path)
     }
@@ -434,11 +443,11 @@ impl PostReview {
 
         tokio::fs::remove_file(&encrypted_media_path)
             .await
-            .map_err(|e| format!("failed to remove encrypted media: {}", e))?;
+            .map_err(|e| format!("failed to remove encrypted media: {e}"))?;
 
         tokio::fs::remove_dir(&uploads_key_dir)
             .await
-            .map_err(|e| format!("failed to remove uploads key dir: {}", e))?;
+            .map_err(|e| format!("failed to remove uploads key dir: {e}"))?;
         Ok(())
     }
 
@@ -453,7 +462,7 @@ impl PostReview {
 
         tokio::fs::remove_dir_all(&media_key_dir)
             .await
-            .map_err(|e| format!("failed to remove media key dir and its contents: {}", e))?;
+            .map_err(|e| format!("failed to remove media key dir and its contents: {e}"))?;
         Ok(())
     }
 
@@ -471,16 +480,25 @@ impl PostReview {
         post: &Post,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Decrypt the media file
-        let media_bytes = post.decrypt_media_file().await?;
+        let media_bytes = post
+            .decrypt_media_file()
+            .await
+            .map_err(|e| format!("failed to decrypt media file: {e}"))?;
 
         // Write the decrypted file to the published media directory
         let published_media_path = post.published_media_path();
-        Self::write_media_file(&published_media_path, media_bytes).await?;
+        Self::write_media_file(&published_media_path, media_bytes)
+            .await
+            .map_err(|e| format!("failed to write decrypted media file: {e}"))?;
 
         // Process according to media type
         match post.media_category {
-            Some(MediaCategory::Image) => Self::process_image(tx, post).await?,
-            Some(MediaCategory::Video) => Self::process_video(tx, post).await?,
+            Some(MediaCategory::Image) => Self::process_image(tx, post)
+                .await
+                .map_err(|e| format!("failed to process image media: {e}"))?,
+            Some(MediaCategory::Video) => Self::process_video(tx, post)
+                .await
+                .map_err(|e| format!("failed to process video media: {e}"))?,
             // Audio files and posts without media don't need processing
             Some(MediaCategory::Audio) | None => (),
         }
@@ -504,25 +522,36 @@ impl PostReview {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
-        let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await?;
+        let thumbnail_path = Self::generate_image_thumbnail(&published_media_path)
+            .await
+            .map_err(|e| format!("failed to generate image thumbnail: {e}"))?;
 
         if !thumbnail_path.exists() {
-            return Err("Thumbnail was not created successfully".into());
+            return Err("thumbnail was not created successfully".into());
         }
 
         // If thumbnail is larger than original, don't use it
         if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-            tokio::fs::remove_file(&thumbnail_path).await?;
+            tokio::fs::remove_file(&thumbnail_path)
+                .await
+                .map_err(|e| format!("failed to remove oversized thumbnail: {e}"))?;
         } else {
             // Update the database with thumbnail information
-            let (width, height) = Self::image_dimensions(&thumbnail_path).await?;
+            let (width, height) = Self::image_dimensions(&thumbnail_path)
+                .await
+                .map_err(|e| format!("failed to get thumbnail dimensions: {e}"))?;
             post.update_thumbnail(tx, &thumbnail_path, width, height)
-                .await?
+                .await
+                .map_err(|e| format!("failed to update thumbnail in database: {e}"))?
         }
 
         // Update the media dimensions in the database
-        let (width, height) = Self::image_dimensions(&published_media_path).await?;
-        post.update_media_dimensions(tx, width, height).await?;
+        let (width, height) = Self::image_dimensions(&published_media_path)
+            .await
+            .map_err(|e| format!("failed to get published image dimensions: {e}"))?;
+        post.update_media_dimensions(tx, width, height)
+            .await
+            .map_err(|e| format!("failed to update media dimensions in database: {e}"))?;
 
         Ok(())
     }
@@ -543,40 +572,58 @@ impl PostReview {
         let published_media_path = post.published_media_path();
 
         // If necessary, generate a compatibility video for browser playback
-        if !Self::video_is_compatible(&published_media_path).await? {
-            let compatibility_path =
-                Self::generate_compatibility_video(&published_media_path).await?;
+        if !Self::video_is_compatible(&published_media_path)
+            .await
+            .map_err(|e| format!("failed to check video compatibility: {e}"))?
+        {
+            let compatibility_path = Self::generate_compatibility_video(&published_media_path)
+                .await
+                .map_err(|e| format!("failed to generate compatibility video: {e}"))?;
 
             if !compatibility_path.exists() {
-                return Err("Compatibility video generation failed".into());
+                return Err("compatibility video generation failed".into());
             }
 
             // Update the database with the compatibility video path
-            post.update_compat_video(tx, &compatibility_path).await?;
+            post.update_compat_video(tx, &compatibility_path)
+                .await
+                .map_err(|e| format!("failed to update compatibility video in database: {e}"))?;
         }
 
         // Generate a poster image from the video
-        let video_poster_path = Self::generate_video_poster(&published_media_path).await?;
-        post.update_poster(tx, &video_poster_path).await?;
+        let video_poster_path = Self::generate_video_poster(&published_media_path)
+            .await
+            .map_err(|e| format!("failed to generate video poster: {e}"))?;
+        post.update_poster(tx, &video_poster_path)
+            .await
+            .map_err(|e| format!("failed to update video poster in database: {e}"))?;
 
         // Update the post with media dimensions and poster
-        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await?;
+        let (media_width, media_height) = Self::image_dimensions(&video_poster_path)
+            .await
+            .map_err(|e| format!("failed to get video poster dimensions: {e}"))?;
         post.update_media_dimensions(tx, media_width, media_height)
-            .await?;
+            .await
+            .map_err(|e| format!("failed to update media dimensions in database: {e}"))?;
 
         // Check if dimensions are large enough to necessitate a thumbnail
         if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
-            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await?;
+            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path)
+                .await
+                .map_err(|e| format!("failed to generate video thumbnail: {e}"))?;
 
             if !thumbnail_path.exists() {
-                return Err("Thumbnail was not created successfully".into());
+                return Err("thumbnail was not created successfully".into());
             }
 
-            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await?;
+            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path)
+                .await
+                .map_err(|e| format!("failed to get video thumbnail dimensions: {e}"))?;
 
             // Update the post with thumbnail info
             post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
-                .await?;
+                .await
+                .map_err(|e| format!("failed to update video thumbnail in database: {e}"))?;
         }
 
         Ok(())
@@ -595,7 +642,7 @@ impl PostReview {
         println!("Getting image dimensions for: {:?}", image_path);
         let image_path_str = image_path
             .to_str()
-            .ok_or("Failed to convert image_path to string")?;
+            .ok_or("failed to convert image_path to string")?;
 
         async fn vipsheader(
             field: &str,
@@ -605,12 +652,12 @@ impl PostReview {
                 .args(["-f", field, image_path_str])
                 .output()
                 .await
-                .map_err(|e| format!("Failed to run vipsheader: {}", e))?;
+                .map_err(|e| format!("failed to run vipsheader: {e}"))?;
 
             let value = String::from_utf8_lossy(&output.stdout)
                 .trim()
                 .parse::<i32>()
-                .map_err(|e| format!("Failed to parse vipsheader output as i32: {}", e))?;
+                .map_err(|e| format!("failed to parse vipsheader output as i32: {e}"))?;
             Ok(value)
         }
 
@@ -636,7 +683,7 @@ impl PostReview {
         println!("Checking video compatibility for: {:?}", video_path);
         let video_path_str = video_path
             .to_str()
-            .ok_or("Failed to convert video_path to string")?
+            .ok_or("failed to convert video_path to string")?
             .to_owned();
 
         // Run ffprobe to get video codec information
@@ -654,11 +701,11 @@ impl PostReview {
             ])
             .output()
             .await
-            .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
+            .map_err(|e| format!("failed to run ffprobe: {e}"))?;
 
         if !output.status.success() {
             return Err(format!(
-                "ffprobe failed with status {}: {}",
+                "ffprobe failed, status: {}. stderr: {}",
                 output.status,
                 String::from_utf8_lossy(&output.stderr)
             )
@@ -716,12 +763,12 @@ impl PostReview {
         println!("Generating compatibility video for: {:?}", video_path);
         let video_path_str = video_path
             .to_str()
-            .ok_or("Failed to convert video_path to string")?
+            .ok_or("failed to convert video_path to string")?
             .to_owned();
         let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
         let compatibility_path_str = compatibility_path
             .to_str()
-            .ok_or("Failed to convert compatibility_path to string")?
+            .ok_or("failed to convert compatibility path to string")?
             .to_owned();
 
         // Move the ffmpeg processing to a separate thread pool
@@ -755,9 +802,9 @@ impl PostReview {
             ffmpeg_output
         })
         .await
-        .map_err(|e| format!("Failed to complete ffmpeg: {}", e))?;
+        .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
-        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
         println!(
             "ffmpeg output: status={:?}, stderr={:?}",
             ffmpeg_output.status,
@@ -766,7 +813,7 @@ impl PostReview {
 
         if !ffmpeg_output.status.success() {
             return Err(format!(
-                "ffmpeg failed with status {}: {}",
+                "ffmpeg failed, status: {}. stderr: {}",
                 ffmpeg_output.status,
                 String::from_utf8_lossy(&ffmpeg_output.stderr)
             )
@@ -774,7 +821,7 @@ impl PostReview {
         }
 
         if !compatibility_path.exists() {
-            return Err("Compatibility video was not created successfully".into());
+            return Err("compatibility video was not created successfully".into());
         }
 
         println!("Compatibility video generated at: {:?}", compatibility_path);
@@ -796,11 +843,11 @@ impl PostReview {
 
         let video_path_str = video_path
             .to_str()
-            .ok_or("Failed to convert video_path to string")?
+            .ok_or("failed to convert video_path to string")?
             .to_owned();
         let poster_path_str = poster_path
             .to_str()
-            .ok_or("Failed to convert poster_path to string")?
+            .ok_or("failed to convert poster_path to string")?
             .to_owned();
 
         // Move ffmpeg poster generation to a separate thread
@@ -829,9 +876,9 @@ impl PostReview {
                 .output()
         })
         .await
-        .map_err(|e| format!("Failed to complete ffmpeg: {}", e))?;
+        .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
-        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
         println!(
             "ffmpeg output: status={:?}, stderr={:?}",
             ffmpeg_output.status,
@@ -840,7 +887,7 @@ impl PostReview {
 
         if !ffmpeg_output.status.success() {
             return Err(format!(
-                "ffmpeg failed with status {}: {}",
+                "ffmpeg failed, status: {}. stderr: {}",
                 ffmpeg_output.status,
                 String::from_utf8_lossy(&ffmpeg_output.stderr)
             )
@@ -848,7 +895,7 @@ impl PostReview {
         }
 
         if !poster_path.exists() {
-            return Err("Poster image was not created successfully".into());
+            return Err("poster image was not created successfully".into());
         }
 
         println!("Video poster generated at: {:?}", poster_path);

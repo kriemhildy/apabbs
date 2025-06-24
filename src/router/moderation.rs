@@ -128,13 +128,11 @@ pub async fn review_post(
         }
 
         // Handle media re-encryption
-        Ok(ReencryptMedia) => {
-            Some(Box::pin(reencrypt_media_task(
-                state.clone(),
-                post.clone(),
-                post_review.clone(),
-            )))
-        }
+        Ok(ReencryptMedia) => Some(Box::pin(reencrypt_media_task(
+            state.clone(),
+            post.clone(),
+            post_review.clone(),
+        ))),
 
         Ok(NoAction) => None,
     };
@@ -272,7 +270,11 @@ pub async fn decrypt_media_task(
     encrypted_media_path: std::path::PathBuf,
 ) {
     let result: Result<(), Box<dyn std::error::Error>> = async {
-        let mut tx = state.db.begin().await.map_err(|e| format!("Failed to begin database transaction: {e}"))?;
+        let mut tx = state
+            .db
+            .begin()
+            .await
+            .map_err(|e| format!("Failed to begin database transaction: {e}"))?;
 
         // Attempt media decryption
         PostReview::handle_decrypt_media(&mut tx, &initial_post)
@@ -297,7 +299,9 @@ pub async fn decrypt_media_task(
             Some(post) => post,
         };
 
-        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {e}"))?;
+        tx.commit()
+            .await
+            .map_err(|e| format!("Failed to commit transaction: {e}"))?;
 
         // Clean up and notify clients
         PostReview::delete_upload_key_dir(&encrypted_media_path)
@@ -307,23 +311,25 @@ pub async fn decrypt_media_task(
             eprintln!("No active receivers to send to");
         }
         Ok(())
-    }.await;
+    }
+    .await;
 
     if let Err(e) = result {
         eprintln!("Error in decrypt_media_task: {e}");
     }
 }
 
-pub async fn reencrypt_media_task(
-    state: AppState,
-    initial_post: Post,
-    post_review: PostReview,
-) {
+pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_review: PostReview) {
     let result: Result<(), Box<dyn std::error::Error>> = async {
-        let mut tx = state.db.begin().await.map_err(|e| format!("Failed to begin database transaction: {e}"))?;
+        let mut tx = state
+            .db
+            .begin()
+            .await
+            .map_err(|e| format!("Failed to begin database transaction: {e}"))?;
 
         // Attempt media re-encryption
-        initial_post.reencrypt_media_file()
+        initial_post
+            .reencrypt_media_file()
             .await
             .map_err(|e| format!("Failed to re-encrypt media: {e}"))?;
 
@@ -345,14 +351,17 @@ pub async fn reencrypt_media_task(
             Some(post) => post,
         };
 
-        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {e}"))?;
+        tx.commit()
+            .await
+            .map_err(|e| format!("Failed to commit transaction: {e}"))?;
 
         // Notify clients
         if state.sender.send(updated_post).is_err() {
             eprintln!("No active receivers to send to");
         }
         Ok(())
-    }.await;
+    }
+    .await;
 
     if let Err(e) = result {
         eprintln!("Error in reencrypt_media_task: {e}");
