@@ -308,7 +308,9 @@ pub async fn generate_image_thumbnails(db: PgPool) {
         );
 
         // Generate thumbnail
-        let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path).await;
+        let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path)
+            .await
+            .expect("generation succeeds");
         if !thumbnail_path.exists() {
             eprintln!("Thumbnail not created successfully");
             std::process::exit(1);

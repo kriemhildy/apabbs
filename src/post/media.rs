@@ -323,13 +323,18 @@ impl PostReview {
     /// - `published_media_path`: Path to the original image file
     ///
     /// # Returns
-    /// Path to the generated thumbnail file (PathBuf)
-    pub async fn generate_image_thumbnail(published_media_path: &Path) -> PathBuf {
-        let media_path_str = published_media_path.to_str().unwrap();
+    /// Ok(PathBuf) to the generated thumbnail file (WebP), or Err if generation fails
+    pub async fn generate_image_thumbnail(
+        published_media_path: &Path,
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
+        let media_path_str = published_media_path
+            .to_str()
+            .ok_or("Failed to convert published_media_path to string")?
+            .to_owned();
         let extension = media_path_str
             .split('.')
             .next_back()
-            .expect("gets file extension");
+            .ok_or("Failed to get file extension")?;
 
         // For animated images (GIF, WebP), extract the last frame as the thumbnail
         let vips_input_file_path = media_path_str.to_owned()
@@ -339,8 +344,8 @@ impl PostReview {
             };
 
         // Run vipsthumbnail in a separate thread to avoid blocking async runtime
-        tokio::task::spawn_blocking(move || {
-            let command_output = std::process::Command::new("vipsthumbnail")
+        let vips_result = tokio::task::spawn_blocking(move || {
+            std::process::Command::new("vipsthumbnail")
                 .args([
                     // Max dimensions with aspect ratio preserved
                     &format!("--size={MAX_THUMB_WIDTH}x{MAX_THUMB_HEIGHT}>"),
@@ -348,14 +353,26 @@ impl PostReview {
                 ])
                 .arg(&vips_input_file_path)
                 .output()
-                .expect("generates thumbnail");
-
-            println!("vipsthumbnail output: {:?}", command_output);
         })
         .await
-        .expect("completes vipsthumbnail");
+        .map_err(|e| format!("Failed to complete vipsthumbnail: {}", e))?;
 
-        Self::alternate_path(published_media_path, "tn_", ".webp")
+        let command_output = vips_result.map_err(|e| format!("Failed to run vipsthumbnail: {}", e))?;
+        println!("vipsthumbnail output: status={:?}, stderr={:?}", command_output.status, String::from_utf8_lossy(&command_output.stderr));
+
+        if !command_output.status.success() {
+            return Err(format!(
+                "vipsthumbnail failed with status {}: {}",
+                command_output.status,
+                String::from_utf8_lossy(&command_output.stderr)
+            ).into());
+        }
+
+        let thumb_path = Self::alternate_path(published_media_path, "tn_", ".webp");
+        if !thumb_path.exists() {
+            return Err("Thumbnail was not created successfully".into());
+        }
+        Ok(thumb_path)
     }
 
     /// Constructs an alternate file path for a derived media file.
@@ -473,7 +490,7 @@ impl PostReview {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
-        let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await;
+        let thumbnail_path = Self::generate_image_thumbnail(&published_media_path).await?;
 
         if !thumbnail_path.exists() {
             return Err("Thumbnail was not created successfully".into());
@@ -535,7 +552,7 @@ impl PostReview {
 
         // Check if dimensions are large enough to necessitate a thumbnail
         if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
-            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await;
+            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await?;
 
             if !thumbnail_path.exists() {
                 return Err("Thumbnail was not created successfully".into());
