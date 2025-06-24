@@ -67,7 +67,7 @@ pub async fn index(
     // Handle pagination parameter if present
     let page_post = match path.get("key") {
         Some(key) => Some(init_post(&mut tx, key, &user).await.map_err(|e| {
-            tracing::error!("Failed to initialize page post: {:#?}", e);
+            tracing::error!("Failed to initialize page post: {:?}", e);
             e
         })?),
         None => None,
