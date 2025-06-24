@@ -236,13 +236,13 @@ impl PostSubmission {
     /// # Returns
     /// The HTML content with YouTube embeds as a `String`.
     pub async fn embed_youtube(mut html: String, key: &str) -> Result<String, Box<dyn Error>> {
-        let youtube_link_pattern = concat!(
+        const YOUTUBE_LINK_PATTERN: &str = concat!(
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*)">\S+</a> *(?:<br>)?$"#,
         );
-        let youtube_link_regex = Regex::new(youtube_link_pattern).expect("builds regex");
+        let youtube_link_regex = Regex::new(YOUTUBE_LINK_PATTERN).expect("builds regex");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match youtube_link_regex.captures(&html) {
                 None => break,
