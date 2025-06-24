@@ -145,9 +145,7 @@ pub async fn review_post(
     };
 
     // Update post status and record review action
-    post.update_status(&mut tx, status)
-        .await
-        .expect("query succeeds");
+    post.update_status(&mut tx, status).await?;
     post_review.insert(&mut tx, account.id, post.id).await?;
 
     // Get updated post
@@ -159,11 +157,9 @@ pub async fn review_post(
     // Handle banned post cleanup
     if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
-            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id))
-                .await
-                .expect("query succeeds");
+            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await?;
         }
-        post.delete(&mut tx).await.expect("query succeeds");
+        post.delete(&mut tx).await?;
     }
 
     // Ensure approved posts have thumbnails if needed
