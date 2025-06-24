@@ -159,30 +159,30 @@ impl Post {
     /// Decrypts the post's media file using GPG.
     ///
     /// # Returns
-    /// The decrypted file content as bytes (`Vec<u8>`).
-    ///
-    /// # Panics
-    /// Panics if the post has no associated media file.
-    pub async fn decrypt_media_file(&self) -> Vec<u8> {
+    /// The decrypted file content as bytes (`Vec<u8>`), or an error if decryption fails.
+    pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         if self.media_filename.is_none() {
-            panic!("Cannot decrypt media: post has no media file");
+            return Err("Cannot decrypt media: post has no media file".into());
         }
         let encrypted_file_path = self
             .encrypted_media_path()
             .to_str()
-            .expect("converts path")
+            .ok_or("Failed to convert encrypted_media_path to string")?
             .to_owned();
         let output = tokio::task::spawn_blocking(move || {
             std::process::Command::new("gpg")
                 .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
                 .arg(&encrypted_file_path)
                 .output()
-                .expect("decrypts")
+                .map_err(|e| format!("Failed to run gpg for decryption: {}", e))
         })
         .await
-        .expect("completes gpg decryption");
+        .map_err(|e| format!("Failed to complete gpg decryption: {}", e))??;
+        if !output.status.success() {
+            return Err(format!("GPG failed to decrypt file: status {}", output.status).into());
+        }
         println!("Media file decrypted successfully");
-        output.stdout
+        Ok(output.stdout)
     }
 }
 
@@ -424,7 +424,7 @@ impl PostReview {
         post: &Post,
     ) -> Result<(), &'static str> {
         // Decrypt the media file
-        let media_bytes = post.decrypt_media_file().await;
+        let media_bytes = post.decrypt_media_file().await.map_err(|_| "Failed to decrypt media")?;
 
         // Write the decrypted file to the published media directory
         let published_media_path = post.published_media_path();

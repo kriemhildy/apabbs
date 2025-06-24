@@ -74,6 +74,12 @@ impl From<Box<dyn Error>> for ResponseError {
     }
 }
 
+impl From<Box<dyn Error + Send + Sync>> for ResponseError {
+    fn from(error: Box<dyn Error + Send + Sync>) -> Self {
+        ResponseError::InternalServerError(error.to_string())
+    }
+}
+
 /// Convert a `ResponseError` into an HTTP response.
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
