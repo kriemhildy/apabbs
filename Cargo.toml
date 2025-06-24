@@ -49,4 +49,4 @@ tower = { version = "*", features = ["util"] }
 http-body-util = "*"
 serde_urlencoded = "*"
 form-data-builder = "*"
-tokio-tungstenite = { version = "0.26.2", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "*", features = ["rustls-tls-webpki-roots"] }
