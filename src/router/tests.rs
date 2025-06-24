@@ -124,7 +124,7 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
         Account::select_by_username(tx, &account.username)
             .await
             .expect("query succeeds")
-            .expect("account exists")
+            .unwrap()
     } else {
         account
     };
@@ -913,7 +913,7 @@ async fn hide_post() {
         session_token: user.session_token,
         key: post.key.clone(),
     };
-    let post_hiding_str = serde_urlencoded::to_string(&post_hiding).unwrap();
+    let post_hiding_str = serde_urlencoded::to_string(&post_hiding).expect("serializes");
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hide-post")
@@ -923,9 +923,9 @@ async fn hide_post() {
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .body(Body::from(post_hiding_str))
-        .unwrap();
+        .expect("builds request");
 
-    let response = router.oneshot(request).await.unwrap();
+    let response = router.oneshot(request).await.expect("request succeeds");
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Clean up
@@ -952,8 +952,8 @@ async fn interim() {
     let request = Request::builder()
         .uri(format!("/interim/{}", &post1.key))
         .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .expect("builds request");
+    let response = router.oneshot(request).await.expect("request succeeds");
 
     // Verify response
     assert!(response.status().is_success());
