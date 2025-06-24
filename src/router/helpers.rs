@@ -52,16 +52,16 @@ pub async fn check_for_ban(
     ip_hash: &str,
     banned_account_id: Option<i32>,
     admin_account_id: Option<i32>,
-) -> Result<(), ResponseError> {
+) -> Option<String> {
     if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await {
-        return Err(Banned(expires_at_str));
+        return Some(expires_at_str);
     }
     if ban::flooding(tx, ip_hash).await {
         let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await;
         ban::prune(tx, ip_hash).await;
-        return Err(Banned(expires_at_str));
+        return Some(expires_at_str);
     }
-    Ok(())
+    None
 }
 
 //==================================================================================================

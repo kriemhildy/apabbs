@@ -203,7 +203,12 @@ pub async fn submit_post(
     let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token)).await?;
 
     // Check if user is banned
-    check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await?;
+    if let Some(expires_at_str) =
+        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await
+    {
+        tx.commit().await?;
+        return Err(Banned(expires_at_str));
+    }
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
