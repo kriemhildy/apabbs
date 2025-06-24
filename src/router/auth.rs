@@ -69,12 +69,12 @@ pub async fn authenticate(
     let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
 
     // Check if username exists
-    if !credentials.username_exists(&mut tx).await {
+    if !credentials.username_exists(&mut tx).await? {
         return Err(NotFound("Username does not exist".to_owned()));
     }
 
     // Validate credentials
-    let jar = match credentials.authenticate(&mut tx).await {
+    let jar = match credentials.authenticate(&mut tx).await? {
         None => return Err(BadRequest("Incorrect password".to_owned())),
         Some(account) => add_account_cookie(jar, &account, &credentials),
     };
@@ -147,7 +147,7 @@ pub async fn create_account(
     let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
 
     // Check if username is already taken
-    if credentials.username_exists(&mut tx).await {
+    if credentials.username_exists(&mut tx).await? {
         return Err(BadRequest("Username is already taken".to_owned()));
     }
 
@@ -168,7 +168,7 @@ pub async fn create_account(
     }
 
     // Create the account
-    let account = credentials.register(&mut tx, &ip_hash).await;
+    let account = credentials.register(&mut tx, &ip_hash).await?;
     let jar = add_account_cookie(jar, &account, &credentials);
 
     tx.commit().await?;

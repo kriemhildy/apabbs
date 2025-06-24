@@ -87,7 +87,7 @@ pub async fn settings(
     }
 
     // Get time zones for selection
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
 
     // Check for notice messages
     let (jar, notice) = remove_notice_cookie(jar);
@@ -143,13 +143,16 @@ pub async fn update_time_zone(
     };
 
     // Validate time zone
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
     if !time_zones.contains(&time_zone_update.time_zone) {
         return Err(BadRequest("Invalid time zone selection".to_owned()));
     }
 
     // Update time zone preference
-    time_zone_update.update(&mut tx, account.id).await;
+    time_zone_update
+        .update(&mut tx, account.id)
+        .await
+        .expect("query succeeds");
     tx.commit().await?;
 
     // Set confirmation notice
@@ -208,7 +211,10 @@ pub async fn update_password(
     }
 
     // Update password
-    credentials.update_password(&mut tx).await;
+    credentials
+        .update_password(&mut tx)
+        .await
+        .expect("query succeeds");
     tx.commit().await?;
 
     // Set confirmation notice

@@ -169,7 +169,7 @@ impl TimeZoneUpdate {
     ///
     /// # Returns
     /// A vector of valid time zone names.
-    pub async fn select_time_zones(tx: &mut PgConnection) -> Vec<String> {
+    pub async fn select_time_zones(tx: &mut PgConnection) -> Result<Vec<String>, sqlx::Error> {
         sqlx::query_scalar(concat!(
             "SELECT name FROM pg_timezone_names ",
             "WHERE name !~ '^(posix|Etc)' AND (name LIKE '%/%' OR name = 'UTC') ",
@@ -177,7 +177,6 @@ impl TimeZoneUpdate {
         ))
         .fetch_all(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Updates the time zone setting for a user account.
@@ -185,13 +184,13 @@ impl TimeZoneUpdate {
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
     /// - `account_id`: ID of the account to update
-    pub async fn update(&self, tx: &mut PgConnection, account_id: i32) {
+    pub async fn update(&self, tx: &mut PgConnection, account_id: i32) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE accounts SET time_zone = $1 WHERE id = $2")
             .bind(&self.time_zone)
             .bind(account_id)
             .execute(&mut *tx)
             .await
-            .expect("query succeeds");
+            .map(|_| ())
     }
 }
 
@@ -215,12 +214,11 @@ impl Credentials {
     ///
     /// # Returns
     /// `true` if the username exists, `false` otherwise.
-    pub async fn username_exists(&self, tx: &mut PgConnection) -> bool {
+    pub async fn username_exists(&self, tx: &mut PgConnection) -> Result<bool, sqlx::Error> {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE username = $1)")
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
-            .expect("query succeeds")
     }
 
     /// Validates the credentials for registration.
@@ -288,7 +286,11 @@ impl Credentials {
     ///
     /// # Returns
     /// The newly created `Account`.
-    pub async fn register(&self, tx: &mut PgConnection, ip_hash: &str) -> Account {
+    pub async fn register(
+        &self,
+        tx: &mut PgConnection,
+        ip_hash: &str,
+    ) -> Result<Account, sqlx::Error> {
         sqlx::query_as(concat!(
             "INSERT INTO accounts (username, password_hash, ip_hash) ",
             "VALUES ($1, crypt($2, gen_salt('bf', $3)), $4) RETURNING *"
@@ -299,7 +301,6 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Authenticates a user with the provided credentials.
@@ -309,7 +310,10 @@ impl Credentials {
     ///
     /// # Returns
     /// An optional `Account` if authentication succeeds.
-    pub async fn authenticate(&self, tx: &mut PgConnection) -> Option<Account> {
+    pub async fn authenticate(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<Option<Account>, sqlx::Error> {
         sqlx::query_as(concat!(
             "SELECT * FROM accounts WHERE username = $1 ",
             "AND crypt($2, password_hash) = password_hash"
@@ -318,14 +322,13 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
-        .expect("query succeeds")
     }
 
     /// Updates the password for an existing account.
     ///
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
-    pub async fn update_password(&self, tx: &mut PgConnection) {
+    pub async fn update_password(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
         sqlx::query(concat!(
             "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', $2)) ",
             "WHERE username = $3"
@@ -335,7 +338,7 @@ impl Credentials {
         .bind(&self.username)
         .execute(&mut *tx)
         .await
-        .expect("query succeeds");
+        .map(|_| ())
     }
 
     /// Checks if the year verification checkbox was checked.

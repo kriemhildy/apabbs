@@ -109,7 +109,10 @@ fn ban_ip_hash() -> String {
 async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     let user = test_user(None);
     let credentials = test_credentials(&user);
-    let account = credentials.register(tx, &local_ip_hash()).await;
+    let account = credentials
+        .register(tx, &local_ip_hash())
+        .await
+        .expect("query succeeds");
 
     let account = if role != AccountRole::Novice {
         sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
@@ -566,7 +569,10 @@ async fn autoban() {
     for _ in 0..3 {
         credentials.session_token = Uuid::new_v4();
         credentials.username = Uuid::new_v4().simple().to_string()[..16].to_owned();
-        credentials.register(&mut tx, &ban_ip_hash()).await;
+        credentials
+            .register(&mut tx, &ban_ip_hash())
+            .await
+            .expect("query succeeds");
     }
 
     // Create several posts from the same IP
@@ -725,7 +731,10 @@ async fn authenticate() {
     let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
     let credentials = test_credentials(&user);
-    let account = credentials.register(&mut tx, &local_ip_hash()).await;
+    let account = credentials
+        .register(&mut tx, &local_ip_hash())
+        .await
+        .expect("query succeeds");
     tx.commit().await.expect("commits");
 
     // Attempt login
@@ -1110,6 +1119,7 @@ async fn update_password() {
         credentials
             .authenticate(&mut tx)
             .await
+            .expect("query succeeds")
             .is_some_and(|a| a.id == updated_account.id)
     );
 
