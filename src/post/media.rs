@@ -10,6 +10,7 @@ use super::{MediaCategory, Post, PostReview};
 use regex::Regex;
 use sqlx::PgConnection;
 use std::path::{Path, PathBuf};
+use std::error::Error;
 
 /// Directory name for encrypted (at-rest) media file storage.
 pub const UPLOADS_DIR: &str = "uploads";
@@ -85,14 +86,14 @@ impl Post {
     ///
     /// # Returns
     /// - Ok(()) if encryption succeeded
-    /// - Err(&str) if encryption failed
-    pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), &str> {
+    /// - Err(Box<dyn std::error::Error>) if encryption failed
+    pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
             .to_str()
-            .expect("converts path")
+            .ok_or("Failed to convert encrypted_media_path to string")?
             .to_owned();
-        let success = tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             let mut child = std::process::Command::new("gpg")
                 .args([
                     "--batch",
@@ -104,24 +105,25 @@ impl Post {
                 .arg(&encrypted_media_path_str)
                 .stdin(std::process::Stdio::piped())
                 .spawn()
-                .expect("spawns gpg");
+                .map_err(|e| format!("Failed to spawn gpg: {}", e))?;
             if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes).expect("writes to gpg");
+                std::io::Write::write_all(&mut stdin, &bytes)
+                    .map_err(|e| format!("Failed to write to gpg stdin: {}", e))?;
             }
-            let child_status = child.wait().expect("waits for gpg process");
-            child_status.success()
+            let child_status = child.wait().map_err(|e| format!("Failed to wait for gpg: {}", e))?;
+            if child_status.success() {
+                Ok::<(), Box<dyn Error + Send + Sync>>(())
+            } else {
+                Err("GPG failed to encrypt file".into())
+            }
         })
         .await
-        .expect("completes gpg encryption");
-        if success {
-            println!(
-                "File encrypted successfully: {}",
-                encrypted_media_path.display()
-            );
-            Ok(())
-        } else {
-            Err("GPG failed to encrypt file")
-        }
+        .map_err(|e| format!("Failed to complete gpg encryption: {}", e))??;
+        println!(
+            "File encrypted successfully: {}",
+            encrypted_media_path.display()
+        );
+        Ok(())
     }
 
     /// Re-encrypts a media file that has already been published.
@@ -130,24 +132,24 @@ impl Post {
     ///
     /// # Returns
     /// - Ok(()) if re-encryption succeeded
-    /// - Err(&str) if re-encryption failed
-    pub async fn reencrypt_media_file(&self) -> Result<(), &str> {
+    /// - Err(Box<dyn Error>) if re-encryption failed
+    pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_file_path = self.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().expect("has parent");
+        let uploads_key_dir = encrypted_file_path.parent().ok_or("Encrypted file path has no parent")?;
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .expect("creates uploads key dir");
+            .map_err(|e| format!("Failed to create uploads key dir: {}", e))?;
         let media_file_path = self.published_media_path();
         let media_bytes = tokio::fs::read(&media_file_path)
             .await
-            .expect("reads published media");
+            .map_err(|e| format!("Failed to read published media: {}", e))?;
         let result = self.gpg_encrypt(media_bytes).await;
         match result {
             Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
-            Err(msg) => {
+            Err(ref msg) => {
                 tokio::fs::remove_dir(uploads_key_dir)
                     .await
-                    .expect("removes uploads key dir");
+                    .map_err(|e| format!("Failed to remove uploads key dir: {}", e))?;
                 eprintln!("Re-encryption failed: {}", msg);
             }
         }
@@ -263,21 +265,21 @@ impl PostSubmission {
     ///
     /// # Returns
     /// - Ok(()) if encryption succeeded
-    /// - Err(&str) if encryption failed or no media bytes present
-    pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), &str> {
+    /// - Err(Box<dyn Error>) if encryption failed or no media bytes present
+    pub async fn encrypt_uploaded_file(self, post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
         if self.media_bytes.is_none() {
-            return Err("no media bytes");
+            return Err("no media bytes".into());
         }
         let encrypted_file_path = post.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
+        let uploads_key_dir = encrypted_file_path.parent().ok_or("encrypted file path has no parent")?;
         tokio::fs::create_dir(uploads_key_dir)
             .await
-            .expect("creates uploads key dir");
+            .map_err(|e| format!("failed to create uploads key dir: {}", e))?;
         let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
         if result.is_err() {
             tokio::fs::remove_dir(uploads_key_dir)
                 .await
-                .expect("removes uploads key dir");
+                .map_err(|e| format!("failed to remove uploads key dir: {}", e))?;
         }
         result
     }

@@ -226,7 +226,7 @@ pub async fn submit_post(
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            return Err(InternalServerError(msg.to_owned()));
+            return Err(InternalServerError(msg.to_string()));
         }
     }
 
