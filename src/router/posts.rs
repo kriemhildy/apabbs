@@ -75,10 +75,12 @@ pub async fn index(
 
     // Get posts for current page
     let page_post_id = page_post.as_ref().map(|p| p.id);
-    let mut posts = Post::select(&mut tx, &user, page_post_id, false).await.map_err(|e| {
-        tracing::error!("Failed to select posts: {:?}", e);
-        InternalServerError("Failed to fetch posts.".to_string())
-    })?;
+    let mut posts = Post::select(&mut tx, &user, page_post_id, false)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to select posts: {:?}", e);
+            InternalServerError("Failed to fetch posts.".to_string())
+        })?;
 
     // Check if there's a next page by seeing if we got more posts than our page size
     let prior_page_post = if posts.len() <= crate::per_page() {
@@ -213,15 +215,15 @@ pub async fn submit_post(
             .to_owned();
         match name.as_str() {
             "session_token" => {
-                post_submission.session_token = match Uuid::try_parse(
-                    &field
-                        .text()
-                        .await
-                        .map_err(|e| BadRequest(format!("Failed to read session token: {:?}", e)))?,
-                ) {
-                    Err(e) => return Err(BadRequest(format!("Invalid session token: {:?}", e))),
-                    Ok(uuid) => uuid,
-                };
+                post_submission.session_token =
+                    match Uuid::try_parse(&field.text().await.map_err(|e| {
+                        BadRequest(format!("Failed to read session token: {:?}", e))
+                    })?) {
+                        Err(e) => {
+                            return Err(BadRequest(format!("Invalid session token: {:?}", e)));
+                        }
+                        Ok(uuid) => uuid,
+                    };
             }
             "body" => {
                 post_submission.body = field
@@ -231,7 +233,9 @@ pub async fn submit_post(
             }
             "media" => {
                 if post_submission.media_filename.is_some() {
-                    return Err(BadRequest("Only one media file can be uploaded.".to_string()));
+                    return Err(BadRequest(
+                        "Only one media file can be uploaded.".to_string(),
+                    ));
                 }
                 let filename = field
                     .file_name()
@@ -257,17 +261,21 @@ pub async fn submit_post(
     let ip_hash = ip_hash(&headers)?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token)).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Check if user is banned
     if let Some(expires_at_str) =
-        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await.map_err(|e| {
-            tracing::error!("Failed to check for ban: {:?}", e);
-            InternalServerError("Failed to check for ban.".to_string())
-        })?
+        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check for ban: {:?}", e);
+                InternalServerError("Failed to check for ban.".to_string())
+            })?
     {
         tx.commit().await.map_err(|e| {
             tracing::error!("Failed to commit transaction: {:?}", e);
@@ -299,7 +307,9 @@ pub async fn submit_post(
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            return Err(InternalServerError(format!("Failed to encrypt media file: {msg}")));
+            return Err(InternalServerError(format!(
+                "Failed to encrypt media file: {msg}"
+            )));
         }
     }
 
@@ -353,16 +363,21 @@ pub async fn hide_post(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_hiding.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Process post hiding if authorized and eligible
-    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await.map_err(|e| {
-        tracing::error!("Failed to select post by key: {:?}", e);
-        InternalServerError("Failed to select post by key.".to_string())
-    })? {
+    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to select post by key: {:?}", e);
+            InternalServerError("Failed to select post by key.".to_string())
+        })?
+    {
         if !post.author(&user) {
             return Err(Unauthorized(
                 "You are not the author of this post.".to_string(),
@@ -524,10 +539,12 @@ pub async fn interim(
 
     // Fetch newer posts
     let since_post_id = Some(since_post.id);
-    let new_posts = Post::select(&mut tx, &user, since_post_id, true).await.map_err(|e| {
-        tracing::error!("Failed to select new posts: {:?}", e);
-        InternalServerError("Failed to fetch new posts.".to_string())
-    })?;
+    let new_posts = Post::select(&mut tx, &user, since_post_id, true)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to select new posts: {:?}", e);
+            InternalServerError("Failed to fetch new posts.".to_string())
+        })?;
 
     if new_posts.is_empty() {
         return Ok((jar, StatusCode::NO_CONTENT).into_response());
