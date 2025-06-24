@@ -144,7 +144,9 @@ pub async fn review_post(
                         tx.commit().await.expect("commits");
 
                         // Clean up and notify clients
-                        PostReview::delete_upload_key_dir(&encrypted_media_path).await;
+                        PostReview::delete_upload_key_dir(&encrypted_media_path)
+                            .await
+                            .expect("deletes upload key dir");
                         if state.sender.send(updated_post).is_err() {
                             eprintln!("No active receivers to send to");
                         }
@@ -165,7 +167,7 @@ pub async fn review_post(
         // Handle media deletion
         Ok(DeletePublishedMedia) => {
             if post.media_filename.as_ref().is_some() && post.published_media_path().exists() {
-                PostReview::delete_media_key_dir(&post.key).await;
+                PostReview::delete_media_key_dir(&post.key).await?;
             }
             None
         }

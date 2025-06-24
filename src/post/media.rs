@@ -146,7 +146,7 @@ impl Post {
             .map_err(|e| format!("Failed to read published media: {}", e))?;
         let result = self.gpg_encrypt(media_bytes).await;
         match result {
-            Ok(()) => PostReview::delete_media_key_dir(&self.key).await,
+            Ok(()) => PostReview::delete_media_key_dir(&self.key).await?,
             Err(ref msg) => {
                 tokio::fs::remove_dir(uploads_key_dir)
                     .await
@@ -357,15 +357,21 @@ impl PostReview {
         .await
         .map_err(|e| format!("Failed to complete vipsthumbnail: {}", e))?;
 
-        let command_output = vips_result.map_err(|e| format!("Failed to run vipsthumbnail: {}", e))?;
-        println!("vipsthumbnail output: status={:?}, stderr={:?}", command_output.status, String::from_utf8_lossy(&command_output.stderr));
+        let command_output =
+            vips_result.map_err(|e| format!("Failed to run vipsthumbnail: {}", e))?;
+        println!(
+            "vipsthumbnail output: status={:?}, stderr={:?}",
+            command_output.status,
+            String::from_utf8_lossy(&command_output.stderr)
+        );
 
         if !command_output.status.success() {
             return Err(format!(
                 "vipsthumbnail failed with status {}: {}",
                 command_output.status,
                 String::from_utf8_lossy(&command_output.stderr)
-            ).into());
+            )
+            .into());
         }
 
         let thumb_path = Self::alternate_path(published_media_path, "tn_", ".webp");
@@ -419,28 +425,36 @@ impl PostReview {
     ///
     /// # Parameters
     /// - `encrypted_media_path`: Path to the encrypted media file
-    pub async fn delete_upload_key_dir(encrypted_media_path: &Path) {
-        let uploads_key_dir = encrypted_media_path.parent().unwrap();
+    pub async fn delete_upload_key_dir(
+        encrypted_media_path: &Path,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let uploads_key_dir = encrypted_media_path
+            .parent()
+            .ok_or("encrypted_media_path should have a parent directory")?;
 
         tokio::fs::remove_file(&encrypted_media_path)
             .await
-            .expect("removes encrypted media");
+            .map_err(|e| format!("failed to remove encrypted media: {}", e))?;
 
         tokio::fs::remove_dir(&uploads_key_dir)
             .await
-            .expect("removes uploads key dir");
+            .map_err(|e| format!("failed to remove uploads key dir: {}", e))?;
+        Ok(())
     }
 
     /// Deletes all media files associated with a post.
     ///
     /// # Parameters
     /// - `key`: The unique key of the post whose media should be deleted
-    pub async fn delete_media_key_dir(key: &str) {
+    pub async fn delete_media_key_dir(
+        key: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
 
         tokio::fs::remove_dir_all(&media_key_dir)
             .await
-            .expect("removes media key dir and its contents");
+            .map_err(|e| format!("failed to remove media key dir and its contents: {}", e))?;
+        Ok(())
     }
 
     /// Handles the media decryption and processing workflow for a post.

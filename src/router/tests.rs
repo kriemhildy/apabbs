@@ -507,7 +507,9 @@ async fn submit_post_with_media() {
     post.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
     let encrypted_file_path = post.encrypted_media_path();
-    PostReview::delete_upload_key_dir(&encrypted_file_path).await;
+    PostReview::delete_upload_key_dir(&encrypted_file_path)
+        .await
+        .expect("deletes upload key dir");
 }
 
 /// Tests submitting a post while logged in with an account.
@@ -1208,7 +1210,9 @@ async fn review_post_with_normal_image() {
         .await
         .expect("query succeeds")
         .expect("post exists");
-    PostReview::delete_media_key_dir(&post.key).await;
+    PostReview::delete_media_key_dir(&post.key)
+        .await
+        .expect("deletes media key dir");
     final_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
@@ -1295,7 +1299,9 @@ async fn review_post_with_small_image() {
         .await
         .expect("query succeeds")
         .expect("post exists");
-    PostReview::delete_media_key_dir(&post.key).await;
+    PostReview::delete_media_key_dir(&post.key)
+        .await
+        .expect("deletes media key dir");
     final_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
@@ -1388,7 +1394,9 @@ async fn review_post_with_video() {
         .await
         .expect("query succeeds")
         .expect("post exists");
-    PostReview::delete_media_key_dir(&post.key).await;
+    PostReview::delete_media_key_dir(&post.key)
+        .await
+        .expect("deletes media key dir");
     final_post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
