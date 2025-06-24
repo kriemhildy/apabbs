@@ -88,7 +88,7 @@ pub async fn index(
     };
 
     // Get a timestamp of the current UTC hour for cache-busting the screenshot file
-    let utc_hour_timestamp = utc_hour_timestamp(&mut tx).await;
+    let utc_hour_timestamp = utc_hour_timestamp(&mut tx).await?;
 
     // Render the page
     let html = Html(render(
@@ -254,7 +254,7 @@ pub async fn submit_post(
     }
 
     // Get user IP hash for tracking
-    let ip_hash = ip_hash(&headers);
+    let ip_hash = ip_hash(&headers)?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token)).await.map_err(|e| {

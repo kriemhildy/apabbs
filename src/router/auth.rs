@@ -161,7 +161,7 @@ pub async fn create_account(
     }
 
     // Check for IP bans
-    let ip_hash = ip_hash(&headers);
+    let ip_hash = ip_hash(&headers)?;
     if let Some(expires_at_str) = check_for_ban(&mut tx, &ip_hash, None, None).await? {
         tx.commit().await?;
         return Err(Banned(expires_at_str));

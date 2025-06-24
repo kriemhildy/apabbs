@@ -29,13 +29,13 @@ pub const NOTICE_COOKIE: &str = "notice";
 //==================================================================================================
 
 /// Generate a hash of the client's IP address.
-pub fn ip_hash(headers: &HeaderMap) -> String {
+pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
     let ip = headers
         .get(X_REAL_IP)
-        .expect("has X-Real-IP")
+        .ok_or_else(|| BadRequest("Missing X-Real-IP header".to_string()))?
         .to_str()
-        .expect("is utf-8");
-    sha256::digest(crate::secret_key() + ip)
+        .map_err(|_| BadRequest("X-Real-IP is not utf-8".to_string()))?;
+    Ok(sha256::digest(crate::secret_key() + ip))
 }
 
 /// Check if a request is an AJAX/Fetch request.
@@ -185,16 +185,19 @@ pub async fn init_user(
         account,
         session_token,
     };
-    set_session_time_zone(tx, user.time_zone()).await;
+    set_session_time_zone(tx, user.time_zone()).await?;
     Ok((user, jar))
 }
 
 /// Set the PostgreSQL session time zone.
-pub async fn set_session_time_zone(tx: &mut PgConnection, time_zone: &str) {
+pub async fn set_session_time_zone(
+    tx: &mut PgConnection,
+    time_zone: &str,
+) -> Result<(), sqlx::Error> {
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
         .await
-        .expect("query succeeds");
+        .map(|_| ())
 }
 
 //==================================================================================================
@@ -267,10 +270,9 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 }
 
 /// Generate a UTC timestamp string.
-pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> String {
+pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> Result<String, sqlx::Error> {
     sqlx::query_scalar("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
-        .expect("query succeeds")
 }
