@@ -595,8 +595,7 @@ impl PostReview {
         println!("Getting image dimensions for: {:?}", image_path);
         let image_path_str = image_path
             .to_str()
-            .ok_or("Failed to convert image_path to string")?
-            .to_owned();
+            .ok_or("Failed to convert image_path to string")?;
 
         async fn vipsheader(
             field: &str,
@@ -615,12 +614,8 @@ impl PostReview {
             Ok(value)
         }
 
-        let (width_res, height_res) = tokio::join!(
-            vipsheader("width", &image_path_str),
-            vipsheader("height", &image_path_str)
-        );
-        let width = width_res?;
-        let height = height_res?;
+        let width = vipsheader("width", image_path_str).await?;
+        let height = vipsheader("height", image_path_str).await?;
         println!(
             "Image dimensions for {:?}: {}x{}",
             image_path, width, height
