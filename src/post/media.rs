@@ -512,7 +512,7 @@ impl PostReview {
         let published_media_path = post.published_media_path();
 
         // If necessary, generate a compatibility video for browser playback
-        if !Self::video_is_compatible(&published_media_path).await {
+        if !Self::video_is_compatible(&published_media_path).await? {
             let compatibility_path =
                 Self::generate_compatibility_video(&published_media_path).await;
 
@@ -603,10 +603,15 @@ impl PostReview {
     /// - `video_path`: Path to the video file
     ///
     /// # Returns
-    /// `true` if the video is compatible, `false` if it needs conversion
-    pub async fn video_is_compatible(video_path: &Path) -> bool {
+    /// Ok(true) if the video is compatible, Ok(false) if it needs conversion, or Err if an error occurs
+    pub async fn video_is_compatible(
+        video_path: &Path,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         println!("Checking video compatibility for: {:?}", video_path);
-        let video_path_str = video_path.to_str().expect("converts path").to_owned();
+        let video_path_str = video_path
+            .to_str()
+            .ok_or("Failed to convert video_path to string")?
+            .to_owned();
 
         // Run ffprobe to get video codec information
         let output = tokio::process::Command::new("ffprobe")
@@ -623,7 +628,16 @@ impl PostReview {
             ])
             .output()
             .await
-            .expect("runs ffprobe");
+            .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!(
+                "ffprobe failed with status {}: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .into());
+        }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
         println!("ffprobe output: {}", output_str);
@@ -654,14 +668,13 @@ impl PostReview {
 
         if is_compatible {
             println!("Video is compatible for web playback: {}", video_path_str);
-            true
         } else {
             println!(
                 "Video is not compatible for web playback: {}",
                 video_path_str
             );
-            false
         }
+        Ok(is_compatible)
     }
 
     /// Generates a browser-compatible video variant for playback.

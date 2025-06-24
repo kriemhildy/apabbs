@@ -1364,7 +1364,11 @@ async fn review_post_with_video() {
             // Thumbnail is only created for very large videos now
             // Check for compatibility video, though
             assert!(updated_post.thumb_filename.is_none());
-            assert!(PostReview::video_is_compatible(&published_media_path).await);
+            assert!(
+                PostReview::video_is_compatible(&published_media_path)
+                    .await
+                    .unwrap()
+            );
             assert!(updated_post.compat_video.is_none());
             assert!(updated_post.media_width.is_some());
             assert!(updated_post.media_height.is_some());
