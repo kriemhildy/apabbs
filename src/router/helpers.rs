@@ -56,7 +56,8 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
 ///
 /// This function checks two conditions:
 /// 1. If the user is already banned (by IP or account), it returns the ban expiration string.
-/// 2. If the user is flooding (rate-limited), it inserts a new ban, prunes old bans, and returns the new ban expiration string.
+/// 2. If the user is flooding (rate-limited), it inserts a new ban, deletes all content from this user,
+///    and returns the new ban expiration string.
 ///
 /// # Arguments
 /// * `tx` - A mutable reference to the PostgreSQL connection/transaction.
