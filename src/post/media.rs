@@ -514,7 +514,7 @@ impl PostReview {
         // If necessary, generate a compatibility video for browser playback
         if !Self::video_is_compatible(&published_media_path).await? {
             let compatibility_path =
-                Self::generate_compatibility_video(&published_media_path).await;
+                Self::generate_compatibility_video(&published_media_path).await?;
 
             if !compatibility_path.exists() {
                 return Err("Compatibility video generation failed".into());
@@ -683,15 +683,23 @@ impl PostReview {
     /// - `video_path`: Path to the original video file
     ///
     /// # Returns
-    /// Path to the generated compatibility video file (MP4)
-    pub async fn generate_compatibility_video(video_path: &Path) -> PathBuf {
+    /// Ok(PathBuf) to the generated compatibility video file (MP4), or Err if generation fails
+    pub async fn generate_compatibility_video(
+        video_path: &Path,
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         println!("Generating compatibility video for: {:?}", video_path);
-        let video_path_str = video_path.to_str().unwrap().to_owned();
+        let video_path_str = video_path
+            .to_str()
+            .ok_or("Failed to convert video_path to string")?
+            .to_owned();
         let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
-        let compatibility_path_str = compatibility_path.to_str().unwrap().to_owned();
+        let compatibility_path_str = compatibility_path
+            .to_str()
+            .ok_or("Failed to convert compatibility_path to string")?
+            .to_owned();
 
         // Move the ffmpeg processing to a separate thread pool
-        tokio::task::spawn_blocking(move || {
+        let ffmpeg_result = tokio::task::spawn_blocking(move || {
             let ffmpeg_output = std::process::Command::new("ffmpeg")
                 .args([
                     "-nostdin", // No stdin interaction
@@ -717,16 +725,34 @@ impl PostReview {
                     "128k",                  // Audio bitrate
                     &compatibility_path_str, // Output file
                 ])
-                .output()
-                .expect("generates video thumbnail");
-
-            println!("ffmpeg output: {:?}", ffmpeg_output);
+                .output();
+            ffmpeg_output
         })
         .await
-        .expect("completes ffmpeg");
+        .map_err(|e| format!("Failed to complete ffmpeg: {}", e))?;
+
+        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+        println!(
+            "ffmpeg output: status={:?}, stderr={:?}",
+            ffmpeg_output.status,
+            String::from_utf8_lossy(&ffmpeg_output.stderr)
+        );
+
+        if !ffmpeg_output.status.success() {
+            return Err(format!(
+                "ffmpeg failed with status {}: {}",
+                ffmpeg_output.status,
+                String::from_utf8_lossy(&ffmpeg_output.stderr)
+            )
+            .into());
+        }
+
+        if !compatibility_path.exists() {
+            return Err("Compatibility video was not created successfully".into());
+        }
 
         println!("Compatibility video generated at: {:?}", compatibility_path);
-        compatibility_path
+        Ok(compatibility_path)
     }
 
     /// Generates a poster image (still frame) from a video file.
