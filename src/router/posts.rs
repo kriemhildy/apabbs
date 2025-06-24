@@ -452,7 +452,13 @@ pub async fn web_socket(
             }
 
             // Render post HTML and send as JSON
-            let html = render(&state, "post.jinja", minijinja::context!(post, user));
+            let html = match render(&state, "post.jinja", minijinja::context!(post, user)) {
+                Ok(html) => html,
+                Err(e) => {
+                    tracing::error!("Failed to render post for websocket: {:?}", e);
+                    continue;
+                }
+            };
             let json_utf8 =
                 Utf8Bytes::from(serde_json::json!({"key": post.key, "html": html}).to_string());
 
@@ -530,7 +536,7 @@ pub async fn interim(
     // Build JSON response with rendered HTML for each post
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
     for post in new_posts {
-        let html = render(&state, "post.jinja", minijinja::context!(post, user));
+        let html = render(&state, "post.jinja", minijinja::context!(post, user))?;
         json_posts.push(serde_json::json!({
             "key": post.key,
             "html": html

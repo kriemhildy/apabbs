@@ -42,8 +42,9 @@ pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
     headers
         .get(SEC_FETCH_MODE)
-        .map(|v| v.to_str().expect("is utf-8"))
-        .is_some_and(|v| v != "navigate")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v != "navigate")
+        .unwrap_or(false)
 }
 
 /// Check if a user is banned or rate-limited.
@@ -232,14 +233,25 @@ pub async fn init_post(
 //==================================================================================================
 
 /// Render a template with the given context.
-pub fn render(state: &AppState, name: &str, ctx: minijinja::value::Value) -> String {
+pub fn render(
+    state: &AppState,
+    name: &str,
+    ctx: minijinja::value::Value,
+) -> Result<String, ResponseError> {
     if crate::dev() {
-        let mut env = state.jinja.write().expect("gets write lock");
+        let mut env = state.jinja.write().map_err(|_| {
+            InternalServerError("Failed to acquire write lock for templates".to_string())
+        })?;
         env.clear_templates();
     }
-    let env = state.jinja.read().expect("gets read lock");
-    let tmpl = env.get_template(name).expect("gets template");
-    tmpl.render(ctx).expect("renders")
+    let env = state.jinja.read().map_err(|_| {
+        InternalServerError("Failed to acquire read lock for templates".to_string())
+    })?;
+    let tmpl = env
+        .get_template(name)
+        .map_err(|_| InternalServerError(format!("Template '{name}' not found")))?;
+    tmpl.render(ctx)
+        .map_err(|e| InternalServerError(format!("Template render error: {e}")))
 }
 
 //==================================================================================================
