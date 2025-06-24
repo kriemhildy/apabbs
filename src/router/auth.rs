@@ -7,6 +7,10 @@ use super::*;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
+// ================================================================================================
+// Login and Registration Forms
+// ================================================================================================
+
 /// Displays the login form.
 ///
 /// Renders the page for user authentication.
@@ -25,10 +29,16 @@ pub async fn login_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Render the login form
     let html = Html(render(
@@ -43,44 +53,6 @@ pub async fn login_form(
     ));
 
     Ok((jar, html).into_response())
-}
-
-/// Processes user login attempts.
-///
-/// Authenticates users with provided credentials and sets session cookies.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Form(credentials)`: User credentials submitted via form
-///
-/// # Returns
-/// Redirects to the root page on success, or an error response on failure.
-pub async fn authenticate(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Form(credentials): Form<Credentials>,
-) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
-
-    // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
-
-    // Check if username exists
-    if !credentials.username_exists(&mut tx).await? {
-        return Err(NotFound("Username does not exist".to_owned()));
-    }
-
-    // Validate credentials
-    let jar = match credentials.authenticate(&mut tx).await? {
-        None => return Err(BadRequest("Incorrect password".to_owned())),
-        Some(account) => add_account_cookie(jar, &account, &credentials),
-    };
-
-    let redirect = Redirect::to(ROOT);
-    Ok((jar, redirect).into_response())
 }
 
 /// Displays the registration form.
@@ -101,10 +73,16 @@ pub async fn registration_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Render the registration form
     let html = Html(render(
@@ -119,6 +97,60 @@ pub async fn registration_form(
     ));
 
     Ok((jar, html).into_response())
+}
+
+// ================================================================================================
+// Authentication and Account Actions
+// ================================================================================================
+
+/// Processes user login attempts.
+///
+/// Authenticates users with provided credentials and sets session cookies.
+///
+/// # Parameters
+/// - `method`: HTTP method of the request
+/// - `State(state)`: Application state
+/// - `jar`: Cookie jar for session management
+/// - `Form(credentials)`: User credentials submitted via form
+///
+/// # Returns
+/// Redirects to the root page on success, or an error response on failure.
+pub async fn authenticate(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Form(credentials): Form<Credentials>,
+) -> Result<Response, ResponseError> {
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
+
+    // Initialize user from session
+    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
+
+    // Check if username exists
+    if !credentials.username_exists(&mut tx).await.map_err(|e| {
+        tracing::error!("Failed to check username existence: {:?}", e);
+        InternalServerError("Failed to check username existence.".to_string())
+    })? {
+        return Err(NotFound("Username does not exist".to_owned()));
+    }
+
+    // Validate credentials
+    let jar = match credentials.authenticate(&mut tx).await.map_err(|e| {
+        tracing::error!("Failed to authenticate credentials: {:?}", e);
+        InternalServerError("Failed to authenticate credentials.".to_string())
+    })? {
+        None => return Err(BadRequest("Incorrect password".to_owned())),
+        Some(account) => add_account_cookie(jar, &account, &credentials),
+    };
+
+    let redirect = Redirect::to(ROOT);
+    Ok((jar, redirect).into_response())
 }
 
 /// Processes account creation requests.
@@ -141,13 +173,22 @@ pub async fn create_account(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await?;
+    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Check if username is already taken
-    if credentials.username_exists(&mut tx).await? {
+    if credentials.username_exists(&mut tx).await.map_err(|e| {
+        tracing::error!("Failed to check username existence: {:?}", e);
+        InternalServerError("Failed to check username existence.".to_string())
+    })? {
         return Err(BadRequest("Username is already taken".to_owned()));
     }
 
@@ -162,20 +203,36 @@ pub async fn create_account(
 
     // Check for IP bans
     let ip_hash = ip_hash(&headers)?;
-    if let Some(expires_at_str) = check_for_ban(&mut tx, &ip_hash, None, None).await? {
-        tx.commit().await?;
+    if let Some(expires_at_str) = check_for_ban(&mut tx, &ip_hash, None, None).await.map_err(|e| {
+        tracing::error!("Failed to check for ban: {:?}", e);
+        InternalServerError("Failed to check for ban.".to_string())
+    })? {
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Failed to commit transaction: {:?}", e);
+            InternalServerError("Failed to commit transaction.".to_string())
+        })?;
         return Err(Banned(expires_at_str));
     }
 
     // Create the account
-    let account = credentials.register(&mut tx, &ip_hash).await?;
+    let account = credentials.register(&mut tx, &ip_hash).await.map_err(|e| {
+        tracing::error!("Failed to register account: {:?}", e);
+        InternalServerError("Failed to register account.".to_string())
+    })?;
     let jar = add_account_cookie(jar, &account, &credentials);
 
-    tx.commit().await?;
+    tx.commit().await.map_err(|e| {
+        tracing::error!("Failed to commit transaction: {:?}", e);
+        InternalServerError("Failed to commit transaction.".to_string())
+    })?;
 
     let redirect = Redirect::to(ROOT);
     Ok((jar, redirect).into_response())
 }
+
+// ================================================================================================
+// Logout and Token Reset
+// ================================================================================================
 
 /// Represents a logout request.
 #[derive(Serialize, Deserialize)]
@@ -202,10 +259,16 @@ pub async fn logout(
     jar: CookieJar,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -237,10 +300,16 @@ pub async fn reset_account_token(
     jar: CookieJar,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in and reset token
     let jar = match user.account {
@@ -250,12 +319,18 @@ pub async fn reset_account_token(
             ));
         }
         Some(account) => {
-            account.reset_token(&mut tx).await?;
+            account.reset_token(&mut tx).await.map_err(|e| {
+                tracing::error!("Failed to reset account token: {:?}", e);
+                InternalServerError("Failed to reset account token.".to_string())
+            })?;
             remove_account_cookie(jar)
         }
     };
 
-    tx.commit().await?;
+    tx.commit().await.map_err(|e| {
+        tracing::error!("Failed to commit transaction: {:?}", e);
+        InternalServerError("Failed to commit transaction.".to_string())
+    })?;
 
     let redirect = Redirect::to(ROOT);
     Ok((jar, redirect).into_response())
