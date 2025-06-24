@@ -158,6 +158,7 @@ h1 {
 
 .status {
     color: var(--review);
+    overflow-wrap: anywhere;             /* Allow breaking words at any point */
 }
 
 .status a {
