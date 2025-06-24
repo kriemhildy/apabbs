@@ -466,7 +466,10 @@ impl PostReview {
     /// # Returns
     /// - Ok(()) if processing was successful
     /// - Err(Box<dyn Error + Send + Sync>) with an error message if processing failed
-    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn process_image(
+        tx: &mut PgConnection,
+        post: &Post,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
@@ -478,22 +481,17 @@ impl PostReview {
 
         // If thumbnail is larger than original, don't use it
         if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
-            tokio::fs::remove_file(&thumbnail_path)
-                .await
-                .map_err(|e| format!("Failed to remove thumbnail file: {}", e))?;
+            tokio::fs::remove_file(&thumbnail_path).await?;
         } else {
             // Update the database with thumbnail information
             let (width, height) = Self::image_dimensions(&thumbnail_path).await;
             post.update_thumbnail(tx, &thumbnail_path, width, height)
-                .await
-                .map_err(|e| format!("Failed to update thumbnail in DB: {}", e))?;
+                .await?
         }
 
         // Update the media dimensions in the database
         let (width, height) = Self::image_dimensions(&published_media_path).await;
-        post.update_media_dimensions(tx, width, height)
-            .await
-            .map_err(|e| format!("Failed to update media dimensions in DB: {}", e))?;
+        post.update_media_dimensions(tx, width, height).await?;
 
         Ok(())
     }
@@ -505,9 +503,12 @@ impl PostReview {
     /// - `post`: The post whose video media should be processed
     ///
     /// # Returns
-    /// - `Ok(())` if processing was successful
-    /// - `Err(&'static str)` with an error message if processing failed
-    pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), &'static str> {
+    /// - Ok(()) if processing was successful
+    /// - Err(Box<dyn Error + Send + Sync>) with an error message if processing failed
+    pub async fn process_video(
+        tx: &mut PgConnection,
+        post: &Post,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let published_media_path = post.published_media_path();
 
         // If necessary, generate a compatibility video for browser playback
@@ -516,26 +517,21 @@ impl PostReview {
                 Self::generate_compatibility_video(&published_media_path).await;
 
             if !compatibility_path.exists() {
-                return Err("Compatibility video generation failed");
+                return Err("Compatibility video generation failed".into());
             }
 
             // Update the database with the compatibility video path
-            post.update_compat_video(tx, &compatibility_path)
-                .await
-                .expect("query succeeds");
+            post.update_compat_video(tx, &compatibility_path).await?;
         }
 
         // Generate a poster image from the video
         let video_poster_path = Self::generate_video_poster(&published_media_path).await;
-        post.update_poster(tx, &video_poster_path)
-            .await
-            .expect("query succeeds");
+        post.update_poster(tx, &video_poster_path).await?;
 
         // Update the post with media dimensions and poster
         let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
         post.update_media_dimensions(tx, media_width, media_height)
-            .await
-            .expect("query succeeds");
+            .await?;
 
         // Check if dimensions are large enough to necessitate a thumbnail
         if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
@@ -549,8 +545,7 @@ impl PostReview {
 
             // Update the post with thumbnail info
             post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
-                .await
-                .expect("query succeeds");
+                .await?;
         }
 
         Ok(())
