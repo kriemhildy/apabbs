@@ -2,8 +2,31 @@
 //!
 //! This module provides endpoints for post review, approval, rejection, banning, and media decryption.
 //! It enforces business rules for moderator/admin actions and manages background media processing.
+//!
+//! # Endpoints
+//! - `review_post`: Handles moderation actions (approve, reject, ban, decrypt, re-encrypt, delete media, etc.)
+//! - `decrypt_media`: Serves decrypted media files to moderators/admins for review
+//!
+//! # Business Rules
+//! - Only moderators and admins can perform moderation actions
+//! - Certain actions are restricted to admins only
+//! - Media operations are handled in the background when needed
+//! - Banned posts trigger IP/account bans and cleanup
+//! - Thumbnails are validated for approved posts
+//!
+//! # Error Handling
+//! - All errors are logged and returned as appropriate HTTP responses
+//! - User-facing errors are clear and actionable
+//!
+//! # Background Tasks
+//! - Media decryption and re-encryption are performed asynchronously
+//! - Clients are notified of post updates via broadcast
 
 use super::*;
+
+// =========================
+// Moderation Endpoints
+// =========================
 
 /// Processes post moderation actions.
 ///
@@ -19,6 +42,9 @@ use super::*;
 ///
 /// # Returns
 /// A `Response` indicating the result of the moderation action, with background processing as needed.
+///
+/// # Errors
+/// Returns appropriate `ResponseError` variants for authentication, authorization, business rule, or internal errors.
 pub async fn review_post(
     method: Method,
     State(state): State<AppState>,
@@ -32,16 +58,24 @@ pub async fn review_post(
     use ReviewAction::*;
     use ReviewError::*;
 
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to begin database transaction");
+        ResponseError::InternalServerError("Database transaction error".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_review.session_token)).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_review.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            ResponseError::Unauthorized("Session initialization failed".to_string())
+        })?;
 
     // Verify user has moderator privileges
     let account = match user.account {
         None => {
             return Err(Unauthorized(
-                "You must be logged in to moderate posts".to_owned(),
+                "You must be logged in to moderate posts".to_string(),
             ));
         }
         Some(account) => account,
@@ -51,14 +85,17 @@ pub async fn review_post(
         Admin | Mod => (),
         _ => {
             return Err(Unauthorized(
-                "You must be an admin or moderator to perform this action".to_owned(),
+                "You must be an admin or moderator to perform this action".to_string(),
             ));
         }
     };
 
     // Get the post to review
-    let post = match Post::select_by_key(&mut tx, &key).await? {
-        None => return Err(NotFound("Post does not exist".to_owned())),
+    let post = match Post::select_by_key(&mut tx, &key).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to select post by key");
+        ResponseError::InternalServerError("Failed to fetch post".to_string())
+    })? {
+        None => return Err(NotFound("Post does not exist".to_string())),
         Some(post) => post,
     };
 
@@ -68,30 +105,32 @@ pub async fn review_post(
     // Handle various review actions
     let background_task: Option<BoxFuture> = match review_action {
         // Handle errors
-        Err(SameStatus) => return Err(BadRequest("Post already has this status".to_owned())),
-        Err(ReturnToPending) => return Err(BadRequest("Cannot return post to pending".to_owned())),
-        Err(ModOnly) => return Err(Unauthorized("Only moderators can report posts".to_owned())),
+        Err(SameStatus) => return Err(BadRequest("Post already has this status".to_string())),
+        Err(ReturnToPending) => {
+            return Err(BadRequest("Cannot return post to pending".to_string()));
+        }
+        Err(ModOnly) => return Err(Unauthorized("Only moderators can report posts".to_string())),
         Err(AdminOnly) => {
             return Err(Unauthorized(
-                "Only admins can ban or reject posts".to_owned(),
+                "Only admins can ban or reject posts".to_string(),
             ));
         }
         Err(RejectedOrBanned) => {
             return Err(BadRequest(
-                "Cannot review a banned or rejected post".to_owned(),
+                "Cannot review a banned or rejected post".to_string(),
             ));
         }
         Err(RecentOnly) => {
             return Err(Unauthorized(
-                "Moderators can only review approved posts for two days".to_owned(),
+                "Moderators can only review approved posts for two days".to_string(),
             ));
         }
         Err(CurrentlyProcessing) => {
-            return Err(BadRequest("Post is currently being processed".to_owned()));
+            return Err(BadRequest("Post is currently being processed".to_string()));
         }
         Err(ManualProcessing) => {
             return Err(BadRequest(
-                "Cannot manually set post to processing".to_owned(),
+                "Cannot manually set post to processing".to_string(),
             ));
         }
 
@@ -102,7 +141,7 @@ pub async fn review_post(
             } else {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
-                    return Err(NotFound("Encrypted media file does not exist".to_owned()));
+                    return Err(NotFound("Encrypted media file does not exist".to_string()));
                 }
 
                 if review_action == Ok(DecryptMedia) {
@@ -145,12 +184,24 @@ pub async fn review_post(
     };
 
     // Update post status and record review action
-    post.update_status(&mut tx, status).await?;
-    post_review.insert(&mut tx, account.id, post.id).await?;
+    post.update_status(&mut tx, status).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to update post status");
+        ResponseError::InternalServerError("Failed to update post status".to_string())
+    })?;
+    post_review
+        .insert(&mut tx, account.id, post.id)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to insert post review");
+            ResponseError::InternalServerError("Failed to record review action".to_string())
+        })?;
 
     // Get updated post
-    let post = match Post::select_by_key(&mut tx, &key).await? {
-        None => return Err(NotFound("Post does not exist".to_owned())),
+    let post = match Post::select_by_key(&mut tx, &key).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to select updated post by key");
+        ResponseError::InternalServerError("Failed to fetch updated post".to_string())
+    })? {
+        None => return Err(NotFound("Post does not exist".to_string())),
         Some(post) => post,
     };
 
@@ -165,11 +216,14 @@ pub async fn review_post(
     // Ensure approved posts have thumbnails if needed
     if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
         return Err(InternalServerError(
-            "Error setting post thumbnail".to_owned(),
+            "Error setting post thumbnail".to_string(),
         ));
     }
 
-    tx.commit().await?;
+    tx.commit().await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to commit transaction");
+        ResponseError::InternalServerError("Failed to commit transaction".to_string())
+    })?;
 
     // Notify clients of the update
     if state.sender.send(post).is_err() {
@@ -191,7 +245,11 @@ pub async fn review_post(
     Ok((jar, response).into_response())
 }
 
-/// Serves decrypted media files to moderators.
+// =========================
+// Media Access Endpoints
+// =========================
+
+/// Serves decrypted media files to moderators or admins for review.
 ///
 /// Allows privileged users to access original media files for moderation or review.
 ///
@@ -203,49 +261,64 @@ pub async fn review_post(
 ///
 /// # Returns
 /// A `Response` containing the decrypted media file for download or inline viewing.
+///
+/// # Errors
+/// Returns `Unauthorized` if the user is not a moderator/admin, or `NotFound`/`InternalServerError` for missing or failed media operations.
 pub async fn decrypt_media(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to begin database transaction");
+        ResponseError::InternalServerError("Database transaction error".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        ResponseError::Unauthorized("Session initialization failed".to_string())
+    })?;
 
     // Verify user has required privileges
     if !user.mod_or_admin() {
         return Err(Unauthorized(
-            "You must be a moderator or admin to access this media".to_owned(),
+            "You must be a moderator or admin to access this media".to_string(),
         ));
     }
 
     // Get the post
-    let post = match Post::select_by_key(&mut tx, &key).await? {
-        None => return Err(NotFound("Post does not exist".to_owned())),
+    let post = match Post::select_by_key(&mut tx, &key).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to select post by key");
+        ResponseError::InternalServerError("Failed to fetch post".to_string())
+    })? {
+        None => return Err(NotFound("Post does not exist".to_string())),
         Some(post) => post,
     };
 
     // Verify media exists
     if !post.encrypted_media_path().exists() {
-        return Err(NotFound("Encrypted media file does not exist".to_owned()));
+        return Err(NotFound("Encrypted media file does not exist".to_string()));
     }
 
     // Get media details
     let media_filename = post
         .media_filename
         .as_ref()
-        .ok_or(InternalServerError("Missing filename".to_owned()))?;
-    let media_bytes = post.decrypt_media_file().await?;
+        .ok_or_else(|| InternalServerError("Missing filename".to_string()))?;
+    let media_bytes = post.decrypt_media_file().await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to decrypt media file");
+        ResponseError::InternalServerError("Failed to decrypt media file".to_string())
+    })?;
     if media_bytes.is_empty() {
         return Err(InternalServerError(
-            "Failed to decrypt media file".to_owned(),
+            "Failed to decrypt media file".to_string(),
         ));
     }
     let content_type = post
         .media_mime_type
-        .ok_or(InternalServerError("Missing MIME type".to_owned()))?;
+        .ok_or_else(|| InternalServerError("Missing MIME type".to_string()))?;
 
     // Set response headers for download
     let headers = [
@@ -259,6 +332,14 @@ pub async fn decrypt_media(
     Ok((jar, headers, media_bytes).into_response())
 }
 
+// =========================
+// Background Media Tasks
+// =========================
+
+/// Background task for decrypting media and updating post status.
+///
+/// Handles media decryption, post status update, cleanup, and client notification asynchronously.
+/// Logs errors to stderr if any step fails.
 pub async fn decrypt_media_task(
     state: AppState,
     initial_post: Post,
@@ -315,6 +396,10 @@ pub async fn decrypt_media_task(
     }
 }
 
+/// Background task for re-encrypting media and updating post status.
+///
+/// Handles media re-encryption, post status update, and client notification asynchronously.
+/// Logs errors to stderr if any step fails.
 pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_review: PostReview) {
     let result: Result<(), Box<dyn std::error::Error>> = async {
         let mut tx = state
