@@ -107,55 +107,6 @@ pub async fn review_post(
 
                 if review_action == Ok(DecryptMedia) {
                     // Create background task for media decryption
-                    async fn decrypt_media_task(
-                        state: AppState,
-                        initial_post: Post,
-                        post_review: PostReview,
-                        encrypted_media_path: std::path::PathBuf,
-                    ) {
-                        let result: Result<(), Box<dyn std::error::Error>> = async {
-                            let mut tx = state.db.begin().await.map_err(|e| format!("Failed to begin database transaction: {e}"))?;
-
-                            // Attempt media decryption
-                            PostReview::handle_decrypt_media(&mut tx, &initial_post)
-                                .await
-                                .map_err(|e| format!("Failed to decrypt media: {e}"))?;
-
-                            // Update post status
-                            initial_post
-                                .update_status(&mut tx, post_review.status)
-                                .await
-                                .map_err(|e| format!("Failed to update post status: {e}"))?;
-
-                            // Get updated post
-                            let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
-                                .await
-                                .map_err(|e| format!("Failed to select updated post by key: {e}"))?
-                            {
-                                None => {
-                                    eprintln!("Post does not exist after decrypting media");
-                                    return Ok(());
-                                }
-                                Some(post) => post,
-                            };
-
-                            tx.commit().await.map_err(|e| format!("Failed to commit transaction: {e}"))?;
-
-                            // Clean up and notify clients
-                            PostReview::delete_upload_key_dir(&encrypted_media_path)
-                                .await
-                                .map_err(|e| format!("Failed to delete upload directory: {e}"))?;
-                            if state.sender.send(updated_post).is_err() {
-                                eprintln!("No active receivers to send to");
-                            }
-                            Ok(())
-                        }.await;
-
-                        if let Err(e) = result {
-                            eprintln!("Error in decrypt_media_task: {e}");
-                        }
-                    }
-
                     Some(Box::pin(decrypt_media_task(
                         state.clone(),
                         post.clone(),
@@ -351,4 +302,53 @@ pub async fn decrypt_media(
     ];
 
     Ok((jar, headers, media_bytes).into_response())
+}
+
+pub async fn decrypt_media_task(
+    state: AppState,
+    initial_post: Post,
+    post_review: PostReview,
+    encrypted_media_path: std::path::PathBuf,
+) {
+    let result: Result<(), Box<dyn std::error::Error>> = async {
+        let mut tx = state.db.begin().await.map_err(|e| format!("Failed to begin database transaction: {e}"))?;
+
+        // Attempt media decryption
+        PostReview::handle_decrypt_media(&mut tx, &initial_post)
+            .await
+            .map_err(|e| format!("Failed to decrypt media: {e}"))?;
+
+        // Update post status
+        initial_post
+            .update_status(&mut tx, post_review.status)
+            .await
+            .map_err(|e| format!("Failed to update post status: {e}"))?;
+
+        // Get updated post
+        let updated_post = match Post::select_by_key(&mut tx, &initial_post.key)
+            .await
+            .map_err(|e| format!("Failed to select updated post by key: {e}"))?
+        {
+            None => {
+                eprintln!("Post does not exist after decrypting media");
+                return Ok(());
+            }
+            Some(post) => post,
+        };
+
+        tx.commit().await.map_err(|e| format!("Failed to commit transaction: {e}"))?;
+
+        // Clean up and notify clients
+        PostReview::delete_upload_key_dir(&encrypted_media_path)
+            .await
+            .map_err(|e| format!("Failed to delete upload directory: {e}"))?;
+        if state.sender.send(updated_post).is_err() {
+            eprintln!("No active receivers to send to");
+        }
+        Ok(())
+    }.await;
+
+    if let Err(e) = result {
+        eprintln!("Error in decrypt_media_task: {e}");
+    }
 }
