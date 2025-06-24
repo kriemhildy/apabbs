@@ -63,18 +63,24 @@ use ResponseError::*;
 
 /// Convert an `sqlx::Error` into a `ResponseError`.
 impl From<sqlx::Error> for ResponseError {
+    /// Converts a database error into a 500 InternalServerError response.
     fn from(error: sqlx::Error) -> Self {
         ResponseError::InternalServerError(error.to_string())
     }
 }
 
+/// Convert a boxed error into a `ResponseError`.
 impl From<Box<dyn Error>> for ResponseError {
+    /// Converts any boxed error (not necessarily Send + Sync) into a 500 InternalServerError response.
     fn from(error: Box<dyn Error>) -> Self {
         ResponseError::InternalServerError(error.to_string())
     }
 }
 
+/// Convert a boxed error that is Send + Sync into a `ResponseError`.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
+    /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.
+    /// This is commonly used for async and thread-safe error propagation.
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
         ResponseError::InternalServerError(error.to_string())
     }
