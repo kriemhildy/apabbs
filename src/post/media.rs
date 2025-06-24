@@ -525,7 +525,7 @@ impl PostReview {
         }
 
         // Generate a poster image from the video
-        let video_poster_path = Self::generate_video_poster(&published_media_path).await;
+        let video_poster_path = Self::generate_video_poster(&published_media_path).await?;
         post.update_poster(tx, &video_poster_path).await?;
 
         // Update the post with media dimensions and poster
@@ -761,17 +761,25 @@ impl PostReview {
     /// - `video_path`: Path to the video file
     ///
     /// # Returns
-    /// Path to the generated poster image file (WebP)
-    pub async fn generate_video_poster(video_path: &Path) -> PathBuf {
+    /// Ok(PathBuf) to the generated poster image file (WebP), or Err if generation fails
+    pub async fn generate_video_poster(
+        video_path: &Path,
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         println!("Generating video poster for: {:?}", video_path);
         let poster_path = video_path.with_extension("webp");
 
-        let video_path_str = video_path.to_str().unwrap().to_owned();
-        let poster_path_str = poster_path.to_str().unwrap().to_owned();
+        let video_path_str = video_path
+            .to_str()
+            .ok_or("Failed to convert video_path to string")?
+            .to_owned();
+        let poster_path_str = poster_path
+            .to_str()
+            .ok_or("Failed to convert poster_path to string")?
+            .to_owned();
 
         // Move ffmpeg poster generation to a separate thread
-        tokio::task::spawn_blocking(move || {
-            let ffmpeg_output = std::process::Command::new("ffmpeg")
+        let ffmpeg_result = tokio::task::spawn_blocking(move || {
+            std::process::Command::new("ffmpeg")
                 .args([
                     "-nostdin", // No stdin interaction
                     "-i",
@@ -793,15 +801,32 @@ impl PostReview {
                     &poster_path_str, // Output file
                 ])
                 .output()
-                .expect("generates video poster");
-
-            println!("ffmpeg output: {:?}", ffmpeg_output);
         })
         .await
-        .expect("completes poster");
+        .map_err(|e| format!("Failed to complete ffmpeg: {}", e))?;
+
+        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+        println!(
+            "ffmpeg output: status={:?}, stderr={:?}",
+            ffmpeg_output.status,
+            String::from_utf8_lossy(&ffmpeg_output.stderr)
+        );
+
+        if !ffmpeg_output.status.success() {
+            return Err(format!(
+                "ffmpeg failed with status {}: {}",
+                ffmpeg_output.status,
+                String::from_utf8_lossy(&ffmpeg_output.stderr)
+            )
+            .into());
+        }
+
+        if !poster_path.exists() {
+            return Err("Poster image was not created successfully".into());
+        }
 
         println!("Video poster generated at: {:?}", poster_path);
-        poster_path
+        Ok(poster_path)
     }
 }
 
