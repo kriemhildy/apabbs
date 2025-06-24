@@ -325,7 +325,9 @@ pub async fn generate_image_thumbnails(db: PgPool) {
 
         // Update database with thumbnail information
         println!("Setting thumb_filename, thumb_width, thumb_height");
-        let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
+        let (width, height) = PostReview::image_dimensions(&thumbnail_path)
+            .await
+            .expect("gets dimensions");
         post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
             .await
             .expect("query succeeds");
@@ -362,7 +364,9 @@ pub async fn add_image_dimensions(db: PgPool) {
         );
 
         // Update original image dimensions
-        let (width, height) = PostReview::image_dimensions(&published_media_path).await;
+        let (width, height) = PostReview::image_dimensions(&published_media_path)
+            .await
+            .expect("gets dimensions");
         println!("Setting media image dimensions: {}x{}", width, height);
         post.update_media_dimensions(&mut tx, width, height)
             .await
@@ -371,7 +375,9 @@ pub async fn add_image_dimensions(db: PgPool) {
         // Update thumbnail dimensions if present
         if post.thumb_filename.is_some() {
             let thumbnail_path = post.thumbnail_path();
-            let (width, height) = PostReview::image_dimensions(&thumbnail_path).await;
+            let (width, height) = PostReview::image_dimensions(&thumbnail_path)
+                .await
+                .expect("gets dimensions");
             println!("Setting thumbnail image dimensions: {}x{}", width, height);
             post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
                 .await

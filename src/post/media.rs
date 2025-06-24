@@ -484,13 +484,13 @@ impl PostReview {
             tokio::fs::remove_file(&thumbnail_path).await?;
         } else {
             // Update the database with thumbnail information
-            let (width, height) = Self::image_dimensions(&thumbnail_path).await;
+            let (width, height) = Self::image_dimensions(&thumbnail_path).await?;
             post.update_thumbnail(tx, &thumbnail_path, width, height)
                 .await?
         }
 
         // Update the media dimensions in the database
-        let (width, height) = Self::image_dimensions(&published_media_path).await;
+        let (width, height) = Self::image_dimensions(&published_media_path).await?;
         post.update_media_dimensions(tx, width, height).await?;
 
         Ok(())
@@ -529,7 +529,7 @@ impl PostReview {
         post.update_poster(tx, &video_poster_path).await?;
 
         // Update the post with media dimensions and poster
-        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await;
+        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await?;
         post.update_media_dimensions(tx, media_width, media_height)
             .await?;
 
@@ -541,7 +541,7 @@ impl PostReview {
                 return Err("Thumbnail was not created successfully".into());
             }
 
-            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await;
+            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await?;
 
             // Update the post with thumbnail info
             post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
@@ -557,32 +557,44 @@ impl PostReview {
     /// - `image_path`: Path to the image file
     ///
     /// # Returns
-    /// A tuple of (width, height) as integers (i32, i32)
-    pub async fn image_dimensions(image_path: &Path) -> (i32, i32) {
+    /// A Result containing a tuple of (width, height) as integers (i32, i32), or an error
+    pub async fn image_dimensions(
+        image_path: &Path,
+    ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
         println!("Getting image dimensions for: {:?}", image_path);
-        let image_path_str = image_path.to_str().unwrap();
+        let image_path_str = image_path
+            .to_str()
+            .ok_or("Failed to convert image_path to string")?
+            .to_owned();
 
-        // Helper function to extract specific field from vipsheader
-        let vipsheader = async |field: &str| -> i32 {
+        async fn vipsheader(
+            field: &str,
+            image_path_str: &str,
+        ) -> Result<i32, Box<dyn Error + Send + Sync>> {
             let output = tokio::process::Command::new("vipsheader")
                 .args(["-f", field, image_path_str])
                 .output()
                 .await
-                .expect("gets image dimension");
+                .map_err(|e| format!("Failed to run vipsheader: {}", e))?;
 
-            String::from_utf8_lossy(&output.stdout)
+            let value = String::from_utf8_lossy(&output.stdout)
                 .trim()
-                .parse()
-                .expect("parses i32")
-        };
+                .parse::<i32>()
+                .map_err(|e| format!("Failed to parse vipsheader output as i32: {}", e))?;
+            Ok(value)
+        }
 
-        // Get both dimensions in parallel
-        let (width, height) = tokio::join!(vipsheader("width"), vipsheader("height"));
+        let (width_res, height_res) = tokio::join!(
+            vipsheader("width", &image_path_str),
+            vipsheader("height", &image_path_str)
+        );
+        let width = width_res?;
+        let height = height_res?;
         println!(
             "Image dimensions for {:?}: {}x{}",
             image_path, width, height
         );
-        (width, height)
+        Ok((width, height))
     }
 
     /// Determines if a video is compatible for web playback using ffprobe.
