@@ -2,6 +2,22 @@
 //!
 //! This module provides endpoints for displaying, submitting, hiding, and streaming posts.
 //! It supports pagination, single post views, post creation with media, and websocket updates.
+//!
+//! # Endpoints
+//! - `index`: Home page and paginated post listing
+//! - `solo_post`: Single post full-page view
+//! - `submit_post`: Post creation with optional media
+//! - `hide_post`: Hide rejected posts from user view
+//! - `web_socket`: Real-time post updates via websocket
+//! - `interim`: Fetch posts created after a reference post
+//!
+//! # Error Handling
+//! - All errors are logged and returned as appropriate HTTP responses
+//! - User-facing errors are clear and actionable
+//!
+//! # Real-Time Updates
+//! - WebSocket endpoint streams new posts to clients
+//! - Interim endpoint recovers missed posts after disconnect
 
 use super::*;
 use axum::extract::{
@@ -9,6 +25,10 @@ use axum::extract::{
     ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
 };
 use std::collections::HashMap;
+
+// =========================
+// Post Display Endpoints
+// =========================
 
 /// Handles the main index page and paginated content.
 ///
@@ -23,6 +43,9 @@ use std::collections::HashMap;
 ///
 /// # Returns
 /// A `Response` containing the rendered index page.
+///
+/// # Errors
+/// Returns `InternalServerError` for database or rendering errors.
 pub async fn index(
     method: Method,
     State(state): State<AppState>,
@@ -30,20 +53,32 @@ pub async fn index(
     Path(path): Path<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Handle pagination parameter if present
     let page_post = match path.get("key") {
-        Some(key) => Some(init_post(&mut tx, key, &user).await?),
+        Some(key) => Some(init_post(&mut tx, key, &user).await.map_err(|e| {
+            tracing::error!("Failed to initialize page post: {:#?}", e);
+            e
+        })?),
         None => None,
     };
 
     // Get posts for current page
     let page_post_id = page_post.as_ref().map(|p| p.id);
-    let mut posts = Post::select(&mut tx, &user, page_post_id, false).await?;
+    let mut posts = Post::select(&mut tx, &user, page_post_id, false).await.map_err(|e| {
+        tracing::error!("Failed to select posts: {:?}", e);
+        InternalServerError("Failed to fetch posts.".to_string())
+    })?;
 
     // Check if there's a next page by seeing if we got more posts than our page size
     let prior_page_post = if posts.len() <= crate::per_page() {
@@ -89,6 +124,9 @@ pub async fn index(
 ///
 /// # Returns
 /// A `Response` containing the rendered solo post page.
+///
+/// # Errors
+/// Returns `NotFound` if the post does not exist, or `InternalServerError` for database/rendering errors.
 pub async fn solo_post(
     method: Method,
     State(state): State<AppState>,
@@ -96,13 +134,22 @@ pub async fn solo_post(
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Get the requested post
-    let post = init_post(&mut tx, &key, &user).await?;
+    let post = init_post(&mut tx, &key, &user).await.map_err(|e| {
+        tracing::error!("Failed to initialize post: {:?}", e);
+        e
+    })?;
 
     // Render the page
     let html = Html(render(
@@ -121,6 +168,10 @@ pub async fn solo_post(
     Ok((jar, html).into_response())
 }
 
+// =========================
+// Post Submission & Hiding
+// =========================
+
 /// Handles post submission.
 ///
 /// Processes new post creation with optional media attachments.
@@ -134,6 +185,9 @@ pub async fn solo_post(
 ///
 /// # Returns
 /// A `Response` indicating the result of the post submission.
+///
+/// # Errors
+/// Returns `BadRequest` for invalid input, `Banned` if user is banned, or `InternalServerError` for database/media errors.
 pub async fn submit_post(
     method: Method,
     State(state): State<AppState>,
@@ -141,18 +195,21 @@ pub async fn submit_post(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
     while let Some(field) = multipart
         .next_field()
         .await
-        .map_err(|e| BadRequest(format!("Failed to read field: {e}")))?
+        .map_err(|e| BadRequest(format!("Failed to read field: {:?}", e)))?
     {
         let name = field
             .name()
-            .ok_or(BadRequest("Missing field name".to_owned()))?
+            .ok_or_else(|| BadRequest("Missing field name.".to_string()))?
             .to_owned();
         match name.as_str() {
             "session_token" => {
@@ -160,9 +217,9 @@ pub async fn submit_post(
                     &field
                         .text()
                         .await
-                        .map_err(|e| BadRequest(format!("Failed to read session token: {e}")))?,
+                        .map_err(|e| BadRequest(format!("Failed to read session token: {:?}", e)))?,
                 ) {
-                    Err(e) => return Err(BadRequest(format!("Invalid session token: {e}"))),
+                    Err(e) => return Err(BadRequest(format!("Invalid session token: {:?}", e))),
                     Ok(uuid) => uuid,
                 };
             }
@@ -170,15 +227,15 @@ pub async fn submit_post(
                 post_submission.body = field
                     .text()
                     .await
-                    .map_err(|e| BadRequest(format!("Failed to read post body: {e}")))?
+                    .map_err(|e| BadRequest(format!("Failed to read post body: {:?}", e)))?
             }
             "media" => {
                 if post_submission.media_filename.is_some() {
-                    return Err(BadRequest("Only one media file can be uploaded".to_owned()));
+                    return Err(BadRequest("Only one media file can be uploaded.".to_string()));
                 }
                 let filename = field
                     .file_name()
-                    .ok_or(BadRequest("Media file has no filename".to_owned()))?
+                    .ok_or_else(|| BadRequest("Media file has no filename.".to_string()))?
                     .to_owned();
                 if filename.is_empty() {
                     continue;
@@ -188,7 +245,7 @@ pub async fn submit_post(
                     field
                         .bytes()
                         .await
-                        .map_err(|e| BadRequest(format!("Failed to read media file: {e}")))?
+                        .map_err(|e| BadRequest(format!("Failed to read media file: {:?}", e)))?
                         .to_vec(),
                 );
             }
@@ -200,37 +257,56 @@ pub async fn submit_post(
     let ip_hash = ip_hash(&headers);
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token)).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Check if user is banned
     if let Some(expires_at_str) =
-        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await?
+        check_for_ban(&mut tx, &ip_hash, user.account.as_ref().map(|a| a.id), None).await.map_err(|e| {
+            tracing::error!("Failed to check for ban: {:?}", e);
+            InternalServerError("Failed to check for ban.".to_string())
+        })?
     {
-        tx.commit().await?;
+        tx.commit().await.map_err(|e| {
+            tracing::error!("Failed to commit transaction: {:?}", e);
+            InternalServerError("Failed to commit transaction.".to_string())
+        })?;
         return Err(Banned(expires_at_str));
     }
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
         return Err(BadRequest(
-            "Post cannot be empty unless there is a media file".to_owned(),
+            "Post cannot be empty unless there is a media file.".to_string(),
         ));
     }
 
     // Generate unique key and insert post
-    let key = PostSubmission::generate_key(&mut tx).await?;
+    let key = PostSubmission::generate_key(&mut tx).await.map_err(|e| {
+        tracing::error!("Failed to generate post key: {:?}", e);
+        InternalServerError("Failed to generate post key.".to_string())
+    })?;
     let post = post_submission
         .insert(&mut tx, &user, &ip_hash, &key)
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to insert post: {:?}", e);
+            InternalServerError("Failed to insert post.".to_string())
+        })?;
 
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            return Err(InternalServerError(msg.to_string()));
+            return Err(InternalServerError(format!("Failed to encrypt media file: {msg}")));
         }
     }
 
-    tx.commit().await?;
+    tx.commit().await.map_err(|e| {
+        tracing::error!("Failed to commit transaction: {:?}", e);
+        InternalServerError("Failed to commit transaction.".to_string())
+    })?;
 
     // Notify clients of new post
     if state.sender.send(post).is_err() {
@@ -260,6 +336,9 @@ pub async fn submit_post(
 ///
 /// # Returns
 /// A `Response` indicating the result of the hide action.
+///
+/// # Errors
+/// Returns `Unauthorized` if the user is not the author, `BadRequest` for invalid status, or `InternalServerError` for database errors.
 pub async fn hide_post(
     method: Method,
     State(state): State<AppState>,
@@ -268,31 +347,46 @@ pub async fn hide_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Result<Response, ResponseError> {
     use PostStatus::*;
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(post_hiding.session_token)).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Process post hiding if authorized and eligible
-    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await? {
+    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await.map_err(|e| {
+        tracing::error!("Failed to select post by key: {:?}", e);
+        InternalServerError("Failed to select post by key.".to_string())
+    })? {
         if !post.author(&user) {
             return Err(Unauthorized(
-                "You are not the author of this post".to_owned(),
+                "You are not the author of this post.".to_string(),
             ));
         }
         match post.status {
             Rejected => {
-                post_hiding.hide_post(&mut tx).await?;
-                tx.commit().await?;
+                post_hiding.hide_post(&mut tx).await.map_err(|e| {
+                    tracing::error!("Failed to hide post: {:?}", e);
+                    InternalServerError("Failed to hide post.".to_string())
+                })?;
+                tx.commit().await.map_err(|e| {
+                    tracing::error!("Failed to commit transaction: {:?}", e);
+                    InternalServerError("Failed to commit transaction.".to_string())
+                })?;
             }
             Reported | Banned => (),
             _ => {
                 return Err(BadRequest(
-                    "Post is not rejected, reported, or banned".to_owned(),
+                    "Post is not rejected, reported, or banned.".to_string(),
                 ));
             }
         }
-    };
+    }
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {
@@ -303,6 +397,10 @@ pub async fn hide_post(
 
     Ok((jar, response).into_response())
 }
+
+// =========================
+// Real-Time & Interim Updates
+// =========================
 
 /// Handles WebSocket connections for real-time updates.
 ///
@@ -316,6 +414,9 @@ pub async fn hide_post(
 ///
 /// # Returns
 /// A `Response` that upgrades the connection to a WebSocket.
+///
+/// # Errors
+/// Returns `InternalServerError` for database or websocket errors.
 pub async fn web_socket(
     method: Method,
     State(state): State<AppState>,
@@ -361,10 +462,16 @@ pub async fn web_socket(
         }
     }
 
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, _jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, _jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Subscribe to broadcast channel and upgrade connection
     let receiver = state.sender.subscribe();
@@ -383,23 +490,38 @@ pub async fn web_socket(
 ///
 /// # Returns
 /// A `Response` containing new posts as rendered HTML in JSON format.
+///
+/// # Errors
+/// Returns `NotFound` if the reference post does not exist, or `InternalServerError` for database/rendering errors.
 pub async fn interim(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("Failed to begin database transaction: {:?}", e);
+        InternalServerError("Database transaction error.".to_string())
+    })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await?;
+    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Get the reference post
-    let since_post = init_post(&mut tx, &key, &user).await?;
+    let since_post = init_post(&mut tx, &key, &user).await.map_err(|e| {
+        tracing::error!("Failed to initialize reference post: {:?}", e);
+        e
+    })?;
 
     // Fetch newer posts
     let since_post_id = Some(since_post.id);
-    let new_posts = Post::select(&mut tx, &user, since_post_id, true).await?;
+    let new_posts = Post::select(&mut tx, &user, since_post_id, true).await.map_err(|e| {
+        tracing::error!("Failed to select new posts: {:?}", e);
+        InternalServerError("Failed to fetch new posts.".to_string())
+    })?;
 
     if new_posts.is_empty() {
         return Ok((jar, StatusCode::NO_CONTENT).into_response());
