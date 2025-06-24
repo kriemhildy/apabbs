@@ -176,7 +176,9 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
 
         // Download thumbnail and get dimensions
         if let Some((local_thumbnail_path, width, height)) =
-            PostSubmission::download_youtube_thumbnail(&video_id, short).await
+            PostSubmission::download_youtube_thumbnail(&video_id, short)
+                .await
+                .expect("download succeeds")
         {
             // Remove pub prefix from path for URL
             let thumbnail_url = local_thumbnail_path

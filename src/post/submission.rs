@@ -8,6 +8,7 @@ use crate::user::User;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
+use std::error::Error;
 use std::path::PathBuf;
 use url::Url;
 use uuid::Uuid;
@@ -89,14 +90,14 @@ impl PostSubmission {
         user: &User,
         ip_hash: &str,
         key: &str,
-    ) -> Result<Post, sqlx::Error> {
+    ) -> Result<Post, Box<dyn Error>> {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_filename.as_deref());
         let (session_token, account_id) = match user.account {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
-        let html_body = self.body_to_html(key).await;
+        let html_body = self.body_to_html(key).await?;
         let youtube = html_body.contains(r#"<a href=\"https://www.youtube.com\"#);
         let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
@@ -117,6 +118,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
+        .map_err(|e| Box::new(e) as Box<dyn Error>)
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -132,7 +134,7 @@ impl PostSubmission {
     pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
-    ) -> Option<(PathBuf, i32, i32)> {
+    ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error>> {
         println!("Downloading YouTube thumbnail for video ID: {}", video_id);
         fn dimensions(size: &str) -> (i32, i32) {
             match size {
@@ -147,7 +149,7 @@ impl PostSubmission {
         }
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
         if video_id_dir.exists() {
-            if let Some(first_entry) = video_id_dir.read_dir().expect("reads dir").next() {
+            if let Some(first_entry) = video_id_dir.read_dir()?.next() {
                 let existing_thumbnail_path = first_entry.expect("gets entry").path();
                 let size = existing_thumbnail_path
                     .file_name()
@@ -158,7 +160,7 @@ impl PostSubmission {
                     .next()
                     .expect("gets name part");
                 let (width, height) = dimensions(size);
-                return Some((existing_thumbnail_path, width, height));
+                return Ok(Some((existing_thumbnail_path, width, height)));
             }
         } else {
             tokio::fs::create_dir(&video_id_dir)
@@ -189,10 +191,10 @@ impl PostSubmission {
                 .expect("downloads file");
             if curl_status.success() {
                 let (width, height) = dimensions(size);
-                return Some((local_thumbnail_path, width, height));
+                return Ok(Some((local_thumbnail_path, width, height)));
             }
         }
-        None
+        Ok(None)
     }
 
     /// Converts the post body from plain text to HTML format.
@@ -204,7 +206,7 @@ impl PostSubmission {
     ///
     /// # Returns
     /// The HTML-formatted body of the post as a `String`.
-    pub async fn body_to_html(&self, key: &str) -> String {
+    pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error>> {
         let mut html = self
             .body
             .trim_end()
@@ -233,7 +235,7 @@ impl PostSubmission {
     ///
     /// # Returns
     /// The HTML content with YouTube embeds as a `String`.
-    pub async fn embed_youtube(mut html: String, key: &str) -> String {
+    pub async fn embed_youtube(mut html: String, key: &str) -> Result<String, Box<dyn Error>> {
         let youtube_link_pattern = concat!(
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
@@ -263,7 +265,7 @@ impl PostSubmission {
             println!("youtube_video_id: {}", youtube_video_id);
             println!("youtube_timestamp: {:?}", youtube_timestamp);
             let thumbnail_tuple =
-                Self::download_youtube_thumbnail(youtube_video_id, youtube_short).await;
+                Self::download_youtube_thumbnail(youtube_video_id, youtube_short).await?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (
@@ -308,7 +310,7 @@ impl PostSubmission {
                 .replace(&html, youtube_thumbnail_link)
                 .to_string();
         }
-        html
+        Ok(html)
     }
 
     /// Determines the intro limit for a post based on its HTML content.
@@ -493,7 +495,7 @@ mod tests {
         // Run the test
         let key = "testkey1";
         assert_eq!(
-            submission.body_to_html(key).await,
+            submission.body_to_html(key).await.unwrap(),
             concat!(
                 "&lt;&amp;test body&quot;&apos; コンピューター<br>\n",
                 "<br>\n",
@@ -656,7 +658,7 @@ mod tests {
         };
 
         // Generate HTML with embeds containing timestamps
-        let html = submission.body_to_html("testkey").await;
+        let html = submission.body_to_html("testkey").await.unwrap();
 
         // Verify timestamps were properly extracted and included
         assert!(html.contains("&amp;t=1m30s"));

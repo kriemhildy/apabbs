@@ -33,6 +33,7 @@ use axum::{
 };
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
+use std::error::Error;
 use std::{future::Future, pin::Pin};
 use uuid::Uuid;
 
@@ -50,7 +51,6 @@ pub const ROOT: &str = "/";
 /// Custom error type for application errors.
 #[derive(Debug)]
 pub enum ResponseError {
-    DatabaseError(sqlx::Error),
     InternalServerError(String),
     NotFound(String),
     Unauthorized(String),
@@ -63,8 +63,14 @@ use ResponseError::*;
 
 /// Convert an `sqlx::Error` into a `ResponseError`.
 impl From<sqlx::Error> for ResponseError {
-    fn from(err: sqlx::Error) -> Self {
-        DatabaseError(err)
+    fn from(error: sqlx::Error) -> Self {
+        ResponseError::InternalServerError(error.to_string())
+    }
+}
+
+impl From<Box<dyn Error>> for ResponseError {
+    fn from(error: Box<dyn Error>) -> Self {
+        ResponseError::InternalServerError(error.to_string())
     }
 }
 
@@ -72,10 +78,6 @@ impl From<sqlx::Error> for ResponseError {
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
         let (status, body) = match self {
-            DatabaseError(err) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Database error occurred: {}", err),
-            ),
             InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
