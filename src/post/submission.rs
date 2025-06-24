@@ -159,12 +159,12 @@ impl PostSubmission {
                 let existing_thumbnail_path = first_entry?.path();
                 let size = existing_thumbnail_path
                     .file_name()
-                    .ok_or("Filename does not exist")?
+                    .ok_or("filename does not exist")?
                     .to_str()
-                    .ok_or("Filename is not valid UTF-8")?
+                    .ok_or("filename is not valid utf-8")?
                     .split('.')
                     .next()
-                    .ok_or("Filename does not have a basename")?;
+                    .ok_or("filename does not have a basename")?;
                 let (width, height, _) = dimensions(size);
                 return Ok(Some((existing_thumbnail_path, width, height)));
             }
@@ -272,9 +272,9 @@ impl PostSubmission {
                 None => break,
                 Some((path, width, height)) => (
                     path.to_str()
-                        .ok_or("Failed to convert thumbnail path to string")?
+                        .ok_or("failed to convert thumbnail path to string")?
                         .strip_prefix("pub")
-                        .ok_or("Failed to strip 'pub' prefix from thumbnail path")?
+                        .ok_or("failed to strip 'pub' prefix from thumbnail path")?
                         .to_owned(),
                     width,
                     height,
