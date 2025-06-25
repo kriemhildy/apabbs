@@ -320,7 +320,7 @@ pub async fn submit_post(
 
     // Notify clients of new post
     if state.sender.send(post).is_err() {
-        println!("No active receivers to send to");
+        tracing::warn!("No active receivers to send to");
     }
 
     // Return appropriate response based on request type

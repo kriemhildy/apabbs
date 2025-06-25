@@ -149,7 +149,7 @@ impl PostSubmission {
         video_id: &str,
         youtube_short: bool,
     ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error + Send + Sync>> {
-        println!("Downloading YouTube thumbnail for video ID: {}", video_id);
+        tracing::debug!(video_id = video_id, "Downloading YouTube thumbnail");
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
         // Helper function only used in this function
@@ -262,7 +262,7 @@ impl PostSubmission {
             // youtu.be has no match for 2, but is always not a short
             let short = captures.get(2).is_some_and(|m| m.as_str() == SHORTS_PATH);
             let video_id = &captures[3];
-            println!("captures: {:?}", captures);
+            tracing::debug!("Regex captures: {:?}", captures);
             let timestamp = if short {
                 None
             } else {
@@ -273,8 +273,11 @@ impl PostSubmission {
                     .find(|(k, _)| k == "t")
                     .map(|(_, v)| v.to_string())
             };
-            println!("video_id: {}", video_id);
-            println!("timestamp: {:?}", timestamp);
+            tracing::debug!(
+                video_id = video_id,
+                timestamp = timestamp,
+                "Parsed YouTube URL"
+            );
             let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short).await?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
@@ -335,70 +338,70 @@ impl PostSubmission {
     /// - `Some(i32)` with the byte offset for truncation if a limit is found
     /// - `None` if no truncation is needed
     pub fn intro_limit(html: &str) -> Option<i32> {
-        println!("html.len(): {}", html.len());
+        tracing::debug!("html.len(): {}", html.len());
         if html.is_empty() {
             return None;
         }
-        // get a slice of the maximum intro bytes limited to the last valid utf8 character
+        // Get a slice of the maximum intro bytes limited to the last valid UTF-8 character
         let last_valid_utf8_index = html
             .char_indices()
             .take_while(|&(idx, _)| idx < MAX_INTRO_BYTES)
             .last()
             .map_or(0, |(idx, _)| idx);
-        println!("last valid utf8 index: {}", last_valid_utf8_index);
+        tracing::debug!(last_valid_utf8_index);
         let slice = if html.len() - 1 > last_valid_utf8_index {
             &html[..last_valid_utf8_index]
         } else {
             html
         };
-        println!("slice: {}", slice);
-        // stop before a second youtube video
+        // Stop before a second YouTube video
         let youtube_pattern =
             Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("builds regex");
-        // debug
         let mut youtube_iter = youtube_pattern.find_iter(slice);
-        println!("first youtube_pattern match: {:?}", youtube_iter.next());
+        let first_youtube_match = youtube_iter.next();
+        if let Some(mat) = first_youtube_match {
+            tracing::debug!("First YouTube match start: {:?}", mat.start());
+        } else {
+            tracing::debug!("No YouTube match found");
+        }
         let youtube_limit = match youtube_iter.next() {
             None => None,
             Some(mat) => {
-                println!("second youtube_pattern match: {:?}", mat);
+                tracing::debug!("Second YouTube match start: {:?}", mat.start());
                 let before_second_youtube = &slice[..mat.start()];
-                // strip any breaks or whitespace that might be present at the end
+                // Strip any breaks or whitespace that might be present at the end
                 let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("builds regex");
                 let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
                 Some(stripped.trim_end().len() as i32)
             }
         };
-        // check for the maximum breaks
+        // Check for the maximum breaks
         let single_break_pattern = Regex::new("<br>\n").expect("builds regex");
         let break_limit = single_break_pattern
             .find_iter(slice)
             .nth(MAX_INTRO_BREAKS)
             .map(|mat| mat.start() as i32);
-        // take the smallest of youtube and break limits
-        println!(
-            "youtube_limit: {:?}, break_limit: {:?}",
-            youtube_limit, break_limit
-        );
+        // Take the smallest of YouTube and break limits
+        tracing::debug!(youtube_limit = ?youtube_limit, break_limit = ?break_limit);
         let min_limit = match (youtube_limit, break_limit) {
             (None, None) => None,
             (Some(y), None) => Some(y),
             (None, Some(b)) => Some(b),
             (Some(y), Some(b)) => Some(y.min(b)),
         };
-        println!("min_limit: {:?}", min_limit);
+        tracing::debug!(min_limit = ?min_limit);
         if min_limit.is_some() {
-            println!("intro: {}", &html[..min_limit.unwrap() as usize]);
+            tracing::info!(min_limit, "Intro limit found via breaks or YouTubes");
             return min_limit;
         }
-        // do not truncate if beneath the maximum intro length
+        // Do not truncate if beneath the maximum intro length
         if html.len() <= MAX_INTRO_BYTES {
             return None;
         }
         // Truncate to the last break(s) before the limit
         let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("builds regex");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
-            println!("Found last break(s) at byte: {}", mat.start());
+            tracing::info!("Intro limit found via last break(s) at byte: {}", mat.start());
             return Some(mat.start() as i32);
         }
         // If no breaks, truncate to the last space byte
@@ -410,7 +413,7 @@ impl PostSubmission {
         // Check for & which is not terminated by a ;
         let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("builds regex");
         if let Some(mat) = incomplete_entity_pattern.find(slice) {
-            println!("Found incomplete entity at byte: {}", mat.start());
+            tracing::info!("Intro limit found via incomplete entity at byte: {}", mat.start());
             return Some(mat.start() as i32);
         }
         // No incomplete entity, return last valid utf8 character index
@@ -454,6 +457,7 @@ impl PostHiding {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::init_tracing_for_test;
 
     /// Tests the conversion of post body text to HTML with YouTube embed generation
     ///
@@ -465,6 +469,7 @@ mod tests {
     /// - Proper timestamp handling in YouTube links
     #[tokio::test]
     pub async fn body_to_html() {
+        init_tracing_for_test();
         // Setup test with various types of content:
         // - HTML special characters
         // - Line breaks
@@ -595,6 +600,7 @@ mod tests {
     /// - HTML entity handling
     #[tokio::test]
     async fn intro_limit() {
+        init_tracing_for_test();
         // Test case: Two YouTube embeds with line breaks beyond the limit
         // Should truncate at the first YouTube embed
         let two_youtubes = concat!(

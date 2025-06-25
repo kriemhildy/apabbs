@@ -21,16 +21,6 @@ use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
-// Ensure we are in development mode before running tests.
-#[cfg(test)]
-#[ctor::ctor]
-fn init() {
-    if !dev() {
-        eprintln!("Only run tests in development mode (DEV=1)");
-        std::process::exit(1);
-    }
-}
-
 /// Format string for RFC 5322-style datetime in PostgreSQL queries.
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 
@@ -192,4 +182,27 @@ pub async fn app_state() -> AppState {
     let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
 
     AppState { db, jinja, sender }
+}
+
+// Ensure we are in development mode before running tests.
+#[cfg(test)]
+#[ctor::ctor]
+fn init() {
+    if !dev() {
+        eprintln!("Only run tests in development mode (DEV=1)");
+        std::process::exit(1);
+    }
+}
+
+// Initializes tracing for tests to capture logs and output them to the console.
+#[cfg(test)]
+fn init_tracing_for_test() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_test_writer()
+            .init();
+    });
 }

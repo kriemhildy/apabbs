@@ -736,7 +736,6 @@ impl PostReview {
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        tracing::debug!("ffprobe output: {}", output_str);
 
         // Parse the output by key
         let mut codec = "";
@@ -744,6 +743,7 @@ impl PostReview {
         let mut profile = "";
         let mut level = "";
         for line in output_str.lines() {
+            tracing::debug!("ffprobe output: {}", line);
             let line = line.trim();
             if let Some(rest) = line.strip_prefix("codec_name=") {
                 codec = rest;
@@ -828,19 +828,9 @@ impl PostReview {
         .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
         let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
-        tracing::debug!(
-            status = ?ffmpeg_output.status,
-            stderr = ?String::from_utf8_lossy(&ffmpeg_output.stderr),
-            "ffmpeg output",
-        );
 
         if !ffmpeg_output.status.success() {
-            return Err(format!(
-                "ffmpeg failed, status: {}. stderr: {}",
-                ffmpeg_output.status,
-                String::from_utf8_lossy(&ffmpeg_output.stderr)
-            )
-            .into());
+            return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
         }
 
         if !compatibility_path.exists() {
@@ -906,19 +896,9 @@ impl PostReview {
         .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
         let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
-        tracing::debug!(
-            status = ?ffmpeg_output.status,
-            stderr = ?String::from_utf8_lossy(&ffmpeg_output.stderr),
-            "ffmpeg output"
-        );
 
         if !ffmpeg_output.status.success() {
-            return Err(format!(
-                "ffmpeg failed, status: {}. stderr: {}",
-                ffmpeg_output.status,
-                String::from_utf8_lossy(&ffmpeg_output.stderr)
-            )
-            .into());
+            return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
         }
 
         if !poster_path.exists() {

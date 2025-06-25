@@ -5,6 +5,7 @@
 
 use super::auth::Logout;
 use super::*;
+use crate::init_tracing_for_test;
 use axum::{
     Router,
     body::Body,
@@ -43,6 +44,7 @@ const TEST_MEDIA_DIR: &str = "tests/media";
 /// # Panics
 /// Panics if not running in development mode.
 async fn init_test() -> (Router, AppState) {
+    init_tracing_for_test();
     let state = crate::app_state().await;
     let router = router(state.clone(), false);
     (router, state)
