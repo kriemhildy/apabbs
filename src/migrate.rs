@@ -317,7 +317,9 @@ pub async fn generate_image_thumbnails(db: PgPool) {
         }
 
         // Skip if thumbnail is larger than original (defeats the purpose)
-        if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+        if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path)
+            .expect("comparison succeeds")
+        {
             println!("Thumbnail is larger than original, deleting");
             tokio::fs::remove_file(&thumbnail_path)
                 .await

@@ -310,7 +310,7 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file was written successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred
+    /// - `Err(Box<dyn Error>)` if an error occurred
     pub async fn write_media_file(
         published_media_path: &Path,
         media_bytes: Vec<u8>,
@@ -425,11 +425,22 @@ impl PostReview {
     /// - `published_media_path`: Path to the original media file
     ///
     /// # Returns
-    /// `true` if the thumbnail is larger than the original, `false` otherwise
-    pub fn thumbnail_is_larger(thumbnail_path: &Path, published_media_path: &Path) -> bool {
-        let thumbnail_len = thumbnail_path.metadata().unwrap().len();
-        let media_file_len = published_media_path.metadata().unwrap().len();
-        thumbnail_len > media_file_len
+    /// - `Ok(true)` if the thumbnail is larger than the original
+    /// - `Ok(false)` if the thumbnail is not larger
+    /// - `Err(Box<dyn Error + Send + Sync>)` if file metadata cannot be read
+    pub fn thumbnail_is_larger(
+        thumbnail_path: &Path,
+        published_media_path: &Path,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        let thumbnail_len = thumbnail_path
+            .metadata()
+            .map_err(|e| format!("failed to get thumbnail metadata: {e}"))?
+            .len();
+        let media_file_len = published_media_path
+            .metadata()
+            .map_err(|e| format!("failed to get media file metadata: {e}"))?
+            .len();
+        Ok(thumbnail_len > media_file_len)
     }
 
     /// Deletes an encrypted media file and its containing directory.
@@ -537,7 +548,7 @@ impl PostReview {
         }
 
         // If thumbnail is larger than original, don't use it
-        if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path) {
+        if Self::thumbnail_is_larger(&thumbnail_path, &published_media_path)? {
             tokio::fs::remove_file(&thumbnail_path)
                 .await
                 .map_err(|e| format!("failed to remove oversized thumbnail: {e}"))?;
