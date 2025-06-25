@@ -401,7 +401,10 @@ impl PostSubmission {
         // Truncate to the last break(s) before the limit
         let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("builds regex");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
-            tracing::info!("Intro limit found via last break(s) at byte: {}", mat.start());
+            tracing::info!(
+                "Intro limit found via last break(s) at byte: {}",
+                mat.start()
+            );
             return Some(mat.start() as i32);
         }
         // If no breaks, truncate to the last space byte
@@ -413,7 +416,10 @@ impl PostSubmission {
         // Check for & which is not terminated by a ;
         let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("builds regex");
         if let Some(mat) = incomplete_entity_pattern.find(slice) {
-            tracing::info!("Intro limit found via incomplete entity at byte: {}", mat.start());
+            tracing::info!(
+                "Intro limit found via incomplete entity at byte: {}",
+                mat.start()
+            );
             return Some(mat.start() as i32);
         }
         // No incomplete entity, return last valid utf8 character index
