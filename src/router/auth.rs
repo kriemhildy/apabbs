@@ -127,10 +127,12 @@ pub async fn authenticate(
     })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await.map_err(|e| {
@@ -179,10 +181,12 @@ pub async fn create_account(
     })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token)).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await.map_err(|e| {
@@ -203,10 +207,14 @@ pub async fn create_account(
 
     // Check for IP bans
     let ip_hash = ip_hash(&headers)?;
-    if let Some(expires_at_str) = check_for_ban(&mut tx, &ip_hash, None, None).await.map_err(|e| {
-        tracing::error!("Failed to check for ban: {:?}", e);
-        InternalServerError("Failed to check for ban.".to_string())
-    })? {
+    if let Some(expires_at_str) =
+        check_for_ban(&mut tx, &ip_hash, None, None)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check for ban: {:?}", e);
+                InternalServerError("Failed to check for ban.".to_string())
+            })?
+    {
         tx.commit().await.map_err(|e| {
             tracing::error!("Failed to commit transaction: {:?}", e);
             InternalServerError("Failed to commit transaction.".to_string())
@@ -265,10 +273,12 @@ pub async fn logout(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -306,10 +316,12 @@ pub async fn reset_account_token(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token)).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token))
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Verify user is logged in and reset token
     let jar = match user.account {

@@ -91,10 +91,13 @@ pub async fn review_post(
     };
 
     // Get the post to review
-    let post = Post::select_by_key(&mut tx, &key).await.map_err(|e| {
-        tracing::error!("Failed to select post by key: {:?}", e);
-        ResponseError::InternalServerError("Failed to fetch post".to_string())
-    })?.ok_or_else(|| NotFound("Post does not exist".to_string()))?;
+    let post = Post::select_by_key(&mut tx, &key)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to select post by key: {:?}", e);
+            ResponseError::InternalServerError("Failed to fetch post".to_string())
+        })?
+        .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Determine appropriate review action
     let review_action = post_review.determine_action(&post, &account.role);
@@ -194,10 +197,13 @@ pub async fn review_post(
         })?;
 
     // Get updated post
-    let post = Post::select_by_key(&mut tx, &key).await.map_err(|e| {
-        tracing::error!("Failed to select updated post by key: {:?}", e);
-        ResponseError::InternalServerError("Failed to fetch updated post".to_string())
-    })?.ok_or_else(|| NotFound("Post does not exist".to_string()))?;
+    let post = Post::select_by_key(&mut tx, &key)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to select updated post by key: {:?}", e);
+            ResponseError::InternalServerError("Failed to fetch updated post".to_string())
+        })?
+        .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Handle banned post cleanup
     if post.status == Banned {
@@ -283,10 +289,13 @@ pub async fn decrypt_media(
     }
 
     // Get the post
-    let post = Post::select_by_key(&mut tx, &key).await.map_err(|e| {
-        tracing::error!("Failed to select post by key: {:?}", e);
-        ResponseError::InternalServerError("Failed to fetch post".to_string())
-    })?.ok_or_else(|| NotFound("Post does not exist".to_string()))?;
+    let post = Post::select_by_key(&mut tx, &key)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to select post by key: {:?}", e);
+            ResponseError::InternalServerError("Failed to fetch post".to_string())
+        })?
+        .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Verify media exists
     if !post.encrypted_media_path().exists() {
