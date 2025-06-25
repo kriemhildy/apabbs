@@ -89,14 +89,6 @@ fn local_ip_hash() -> String {
     sha256::digest(crate::secret_key() + LOCAL_IP)
 }
 
-/// Generates a hash for the ban testing IP address.
-///
-/// # Returns
-/// A secure hash of the ban testing IP address.
-fn ban_ip_hash() -> String {
-    sha256::digest(crate::secret_key() + BAN_IP)
-}
-
 /// Creates a test account with the specified role.
 ///
 /// # Parameters
@@ -564,6 +556,7 @@ async fn autoban() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
+    let ban_ip_hash = sha256::digest(crate::secret_key() + BAN_IP);
 
     // Create several accounts from the same IP
     let mut credentials = test_credentials(&user);
@@ -571,7 +564,7 @@ async fn autoban() {
         credentials.session_token = Uuid::new_v4();
         credentials.username = Uuid::new_v4().simple().to_string()[..16].to_owned();
         credentials
-            .register(&mut tx, &ban_ip_hash())
+            .register(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds");
     }
@@ -588,32 +581,32 @@ async fn autoban() {
             .await
             .expect("query succeeds");
         post_submission
-            .insert(&mut tx, &user, &ban_ip_hash(), &key)
+            .insert(&mut tx, &user, &ban_ip_hash, &key)
             .await
             .expect("query succeeds");
     }
 
     // Verify state before flooding threshold is reached
     assert_eq!(
-        ban::new_accounts_count(&mut tx, &ban_ip_hash())
+        ban::new_accounts_count(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds"),
         3
     );
     assert_eq!(
-        ban::new_posts_count(&mut tx, &ban_ip_hash())
+        ban::new_posts_count(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds"),
         5
     );
     assert!(
-        ban::exists(&mut tx, &ban_ip_hash(), None)
+        ban::exists(&mut tx, &ban_ip_hash, None)
             .await
             .expect("query succeeds")
             .is_none()
     );
     assert!(
-        !ban::flooding(&mut tx, &ban_ip_hash())
+        !ban::flooding(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds")
     );
@@ -624,31 +617,31 @@ async fn autoban() {
         .await
         .expect("query succeeds");
     post_submission
-        .insert(&mut tx, &user, &ban_ip_hash(), &key)
+        .insert(&mut tx, &user, &ban_ip_hash, &key)
         .await
         .expect("query succeeds");
 
     // Verify flooding is detected but ban not yet applied
     assert_eq!(
-        ban::new_accounts_count(&mut tx, &ban_ip_hash())
+        ban::new_accounts_count(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds"),
         3
     );
     assert_eq!(
-        ban::new_posts_count(&mut tx, &ban_ip_hash())
+        ban::new_posts_count(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds"),
         6
     );
     assert!(
-        ban::exists(&mut tx, &ban_ip_hash(), None)
+        ban::exists(&mut tx, &ban_ip_hash, None)
             .await
             .expect("query succeeds")
             .is_none()
     );
     assert!(
-        ban::flooding(&mut tx, &ban_ip_hash())
+        ban::flooding(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds")
     );
@@ -680,31 +673,31 @@ async fn autoban() {
     // Verify ban state after ban
     let mut tx = state.db.begin().await.expect("begins");
     assert!(
-        ban::exists(&mut tx, &ban_ip_hash(), None)
+        ban::exists(&mut tx, &ban_ip_hash, None)
             .await
             .expect("query succeeds")
             .is_some()
     );
     assert!(
-        !ban::flooding(&mut tx, &ban_ip_hash())
+        !ban::flooding(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds")
     );
     assert_eq!(
-        ban::new_accounts_count(&mut tx, &ban_ip_hash())
+        ban::new_accounts_count(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds"),
         0
     );
     assert_eq!(
-        ban::new_posts_count(&mut tx, &ban_ip_hash())
+        ban::new_posts_count(&mut tx, &ban_ip_hash)
             .await
             .expect("query succeeds"),
         0
     );
 
     // Clean up
-    delete_test_ban(&mut tx, &ban_ip_hash()).await;
+    delete_test_ban(&mut tx, &ban_ip_hash).await;
     tx.commit().await.expect("commits");
 }
 
