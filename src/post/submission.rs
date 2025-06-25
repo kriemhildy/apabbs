@@ -94,14 +94,15 @@ impl PostSubmission {
     /// - `key`: Unique key for the post
     ///
     /// # Returns
-    /// The newly created `Post` object
+    /// - `Ok(Post)` if the post was created successfully
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during insertion
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
         user: &User,
         ip_hash: &str,
         key: &str,
-    ) -> Result<Post, Box<dyn Error>> {
+    ) -> Result<Post, Box<dyn Error + Send + Sync>> {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_filename.as_deref());
         let (session_token, account_id) = match user.account {
@@ -129,7 +130,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| Box::new(e) as Box<dyn Error>)
+        .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -141,11 +142,13 @@ impl PostSubmission {
     /// - `youtube_short`: Whether the video is a YouTube Shorts video
     ///
     /// # Returns
-    /// An optional tuple containing the thumbnail path and its width and height: `Option<(PathBuf, i32, i32)>`
+    /// - `Ok(Some((PathBuf, i32, i32)))` if a thumbnail was downloaded successfully (path, width, height)
+    /// - `Ok(None)` if no thumbnail could be downloaded
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during download
     pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
-    ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error>> {
+    ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error + Send + Sync>> {
         println!("Downloading YouTube thumbnail for video ID: {}", video_id);
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
@@ -205,8 +208,9 @@ impl PostSubmission {
     /// - `key`: The unique key of the post, used for generating YouTube links
     ///
     /// # Returns
-    /// The HTML-formatted body of the post as a `String`.
-    pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error>> {
+    /// - `Ok(String)` with the HTML-formatted body of the post
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during conversion
+    pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         let mut html = self
             .body
             .trim_end()
@@ -234,8 +238,12 @@ impl PostSubmission {
     /// - `key`: The unique key of the post, used in the embed HTML
     ///
     /// # Returns
-    /// The HTML content with YouTube embeds as a `String`.
-    pub async fn embed_youtube(mut html: String, key: &str) -> Result<String, Box<dyn Error>> {
+    /// - `Ok(String)` with the HTML content containing YouTube embeds
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during embedding
+    pub async fn embed_youtube(
+        mut html: String,
+        key: &str,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         // If this changes, will need to update the regex as well
         const STANDARD_PATH: &str = "watch?v=";
         const SHORTS_PATH: &str = "shorts/";
@@ -324,7 +332,8 @@ impl PostSubmission {
     /// - `html`: The HTML content of the post body
     ///
     /// # Returns
-    /// An optional byte offset (`Option<i32>`) for truncating the post intro
+    /// - `Some(i32)` with the byte offset for truncation if a limit is found
+    /// - `None` if no truncation is needed
     pub fn intro_limit(html: &str) -> Option<i32> {
         println!("html.len(): {}", html.len());
         if html.is_empty() {

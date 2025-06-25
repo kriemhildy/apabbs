@@ -310,11 +310,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file was written successfully
-    /// - `Err(Box<dyn Error>)` if an error occurred
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred
     pub async fn write_media_file(
         published_media_path: &Path,
         media_bytes: Vec<u8>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = published_media_path
             .parent()
             .ok_or("failed to get parent directory for media file")?;
@@ -450,8 +450,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file and directory were deleted successfully
-    /// - `Err(Box<dyn Error>)` otherwise
-    pub async fn delete_upload_key_dir(encrypted_media_path: &Path) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
+    pub async fn delete_upload_key_dir(
+        encrypted_media_path: &Path,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let uploads_key_dir = encrypted_media_path
             .parent()
             .ok_or("encrypted_media_path should have a parent directory")?;
@@ -473,8 +475,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the directory and its contents were deleted successfully
-    /// - `Err(Box<dyn Error>)` otherwise
-    pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
+    pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
 
         tokio::fs::remove_dir_all(&media_key_dir)
@@ -696,8 +698,10 @@ impl PostReview {
     /// # Returns
     /// - `Ok(true)` if the video is compatible
     /// - `Ok(false)` if it needs conversion
-    /// - `Err(Box<dyn Error>)` if an error occurs
-    pub async fn video_is_compatible(video_path: &Path) -> Result<bool, Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
+    pub async fn video_is_compatible(
+        video_path: &Path,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         println!("Checking video compatibility for: {:?}", video_path);
         let video_path_str = video_path
             .to_str()
