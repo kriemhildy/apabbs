@@ -291,10 +291,9 @@ function handleFormSubmit(event) {
         } else {
             alert(`Unexpected error: ${response.status} ${response.statusText}`);
         }
-        restoreSubmitButtons();
-        spinner.style.display = "none";
     }).catch((err) => {
         alert("Network error: " + err.message);
+    }).finally(() => {
         restoreSubmitButtons();
         spinner.style.display = "none";
     });
