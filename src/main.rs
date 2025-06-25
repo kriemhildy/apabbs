@@ -25,7 +25,8 @@ pub async fn main() {
 
     // Ensure critical configuration is present
     if apabbs::secret_key().len() < 16 {
-        panic!("SECRET_KEY environment variable must be at least 16 characters");
+        eprintln!("SECRET_KEY environment variable must be at least 16 characters");
+        std::process::exit(1);
     }
 
     // Start background tasks and scheduled jobs
