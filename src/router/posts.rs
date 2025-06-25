@@ -105,7 +105,6 @@ pub async fn index(
             posts,
             page_post,
             prior_page_post,
-            solo => false,
             utc_hour_timestamp,
         ),
     ));
@@ -163,7 +162,6 @@ pub async fn solo_post(
             user_agent => analyze_user_agent(&headers),
             user,
             post,
-            solo => true,
         ),
     ));
 
