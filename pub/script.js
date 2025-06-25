@@ -113,19 +113,21 @@ function updatePost(key, html) {
         postsDiv.prepend(template.content);
         incrementUnseenPosts();
     }
-    fixChromeVideoPosters(key);
+    fixChromiumVideoPosters(key);
 }
 
 /**
- * Fixes Chrome bug with dynamically added video poster attributes.
- * Re-assigns poster attribute to force Chrome to display it correctly.
+ * Fixes Chromium bug with dynamically added video poster attributes.
+ * Re-assigns poster attribute to force Chromium to display it correctly.
  *
  * @param {string} key - The unique identifier for the post
  */
-function fixChromeVideoPosters(key) {
-    document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
-        video.poster = video.poster;
-    });
+function fixChromiumVideoPosters(key) {
+    if (navigator.userAgent.includes("Chrome")) {
+        document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
+            video.poster = video.poster;
+        });
+    }
 }
 
 // -----------------------------------------------------------------------------
