@@ -118,7 +118,7 @@ impl Post {
         })
         .await
         .map_err(|e| format!("failed to complete gpg encryption: {e}"))??;
-        println!(
+        tracing::info!(
             "File encrypted successfully: {}",
             encrypted_media_path.display()
         );
@@ -160,7 +160,7 @@ impl Post {
                         "failed to remove uploads key directory after failed re-encryption: {e}"
                     )
                 })?;
-                eprintln!("Re-encryption failed: {msg}");
+                tracing::error!("Re-encryption failed: {msg}");
             }
         }
         result.map_err(|e| e.into())
@@ -192,7 +192,11 @@ impl Post {
         if !output.status.success() {
             return Err(format!("gpg failed to decrypt file, status: {}", output.status).into());
         }
-        println!("Media file decrypted successfully");
+        tracing::info!(
+            key = self.key,
+            media_filename = self.media_filename,
+            "Media file decrypted successfully"
+        );
         Ok(output.stdout)
     }
 }
@@ -370,19 +374,14 @@ impl PostReview {
 
         let command_output =
             vips_result.map_err(|e| format!("failed to run vipsthumbnail: {e}"))?;
-        println!(
-            "vipsthumbnail output: status={:?}, stderr={:?}",
-            command_output.status,
-            String::from_utf8_lossy(&command_output.stderr)
+        tracing::debug!(
+            status = ?command_output.status,
+            stderr = ?String::from_utf8_lossy(&command_output.stderr),
+            "vipsthumbnail output:"
         );
 
         if !command_output.status.success() {
-            return Err(format!(
-                "vipsthumbnail failed, status: {}. stderr: {}",
-                command_output.status,
-                String::from_utf8_lossy(&command_output.stderr)
-            )
-            .into());
+            return Err(format!("vipsthumbnail failed, status: {}", command_output.status).into());
         }
 
         let thumb_path = Self::alternate_path(published_media_path, "tn_", ".webp");
@@ -659,7 +658,7 @@ impl PostReview {
     pub async fn image_dimensions(
         image_path: &Path,
     ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
-        println!("Getting image dimensions for: {:?}", image_path);
+        tracing::debug!(image_path = ?image_path, "Getting image dimensions");
         let image_path_str = image_path
             .to_str()
             .ok_or("failed to convert image_path to string")?;
@@ -683,9 +682,11 @@ impl PostReview {
 
         let width = vipsheader("width", image_path_str).await?;
         let height = vipsheader("height", image_path_str).await?;
-        println!(
-            "Image dimensions for {:?}: {}x{}",
-            image_path, width, height
+        tracing::info!(
+            image_path = ?image_path,
+            width = width,
+            height = height,
+            "Processed image dimensions",
         );
         Ok((width, height))
     }
@@ -702,7 +703,7 @@ impl PostReview {
     pub async fn video_is_compatible(
         video_path: &Path,
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
-        println!("Checking video compatibility for: {:?}", video_path);
+        tracing::debug!(video_path = ?video_path, "Checking video compatibility");
         let video_path_str = video_path
             .to_str()
             .ok_or("failed to convert video_path to string")?
@@ -735,7 +736,7 @@ impl PostReview {
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        println!("ffprobe output: {}", output_str);
+        tracing::debug!("ffprobe output: {}", output_str);
 
         // Parse the output by key
         let mut codec = "";
@@ -762,11 +763,11 @@ impl PostReview {
             && level.parse::<i32>().unwrap_or(0) <= 42;
 
         if is_compatible {
-            println!("Video is compatible for web playback: {}", video_path_str);
+            tracing::info!(video_path = ?video_path, "Video is compatible for web playback");
         } else {
-            println!(
-                "Video is not compatible for web playback: {}",
-                video_path_str
+            tracing::info!(
+                video_path = ?video_path,
+                "Video is not compatible for web playback",
             );
         }
         Ok(is_compatible)
@@ -783,7 +784,7 @@ impl PostReview {
     pub async fn generate_compatibility_video(
         video_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
-        println!("Generating compatibility video for: {:?}", video_path);
+        tracing::debug!(video_path = ?video_path, "Generating compatibility video");
         let video_path_str = video_path
             .to_str()
             .ok_or("failed to convert video_path to string")?
@@ -827,10 +828,10 @@ impl PostReview {
         .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
         let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
-        println!(
-            "ffmpeg output: status={:?}, stderr={:?}",
-            ffmpeg_output.status,
-            String::from_utf8_lossy(&ffmpeg_output.stderr)
+        tracing::debug!(
+            status = ?ffmpeg_output.status,
+            stderr = ?String::from_utf8_lossy(&ffmpeg_output.stderr),
+            "ffmpeg output",
         );
 
         if !ffmpeg_output.status.success() {
@@ -846,7 +847,10 @@ impl PostReview {
             return Err("compatibility video was not created successfully".into());
         }
 
-        println!("Compatibility video generated at: {:?}", compatibility_path);
+        tracing::info!(
+            compatibility_path = ?compatibility_path,
+            "Compatibility video generated successfully"
+        );
         Ok(compatibility_path)
     }
 
@@ -861,7 +865,7 @@ impl PostReview {
     pub async fn generate_video_poster(
         video_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
-        println!("Generating video poster for: {:?}", video_path);
+        tracing::debug!(video_path = ?video_path, "Generating video poster");
         let poster_path = video_path.with_extension("webp");
 
         let video_path_str = video_path
@@ -902,10 +906,10 @@ impl PostReview {
         .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
         let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
-        println!(
-            "ffmpeg output: status={:?}, stderr={:?}",
-            ffmpeg_output.status,
-            String::from_utf8_lossy(&ffmpeg_output.stderr)
+        tracing::debug!(
+            status = ?ffmpeg_output.status,
+            stderr = ?String::from_utf8_lossy(&ffmpeg_output.stderr),
+            "ffmpeg output"
         );
 
         if !ffmpeg_output.status.success() {
@@ -921,7 +925,10 @@ impl PostReview {
             return Err("poster image was not created successfully".into());
         }
 
-        println!("Video poster generated at: {:?}", poster_path);
+        tracing::info!(
+            poster_path = ?poster_path,
+            "Video poster generated successfully"
+        );
         Ok(poster_path)
     }
 }

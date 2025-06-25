@@ -49,7 +49,7 @@ pub async fn main() {
         .await
         .unwrap_or_else(|_| panic!("Failed to bind to 0.0.0.0:{port}"));
 
-    println!("Server listening on port {port}");
+    tracing::info!("Server listening on port {port}");
 
     // Start HTTP server
     axum::serve(listener, router).await.expect("server starts");

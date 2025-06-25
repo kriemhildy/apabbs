@@ -69,7 +69,7 @@ pub fn scrub_ips() -> Job {
             // Commit the transaction
             tx.commit().await.expect("commits transaction");
 
-            println!("Old IP hashes scrubbed");
+            tracing::info!("Old IP hashes scrubbed");
         })
     })
     .expect("creates ip scrub job")
@@ -108,7 +108,7 @@ pub fn generate_screenshot() -> Job {
 
             // Run the blocking operation in a separate thread
             let status = tokio::task::spawn_blocking(move || {
-                println!("Taking screenshot using Chromium");
+                tracing::debug!("Taking screenshot using Chromium");
                 Command::new("chromium")
                     .args([
                         "--headless=new",
@@ -126,9 +126,12 @@ pub fn generate_screenshot() -> Job {
             .expect("completes screenshot task");
 
             if status.success() {
-                println!("Screenshot saved to {}", output_path_str);
+                tracing::info!(
+                    output_path = ?output_path,
+                    "Chromium screenshot saved"
+                );
             } else {
-                eprintln!(
+                tracing::error!(
                     "Failed to generate screenshot. Chromium exited with code: {:?}",
                     status.code()
                 );
