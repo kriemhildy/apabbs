@@ -43,9 +43,6 @@ const TEST_MEDIA_DIR: &str = "tests/media";
 /// # Panics
 /// Panics if not running in development mode.
 async fn init_test() -> (Router, AppState) {
-    if !crate::dev() {
-        panic!("not in dev mode");
-    }
     let state = crate::app_state().await;
     let router = router(state.clone(), false);
     (router, state)

@@ -21,6 +21,16 @@ use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
+// Ensure we are in development mode before running tests.
+#[cfg(test)]
+#[ctor::ctor]
+fn init() {
+    if !dev() {
+        eprintln!("Only run tests in development mode (DEV=1)");
+        std::process::exit(1);
+    }
+}
+
 /// Format string for RFC 5322-style datetime in PostgreSQL queries.
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 
