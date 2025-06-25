@@ -773,7 +773,7 @@ impl PostReview {
 
         // Move the ffmpeg processing to a separate thread pool
         let ffmpeg_result = tokio::task::spawn_blocking(move || {
-            let ffmpeg_output = std::process::Command::new("ffmpeg")
+            std::process::Command::new("ffmpeg")
                 .args([
                     "-nostdin", // No stdin interaction
                     "-i",
@@ -798,8 +798,7 @@ impl PostReview {
                     "128k",                  // Audio bitrate
                     &compatibility_path_str, // Output file
                 ])
-                .output();
-            ffmpeg_output
+                .output()
         })
         .await
         .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
