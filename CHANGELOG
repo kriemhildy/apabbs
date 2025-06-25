@@ -1,3 +1,8 @@
+0.41.0
+
+Use conventional Rust error handling for minimizing panics and notifying users.
+Update logging for consistency and clarity.
+
 0.40.0
 
 Improve support for compatibility videos.
