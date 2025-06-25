@@ -425,16 +425,22 @@ mod tests {
     /// Tests the author verification functionality
     #[tokio::test]
     async fn post_author_verification() {
+        use crate::user::UserAgent;
+
+        /// Test IP address (RFC 5737 TEST-NET-1)
+        const TEST_IP: &str = "192.0.2.0";
+
         // Create test user with session token
-        let session_token = Uuid::new_v4();
         let user = User {
-            session_token,
+            session_token: Uuid::new_v4(),
             account: None,
+            ip_hash: sha256::digest(TEST_IP.as_bytes()).to_string(),
+            agent: None,
         };
 
         // Create post with matching session token
         let post_by_session = Post {
-            session_token: Some(session_token),
+            session_token: Some(user.session_token),
             ..Default::default()
         };
 
@@ -448,6 +454,8 @@ mod tests {
                 token: Uuid::new_v4(),
                 ..Default::default()
             }),
+            ip_hash: sha256::digest(TEST_IP.as_bytes()).to_string(),
+            agent: None,
         };
 
         // Create post with matching account ID

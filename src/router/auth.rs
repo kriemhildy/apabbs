@@ -35,7 +35,7 @@ pub async fn login_form(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await.map_err(|e| {
         tracing::warn!("Failed to initialize user session: {:?}", e);
         e
     })?;
@@ -79,7 +79,7 @@ pub async fn registration_form(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await.map_err(|e| {
         tracing::warn!("Failed to initialize user session: {:?}", e);
         e
     })?;
@@ -119,6 +119,7 @@ pub async fn authenticate(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -127,7 +128,7 @@ pub async fn authenticate(
     })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token))
+    let (_user, jar) = init_user(jar, &mut tx, method, &headers, Some(credentials.session_token))
         .await
         .map_err(|e| {
             tracing::warn!("Failed to initialize user session: {:?}", e);

@@ -37,6 +37,15 @@ pub enum AccountRole {
     Admin,
 }
 
+/// Information about the user's browser, used for feature detection.
+#[derive(Serialize)]
+pub struct UserAgent {
+    /// True if the browser is running on macOS.
+    pub mac: bool,
+    /// True if the browser is based on Chromium (e.g., Chrome, Brave, Edge).
+    pub chromium: bool,
+}
+
 /// Represents a user in the system, either anonymous or authenticated.
 ///
 /// Contains the user's session token and optional account information.
@@ -46,6 +55,11 @@ pub struct User {
     pub account: Option<Account>,
     /// Unique token for identifying the user's session
     pub session_token: Uuid,
+    /// Hash of IP address for flood and abuse protection
+    #[serde(skip_serializing)]
+    pub ip_hash: String,
+    /// Browser information for feature detection
+    pub agent: Option<UserAgent>,
 }
 
 impl User {

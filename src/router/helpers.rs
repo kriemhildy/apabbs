@@ -210,6 +210,7 @@ pub async fn init_user(
     mut jar: CookieJar,
     tx: &mut PgConnection,
     method: Method,
+    headers: &HeaderMap,
     csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), ResponseError> {
     let account = match jar.get(ACCOUNT_COOKIE) {
@@ -258,9 +259,13 @@ pub async fn init_user(
             ));
         }
     }
+    let ip_hash = ip_hash(headers)?;
+    let agent = analyze_user_agent(headers);
     let user = User {
         account,
         session_token,
+        ip_hash,
+        agent,
     };
     set_session_time_zone(tx, user.time_zone()).await?;
     Ok((user, jar))
@@ -362,15 +367,6 @@ pub fn render(
 //==================================================================================================
 // Browser and Client Detection
 //==================================================================================================
-
-/// Information about the user's browser, used for feature detection and analytics.
-#[derive(Serialize)]
-pub struct UserAgent {
-    /// True if the browser is running on macOS.
-    pub mac: bool,
-    /// True if the browser is based on Chromium (e.g., Chrome, Edge).
-    pub chromium: bool,
-}
 
 /// Analyze the User-Agent header to detect platform and browser engine.
 ///
