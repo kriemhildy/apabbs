@@ -82,8 +82,8 @@ impl Post {
     /// - `bytes`: The raw bytes of the media file to encrypt.
     ///
     /// # Returns
-    /// - Ok(()) if encryption succeeded
-    /// - Err(Box<dyn std::error::Error>) if encryption failed
+    /// - `Ok(())` if encryption succeeded
+    /// - `Err(Box<dyn std::error::Error>)` if encryption failed
     pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
@@ -130,8 +130,8 @@ impl Post {
     /// Used when media needs to be moved back from published to reported state.
     ///
     /// # Returns
-    /// - Ok(()) if re-encryption succeeded
-    /// - Err(Box<dyn Error>) if re-encryption failed
+    /// - `Ok(())` if re-encryption succeeded
+    /// - `Err(Box<dyn Error>)` if re-encryption failed
     pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path
@@ -274,8 +274,8 @@ impl PostSubmission {
     /// - `post`: The Post to associate the encrypted file with.
     ///
     /// # Returns
-    /// - Ok(()) if encryption succeeded
-    /// - Err(Box<dyn Error>)
+    /// - `Ok(())` if encryption succeeded
+    /// - `Err(Box<dyn Error>)`
     pub async fn encrypt_uploaded_file(
         self,
         post: &Post,
