@@ -25,9 +25,9 @@ use super::*;
 pub async fn user_profile(
     method: Method,
     State(state): State<AppState>,
-    Path(username): Path<String>,
     jar: CookieJar,
     headers: HeaderMap,
+    Path(username): Path<String>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
         tracing::error!("Failed to begin database transaction: {:?}", e);
@@ -35,10 +35,12 @@ pub async fn user_profile(
     })?;
 
     // Initialize user from session (may be anonymous)
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Find account by username (returns NotFound if user does not exist)
     let account = match Account::select_by_username(&mut tx, &username)
@@ -104,10 +106,12 @@ pub async fn settings(
     })?;
 
     // Initialize user from session (must be logged in)
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -164,6 +168,7 @@ pub async fn update_time_zone(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -172,12 +177,18 @@ pub async fn update_time_zone(
     })?;
 
     // Initialize user from session (must be logged in)
-    let (user, jar) = init_user(jar, &mut tx, method, Some(time_zone_update.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(time_zone_update.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in
     let account = match user.account {
@@ -236,6 +247,7 @@ pub async fn update_password(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -244,12 +256,18 @@ pub async fn update_password(
     })?;
 
     // Initialize user from session (must be logged in)
-    let (user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(credentials.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user is logged in as the correct user
     match user.account {

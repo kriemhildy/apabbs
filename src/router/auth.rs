@@ -35,10 +35,12 @@ pub async fn login_form(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Render the login form
     let html = Html(render(
@@ -79,10 +81,12 @@ pub async fn registration_form(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Render the registration form
     let html = Html(render(
@@ -128,12 +132,18 @@ pub async fn authenticate(
     })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, &headers, Some(credentials.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (_user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(credentials.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await.map_err(|e| {
@@ -182,12 +192,18 @@ pub async fn create_account(
     })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(jar, &mut tx, method, Some(credentials.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (_user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(credentials.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await.map_err(|e| {
@@ -266,6 +282,7 @@ pub async fn logout(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -274,7 +291,7 @@ pub async fn logout(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token))
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token))
         .await
         .map_err(|e| {
             tracing::warn!("Failed to initialize user session: {:?}", e);
@@ -309,6 +326,7 @@ pub async fn reset_account_token(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -317,7 +335,7 @@ pub async fn reset_account_token(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(logout.session_token))
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token))
         .await
         .map_err(|e| {
             tracing::warn!("Failed to initialize user session: {:?}", e);

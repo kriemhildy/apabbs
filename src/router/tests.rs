@@ -78,6 +78,7 @@ fn test_user(account: Option<Account>) -> User {
     User {
         account,
         session_token: Uuid::new_v4(),
+        ..User::default()
     }
 }
 
@@ -123,6 +124,7 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     User {
         account: Some(account),
         session_token: user.session_token,
+        ..user
     }
 }
 
@@ -317,6 +319,7 @@ async fn not_found() {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/not-found")
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -327,7 +330,11 @@ async fn not_found() {
 #[tokio::test]
 async fn index() {
     let (router, _state) = init_test().await;
-    let request = Request::builder().uri(ROOT).body(Body::empty()).unwrap();
+    let request = Request::builder()
+        .uri(ROOT)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::empty())
+        .unwrap();
     let response = router.oneshot(request).await.unwrap();
 
     assert!(response.status().is_success());
@@ -352,7 +359,11 @@ async fn solo_post() {
 
     // Request the post page
     let uri = format!("/{}", &post.key);
-    let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
+    let request = Request::builder()
+        .uri(&uri)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::empty())
+        .unwrap();
     let response = router.oneshot(request).await.unwrap();
 
     // Verify response
@@ -382,7 +393,11 @@ async fn index_with_page() {
 
     // Request a specific page
     let uri = format!("/page/{}", &post2.key);
-    let request = Request::builder().uri(&uri).body(Body::empty()).unwrap();
+    let request = Request::builder()
+        .uri(&uri)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::empty())
+        .unwrap();
     let response = router.oneshot(request).await.unwrap();
 
     // Verify pagination behavior
@@ -573,7 +588,7 @@ async fn autoban() {
     let mut post_submission = PostSubmission {
         session_token: user.session_token,
         body: String::from("trololol"),
-        ..Default::default()
+        ..PostSubmission::default()
     };
     for _ in 0..5 {
         post_submission.session_token = Uuid::new_v4();
@@ -707,6 +722,7 @@ async fn login_form() {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/login")
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -741,6 +757,7 @@ async fn authenticate() {
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(creds_str))
         .unwrap();
 
@@ -760,6 +777,7 @@ async fn registration_form() {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/register")
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .unwrap();
 
@@ -829,6 +847,7 @@ async fn logout() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(logout_str))
         .unwrap();
 
@@ -864,6 +883,7 @@ async fn reset_account_token() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(logout_str))
         .unwrap();
 
@@ -914,6 +934,7 @@ async fn hide_post() {
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_hiding_str))
         .expect("builds request");
 
@@ -943,6 +964,7 @@ async fn interim() {
     // Request the interim page
     let request = Request::builder()
         .uri(format!("/interim/{}", &post1.key))
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .expect("builds request");
     let response = router.oneshot(request).await.expect("request succeeds");
@@ -981,6 +1003,7 @@ async fn user_profile() {
     // Request the user profile page
     let request = Request::builder()
         .uri(format!("/user/{}", &account.username))
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -1011,6 +1034,7 @@ async fn settings() {
     let request = Request::builder()
         .uri("/settings")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -1052,6 +1076,7 @@ async fn update_time_zone() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(time_zone_update_str))
         .unwrap();
 
@@ -1097,6 +1122,7 @@ async fn update_password() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(credentials_str))
         .unwrap();
 
@@ -1145,6 +1171,7 @@ async fn review_post_with_normal_image() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
         .unwrap();
 
@@ -1233,6 +1260,7 @@ async fn review_post_with_small_image() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
         .unwrap();
 
@@ -1322,6 +1350,7 @@ async fn review_post_with_video() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
         .unwrap();
 
@@ -1410,6 +1439,7 @@ async fn decrypt_media() {
     let request = Request::builder()
         .uri(&key)
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(X_REAL_IP, LOCAL_IP)
         .body(Body::empty())
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
@@ -1431,6 +1461,7 @@ async fn decrypt_media() {
 /// Tests establishing a WebSocket connection and receiving real-time updates.
 #[tokio::test]
 async fn websocket_connection() {
+    use axum::http::Uri;
     use futures::StreamExt;
     use tokio_tungstenite::tungstenite;
 
@@ -1450,8 +1481,11 @@ async fn websocket_connection() {
     });
 
     // Create WebSocket client
-    let ws_uri = format!("ws://{}/web-socket", addr);
-    let (mut ws_client, _) = tokio_tungstenite::connect_async(ws_uri).await.unwrap();
+    let ws_uri: Uri = format!("ws://{addr}/web-socket")
+        .parse()
+        .expect("valid URI");
+    let req = tungstenite::ClientRequestBuilder::new(ws_uri).with_header(X_REAL_IP, LOCAL_IP);
+    let (mut ws_client, _) = tokio_tungstenite::connect_async(req).await.expect("connects");
 
     // Send a post update through the broadcast channel
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish

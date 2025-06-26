@@ -953,7 +953,7 @@ mod tests {
             key: String::from("abcd1234"),
             media_filename: Some(String::from("test.jpg")),
             thumb_filename: Some(String::from("tn_test.webp")),
-            ..Default::default()
+            ..Post::default()
         };
 
         // Test path construction

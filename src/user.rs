@@ -49,17 +49,18 @@ pub struct UserAgent {
 /// Represents a user in the system, either anonymous or authenticated.
 ///
 /// Contains the user's session token and optional account information.
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct User {
     /// The user's account details if they are logged in
     pub account: Option<Account>,
     /// Unique token for identifying the user's session
     pub session_token: Uuid,
     /// Hash of IP address for flood and abuse protection
-    #[serde(skip_serializing)]
     pub ip_hash: String,
     /// Browser information for feature detection
     pub agent: Option<UserAgent>,
+    /// Expiration time of the user's ban, if applicable
+    pub ban_expires_at: Option<String>,
 }
 
 impl User {
@@ -445,11 +446,11 @@ mod tests {
     /// Tests the User helper methods for permission checking
     #[tokio::test]
     async fn user_permission_checks() {
+        // Define a constant for the New York time zone
+        const NEW_YORK: &str = "America/New_York";
+
         // Test anonymous user
-        let anon_user = User {
-            session_token: Uuid::new_v4(),
-            account: None,
-        };
+        let anon_user = User::default();
 
         assert!(!anon_user.mod_or_admin());
         assert!(!anon_user.admin());
@@ -457,29 +458,25 @@ mod tests {
 
         // Test novice user
         let novice_user = User {
-            session_token: Uuid::new_v4(),
             account: Some(Account {
-                id: 1,
-                username: "novice".to_owned(),
-                token: Uuid::new_v4(),
-                password_hash: "hash".to_owned(),
                 role: AccountRole::Novice,
-                time_zone: "America/New_York".to_owned(),
-                ..Default::default()
+                time_zone: NEW_YORK.to_string(),
+                ..Account::default()
             }),
+            ..User::default()
         };
 
         assert!(!novice_user.mod_or_admin());
         assert!(!novice_user.admin());
-        assert_eq!(novice_user.time_zone(), "America/New_York");
+        assert_eq!(novice_user.time_zone(), NEW_YORK);
 
         // Test mod user
         let mod_user = User {
-            session_token: Uuid::new_v4(),
             account: Some(Account {
                 role: AccountRole::Mod,
-                ..novice_user.account.clone().unwrap()
+                ..Account::default()
             }),
+            ..User::default()
         };
 
         assert!(mod_user.mod_or_admin());
@@ -487,11 +484,11 @@ mod tests {
 
         // Test admin user
         let admin_user = User {
-            session_token: Uuid::new_v4(),
             account: Some(Account {
                 role: AccountRole::Admin,
                 ..novice_user.account.as_ref().unwrap().clone()
             }),
+            ..User::default()
         };
 
         assert!(admin_user.mod_or_admin());

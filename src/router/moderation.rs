@@ -64,12 +64,18 @@ pub async fn review_post(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_review.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(post_review.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Verify user has moderator privileges
     let account = match user.account {
@@ -268,6 +274,7 @@ pub async fn decrypt_media(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -276,10 +283,12 @@ pub async fn decrypt_media(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Verify user has required privileges
     if !user.mod_or_admin() {

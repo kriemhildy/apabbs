@@ -494,7 +494,7 @@ mod tests {
                 "https://www.youtube.com/watch?t=10s&app=desktop&v=28jr-6-XDPM",
             )
             .to_owned(),
-            ..Default::default()
+            ..PostSubmission::default()
         };
 
         // Keep track of existing test directories to avoid deleting user data
@@ -675,7 +675,7 @@ mod tests {
                 "https://youtu.be/dQw4w9WgXcQ?t=42\n"
             )
             .to_owned(),
-            ..Default::default()
+            ..PostSubmission::default()
         };
 
         // Generate HTML with embeds containing timestamps

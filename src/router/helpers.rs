@@ -6,7 +6,6 @@
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use serde::Serialize;
 use sqlx::PgConnection;
 
 //==================================================================================================
@@ -261,11 +260,13 @@ pub async fn init_user(
     }
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);
+    let ban_expires_at = ban::exists(tx, &ip_hash, account.as_ref().map(|a| a.id)).await?;
     let user = User {
         account,
         session_token,
         ip_hash,
         agent,
+        ban_expires_at,
     };
     set_session_time_zone(tx, user.time_zone()).await?;
     Ok((user, jar))

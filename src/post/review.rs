@@ -184,9 +184,8 @@ mod tests {
         // Create a post with defaults, only setting what we need for this test
         // PostStatus::Pending is already the default
         let post = Post {
-            id: 1,
             key: String::from("testkey"),
-            ..Default::default()
+            ..Post::default()
         };
 
         // Case 1: Admin approving a pending post
@@ -202,7 +201,7 @@ mod tests {
         // Case 2: Mod trying to modify a reported post (should fail)
         let reported_post = Post {
             status: PostStatus::Reported,
-            ..Default::default()
+            ..Post::default()
         };
         let review = PostReview {
             session_token: Uuid::new_v4(),
@@ -216,7 +215,7 @@ mod tests {
         // Case 3: Trying to modify a banned post (should fail)
         let banned_post = Post {
             status: PostStatus::Banned,
-            ..Default::default()
+            ..Post::default()
         };
         let review = PostReview {
             session_token: Uuid::new_v4(),
@@ -231,7 +230,7 @@ mod tests {
         let approved_post = Post {
             status: PostStatus::Approved,
             recent: Some(true),
-            ..Default::default()
+            ..Post::default()
         };
         let review = PostReview {
             session_token: Uuid::new_v4(),
@@ -246,7 +245,7 @@ mod tests {
         let old_post = Post {
             status: PostStatus::Approved,
             recent: Some(false),
-            ..Default::default()
+            ..Post::default()
         };
         let review = PostReview {
             session_token: Uuid::new_v4(),

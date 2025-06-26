@@ -219,8 +219,8 @@ impl Post {
     /// use uuid::Uuid;
     ///
     /// let session_token = Uuid::new_v4();
-    /// let user = User { session_token, account: None };
-    /// let post = Post { session_token: Some(session_token), ..Default::default() };
+    /// let user = User { session_token, ..User::default() };
+    /// let post = Post { session_token: Some(session_token), ..Post::default() };
     /// assert!(post.author(&user));
     /// ```
     pub fn author(&self, user: &User) -> bool {
@@ -425,45 +425,37 @@ mod tests {
     /// Tests the author verification functionality
     #[tokio::test]
     async fn post_author_verification() {
-        use crate::user::UserAgent;
-
-        /// Test IP address (RFC 5737 TEST-NET-1)
-        const TEST_IP: &str = "192.0.2.0";
+        use crate::user::Account;
 
         // Create test user with session token
         let user = User {
             session_token: Uuid::new_v4(),
-            account: None,
-            ip_hash: sha256::digest(TEST_IP.as_bytes()).to_string(),
-            agent: None,
+            ..User::default()
         };
 
         // Create post with matching session token
         let post_by_session = Post {
             session_token: Some(user.session_token),
-            ..Default::default()
+            ..Post::default()
         };
 
         // Create user with account but different session token
         let user_with_account = User {
             session_token: Uuid::new_v4(),
-            account: Some(crate::user::Account {
+            account: Some(Account {
                 id: 123,
                 username: String::from("testuser"),
                 role: AccountRole::Novice,
                 token: Uuid::new_v4(),
-                ..Default::default()
+                ..Account::default()
             }),
-            ip_hash: sha256::digest(TEST_IP.as_bytes()).to_string(),
-            agent: None,
+            ..User::default()
         };
 
         // Create post with matching account ID
         let post_by_account = Post {
-            id: 2,
-            session_token: None,
             account_id: Some(123),
-            ..Default::default()
+            ..Post::default()
         };
 
         // Test author verification

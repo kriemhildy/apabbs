@@ -59,10 +59,12 @@ pub async fn index(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Handle pagination parameter if present
     let page_post = match path.get("key") {
@@ -141,10 +143,12 @@ pub async fn solo_post(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Get the requested post
     let post = init_post(&mut tx, &key, &user).await.map_err(|e| {
@@ -259,12 +263,18 @@ pub async fn submit_post(
     let ip_hash = ip_hash(&headers)?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_submission.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(post_submission.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Check if user is banned
     if let Some(expires_at_str) =
@@ -361,12 +371,18 @@ pub async fn hide_post(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, Some(post_hiding.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(
+        jar,
+        &mut tx,
+        method,
+        &headers,
+        Some(post_hiding.session_token),
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("Failed to initialize user session: {:?}", e);
+        e
+    })?;
 
     // Process post hiding if authorized and eligible
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key)
@@ -434,6 +450,7 @@ pub async fn web_socket(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Result<Response, ResponseError> {
     use tokio::sync::broadcast::Receiver;
@@ -487,10 +504,12 @@ pub async fn web_socket(
     })?;
 
     // Initialize user from session
-    let (user, _jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, _jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Subscribe to broadcast channel and upgrade connection
     let receiver = state.sender.subscribe();
@@ -516,6 +535,7 @@ pub async fn interim(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
@@ -524,10 +544,12 @@ pub async fn interim(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, None).await.map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
+        .await
+        .map_err(|e| {
+            tracing::warn!("Failed to initialize user session: {:?}", e);
+            e
+        })?;
 
     // Get the reference post
     let since_post = init_post(&mut tx, &key, &user).await.map_err(|e| {
