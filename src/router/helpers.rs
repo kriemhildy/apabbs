@@ -40,15 +40,29 @@ pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
     Ok(sha256::digest(crate::secret_key() + ip))
 }
 
-/// Determine if a request is an AJAX/fetch request (not a navigation).
-///
-/// Returns `true` if the `Sec-Fetch-Mode` header is present and not equal to "navigate".
-pub fn is_fetch_request(headers: &HeaderMap) -> bool {
-    headers
-        .get(SEC_FETCH_MODE)
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v != "navigate")
-        .unwrap_or(false)
+/// Check if an IP address is flooding. If so, ban the account and prune its content.
+pub async fn ban_if_flooding(
+    tx: &mut PgConnection,
+    ip_hash: &str,
+    account_id: Option<i32>,
+) -> Result<Option<String>, ResponseError> {
+    if ban::flooding(tx, ip_hash).await.map_err(|e| {
+        tracing::error!("Failed to check flooding for IP: {e}");
+        InternalServerError(format!("Cannot execute database query."))
+    })? {
+        let expires_at = ban::insert(tx, ip_hash, account_id, None)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to ban IP: {e}");
+                InternalServerError(format!("Cannot execute database query."))
+            })?;
+        ban::prune(tx, ip_hash).await.map_err(|e| {
+            tracing::error!("Failed to prune content for flooding IP: {e}");
+            InternalServerError(format!("Cannot execute database query."))
+        })?;
+        return Ok(Some(expires_at));
+    }
+    Ok(None)
 }
 
 //==================================================================================================
@@ -329,6 +343,17 @@ pub fn render(
         .map_err(|_| InternalServerError(format!("Template '{name}' not found")))?;
     tmpl.render(ctx)
         .map_err(|e| InternalServerError(format!("Template render error: {e}")))
+}
+
+/// Determine if a request is an AJAX/fetch request (not a navigation).
+///
+/// Returns `true` if the `Sec-Fetch-Mode` header is present and not equal to "navigate".
+pub fn is_fetch_request(headers: &HeaderMap) -> bool {
+    headers
+        .get(SEC_FETCH_MODE)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v != "navigate")
+        .unwrap_or(false)
 }
 
 //==================================================================================================

@@ -54,7 +54,7 @@ pub async fn index(
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
+        tracing::error!("Failed to begin database transaction: {e}");
         InternalServerError("Database transaction error.".to_string())
     })?;
 
@@ -277,35 +277,23 @@ pub async fn submit_post(
     })?;
 
     // Check for existing IP ban
-    if let Some(ban_expires_at) = user.ban_expires_at {
-        return Err(Banned(ban_expires_at));
+    if let Some(expires_at) = user.ban_expires_at {
+        return Err(Forbidden(format!(
+            "You have been banned until {expires_at}."
+        )));
     }
 
-    // Check for flooding attempts
-    if ban::flooding(&mut tx, &user.ip_hash).await.map_err(|e| {
-        tracing::error!("Failed to check for flooding: {:?}", e);
-        InternalServerError("Failed to check for flooding.".to_string())
-    })? {
-        let ban_expires_at = ban::insert(
-            &mut tx,
-            &user.ip_hash,
-            user.account.as_ref().map(|a| a.id),
-            None,
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to insert ban: {:?}", e);
-            InternalServerError("Failed to insert ban.".to_string())
-        })?;
-        ban::prune(&mut tx, &user.ip_hash).await.map_err(|e| {
-            tracing::error!("Failed to prune old bans: {:?}", e);
-            InternalServerError("Failed to prune old bans.".to_string())
-        })?;
+    // Ban user if they are flooding
+    if let Some(expires_at) =
+        ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
+    {
         tx.commit().await.map_err(|e| {
             tracing::error!("Failed to commit transaction: {:?}", e);
             InternalServerError("Failed to commit transaction.".to_string())
         })?;
-        return Err(Banned(ban_expires_at));
+        return Err(Forbidden(format!(
+            "You have been banned for flooding until {expires_at}."
+        )));
     }
 
     // Validate post content

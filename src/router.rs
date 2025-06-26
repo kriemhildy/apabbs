@@ -56,7 +56,6 @@ pub enum ResponseError {
     Unauthorized(String),
     Forbidden(String),
     BadRequest(String),
-    Banned(String),
 }
 
 use ResponseError::*;
@@ -65,6 +64,7 @@ use ResponseError::*;
 impl From<sqlx::Error> for ResponseError {
     /// Converts a database error into a 500 InternalServerError response.
     fn from(error: sqlx::Error) -> Self {
+        tracing::error!("Database error: {}", error);
         ResponseError::InternalServerError(error.to_string())
     }
 }
@@ -74,6 +74,7 @@ impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.
     /// This is commonly used for async and thread-safe error propagation.
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
+        tracing::error!(error);
         ResponseError::InternalServerError(error.to_string())
     }
 }
@@ -93,10 +94,6 @@ impl IntoResponse for ResponseError {
             ),
             Forbidden(msg) => (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")),
             BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")),
-            Banned(expires_at_str) => (
-                StatusCode::FORBIDDEN,
-                format!("403 Forbidden\n\nBanned until {expires_at_str}"),
-            ),
         };
 
         (status, body).into_response()
