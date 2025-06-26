@@ -238,7 +238,8 @@ pub async fn create_account(
             user.account.as_ref().map(|a| a.id),
             None,
         )
-        .await.map_err(|e| {
+        .await
+        .map_err(|e| {
             tracing::error!("Failed to insert ban: {:?}", e);
             InternalServerError("Failed to insert ban.".to_string())
         })?;

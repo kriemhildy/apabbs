@@ -1485,7 +1485,9 @@ async fn websocket_connection() {
         .parse()
         .expect("valid URI");
     let req = tungstenite::ClientRequestBuilder::new(ws_uri).with_header(X_REAL_IP, LOCAL_IP);
-    let (mut ws_client, _) = tokio_tungstenite::connect_async(req).await.expect("connects");
+    let (mut ws_client, _) = tokio_tungstenite::connect_async(req)
+        .await
+        .expect("connects");
 
     // Send a post update through the broadcast channel
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
