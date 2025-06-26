@@ -359,7 +359,7 @@ async fn solo_post() {
     tx.commit().await.expect("commits");
 
     // Request the post page
-    let uri = format!("/{}", &post.key);
+    let uri = format!("/p/{}", &post.key);
     let request = Request::builder()
         .uri(&uri)
         .header(X_REAL_IP, LOCAL_IP)
