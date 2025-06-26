@@ -68,7 +68,6 @@ pub async fn user_profile(
         minijinja::context!(
             dev => crate::dev(),
             host => crate::host(),
-            user_agent => analyze_user_agent(&headers),
             user,
             account,
             posts,
@@ -138,7 +137,6 @@ pub async fn settings(
         minijinja::context!(
             dev => crate::dev(),
             host => crate::host(),
-            user_agent => analyze_user_agent(&headers),
             user,
             time_zones,
             notice,

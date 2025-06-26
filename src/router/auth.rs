@@ -49,7 +49,6 @@ pub async fn login_form(
         minijinja::context!(
             dev => crate::dev(),
             host => crate::host(),
-            user_agent => analyze_user_agent(&headers),
             user,
         ),
     ));
@@ -95,7 +94,6 @@ pub async fn registration_form(
         minijinja::context!(
             dev => crate::dev(),
             host => crate::host(),
-            user_agent => analyze_user_agent(&headers),
             user,
         ),
     ));

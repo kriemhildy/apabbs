@@ -101,7 +101,6 @@ pub async fn index(
         minijinja::context!(
             dev => crate::dev(),
             host => crate::host(),
-            user_agent => analyze_user_agent(&headers),
             nav => true,
             user,
             posts,
@@ -163,7 +162,6 @@ pub async fn solo_post(
         minijinja::context!(
             dev => crate::dev(),
             host => crate::host(),
-            user_agent => analyze_user_agent(&headers),
             user,
             post,
         ),

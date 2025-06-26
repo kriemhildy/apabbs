@@ -2,8 +2,8 @@
 {# Add dev prefix in development mode #}
 {% set title = "[dev] " + host if dev else host %}
 {# Initialize user agent detection variables #}
-{% set mac = user_agent is not none and user_agent.mac %}
-{% set chromium =  user_agent is not none and user_agent.chromium %}
+{% set mac = user.agent is not none and user.agent.mac %}
+{% set chromium = user.agent is not none and user.agent.chromium %}
 <!DOCTYPE html>
 <html lang="en-US">
 
