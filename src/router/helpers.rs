@@ -48,17 +48,17 @@ pub async fn ban_if_flooding(
 ) -> Result<Option<String>, ResponseError> {
     if ban::flooding(tx, ip_hash).await.map_err(|e| {
         tracing::error!("Failed to check flooding for IP: {e}");
-        InternalServerError(format!("Cannot execute database query."))
+        InternalServerError("Cannot execute database query.".to_string())
     })? {
         let expires_at = ban::insert(tx, ip_hash, account_id, None)
             .await
             .map_err(|e| {
                 tracing::error!("Failed to ban IP: {e}");
-                InternalServerError(format!("Cannot execute database query."))
+                InternalServerError("Cannot execute database query.".to_string())
             })?;
         ban::prune(tx, ip_hash).await.map_err(|e| {
             tracing::error!("Failed to prune content for flooding IP: {e}");
-            InternalServerError(format!("Cannot execute database query."))
+            InternalServerError("Cannot execute database query.".to_string())
         })?;
         return Ok(Some(expires_at));
     }
