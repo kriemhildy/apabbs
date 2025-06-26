@@ -192,7 +192,7 @@ pub async fn create_account(
     })?;
 
     // Initialize user from session
-    let (_user, jar) = init_user(
+    let (user, jar) = init_user(
         jar,
         &mut tx,
         method,
@@ -222,28 +222,45 @@ pub async fn create_account(
         )));
     }
 
-    // Check for IP bans
-    let ip_hash = ip_hash(&headers)?;
-    if let Some(expires_at_str) =
-        check_for_ban(&mut tx, &ip_hash, None, None)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to check for ban: {:?}", e);
-                InternalServerError("Failed to check for ban.".to_string())
-            })?
-    {
+    // Check for existing IP ban
+    if let Some(ban_expires_at) = user.ban_expires_at {
+        return Err(Banned(ban_expires_at));
+    }
+
+    // Check for flooding attempts
+    if ban::flooding(&mut tx, &user.ip_hash).await.map_err(|e| {
+        tracing::error!("Failed to check for flooding: {:?}", e);
+        InternalServerError("Failed to check for flooding.".to_string())
+    })? {
+        let ban_expires_at = ban::insert(
+            &mut tx,
+            &user.ip_hash,
+            user.account.as_ref().map(|a| a.id),
+            None,
+        )
+        .await.map_err(|e| {
+            tracing::error!("Failed to insert ban: {:?}", e);
+            InternalServerError("Failed to insert ban.".to_string())
+        })?;
+        ban::prune(&mut tx, &user.ip_hash).await.map_err(|e| {
+            tracing::error!("Failed to prune old bans: {:?}", e);
+            InternalServerError("Failed to prune old bans.".to_string())
+        })?;
         tx.commit().await.map_err(|e| {
             tracing::error!("Failed to commit transaction: {:?}", e);
             InternalServerError("Failed to commit transaction.".to_string())
         })?;
-        return Err(Banned(expires_at_str));
+        return Err(Banned(ban_expires_at));
     }
 
     // Create the account
-    let account = credentials.register(&mut tx, &ip_hash).await.map_err(|e| {
-        tracing::error!("Failed to register account: {:?}", e);
-        InternalServerError("Failed to register account.".to_string())
-    })?;
+    let account = credentials
+        .register(&mut tx, &user.ip_hash)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to register account: {:?}", e);
+            InternalServerError("Failed to register account.".to_string())
+        })?;
     let jar = add_account_cookie(jar, &account, &credentials);
 
     tx.commit().await.map_err(|e| {

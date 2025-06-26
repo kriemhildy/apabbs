@@ -36,7 +36,7 @@ pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
         .get(X_REAL_IP)
         .ok_or_else(|| BadRequest("Missing X-Real-IP header".to_string()))?
         .to_str()
-        .map_err(|_| BadRequest("X-Real-IP is not utf-8".to_string()))?;
+        .map_err(|_| BadRequest("X-Real-IP is not UTF-8".to_string()))?;
     Ok(sha256::digest(crate::secret_key() + ip))
 }
 
@@ -49,40 +49,6 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
         .and_then(|v| v.to_str().ok())
         .map(|v| v != "navigate")
         .unwrap_or(false)
-}
-
-/// Check if a user is banned or rate-limited based on IP hash and account ID.
-///
-/// This function checks two conditions:
-/// 1. If the user is already banned (by IP or account), it returns the ban expiration string.
-/// 2. If the user is flooding (rate-limited), it inserts a new ban, deletes all content from this user,
-///    and returns the new ban expiration string.
-///
-/// # Arguments
-/// * `tx` - A mutable reference to the PostgreSQL connection/transaction.
-/// * `ip_hash` - The hash of the user's IP address.
-/// * `banned_account_id` - The account ID to check for a ban (if any).
-/// * `admin_account_id` - The admin account ID responsible for the ban (if any).
-///
-/// # Returns
-/// * `Ok(Some(String))` if the user is banned or newly banned (expiration string).
-/// * `Ok(None)` if the user is not banned.
-/// * `Err(sqlx::Error)` if a database error occurs.
-pub async fn check_for_ban(
-    tx: &mut PgConnection,
-    ip_hash: &str,
-    banned_account_id: Option<i32>,
-    admin_account_id: Option<i32>,
-) -> Result<Option<String>, sqlx::Error> {
-    if let Some(expires_at_str) = ban::exists(tx, ip_hash, banned_account_id).await? {
-        return Ok(Some(expires_at_str));
-    }
-    if ban::flooding(tx, ip_hash).await? {
-        let expires_at_str = ban::insert(tx, ip_hash, banned_account_id, admin_account_id).await?;
-        ban::prune(tx, ip_hash).await?;
-        return Ok(Some(expires_at_str));
-    }
-    Ok(None)
 }
 
 //==================================================================================================
