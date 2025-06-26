@@ -90,7 +90,6 @@ impl PostSubmission {
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
     /// - `user`: Current user submitting the post
-    /// - `ip_hash`: Anonymized IP hash of the user
     /// - `key`: Unique key for the post
     ///
     /// # Returns
@@ -100,7 +99,6 @@ impl PostSubmission {
         &self,
         tx: &mut PgConnection,
         user: &User,
-        ip_hash: &str,
         key: &str,
     ) -> Result<Post, Box<dyn Error + Send + Sync>> {
         let (media_category, media_mime_type) =
@@ -122,7 +120,7 @@ impl PostSubmission {
         .bind(session_token)
         .bind(account_id)
         .bind(&html_body)
-        .bind(ip_hash)
+        .bind(&user.ip_hash)
         .bind(self.media_filename.as_deref())
         .bind(media_category)
         .bind(media_mime_type.as_deref())

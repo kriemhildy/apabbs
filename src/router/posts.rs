@@ -259,9 +259,6 @@ pub async fn submit_post(
         };
     }
 
-    // Get user IP hash for tracking
-    let ip_hash = ip_hash(&headers)?;
-
     // Initialize user from session
     let (user, jar) = init_user(
         jar,
@@ -309,7 +306,7 @@ pub async fn submit_post(
         InternalServerError("Failed to generate post key.".to_string())
     })?;
     let post = post_submission
-        .insert(&mut tx, &user, &ip_hash, &key)
+        .insert(&mut tx, &user, &key)
         .await
         .map_err(|e| {
             tracing::error!("Failed to insert post: {:?}", e);
