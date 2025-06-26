@@ -51,11 +51,11 @@ pub const ROOT: &str = "/";
 /// Custom error type for application errors.
 #[derive(Debug)]
 pub enum ResponseError {
-    InternalServerError(String),
-    NotFound(String),
+    BadRequest(String),
     Unauthorized(String),
     Forbidden(String),
-    BadRequest(String),
+    NotFound(String),
+    InternalServerError(String),
 }
 
 use ResponseError::*;
@@ -83,17 +83,17 @@ impl From<Box<dyn Error + Send + Sync>> for ResponseError {
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
         let (status, body) = match self {
-            InternalServerError(msg) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("500 Internal Server Error\n\n{msg}"),
-            ),
-            NotFound(msg) => (StatusCode::NOT_FOUND, format!("404 Not Found\n\n{msg}")),
+            BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")),
             Unauthorized(msg) => (
                 StatusCode::UNAUTHORIZED,
                 format!("401 Unauthorized\n\n{msg}"),
             ),
             Forbidden(msg) => (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")),
-            BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")),
+            NotFound(msg) => (StatusCode::NOT_FOUND, format!("404 Not Found\n\n{msg}")),
+            InternalServerError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("500 Internal Server Error\n\n{msg}"),
+            ),
         };
 
         (status, body).into_response()
