@@ -169,19 +169,19 @@ impl Post {
     /// - `Err(Box<dyn Error + Send + Sync>)` if decryption fails
     pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         if self.media_filename.is_none() {
-            return Err("Cannot decrypt media: post has no media file".into());
+            return Err("cannot decrypt media: post has no media file".into());
         }
         let encrypted_file_path = self
             .encrypted_media_path()
             .to_str()
-            .ok_or("Failed to convert encrypted media path to string")?
+            .ok_or("failed to convert encrypted media path to string")?
             .to_owned();
         let output = tokio::process::Command::new("gpg")
             .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
             .arg(&encrypted_file_path)
             .output()
             .await
-            .map_err(|e| format!("Failed to run gpg for decryption: {e}"))?;
+            .map_err(|e| format!("failed to execute GPG for decryption: {e}"))?;
         if !output.status.success() {
             return Err(format!("GPG failed to decrypt file, status: {}", output.status).into());
         }
@@ -490,22 +490,22 @@ impl PostReview {
         let media_bytes = post
             .decrypt_media_file()
             .await
-            .map_err(|e| format!("Failed to decrypt media file: {e}"))?;
+            .map_err(|e| format!("failed to decrypt media file: {e}"))?;
 
         // Write the decrypted file to the published media directory
         let published_media_path = post.published_media_path();
         Self::write_media_file(&published_media_path, media_bytes)
             .await
-            .map_err(|e| format!("Failed to write decrypted media file: {e}"))?;
+            .map_err(|e| format!("failed to write decrypted media file: {e}"))?;
 
         // Process according to media type
         match post.media_category {
             Some(MediaCategory::Image) => Self::process_image(tx, post)
                 .await
-                .map_err(|e| format!("Failed to process image media: {e}"))?,
+                .map_err(|e| format!("failed to process image media: {e}"))?,
             Some(MediaCategory::Video) => Self::process_video(tx, post)
                 .await
-                .map_err(|e| format!("Failed to process video media: {e}"))?,
+                .map_err(|e| format!("failed to process video media: {e}"))?,
             // Audio files and posts without media don't need processing
             Some(MediaCategory::Audio) | None => (),
         }

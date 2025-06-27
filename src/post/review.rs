@@ -87,7 +87,7 @@ impl PostReview {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to insert review: {e}").into())
+            .map_err(|e| format!("failed to insert review: {e}").into())
     }
 
     /// Determines what action should be taken for a review based on post state and user role.

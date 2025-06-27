@@ -254,7 +254,7 @@ pub async fn set_session_time_zone(
         .execute(&mut *tx)
         .await
         .map(|_| ())
-        .map_err(|e| format!("Failed to set session time zone: {e}").into())
+        .map_err(|e| format!("failed to set session time zone: {e}").into())
 }
 
 //==================================================================================================
@@ -325,18 +325,16 @@ pub fn render(
         let mut env = state
             .jinja
             .write()
-            .map_err(|e| format!("Failed to acquire write lock for templates: {e}"))?;
+            .map_err(|e| format!("failed to acquire write lock for template \"{name}\": {e}"))?;
         env.clear_templates();
     }
     let env = state
         .jinja
         .read()
-        .map_err(|e| format!("Failed to acquire read lock for templates: {e}"))?;
-    let tmpl = env
-        .get_template(name)
-        .map_err(|e| format!("Template \"{name}\" not found: {e}"))?;
+        .map_err(|e| format!("failed to acquire read lock for template \"{name}\": {e}"))?;
+    let tmpl = env.get_template(name)?;
     tmpl.render(ctx)
-        .map_err(|e| format!("Template render error: {e}").into())
+        .map_err(|e| format!("failed to render template \"{name}\": {e}").into())
 }
 
 /// Determine if a request is an AJAX/fetch request (not a navigation).
@@ -396,7 +394,7 @@ pub async fn utc_hour_timestamp(
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
-        .map_err(|e| format!("Failed to get UTC hour timestamp: {e}").into())
+        .map_err(|e| format!("failed to get UTC hour timestamp: {e}").into())
 }
 
 //==================================================================================================
@@ -409,7 +407,7 @@ pub async fn begin_transaction(
 ) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
     db.begin()
         .await
-        .map_err(|e| format!("Failed to begin database transaction: {e}").into())
+        .map_err(|e| format!("failed to begin database transaction: {e}").into())
 }
 
 /// Commit a database transaction.
@@ -418,7 +416,7 @@ pub async fn commit_transaction(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     tx.commit()
         .await
-        .map_err(|e| format!("Failed to commit transaction: {e}").into())
+        .map_err(|e| format!("failed to commit transaction: {e}").into())
 }
 
 //==================================================================================================

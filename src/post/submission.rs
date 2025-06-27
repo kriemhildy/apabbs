@@ -79,7 +79,7 @@ impl PostSubmission {
                     .bind(&key)
                     .fetch_one(&mut *tx)
                     .await
-                    .map_err(|e| format!("Failed to check post key existence: {e}"))?;
+                    .map_err(|e| format!("failed to check post key existence: {e}"))?;
             if !exists {
                 return Ok(key);
             }
@@ -131,7 +131,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to insert post: {e}").into())
+        .map_err(|e| format!("failed to insert post: {e}").into())
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -458,7 +458,7 @@ impl PostHiding {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to hide post: {e}").into())
+            .map_err(|e| format!("failed to hide post: {e}").into())
     }
 }
 

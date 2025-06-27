@@ -321,14 +321,14 @@ pub async fn decrypt_media_task(
         // Get updated post
         let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
             .await?
-            .ok_or_else(|| "Post does not exist after decrypting media".to_string())?;
+            .ok_or_else(|| "post does not exist after decrypting media".to_string())?;
 
         commit_transaction(tx).await?;
 
         // Clean up and notify clients
         PostReview::delete_upload_key_dir(&encrypted_media_path)
             .await
-            .map_err(|e| format!("Failed to delete upload directory: {e}"))?;
+            .map_err(|e| format!("failed to delete upload directory: {e}"))?;
         send_to_websocket(&state.sender, updated_post);
         Ok(())
     }
@@ -351,7 +351,7 @@ pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_revi
         initial_post
             .reencrypt_media_file()
             .await
-            .map_err(|e| format!("Failed to re-encrypt media: {e}"))?;
+            .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
 
         // Update post status
         initial_post
@@ -361,7 +361,7 @@ pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_revi
         // Get updated post
         let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
             .await?
-            .ok_or_else(|| "Post does not exist after re-encrypting media".to_string())?;
+            .ok_or_else(|| "post does not exist after re-encrypting media".to_string())?;
 
         commit_transaction(tx).await?;
 

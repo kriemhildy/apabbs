@@ -59,13 +59,23 @@ pub enum ResponseError {
 
 use ResponseError::*;
 
+/// Capitalize the first character of a string.
+fn capitalize_first(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
 /// Convert a boxed error that is Send + Sync into a `ResponseError`.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.
     /// This is commonly used for async and thread-safe error propagation.
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
-        tracing::error!(error);
-        ResponseError::InternalServerError(error.to_string())
+        let msg = capitalize_first(&error.to_string());
+        tracing::error!("{msg}");
+        ResponseError::InternalServerError(msg)
     }
 }
 

@@ -131,7 +131,7 @@ impl Account {
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
-            .map_err(|e| format!("Failed to select account by token: {e}").into())
+            .map_err(|e| format!("failed to select account by token: {e}").into())
     }
 
     /// Retrieves an account by username, with formatted timestamps.
@@ -156,7 +156,7 @@ impl Account {
         .bind(username)
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to select account by username: {e}").into())
+        .map_err(|e| format!("failed to select account by username: {e}").into())
     }
 
     /// Generates and assigns a new authentication token for the account.
@@ -172,7 +172,7 @@ impl Account {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to reset account token: {e}").into())
+            .map_err(|e| format!("failed to reset account token: {e}").into())
     }
 }
 
@@ -201,7 +201,7 @@ impl TimeZoneUpdate {
         ))
         .fetch_all(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to select time zones: {e}").into())
+        .map_err(|e| format!("failed to select time zones: {e}").into())
     }
 
     /// Updates the time zone setting for a user account.
@@ -220,7 +220,7 @@ impl TimeZoneUpdate {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to update time zone: {e}").into())
+            .map_err(|e| format!("failed to update time zone: {e}").into())
     }
 }
 
@@ -252,7 +252,7 @@ impl Credentials {
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
-            .map_err(|e| format!("Failed to check if username exists: {e}").into())
+            .map_err(|e| format!("failed to check if username exists: {e}").into())
     }
 
     /// Validates the credentials for registration.
@@ -335,7 +335,7 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to register account: {e}").into())
+        .map_err(|e| format!("failed to register account: {e}").into())
     }
 
     /// Authenticates a user with the provided credentials.
@@ -357,7 +357,7 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to authenticate: {e}").into())
+        .map_err(|e| format!("failed to authenticate: {e}").into())
     }
 
     /// Updates the password for an existing account.
@@ -378,7 +378,7 @@ impl Credentials {
         .execute(&mut *tx)
         .await
         .map(|_| ())
-        .map_err(|e| format!("Failed to update password: {e}").into())
+        .map_err(|e| format!("failed to update password: {e}").into())
     }
 
     /// Checks if the year verification checkbox was checked.

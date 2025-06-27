@@ -175,7 +175,7 @@ impl Post {
         qb.build_query_as()
             .fetch_all(&mut *tx)
             .await
-            .map_err(|e| format!("Failed to select posts: {e}").into())
+            .map_err(|e| format!("failed to select posts: {e}").into())
     }
 
     /// Selects approved posts created by the specified account.
@@ -200,7 +200,7 @@ impl Post {
         .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to select posts by author: {e}").into())
+        .map_err(|e| format!("failed to select posts by author: {e}").into())
     }
 
     /// Checks if the user is the author of this post.
@@ -261,7 +261,7 @@ impl Post {
         .bind(key)
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| format!("Failed to select post by key: {e}").into())
+        .map_err(|e| format!("failed to select post by key: {e}").into())
     }
 
     /// Permanently deletes a post from the database.
@@ -280,7 +280,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to delete post: {e}").into())
+            .map_err(|e| format!("failed to delete post: {e}").into())
     }
 
     /// Updates the status of a post in the database.
@@ -302,7 +302,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to update post status: {e}").into())
+            .map_err(|e| format!("failed to update post status: {e}").into())
     }
 
     /// Updates thumbnail metadata for a post.
@@ -339,7 +339,7 @@ impl Post {
         .execute(&mut *tx)
         .await
         .map(|_| ())
-        .map_err(|e| format!("Failed to update thumbnail: {e}").into())
+        .map_err(|e| format!("failed to update thumbnail: {e}").into())
     }
 
     /// Update the compatibility video filename for a post.
@@ -372,7 +372,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to update compat video: {e}").into())
+            .map_err(|e| format!("failed to update compat video: {e}").into())
     }
 
     /// Updates the media dimensions for a post in the database.
@@ -397,7 +397,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to update media dimensions: {e}").into())
+            .map_err(|e| format!("failed to update media dimensions: {e}").into())
     }
 
     /// Updates the poster filename for video posts.
@@ -428,7 +428,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("Failed to update video poster: {e}").into())
+            .map_err(|e| format!("failed to update video poster: {e}").into())
     }
 }
 
