@@ -77,12 +77,7 @@ pub async fn index(
 
     // Get posts for current page
     let page_post_id = page_post.as_ref().map(|p| p.id);
-    let mut posts = Post::select(&mut tx, &user, page_post_id, false)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select posts: {:?}", e);
-            InternalServerError("Failed to fetch posts.".to_string())
-        })?;
+    let mut posts = Post::select(&mut tx, &user, page_post_id, false).await?;
 
     // Check if there's a next page by seeing if we got more posts than our page size
     let prior_page_post = if posts.len() <= crate::per_page() {
@@ -300,17 +295,8 @@ pub async fn submit_post(
     }
 
     // Generate unique key and insert post
-    let key = PostSubmission::generate_key(&mut tx).await.map_err(|e| {
-        tracing::error!("Failed to generate post key: {e}");
-        InternalServerError("Failed to generate post key.".to_string())
-    })?;
-    let post = post_submission
-        .insert(&mut tx, &user, &key)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to insert post: {e}");
-            InternalServerError("Failed to insert post.".to_string())
-        })?;
+    let key = PostSubmission::generate_key(&mut tx).await?;
+    let post = post_submission.insert(&mut tx, &user, &key).await?;
 
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
@@ -385,13 +371,7 @@ pub async fn hide_post(
     })?;
 
     // Process post hiding if authorized and eligible
-    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select post by key: {e}");
-            InternalServerError("Failed to select post by key.".to_string())
-        })?
-    {
+    if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await? {
         if !post.author(&user) {
             return Err(Unauthorized(
                 "You are not the author of this post.".to_string(),
@@ -399,10 +379,7 @@ pub async fn hide_post(
         }
         match post.status {
             Rejected => {
-                post_hiding.hide_post(&mut tx).await.map_err(|e| {
-                    tracing::error!("Failed to hide post: {e}");
-                    InternalServerError("Failed to hide post.".to_string())
-                })?;
+                post_hiding.hide_post(&mut tx).await?;
                 tx.commit().await.map_err(|e| {
                     tracing::error!("Failed to commit transaction: {e}");
                     InternalServerError("Failed to commit transaction.".to_string())
@@ -559,12 +536,7 @@ pub async fn interim(
 
     // Fetch newer posts
     let since_post_id = Some(since_post.id);
-    let new_posts = Post::select(&mut tx, &user, since_post_id, true)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select new posts: {e}");
-            InternalServerError("Failed to fetch new posts.".to_string())
-        })?;
+    let new_posts = Post::select(&mut tx, &user, since_post_id, true).await?;
 
     if new_posts.is_empty() {
         return Ok((jar, StatusCode::NO_CONTENT).into_response());
