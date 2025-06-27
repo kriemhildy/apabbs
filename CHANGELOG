@@ -1,3 +1,13 @@
+0.42.0
+
+Simplify error handling, logging and documentation.
+Improve messaging to banned users.
+Improve JS fetch error handling.
+Remove unnecessary threading.
+Only apply Chromium video poster JS fix to Chromium browsers.
+Disable legacy post routes.
+Add IP hash, user agent, and ban expiration information to the User struct.
+
 0.41.0
 
 Use conventional Rust error handling for minimizing panics and notifying users.
