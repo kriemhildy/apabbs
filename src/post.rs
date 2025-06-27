@@ -130,7 +130,7 @@ impl Post {
         user: &User,
         post_id: Option<i32>,
         invert: bool,
-    ) -> Result<Vec<Self>, sqlx::Error> {
+    ) -> Result<Vec<Self>, Box<dyn std::error::Error + Send + Sync>> {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT * FROM posts WHERE (");
 
         // Filter by status based on user role
@@ -172,7 +172,10 @@ impl Post {
         qb.push_bind(limit as i32);
 
         // Execute query
-        qb.build_query_as().fetch_all(&mut *tx).await
+        qb.build_query_as()
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(|e| format!("Failed to select posts: {e}").into())
     }
 
     /// Selects approved posts created by the specified account.
@@ -188,7 +191,7 @@ impl Post {
     pub async fn select_by_author(
         tx: &mut PgConnection,
         account_id: i32,
-    ) -> Result<Vec<Self>, sqlx::Error> {
+    ) -> Result<Vec<Self>, Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
@@ -197,6 +200,7 @@ impl Post {
         .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
+        .map_err(|e| format!("Failed to select posts by author: {e}").into())
     }
 
     /// Checks if the user is the author of this post.
@@ -246,7 +250,7 @@ impl Post {
     pub async fn select_by_key(
         tx: &mut PgConnection,
         key: &str,
-    ) -> Result<Option<Self>, sqlx::Error> {
+    ) -> Result<Option<Self>, Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
             "to_char(created_at, $2) AS created_at_html, ",
@@ -257,6 +261,7 @@ impl Post {
         .bind(key)
         .fetch_optional(&mut *tx)
         .await
+        .map_err(|e| format!("Failed to select post by key: {e}").into())
     }
 
     /// Permanently deletes a post from the database.
@@ -266,12 +271,16 @@ impl Post {
     ///
     /// # Returns
     /// Ok(()) if successful, or a database error.
-    pub async fn delete(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
+    pub async fn delete(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query("DELETE FROM posts WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to delete post: {e}").into())
     }
 
     /// Updates the status of a post in the database.
@@ -286,13 +295,14 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         new_status: PostStatus,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
             .bind(new_status)
             .bind(self.id)
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to update post status: {e}").into())
     }
 
     /// Updates thumbnail metadata for a post.
@@ -311,7 +321,7 @@ impl Post {
         thumbnail_path: &Path,
         width: i32,
         height: i32,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let thumbnail_filename = thumbnail_path
             .file_name()
             .expect("filename exists")
@@ -329,6 +339,7 @@ impl Post {
         .execute(&mut *tx)
         .await
         .map(|_| ())
+        .map_err(|e| format!("Failed to update thumbnail: {e}").into())
     }
 
     /// Update the compatibility video filename for a post.
@@ -349,7 +360,7 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         compat_path: &Path,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let compat_filename = compat_path
             .file_name()
             .expect("filename exists")
@@ -361,6 +372,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to update compat video: {e}").into())
     }
 
     /// Updates the media dimensions for a post in the database.
@@ -377,7 +389,7 @@ impl Post {
         tx: &mut PgConnection,
         width: i32,
         height: i32,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query("UPDATE posts SET media_width = $1, media_height = $2 WHERE id = $3")
             .bind(width)
             .bind(height)
@@ -385,6 +397,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to update media dimensions: {e}").into())
     }
 
     /// Updates the poster filename for video posts.
@@ -402,7 +415,7 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         video_poster_path: &Path,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let media_poster_filename = video_poster_path
             .file_name()
             .expect("filename exists")
@@ -415,6 +428,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to update video poster: {e}").into())
     }
 }
 
