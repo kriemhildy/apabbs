@@ -90,34 +90,30 @@ impl Post {
             .to_str()
             .ok_or("failed to convert encrypted media path to string")?
             .to_owned();
-        tokio::task::spawn_blocking(move || {
-            let mut child = std::process::Command::new("gpg")
-                .args([
-                    "--batch",
-                    "--symmetric",
-                    "--passphrase-file",
-                    "gpg.key",
-                    "--output",
-                ])
-                .arg(&encrypted_media_path_str)
-                .stdin(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| format!("failed to spawn gpg process: {e}"))?;
-            if let Some(mut stdin) = child.stdin.take() {
-                std::io::Write::write_all(&mut stdin, &bytes)
-                    .map_err(|e| format!("failed to write to gpg stdin: {e}"))?;
-            }
-            let child_status = child
-                .wait()
-                .map_err(|e| format!("failed to wait for gpg process: {e}"))?;
-            if child_status.success() {
-                Ok::<(), Box<dyn Error + Send + Sync>>(())
-            } else {
-                Err("gpg failed to encrypt file".into())
-            }
-        })
-        .await
-        .map_err(|e| format!("failed to complete gpg encryption: {e}"))??;
+        let mut child = tokio::process::Command::new("gpg")
+            .args([
+                "--batch",
+                "--symmetric",
+                "--passphrase-file",
+                "gpg.key",
+                "--output",
+            ])
+            .arg(&encrypted_media_path_str)
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("failed to spawn gpg process: {e}"))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            tokio::io::AsyncWriteExt::write_all(&mut stdin, &bytes)
+                .await
+                .map_err(|e| format!("failed to write to gpg stdin: {e}"))?;
+        }
+        let child_status = child
+            .wait()
+            .await
+            .map_err(|e| format!("failed to wait for gpg process: {e}"))?;
+        if !child_status.success() {
+            return Err("gpg failed to encrypt file".into());
+        }
         tracing::info!(
             "File encrypted successfully: {}",
             encrypted_media_path.display()
@@ -131,8 +127,8 @@ impl Post {
     ///
     /// # Returns
     /// - `Ok(())` if re-encryption succeeded
-    /// - `Err(Box<dyn Error + Send + Sync>)` if re-encryption failed
-    pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` if re-encryption failed
+    pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error>> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path
             .parent()
@@ -170,8 +166,8 @@ impl Post {
     ///
     /// # Returns
     /// - `Ok(Vec<u8>)` with the decrypted file content as bytes
-    /// - `Err(Box<dyn Error + Send + Sync>)` if decryption fails
-    pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` if decryption fails
+    pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error>> {
         if self.media_filename.is_none() {
             return Err("cannot decrypt media: post has no media file".into());
         }
@@ -180,15 +176,12 @@ impl Post {
             .to_str()
             .ok_or("failed to convert encrypted media path to string")?
             .to_owned();
-        let output = tokio::task::spawn_blocking(move || {
-            std::process::Command::new("gpg")
-                .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
-                .arg(&encrypted_file_path)
-                .output()
-                .map_err(|e| format!("failed to run gpg for decryption: {e}"))
-        })
-        .await
-        .map_err(|e| format!("failed to complete gpg decryption: {e}"))??;
+        let output = tokio::process::Command::new("gpg")
+            .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
+            .arg(&encrypted_file_path)
+            .output()
+            .await
+            .map_err(|e| format!("failed to run gpg for decryption: {e}"))?;
         if !output.status.success() {
             return Err(format!("gpg failed to decrypt file, status: {}", output.status).into());
         }
@@ -314,11 +307,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file was written successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred
+    /// - `Err(Box<dyn Error>)` if an error occurred
     pub async fn write_media_file(
         published_media_path: &Path,
         media_bytes: Vec<u8>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error>> {
         let media_key_dir = published_media_path
             .parent()
             .ok_or("failed to get parent directory for media file")?;
@@ -338,10 +331,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(PathBuf)` to the generated thumbnail file (`.webp`)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
+    /// - `Err(Box<dyn Error>)` if generation fails
     pub async fn generate_image_thumbnail(
         published_media_path: &Path,
-    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
+    ) -> Result<PathBuf, Box<dyn Error>> {
         let media_path_str = published_media_path
             .to_str()
             .ok_or("failed to convert published_media_path to string")?
@@ -358,22 +351,18 @@ impl PostReview {
                 _ => "",
             };
 
-        // Run vipsthumbnail in a separate thread to avoid blocking async runtime
-        let vips_result = tokio::task::spawn_blocking(move || {
-            std::process::Command::new("vipsthumbnail")
-                .args([
-                    // Max dimensions with aspect ratio preserved
-                    &format!("--size={MAX_THUMB_WIDTH}x{MAX_THUMB_HEIGHT}>"),
-                    "--output=tn_%s.webp", // Output format with prefix
-                ])
-                .arg(&vips_input_file_path)
-                .output()
-        })
-        .await
-        .map_err(|e| format!("failed to complete vipsthumbnail: {e}"))?;
+        // Run vipsthumbnail to generate the thumbnail
+        let command_output = tokio::process::Command::new("vipsthumbnail")
+            .args([
+                // Max dimensions with aspect ratio preserved
+                &format!("--size={MAX_THUMB_WIDTH}x{MAX_THUMB_HEIGHT}>"),
+                "--output=tn_%s.webp", // Output format with prefix
+            ])
+            .arg(&vips_input_file_path)
+            .output()
+            .await
+            .map_err(|e| format!("failed to complete vipsthumbnail: {e}"))?;
 
-        let command_output =
-            vips_result.map_err(|e| format!("failed to run vipsthumbnail: {e}"))?;
         tracing::debug!(
             status = ?command_output.status,
             stderr = ?String::from_utf8_lossy(&command_output.stderr),
@@ -426,11 +415,11 @@ impl PostReview {
     /// # Returns
     /// - `Ok(true)` if the thumbnail is larger than the original
     /// - `Ok(false)` if the thumbnail is not larger
-    /// - `Err(Box<dyn Error + Send + Sync>)` if file metadata cannot be read
+    /// - `Err(Box<dyn Error>)` if file metadata cannot be read
     pub fn thumbnail_is_larger(
         thumbnail_path: &Path,
         published_media_path: &Path,
-    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+    ) -> Result<bool, Box<dyn Error>> {
         let thumbnail_len = thumbnail_path
             .metadata()
             .map_err(|e| format!("failed to get thumbnail metadata: {e}"))?
@@ -449,10 +438,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file and directory were deleted successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
-    pub async fn delete_upload_key_dir(
-        encrypted_media_path: &Path,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` otherwise
+    pub async fn delete_upload_key_dir(encrypted_media_path: &Path) -> Result<(), Box<dyn Error>> {
         let uploads_key_dir = encrypted_media_path
             .parent()
             .ok_or("encrypted_media_path should have a parent directory")?;
@@ -474,8 +461,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the directory and its contents were deleted successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
-    pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` otherwise
+    pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error>> {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
 
         tokio::fs::remove_dir_all(&media_key_dir)
@@ -492,11 +479,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
+    /// - `Err(Box<dyn Error>)` with an error message if processing failed
     pub async fn handle_decrypt_media(
         tx: &mut PgConnection,
         post: &Post,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error>> {
         // Decrypt the media file
         let media_bytes = post
             .decrypt_media_file()
@@ -532,11 +519,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
-    pub async fn process_image(
-        tx: &mut PgConnection,
-        post: &Post,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` with an error message if processing failed
+    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), Box<dyn Error>> {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
@@ -582,11 +566,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
-    pub async fn process_video(
-        tx: &mut PgConnection,
-        post: &Post,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` with an error message if processing failed
+    pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), Box<dyn Error>> {
         let published_media_path = post.published_media_path();
 
         // If necessary, generate a compatibility video for browser playback
@@ -654,19 +635,14 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok((i32, i32))` with (width, height)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
-    pub async fn image_dimensions(
-        image_path: &Path,
-    ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` if an error occurs
+    pub async fn image_dimensions(image_path: &Path) -> Result<(i32, i32), Box<dyn Error>> {
         tracing::debug!(image_path = ?image_path, "Getting image dimensions");
         let image_path_str = image_path
             .to_str()
             .ok_or("failed to convert image_path to string")?;
 
-        async fn vipsheader(
-            field: &str,
-            image_path_str: &str,
-        ) -> Result<i32, Box<dyn Error + Send + Sync>> {
+        async fn vipsheader(field: &str, image_path_str: &str) -> Result<i32, Box<dyn Error>> {
             let output = tokio::process::Command::new("vipsheader")
                 .args(["-f", field, image_path_str])
                 .output()
@@ -699,10 +675,8 @@ impl PostReview {
     /// # Returns
     /// - `Ok(true)` if the video is compatible
     /// - `Ok(false)` if it needs conversion
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
-    pub async fn video_is_compatible(
-        video_path: &Path,
-    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` if an error occurs
+    pub async fn video_is_compatible(video_path: &Path) -> Result<bool, Box<dyn Error>> {
         tracing::debug!(video_path = ?video_path, "Checking video compatibility");
         let video_path_str = video_path
             .to_str()
@@ -780,10 +754,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(PathBuf)` to the generated compatibility video file (`.mp4`)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
+    /// - `Err(Box<dyn Error>)` if generation fails
     pub async fn generate_compatibility_video(
         video_path: &Path,
-    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
+    ) -> Result<PathBuf, Box<dyn Error>> {
         tracing::debug!(video_path = ?video_path, "Generating compatibility video");
         let video_path_str = video_path
             .to_str()
@@ -851,10 +825,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(PathBuf)` to the generated poster image file (`.webp`)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
-    pub async fn generate_video_poster(
-        video_path: &Path,
-    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
+    /// - `Err(Box<dyn Error>)` if generation fails
+    pub async fn generate_video_poster(video_path: &Path) -> Result<PathBuf, Box<dyn Error>> {
         tracing::debug!(video_path = ?video_path, "Generating video poster");
         let poster_path = video_path.with_extension("webp");
 
@@ -867,35 +839,31 @@ impl PostReview {
             .ok_or("failed to convert poster_path to string")?
             .to_owned();
 
-        // Move ffmpeg poster generation to a separate thread
-        let ffmpeg_result = tokio::task::spawn_blocking(move || {
-            std::process::Command::new("ffmpeg")
-                .args([
-                    "-nostdin", // No stdin interaction
-                    "-i",
-                    &video_path_str, // Input file
-                    "-ss",
-                    "00:00:01.000", // Seek to 1 second into the video
-                    "-vframes",
-                    "1", // Extract a single video frame
-                    "-c:v",
-                    "libwebp", // WebP format
-                    "-lossless",
-                    "0", // Use lossy compression
-                    "-compression_level",
-                    "6", // Compression level
-                    "-quality",
-                    "80", // Image quality
-                    "-preset",
-                    "picture",        // Optimize for still image
-                    &poster_path_str, // Output file
-                ])
-                .output()
-        })
-        .await
-        .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
-
-        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
+        // Generate the poster image using ffmpeg
+        let ffmpeg_output = tokio::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin", // No stdin interaction
+                "-i",
+                &video_path_str, // Input file
+                "-ss",
+                "00:00:01.000", // Seek to 1 second into the video
+                "-vframes",
+                "1", // Extract a single video frame
+                "-c:v",
+                "libwebp", // WebP format
+                "-lossless",
+                "0", // Use lossy compression
+                "-compression_level",
+                "6", // Compression level
+                "-quality",
+                "80", // Image quality
+                "-preset",
+                "picture",        // Optimize for still image
+                &poster_path_str, // Output file
+            ])
+            .output()
+            .await
+            .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
 
         if !ffmpeg_output.status.success() {
             return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());

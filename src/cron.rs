@@ -86,7 +86,6 @@ pub fn generate_screenshot() -> Job {
     Job::new_async("0 55 * * * *", |_uuid, _l| {
         Box::pin(async move {
             use std::path::Path;
-            use std::process::Command;
 
             // Determine the URL to screenshot
             let url = if crate::dev() {
@@ -107,23 +106,20 @@ pub fn generate_screenshot() -> Job {
             let output_path_str_clone = output_path_str.clone();
 
             // Run the blocking operation in a separate thread
-            let status = tokio::task::spawn_blocking(move || {
-                tracing::debug!("Taking screenshot using Chromium");
-                Command::new("chromium")
-                    .args([
-                        "--headless=new",
-                        "--disable-gpu",
-                        "--hide-scrollbars",
-                        "--force-dark-mode",
-                        &format!("--screenshot={}", output_path_str_clone),
-                        &url_clone,
-                    ])
-                    .stderr(std::process::Stdio::null())
-                    .status()
-                    .expect("executes chromium command")
-            })
-            .await
-            .expect("completes screenshot task");
+            tracing::debug!("Taking screenshot using Chromium");
+            let status = tokio::process::Command::new("chromium")
+                .args([
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--hide-scrollbars",
+                    "--force-dark-mode",
+                    &format!("--screenshot={}", output_path_str_clone),
+                    &url_clone,
+                ])
+                .stderr(std::process::Stdio::null())
+                .status()
+                .await
+                .expect("executes chromium command");
 
             if status.success() {
                 tracing::info!(

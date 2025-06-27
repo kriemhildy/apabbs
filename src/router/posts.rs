@@ -190,6 +190,7 @@ pub async fn solo_post(
 ///
 /// # Errors
 /// Returns `BadRequest` for invalid input, `Banned` if user is banned, or `InternalServerError` for database/media errors.
+#[axum::debug_handler]
 pub async fn submit_post(
     method: Method,
     State(state): State<AppState>,
