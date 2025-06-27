@@ -43,23 +43,13 @@ pub async fn user_profile(
         })?;
 
     // Find account by username (returns NotFound if user does not exist)
-    let account = match Account::select_by_username(&mut tx, &username)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select account by username: {:?}", e);
-            e
-        })? {
+    let account = match Account::select_by_username(&mut tx, &username).await? {
         None => return Err(NotFound("User account does not exist".to_owned())),
         Some(account) => account,
     };
 
     // Get user's public posts
-    let posts = Post::select_by_author(&mut tx, account.id)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select posts by author: {:?}", e);
-            e
-        })?;
+    let posts = Post::select_by_author(&mut tx, account.id).await?;
 
     // Render profile page
     let html = Html(render(
@@ -120,12 +110,7 @@ pub async fn settings(
     }
 
     // Get time zones for selection
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select time zones: {:?}", e);
-            e
-        })?;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
 
     // Check for notice messages (e.g., after successful update)
     let (jar, notice) = remove_notice_cookie(jar);
@@ -200,11 +185,7 @@ pub async fn update_time_zone(
 
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select time zones: {:?}", e);
-            e
-        })?;
+        .await?;
     if !time_zones.contains(&time_zone_update.time_zone) {
         return Err(BadRequest("Invalid time zone selection".to_owned()));
     }
@@ -212,11 +193,7 @@ pub async fn update_time_zone(
     // Update time zone preference
     time_zone_update
         .update(&mut tx, account.id)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to update time zone: {:?}", e);
-            e
-        })?;
+        .await?;
     tx.commit().await.map_err(|e| {
         tracing::error!("Failed to commit transaction: {:?}", e);
         e
@@ -293,10 +270,7 @@ pub async fn update_password(
     }
 
     // Update password
-    credentials.update_password(&mut tx).await.map_err(|e| {
-        tracing::error!("Failed to update password: {:?}", e);
-        e
-    })?;
+    credentials.update_password(&mut tx).await?;
     tx.commit().await.map_err(|e| {
         tracing::error!("Failed to commit transaction: {:?}", e);
         e
