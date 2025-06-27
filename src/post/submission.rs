@@ -64,7 +64,9 @@ impl PostSubmission {
     ///
     /// # Returns
     /// A unique random string key for the post.
-    pub async fn generate_key(tx: &mut PgConnection) -> Result<String, sqlx::Error> {
+    pub async fn generate_key(
+        tx: &mut PgConnection,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         use rand::{Rng, distr::Alphanumeric};
         loop {
             let key = rand::rng()
@@ -76,7 +78,8 @@ impl PostSubmission {
                 sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE key = $1)")
                     .bind(&key)
                     .fetch_one(&mut *tx)
-                    .await?;
+                    .await
+                    .map_err(|e| format!("Failed to check post key existence: {e}"))?;
             if !exists {
                 return Ok(key);
             }
@@ -108,7 +111,7 @@ impl PostSubmission {
             None => (Some(self.session_token), None),
         };
         let html_body = self.body_to_html(key).await?;
-        let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
+        let youtube = html_body.contains(r#"<a href=\"https://www.youtube.com"#);
         let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
@@ -128,7 +131,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)
+        .map_err(|e| format!("Failed to insert post: {e}").into())
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -449,12 +452,16 @@ impl PostHiding {
     ///
     /// # Note
     /// This method does not verify authorization - the caller must ensure that the user identified by `session_token` has permission to hide this post.
-    pub async fn hide_post(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
+    pub async fn hide_post(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("UPDATE posts SET hidden = true WHERE key = $1")
             .bind(&self.key)
             .execute(&mut *tx)
-            .await?;
-        Ok(())
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("Failed to hide post: {e}").into())
     }
 }
 
