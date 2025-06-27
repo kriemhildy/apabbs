@@ -163,7 +163,6 @@ pub async fn solo_post(
 ///
 /// # Errors
 /// Returns `BadRequest` for invalid input, `Banned` if user is banned, or `InternalServerError` for database/media errors.
-#[axum::debug_handler]
 pub async fn submit_post(
     method: Method,
     State(state): State<AppState>,
@@ -243,7 +242,7 @@ pub async fn submit_post(
     // Check for existing IP ban
     if let Some(expires_at) = user.ban_expires_at {
         return Err(Forbidden(format!(
-            "You have been banned until {expires_at}."
+            "You are banned until {expires_at}."
         )));
     }
 
@@ -270,11 +269,7 @@ pub async fn submit_post(
 
     // Handle media file encryption if present
     if post_submission.media_filename.is_some() {
-        if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            return Err(InternalServerError(format!(
-                "Failed to encrypt media file: {msg}"
-            )));
-        }
+        post_submission.encrypt_uploaded_file(&post).await?;
     }
 
     commit_transaction(tx).await?;

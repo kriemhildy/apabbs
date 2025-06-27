@@ -282,7 +282,7 @@ function handleFormSubmit(event) {
     }).then((response) => {
         if (response.ok) {
             afterSuccessfulFetch(this);
-        } else if ([400, 401, 403].includes(response.status)) {
+        } else if ([400, 401, 403, 500].includes(response.status)) {
             response.text().then((text) => {
                 alert(text);
             });
