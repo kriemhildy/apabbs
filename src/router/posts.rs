@@ -60,10 +60,7 @@ pub async fn index(
 
     // Handle pagination parameter if present
     let page_post = match path.get("key") {
-        Some(key) => Some(init_post(&mut tx, key, &user).await.map_err(|e| {
-            tracing::error!("Failed to initialize page post: {:?}", e);
-            e
-        })?),
+        Some(key) => Some(init_post(&mut tx, key, &user).await?),
         None => None,
     };
 
@@ -129,10 +126,7 @@ pub async fn solo_post(
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Get the requested post
-    let post = init_post(&mut tx, &key, &user).await.map_err(|e| {
-        tracing::error!("Failed to initialize post: {:?}", e);
-        e
-    })?;
+    let post = init_post(&mut tx, &key, &user).await?;
 
     // Render the page
     let html = Html(render(
@@ -478,10 +472,7 @@ pub async fn interim(
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Get the reference post
-    let since_post = init_post(&mut tx, &key, &user).await.map_err(|e| {
-        tracing::error!("Failed to initialize reference post: {:?}", e);
-        e
-    })?;
+    let since_post = init_post(&mut tx, &key, &user).await?;
 
     // Fetch newer posts
     let since_post_id = Some(since_post.id);
