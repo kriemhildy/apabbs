@@ -1,23 +1,12 @@
 /**
- * Application-wide interactive functionality.
- *
- * Handles:
- * - Form submission confirmation dialogs
- * - Unread post notifications in the page title
- * - Dynamic content updates via WebSockets
- * - AJAX form handling with fetch API
- * - DOM updates for posts and templates
+ * Provides interactive features for the application, including confirmation dialogs, unread post notifications, dynamic content updates, AJAX form handling, and DOM updates.
  */
-
 // -----------------------------------------------------------------------------
 // Confirmation for potentially destructive actions
 // -----------------------------------------------------------------------------
 
 /**
- * Shows a confirmation dialog before submitting forms with data-confirm attribute.
- * Prevents submission if the user cancels the confirmation.
- *
- * @param {Event} event - The form submission event
+ * Shows a confirmation dialog before submitting a form with a data-confirm attribute.
  */
 function confirmSubmit(event) {
     if (!confirm("Are you sure?")) {
@@ -27,10 +16,7 @@ function confirmSubmit(event) {
 }
 
 /**
- * Adds confirmation handlers to forms with the data-confirm attribute.
- * Called when DOM content loads and when templates are updated.
- *
- * @param {Event} event - The DOMContentLoaded or templateUpdated event
+ * Adds confirmation handlers to forms with a data-confirm attribute when the DOM is loaded or templates are updated.
  */
 function addSubmitConfirmations(event) {
     event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
@@ -48,8 +34,7 @@ let originalTitle;
 let unseenPosts = 0;
 
 /**
- * Increments the unseen posts counter in the page title.
- * Only updates if the document does not have focus.
+ * Increments the unseen posts counter in the page title if the document is not focused.
  */
 function incrementUnseenPosts() {
     if (!document.hasFocus()) {
@@ -59,8 +44,7 @@ function incrementUnseenPosts() {
 }
 
 /**
- * Resets the unseen posts counter and restores the original title.
- * Called when the window regains focus.
+ * Resets the unseen posts counter and restores the original title when the window regains focus.
  */
 function restoreTitle() {
     unseenPosts = 0;
@@ -68,8 +52,7 @@ function restoreTitle() {
 }
 
 /**
- * Initializes the unseen posts notification system.
- * Stores the original title and adds focus event listener.
+ * Initializes the unseen posts notification system and sets up the focus event listener.
  */
 function initUnseenPosts() {
     originalTitle = document.title;
@@ -85,8 +68,7 @@ let postsDiv;
 let spinner;
 
 /**
- * Initializes DOM element references and event listeners.
- * Called when the DOM content is loaded.
+ * Initializes DOM element references and event listeners for dynamic post updates.
  */
 function initDomElements() {
     template = document.createElement("template");
@@ -97,10 +79,7 @@ function initDomElements() {
 }
 
 /**
- * Updates or adds a post in the DOM based on server data.
- *
- * @param {string} key - The unique identifier for the post
- * @param {string} html - The HTML content for the post
+ * Updates or adds a post in the DOM using server data.
  */
 function updatePost(key, html) {
     const post = document.querySelector(`div#post-${key}`);
@@ -117,10 +96,7 @@ function updatePost(key, html) {
 }
 
 /**
- * Fixes Chromium bug with dynamically added video poster attributes.
- * Re-assigns poster attribute to force Chromium to display it correctly.
- *
- * @param {string} key - The unique identifier for the post
+ * Fixes a Chromium bug with dynamically added video poster attributes.
  */
 function fixChromiumVideoPosters(key) {
     if (navigator.userAgent.includes("Chrome")) {
@@ -135,9 +111,7 @@ function fixChromiumVideoPosters(key) {
 // -----------------------------------------------------------------------------
 
 /**
- * Gets the key of the most recent visible approved post.
- *
- * @returns {string|null} The post key or null if no posts exist
+ * Returns the key of the most recent visible approved post, or null if none exist.
  */
 function latestPostKey() {
     const post = document.querySelector("div.post.approved");
@@ -145,8 +119,7 @@ function latestPostKey() {
 }
 
 /**
- * Fetches any posts created since the most recent visible post.
- * Used when reconnecting or after device sleep/hibernation.
+ * Fetches posts created since the most recent visible post, used after reconnecting or resuming.
  */
 function checkInterim() {
     const key = latestPostKey();
@@ -175,8 +148,6 @@ let webSocketOpen = false; // Track connection state to prevent multiple reconne
 
 /**
  * Processes incoming WebSocket messages containing post updates.
- *
- * @param {MessageEvent} event - WebSocket message event
  */
 function handleWebSocketMessage(event) {
     try {
@@ -188,10 +159,7 @@ function handleWebSocketMessage(event) {
 }
 
 /**
- * Handles WebSocket connection closure.
- * Attempts to reconnect if the closure was unexpected.
- *
- * @param {CloseEvent} event - WebSocket close event
+ * Handles WebSocket connection closure and attempts to reconnect if needed.
  */
 function handleWebSocketClosed(event) {
     if (!event.wasClean && webSocketOpen) {
@@ -202,10 +170,7 @@ function handleWebSocketClosed(event) {
 }
 
 /**
- * Handles successful WebSocket connection.
- * Clears reconnect timer and checks for missed posts.
- *
- * @param {Event} _event - WebSocket open event
+ * Handles successful WebSocket connection and checks for missed posts.
  */
 function handleWebSocketOpened(_event) {
     webSocketOpen = true;
@@ -214,8 +179,7 @@ function handleWebSocketOpened(_event) {
 }
 
 /**
- * Establishes a WebSocket connection to the server.
- * Sets up event handlers for messages, connection open/close.
+ * Establishes a WebSocket connection to the server and sets up event handlers.
  */
 function initWebSocket() {
     webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
@@ -229,8 +193,7 @@ function initWebSocket() {
 // -----------------------------------------------------------------------------
 
 /**
- * Temporarily disables all submit buttons during form processing.
- * Tracks which buttons were already disabled to restore correctly.
+ * Disables all submit buttons during form processing, tracking which were already disabled.
  */
 function disableSubmitButtons() {
     document.querySelectorAll("input[type=submit]").forEach((input) => {
@@ -242,8 +205,7 @@ function disableSubmitButtons() {
 }
 
 /**
- * Restores submit buttons to their previous state.
- * Only re-enables buttons that weren't disabled initially.
+ * Restores submit buttons to their previous state after form processing.
  */
 function restoreSubmitButtons() {
     document.querySelectorAll("input[type=submit]").forEach((input) => {
@@ -260,10 +222,7 @@ function restoreSubmitButtons() {
 // -----------------------------------------------------------------------------
 
 /**
- * Handles form submission via fetch API instead of traditional submission.
- * Shows loading indicator and handles response appropriately.
- *
- * @param {Event} event - Form submission event
+ * Handles form submission using fetch API, showing a loading indicator and handling the response.
  */
 function handleFormSubmit(event) {
     event.preventDefault();
@@ -301,9 +260,6 @@ function handleFormSubmit(event) {
 
 /**
  * Performs post-submission actions based on the form's action URL.
- * Handles specific behavior for different form types.
- *
- * @param {HTMLFormElement} form - The submitted form element
  */
 function afterSuccessfulFetch(form) {
     const actionUrl = new URL(form.action);
@@ -318,9 +274,7 @@ function afterSuccessfulFetch(form) {
 }
 
 /**
- * Removes a post from the DOM after it's been hidden.
- *
- * @param {HTMLElement} element - The element that triggered the removal
+ * Removes a post from the DOM after it has been hidden.
  */
 function removeHiddenPost(element) {
     if (element.parentElement) {
@@ -329,10 +283,7 @@ function removeHiddenPost(element) {
 }
 
 /**
- * Adds fetch API handlers to all forms in a container.
- * Called on page load and after template updates.
- *
- * @param {Event} event - DOMContentLoaded or templateUpdated event
+ * Adds fetch API handlers to all forms in a container on page load and after template updates.
  */
 function addFetchToForms(event) {
     const forms = event.target.querySelectorAll("form");

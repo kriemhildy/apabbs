@@ -1,9 +1,6 @@
-/* =============================================================================
-   Custom Scrollbar Styling
-   -----------------------------------------------------------------------------
-   Applies custom scrollbar colors for Chromium browsers on non-Mac systems.
-   Uses CSS variables for easy theming and supports both dark and light modes.
-   ============================================================================= */
+/* Custom scrollbar styling.
+   Applies themed scrollbar colors for Chromium browsers on non-Mac systems.
+   Supports dark and light modes. */
 
 :root {
     --track: #0f0f0f;   /* Scrollbar track color (dark mode) */
@@ -18,10 +15,7 @@
     }
 }
 
-/* -----------------------------------------------------------------------------
-   Chromium-specific scrollbar styling
-   ----------------------------------------------------------------------------- */
-
+/* Chromium-specific scrollbar styles. */
 ::-webkit-scrollbar {
     width: 12px;
     background: var(--track);

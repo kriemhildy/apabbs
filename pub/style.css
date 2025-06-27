@@ -1,18 +1,8 @@
-/* =============================================================================
-   Application Stylesheet
-   -----------------------------------------------------------------------------
-   Defines the visual appearance, layout, color palette, and responsive behavior
-   for the entire application. Uses CSS variables for easy theming and supports
-   both dark and light modes. All sections are clearly commented for maintainability.
-   ============================================================================= */
+/* Application stylesheet.
+   Defines layout, color palette, and responsive behavior for the app.
+   Uses CSS variables for theming and supports dark and light modes. */
 
-/* -----------------------------------------------------------------------------
-   Color Variables
-   -----------------------------------------------------------------------------
-   Defines the color palette for both dark and light modes using CSS variables.
-   All colors are referenced via these variables throughout the stylesheet.
-   ----------------------------------------------------------------------------- */
-
+/* Color variables for dark and light modes. All colors are referenced via these variables. */
 :root {
     /* Dark mode color scheme (default) */
     --back: black;            /* Background color */
@@ -47,66 +37,56 @@
     }
 }
 
-/* -----------------------------------------------------------------------------
-   Base Layout
-   -----------------------------------------------------------------------------
-   Core layout settings for the document body and common elements.
-   ----------------------------------------------------------------------------- */
-
+/* Base layout for body and common elements. */
 body {
-    margin: 8px auto;       /* Center content with small margin */
-    width: max-content;     /* Adjust width to content */
-    max-width: calc(100% - 16px); /* Prevent horizontal scrolling on small screens */
+    margin: 8px auto;
+    width: max-content;
+    max-width: calc(100% - 16px);
 }
 
-/* Form element styling for consistent appearance */
+/* Form element styling for consistent appearance. */
 textarea {
-    width: min(calc(100% - 12px), 600px); /* Responsive width with max-width */
-    height: 4em;                         /* Default height for post textarea */
+    width: min(calc(100% - 12px), 600px);
+    height: 4em;
     padding: 5px;
 }
 
-/* Firefox-specific adjustments for textarea width */
+/* Firefox-specific textarea width adjustment. */
 @-moz-document url-prefix() {
     textarea {
         width: min(calc(100% - 14px), 600px);
     }
 }
 
-/* -----------------------------------------------------------------------------
-   Typography and Form Controls
-   -----------------------------------------------------------------------------
-   Consistent font styling across all text and interactive elements.
-   ----------------------------------------------------------------------------- */
-
+/* Typography and form controls. Consistent font and color. */
 body,
 textarea,
 input,
 select,
 button,
 ::file-selector-button {
-    font-family: Consolas, monospace;    /* Monospace for retro/technical feel */
-    font-size: 12px;                     /* Base font size */
-    color: var(--fore);                  /* Text color from variables */
-    background: var(--back);             /* Background color from variables */
-    accent-color: var(--system);         /* Accent color for checkboxes, etc. */
-    -webkit-text-size-adjust: none;      /* Prevent iOS font size adjustment */
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    color: var(--fore);
+    background: var(--back);
+    accent-color: var(--system);
+    -webkit-text-size-adjust: none;
     text-size-adjust: none;
 }
 
 ::selection {
-    background: var(--system);           /* Highlight selection with accent color */
+    background: var(--system);
     color: var(--back);
 }
 
 input:disabled {
-    color: var(--disabled);              /* Disabled input styling */
+    color: var(--disabled);
 }
 
 input[type="submit"],
 button,
 select {
-    margin: 7px 0;                      /* Spacing for form controls */
+    margin: 7px 0;
 }
 
 input[type="text"],
@@ -119,20 +99,17 @@ textarea,
 select,
 button,
 ::file-selector-button {
-    border-radius: 5px;                  /* Consistent border styling */
+    border-radius: 5px;
     border-color: var(--border);
 }
 
-/* -----------------------------------------------------------------------------
-   Links and Navigation
-   ----------------------------------------------------------------------------- */
-
+/* Link and navigation styles. */
 a {
-    color: var(--system);                /* Standard link styling */
+    color: var(--system);
 }
 
 nav {
-    float: right;                        /* Top-right navigation bar */
+    float: right;
 }
 
 nav a {
@@ -148,17 +125,14 @@ h1 {
     font-size: 1em;
 }
 
-/* -----------------------------------------------------------------------------
-   Status Messages and System Elements
-   ----------------------------------------------------------------------------- */
-
+/* Status messages and system elements. */
 .system {
     color: var(--system);
 }
 
 .status {
     color: var(--review);
-    overflow-wrap: anywhere;             /* Allow breaking words at any point */
+    overflow-wrap: anywhere;
 }
 
 .status a {
@@ -166,53 +140,47 @@ h1 {
 }
 
 details.review form {
-    display: inline;                     /* Moderation review controls */
+    display: inline;
 }
 
-/* -----------------------------------------------------------------------------
-   Post Layout and Styling
-   ----------------------------------------------------------------------------- */
-
+/* Post layout and styling. */
 div#posts {
-    display: flex;                       /* Posts container - flexbox layout */
+    display: flex;
     flex-wrap: wrap;
-    gap: calc(1vh + 1vw + 16px);         /* Responsive spacing between posts */
+    gap: calc(1vh + 1vw + 16px);
     margin-top: 12px;
-    margin-bottom: max(calc(4vh + 4vw - 50px), 12px); /* Responsive bottom margin */
+    margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
     align-items: center;
 }
 
 div.post.solo details.review {
-    height: 45px;                        /* Review section height on single post view */
+    height: 45px;
 }
 
 div#posts div.post {
-    flex: clamp(300px, 34vh, 800px);     /* Individual post sizing in posts grid */
+    flex: clamp(300px, 34vh, 800px);
 }
 
 div.post {
-    display: grid;                       /* Base post layout using grid */
+    display: grid;
     justify-content: center;
     gap: 8px;
     margin: 0 -8px;
     padding: 0 8px;
 }
 
-/* -----------------------------------------------------------------------------
-   Post Status Styling
-   ----------------------------------------------------------------------------- */
-
+/* Post status backgrounds. */
 div.pending,
 div.delisted,
 div.reported,
 div.rejected,
 div.banned {
-    padding-top: 8px;                    /* Common padding for posts with status indicators */
+    padding-top: 8px;
     padding-bottom: 8px;
 }
 
 div.pending {
-    background: var(--pending);          /* Background colors for different post statuses */
+    background: var(--pending);
 }
 
 div.processing {
@@ -235,18 +203,15 @@ div.banned {
     background: var(--banned);
 }
 
-/* -----------------------------------------------------------------------------
-   Post Content Elements
-   ----------------------------------------------------------------------------- */
-
+/* Post content elements. */
 div.post-body {
-    overflow-y: clip;                    /* Prevent vertical scrolling */
-    overflow-wrap: anywhere;             /* Allow breaking words at any point */
-    max-width: 600px;                    /* Maximum width for readability */
+    overflow-y: clip;
+    overflow-wrap: anywhere;
+    max-width: 600px;
 }
 
 div.media {
-    margin: 0 auto;                      /* Media container in posts */
+    margin: 0 auto;
     min-width: 300px;
     max-width: max-content;
     text-align: center;
@@ -256,7 +221,7 @@ div.media img,
 div.media video,
 div.youtube-thumbnail img {
     max-width: max(300px, calc(100% + 16px));
-    margin: 0 -8px;                      /* Extend slightly beyond post boundaries */
+    margin: 0 -8px;
     height: auto;
     width: auto;
 }
@@ -264,75 +229,73 @@ div.youtube-thumbnail img {
 div#posts div.media img,
 div#posts div.media video,
 div#posts div.youtube-thumbnail img {
-    max-height: clamp(300px, 80vh, 1200px); /* Height constraints for media in post grid */
+    max-height: clamp(300px, 80vh, 1200px);
 }
 
 div.arrow a {
-    text-decoration: none;               /* "See more" arrow styling */
+    text-decoration: none;
     font-size: 1.2em;
 }
 
+div.see-more a {
+    text-decoration: none;
+}
+
 div#user a {
-    text-decoration: none;               /* User link styling */
+    text-decoration: none;
 }
 
 p#notice {
-    color: var(--system);                /* Notification styling */
+    color: var(--system);
 }
 
-/* -----------------------------------------------------------------------------
-   Loading Spinner
-   ----------------------------------------------------------------------------- */
-
+/* Loading spinner. Hidden by default, shown via JavaScript. */
 div#spinner {
     width: 10px;
     height: 10px;
     border: 2px solid var(--fore);
-    border-top-color: transparent;       /* Creates spinner effect */
+    border-top-color: transparent;
     border-radius: 50%;
     animation: spinner 0.85s linear infinite;
-    display: none;                       /* Hidden by default, shown via JavaScript */
+    display: none;
 }
 
 @keyframes spinner {
     to {
-        transform: rotate(360deg);       /* Full rotation animation */
+        transform: rotate(360deg);
     }
 }
 
-/* -----------------------------------------------------------------------------
-   Layout Helpers
-   ----------------------------------------------------------------------------- */
-
+/* Layout helpers. */
 div.row {
-    margin-top: 4px;                     /* Horizontal row layout */
+    margin-top: 4px;
     display: flex;
     gap: 6px;
     align-items: center;
 }
 
 div.row input[type="submit"] {
-    margin: unset;                       /* Reset margin for submit buttons in rows */
+    margin: unset;
 }
 
 div.youtube {
-    margin: 0 auto;                      /* YouTube embeds */
+    margin: 0 auto;
     width: fit-content;
 }
 
 div.youtube-logo img {
     height: 1.7em;
-    filter: brightness(0.2) invert(1);   /* Adjust YouTube logo color for dark mode */
+    filter: brightness(0.2) invert(1);
 }
 
 @media (prefers-color-scheme: light) {
     div.youtube-logo img {
-        filter: saturate(0) brightness(0.2); /* Invert YouTube logo filter for light mode */
+        filter: saturate(0) brightness(0.2);
     }
 }
 
 div.checkbox-container {
-    display: flex;                       /* Checkbox alignment */
+    display: flex;
     align-items: center;
 }
 
@@ -340,39 +303,29 @@ div.checkbox-container label {
     margin-left: 2px;
 }
 
-/* -----------------------------------------------------------------------------
-   Form Layouts
-   ----------------------------------------------------------------------------- */
-
+/* Form layouts using grid for label alignment. */
 form.grid {
-    display: grid;                       /* Grid-based form layouts with label alignment */
-    grid-template-columns: max-content max-content; /* Label + input columns */
+    display: grid;
+    grid-template-columns: max-content max-content;
     column-gap: 5px;
     align-items: center;
 }
 
 form.grid label {
-    text-align: right;                   /* Right align labels for readability */
+    text-align: right;
 }
 
 form.grid div.checkbox-container,
 form.grid input[type="submit"] {
-    grid-column: 2;                      /* Position form elements that should span grid columns */
+    grid-column: 2;
     justify-self: start;
 }
 
-/* -----------------------------------------------------------------------------
-   Form Field Sizing
-   ----------------------------------------------------------------------------- */
-
+/* Form field sizing. */
 input[type="password"] {
-    width: 31ch;                         /* Sized for typical password lengths */
+    width: 31ch;
 }
 
 input#username {
-    width: 17ch;                         /* Sized for maximum username length */
-}
-
-div.see-more a {
-    text-decoration: none;               /* "See more" link styling */
+    width: 17ch;
 }
