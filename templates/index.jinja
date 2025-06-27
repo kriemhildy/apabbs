@@ -14,17 +14,22 @@
     <p class="system">Page beginning at "{{ page_post.key }}"</p>
     {# Otherwise show the post submission form for new content #}
     {% else %}
+    {% if user.ban_expires_at is not none %}
+    <p class="system">You are banned from posting until {{ user.ban_expires_at }}.</p>
+    {% endif %}
     <form action="/submit-post" method="post" enctype="multipart/form-data">
-        {# User session token for authentication/tracking #}
-        <input type="hidden" name="session_token" value="{{ user.session_token }}">
-        <textarea name="body"></textarea>
-        <div class="row">
-            {# File upload field for images/videos #}
-            <input type="file" name="media">
-            <input type="submit" value="Post">
-            {# Loading indicator that shows during form submission #}
-            <div id="spinner"></div>
-        </div>
+        <fieldset{{ " disabled" if user.ban_expires_at is not none }}>
+            {# User session token for authentication/tracking #}
+            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <textarea name="body"></textarea>
+            <div class="row">
+                {# File upload field for images/videos #}
+                <input type="file" name="media">
+                <input type="submit" value="Post">
+                {# Loading indicator that shows during form submission #}
+                <div id="spinner"></div>
+            </div>
+        </fieldset>
     </form>
     {% endif %}
     {# List of posts #}

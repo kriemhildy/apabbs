@@ -83,6 +83,14 @@ input:disabled {
     color: var(--disabled);
 }
 
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    appearance: none;
+}
+
 input[type="submit"],
 button,
 select {
@@ -304,19 +312,19 @@ div.checkbox-container label {
 }
 
 /* Form layouts using grid for label alignment. */
-form.grid {
+fieldset.grid {
     display: grid;
     grid-template-columns: max-content max-content;
     column-gap: 5px;
     align-items: center;
 }
 
-form.grid label {
+fieldset.grid label {
     text-align: right;
 }
 
-form.grid div.checkbox-container,
-form.grid input[type="submit"] {
+fieldset.grid div.checkbox-container,
+fieldset.grid input[type="submit"] {
     grid-column: 2;
     justify-self: start;
 }
