@@ -248,10 +248,7 @@ pub async fn decrypt_media(
     headers: HeaderMap,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        ResponseError::InternalServerError("Database transaction error".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
