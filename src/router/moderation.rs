@@ -271,13 +271,10 @@ pub async fn decrypt_media(
         .media_filename
         .as_ref()
         .ok_or_else(|| InternalServerError("Missing filename".to_string()))?;
-    let media_bytes = post.decrypt_media_file().await.map_err(|e| {
-        tracing::error!("Failed to decrypt media file: {e}");
-        ResponseError::InternalServerError("Failed to decrypt media file".to_string())
-    })?;
+    let media_bytes = post.decrypt_media_file().await?;
     if media_bytes.is_empty() {
         return Err(InternalServerError(
-            "Failed to decrypt media file".to_string(),
+            "Decrypted media bytes are empty".to_string(),
         ));
     }
     let content_type = post

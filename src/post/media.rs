@@ -169,21 +169,21 @@ impl Post {
     /// - `Err(Box<dyn Error + Send + Sync>)` if decryption fails
     pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         if self.media_filename.is_none() {
-            return Err("cannot decrypt media: post has no media file".into());
+            return Err("Cannot decrypt media: post has no media file".into());
         }
         let encrypted_file_path = self
             .encrypted_media_path()
             .to_str()
-            .ok_or("failed to convert encrypted media path to string")?
+            .ok_or("Failed to convert encrypted media path to string")?
             .to_owned();
         let output = tokio::process::Command::new("gpg")
             .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
             .arg(&encrypted_file_path)
             .output()
             .await
-            .map_err(|e| format!("failed to run gpg for decryption: {e}"))?;
+            .map_err(|e| format!("Failed to run gpg for decryption: {e}"))?;
         if !output.status.success() {
-            return Err(format!("gpg failed to decrypt file, status: {}", output.status).into());
+            return Err(format!("GPG failed to decrypt file, status: {}", output.status).into());
         }
         tracing::info!(
             key = self.key,
