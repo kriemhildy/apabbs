@@ -98,11 +98,7 @@ pub async fn review_post(
 
     // Get the post to review
     let post = Post::select_by_key(&mut tx, &key)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select post by key: {:?}", e);
-            ResponseError::InternalServerError("Failed to fetch post".to_string())
-        })?
+        .await?
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Determine appropriate review action
@@ -190,25 +186,12 @@ pub async fn review_post(
     };
 
     // Update post status and record review action
-    post.update_status(&mut tx, status).await.map_err(|e| {
-        tracing::error!("Failed to update post status: {:?}", e);
-        ResponseError::InternalServerError("Failed to update post status".to_string())
-    })?;
-    post_review
-        .insert(&mut tx, account.id, post.id)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to insert post review: {:?}", e);
-            ResponseError::InternalServerError("Failed to record review action".to_string())
-        })?;
+    post.update_status(&mut tx, status).await?;
+    post_review.insert(&mut tx, account.id, post.id).await?;
 
     // Get updated post
     let post = Post::select_by_key(&mut tx, &key)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select updated post by key: {:?}", e);
-            ResponseError::InternalServerError("Failed to fetch updated post".to_string())
-        })?
+        .await?
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Handle banned post cleanup
@@ -299,11 +282,7 @@ pub async fn decrypt_media(
 
     // Get the post
     let post = Post::select_by_key(&mut tx, &key)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to select post by key: {:?}", e);
-            ResponseError::InternalServerError("Failed to fetch post".to_string())
-        })?
+        .await?
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Verify media exists
