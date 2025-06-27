@@ -59,6 +59,8 @@ pub async fn init() {
 pub fn scrub_ips() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
+            tracing::info!("Scrubbing old IP hashes");
+
             // Connect to the database and start a transaction
             let db = crate::db().await;
             let mut tx = db.begin().await.expect("begins transaction");
@@ -87,6 +89,8 @@ pub fn generate_screenshot() -> Job {
         Box::pin(async move {
             use std::path::Path;
 
+            tracing::info!("Taking screenshot with Chromium");
+
             // Determine the URL to screenshot
             let url = if crate::dev() {
                 String::from("http://localhost")
@@ -106,7 +110,6 @@ pub fn generate_screenshot() -> Job {
             let output_path_str_clone = output_path_str.clone();
 
             // Run the blocking operation in a separate thread
-            tracing::debug!("Taking screenshot using Chromium");
             let status = tokio::process::Command::new("chromium")
                 .args([
                     "--headless=new",
