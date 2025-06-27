@@ -361,14 +361,14 @@ impl PostSubmission {
         let mut youtube_iter = youtube_pattern.find_iter(slice);
         let first_youtube_match = youtube_iter.next();
         if let Some(mat) = first_youtube_match {
-            tracing::debug!("First YouTube match start: {:?}", mat.start());
+            tracing::debug!("First YouTube match start: {}", mat.start());
         } else {
             tracing::debug!("No YouTube match found");
         }
         let youtube_limit = match youtube_iter.next() {
             None => None,
             Some(mat) => {
-                tracing::debug!("Second YouTube match start: {:?}", mat.start());
+                tracing::debug!("Second YouTube match start: {}", mat.start());
                 let before_second_youtube = &slice[..mat.start()];
                 // Strip any breaks or whitespace that might be present at the end
                 let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("builds regex");

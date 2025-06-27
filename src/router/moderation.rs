@@ -276,7 +276,7 @@ pub async fn decrypt_media(
         .as_ref()
         .ok_or_else(|| InternalServerError("Missing filename".to_string()))?;
     let media_bytes = post.decrypt_media_file().await.map_err(|e| {
-        tracing::error!("Failed to decrypt media file: {:?}", e);
+        tracing::error!("Failed to decrypt media file: {e}");
         ResponseError::InternalServerError("Failed to decrypt media file".to_string())
     })?;
     if media_bytes.is_empty() {
@@ -320,18 +320,16 @@ pub async fn decrypt_media_task(
         // Attempt media decryption
         PostReview::handle_decrypt_media(&mut tx, &initial_post)
             .await
-            .map_err(|e| format!("Failed to decrypt media: {:?}", e))?;
+            .map_err(|e| format!("Failed to decrypt media: {e}"))?;
 
         // Update post status
         initial_post
             .update_status(&mut tx, post_review.status)
-            .await
-            .map_err(|e| format!("Failed to update post status: {:?}", e))?;
+            .await?;
 
         // Get updated post
         let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
-            .await
-            .map_err(|e| format!("Failed to select updated post by key: {:?}", e))?
+            .await?
             .ok_or_else(|| "Post does not exist after decrypting media".to_string())?;
 
         commit_transaction(tx).await?;
@@ -339,14 +337,14 @@ pub async fn decrypt_media_task(
         // Clean up and notify clients
         PostReview::delete_upload_key_dir(&encrypted_media_path)
             .await
-            .map_err(|e| format!("Failed to delete upload directory: {:?}", e))?;
+            .map_err(|e| format!("Failed to delete upload directory: {e}"))?;
         send_to_websocket(&state.sender, updated_post);
         Ok(())
     }
     .await;
 
     if let Err(e) = result {
-        tracing::error!("Error in decrypt_media_task: {:?}", e);
+        tracing::error!("Error in decrypt_media_task: {e}");
     }
 }
 
@@ -362,7 +360,7 @@ pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_revi
         initial_post
             .reencrypt_media_file()
             .await
-            .map_err(|e| format!("Failed to re-encrypt media: {:?}", e))?;
+            .map_err(|e| format!("Failed to re-encrypt media: {e}"))?;
 
         // Update post status
         initial_post
@@ -383,6 +381,6 @@ pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_revi
     .await;
 
     if let Err(e) = result {
-        tracing::error!("Error in reencrypt_media_task: {:?}", e);
+        tracing::error!("Error in reencrypt_media_task: {e}");
     }
 }

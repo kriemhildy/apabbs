@@ -426,6 +426,6 @@ pub async fn commit_transaction(
 /// Send a message to a WebSocket connection.
 pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
     if let Err(e) = sender.send(post) {
-        tracing::warn!("No active receivers to send to: {:?}", e);
+        tracing::warn!("No active receivers to send to: {e}");
     }
 }

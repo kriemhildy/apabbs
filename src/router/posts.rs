@@ -184,7 +184,7 @@ pub async fn submit_post(
     while let Some(field) = multipart
         .next_field()
         .await
-        .map_err(|e| BadRequest(format!("Failed to read field: {:?}", e)))?
+        .map_err(|e| BadRequest(format!("Failed to read field: {e}")))?
     {
         let name = field
             .name()
@@ -192,21 +192,23 @@ pub async fn submit_post(
             .to_owned();
         match name.as_str() {
             "session_token" => {
-                post_submission.session_token =
-                    match Uuid::try_parse(&field.text().await.map_err(|e| {
-                        BadRequest(format!("Failed to read session token: {:?}", e))
-                    })?) {
-                        Err(e) => {
-                            return Err(BadRequest(format!("Invalid session token: {:?}", e)));
-                        }
-                        Ok(uuid) => uuid,
-                    };
+                post_submission.session_token = match Uuid::try_parse(
+                    &field
+                        .text()
+                        .await
+                        .map_err(|e| BadRequest(format!("Failed to read session token: {e}")))?,
+                ) {
+                    Err(e) => {
+                        return Err(BadRequest(format!("Invalid session token: {e}")));
+                    }
+                    Ok(uuid) => uuid,
+                };
             }
             "body" => {
                 post_submission.body = field
                     .text()
                     .await
-                    .map_err(|e| BadRequest(format!("Failed to read post body: {:?}", e)))?
+                    .map_err(|e| BadRequest(format!("Failed to read post body: {e}")))?
             }
             "media" => {
                 if post_submission.media_filename.is_some() {
