@@ -8,6 +8,7 @@ use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::error::Error;
+use tokio::sync::broadcast::Sender;
 
 //==================================================================================================
 // Constants
@@ -416,4 +417,15 @@ pub async fn commit_transaction(
     tx.commit()
         .await
         .map_err(|e| format!("Failed to commit transaction: {e}").into())
+}
+
+//==================================================================================================
+// WebSocket utilities
+//==================================================================================================
+
+/// Send a message to a WebSocket connection.
+pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
+    if let Err(e) = sender.send(post) {
+        tracing::warn!("No active receivers to send to: {:?}", e);
+    }
 }

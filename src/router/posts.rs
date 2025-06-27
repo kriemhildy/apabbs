@@ -284,9 +284,7 @@ pub async fn submit_post(
     commit_transaction(tx).await?;
 
     // Notify clients of new post
-    if state.sender.send(post).is_err() {
-        tracing::warn!("No active receivers to send to");
-    }
+    send_to_websocket(&state.sender, post);
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {

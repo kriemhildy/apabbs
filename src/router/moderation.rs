@@ -205,9 +205,7 @@ pub async fn review_post(
     commit_transaction(tx).await?;
 
     // Notify clients of the update
-    if let Err(e) = state.sender.send(post) {
-        tracing::warn!("No active receivers to send to: {:?}", e);
-    }
+    send_to_websocket(&state.sender, post);
 
     // Start background task if needed
     if let Some(task) = background_task {
@@ -345,9 +343,7 @@ pub async fn decrypt_media_task(
         PostReview::delete_upload_key_dir(&encrypted_media_path)
             .await
             .map_err(|e| format!("Failed to delete upload directory: {:?}", e))?;
-        if let Err(e) = state.sender.send(updated_post) {
-            tracing::warn!("No active receivers to send to: {:?}", e);
-        }
+        send_to_websocket(&state.sender, updated_post);
         Ok(())
     }
     .await;
@@ -374,21 +370,17 @@ pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_revi
         // Update post status
         initial_post
             .update_status(&mut tx, post_review.status)
-            .await
-            .map_err(|e| format!("Failed to update post status: {:?}", e))?;
+            .await?;
 
         // Get updated post
         let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
-            .await
-            .map_err(|e| format!("Failed to select updated post by key: {:?}", e))?
+            .await?
             .ok_or_else(|| "Post does not exist after re-encrypting media".to_string())?;
 
         commit_transaction(tx).await?;
 
         // Notify clients
-        if let Err(e) = state.sender.send(updated_post) {
-            tracing::warn!("No active receivers to send to: {:?}", e);
-        }
+        send_to_websocket(&state.sender, updated_post);
         Ok(())
     }
     .await;
