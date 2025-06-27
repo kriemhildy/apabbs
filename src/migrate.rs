@@ -121,7 +121,6 @@ pub async fn update_intro_limit(db: PgPool) {
 /// - `db`: Database connection pool
 pub async fn download_youtube_thumbnails(db: PgPool) {
     use apabbs::post::PostSubmission;
-    use std::thread;
     use tokio::time::Duration;
 
     let mut tx = db.begin().await.expect("begins");
@@ -212,7 +211,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
         }
 
         // Avoid rate limiting
-        thread::sleep(Duration::from_secs(1));
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
     tx.commit().await.expect("commits");
