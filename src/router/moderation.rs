@@ -98,7 +98,7 @@ pub async fn review_post(
     let review_action = post_review.determine_action(&post, &account.role);
 
     // Handle various review actions
-    let mut background_task = false;
+    let mut background_task: Option<BoxFuture> = None;
     match review_action {
         // Handle errors
         Err(SameStatus) => return Err(BadRequest("Post already has this status".to_string())),
@@ -140,13 +140,12 @@ pub async fn review_post(
 
                 if review_action == Ok(DecryptMedia) {
                     // Create background task for media decryption
-                    tokio::spawn(decrypt_media_task(
+                    background_task = Some(Box::pin(decrypt_media_task(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
                         encrypted_media_path.clone(),
-                    ));
-                    background_task = true;
+                    )));
                 }
             }
         }
@@ -160,19 +159,18 @@ pub async fn review_post(
 
         // Handle media re-encryption
         Ok(ReencryptMedia) => {
-            tokio::spawn(reencrypt_media_task(
+            background_task = Some(Box::pin(reencrypt_media_task(
                 state.clone(),
                 post.clone(),
                 post_review.clone(),
-            ));
-            background_task = true;
+            )));
         }
 
         Ok(NoAction) => (),
     };
 
     // Set appropriate status based on background processing
-    let status = if background_task {
+    let status = if background_task.is_some() {
         Processing
     } else {
         post_review.status
@@ -207,6 +205,11 @@ pub async fn review_post(
 
     // Notify clients of the update
     send_to_websocket(&state.sender, post);
+
+    // If we have a background task, spawn it
+    if let Some(task) = background_task {
+        tokio::spawn(task);
+    }
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {
