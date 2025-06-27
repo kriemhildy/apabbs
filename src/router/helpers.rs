@@ -258,11 +258,12 @@ pub async fn init_user(
 pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
         .await
         .map(|_| ())
+        .map_err(|e| format!("Failed to set session time zone: {e}").into())
 }
 
 //==================================================================================================
@@ -395,9 +396,12 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 /// # Returns
 /// * `Ok(String)` containing the formatted UTC hour timestamp.
 /// * `Err(sqlx::Error)` if the query fails.
-pub async fn utc_hour_timestamp(tx: &mut PgConnection) -> Result<String, sqlx::Error> {
+pub async fn utc_hour_timestamp(
+    tx: &mut PgConnection,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     sqlx::query_scalar("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
+        .map_err(|e| format!("Failed to get UTC hour timestamp: {e}").into())
 }
