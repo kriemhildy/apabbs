@@ -69,23 +69,15 @@ impl From<sqlx::Error> for ResponseError {
     }
 }
 
-/// Convert a boxed error into a `ResponseError`.
+/// Convert a boxed error that is Send + Sync into a `ResponseError`.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
-    /// Converts any boxed error (not necessarily Send + Sync) into a 500 InternalServerError response.
+    /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.
+    /// This is commonly used for async and thread-safe error propagation.
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
+        tracing::error!(error);
         ResponseError::InternalServerError(error.to_string())
     }
 }
-
-/// Convert a boxed error that is Send + Sync into a `ResponseError`.
-// impl From<Box<dyn Error + Send + Sync>> for ResponseError {
-//     /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.
-//     /// This is commonly used for async and thread-safe error propagation.
-//     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
-//         tracing::error!(error);
-//         ResponseError::InternalServerError(error.to_string())
-//     }
-// }
 
 /// Convert a `ResponseError` into an HTTP response.
 impl IntoResponse for ResponseError {
