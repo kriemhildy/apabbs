@@ -14,10 +14,6 @@
     {% endblock %}
     {# Main stylesheet with cache-busting parameter #}
     <link rel="stylesheet" href="/style.css?210">
-    {# Custom scrollbar styling for non-Mac Chromium browsers #}
-    {% if not mac and chromium %}
-    <link rel="stylesheet" href="/scrollbar.css?8">
-    {% endif %}
     {# Main JavaScript with cache-busting parameter #}
     <script src="/script.js?75"></script>
     {# Responsive design viewport configuration #}
