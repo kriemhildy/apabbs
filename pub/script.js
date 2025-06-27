@@ -1,6 +1,9 @@
 /**
- * Provides interactive features for the application, including confirmation dialogs, unread post notifications, dynamic content updates, AJAX form handling, and DOM updates.
+ * Provides interactive features for the application.
+ * Includes confirmation dialogs, unread post notifications,
+ * dynamic content updates, AJAX form handling, and DOM updates.
  */
+
 // -----------------------------------------------------------------------------
 // Confirmation for potentially destructive actions
 // -----------------------------------------------------------------------------
@@ -16,7 +19,8 @@ function confirmSubmit(event) {
 }
 
 /**
- * Adds confirmation handlers to forms with a data-confirm attribute when the DOM is loaded or templates are updated.
+ * Adds confirmation handlers to forms with a data-confirm attribute.
+ * Runs when the DOM is loaded or templates are updated.
  */
 function addSubmitConfirmations(event) {
     event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
