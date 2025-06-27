@@ -14,6 +14,7 @@ use crate::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
+use std::error::Error;
 use uuid::Uuid;
 
 /// The number of iterations used for Blowfish password hashing.
@@ -125,11 +126,12 @@ impl Account {
     pub async fn select_by_token(
         tx: &mut PgConnection,
         token: &Uuid,
-    ) -> Result<Option<Self>, sqlx::Error> {
+    ) -> Result<Option<Self>, Box<dyn Error + Send + Sync>> {
         sqlx::query_as("SELECT * FROM accounts WHERE token = $1")
             .bind(token)
             .fetch_optional(&mut *tx)
             .await
+            .map_err(|e| format!("Failed to select account by token: {e}").into())
     }
 
     /// Retrieves an account by username, with formatted timestamps.
@@ -143,7 +145,7 @@ impl Account {
     pub async fn select_by_username(
         tx: &mut PgConnection,
         username: &str,
-    ) -> Result<Option<Self>, sqlx::Error> {
+    ) -> Result<Option<Self>, Box<dyn Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
             "to_char(created_at, $2) AS created_at_html ",
@@ -154,18 +156,23 @@ impl Account {
         .bind(username)
         .fetch_optional(&mut *tx)
         .await
+        .map_err(|e| format!("Failed to select account by username: {e}").into())
     }
 
     /// Generates and assigns a new authentication token for the account.
     ///
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
-    pub async fn reset_token(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
+    pub async fn reset_token(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("UPDATE accounts SET token = gen_random_uuid() WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to reset account token: {e}").into())
     }
 }
 
@@ -184,7 +191,9 @@ impl TimeZoneUpdate {
     ///
     /// # Returns
     /// A vector of valid time zone names.
-    pub async fn select_time_zones(tx: &mut PgConnection) -> Result<Vec<String>, sqlx::Error> {
+    pub async fn select_time_zones(
+        tx: &mut PgConnection,
+    ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
         sqlx::query_scalar(concat!(
             "SELECT name FROM pg_timezone_names ",
             "WHERE name !~ '^(posix|Etc)' AND (name LIKE '%/%' OR name = 'UTC') ",
@@ -192,6 +201,7 @@ impl TimeZoneUpdate {
         ))
         .fetch_all(&mut *tx)
         .await
+        .map_err(|e| format!("Failed to select time zones: {e}").into())
     }
 
     /// Updates the time zone setting for a user account.
@@ -199,13 +209,18 @@ impl TimeZoneUpdate {
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
     /// - `account_id`: ID of the account to update
-    pub async fn update(&self, tx: &mut PgConnection, account_id: i32) -> Result<(), sqlx::Error> {
+    pub async fn update(
+        &self,
+        tx: &mut PgConnection,
+        account_id: i32,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("UPDATE accounts SET time_zone = $1 WHERE id = $2")
             .bind(&self.time_zone)
             .bind(account_id)
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to update time zone: {e}").into())
     }
 }
 
@@ -229,11 +244,15 @@ impl Credentials {
     ///
     /// # Returns
     /// `true` if the username exists, `false` otherwise.
-    pub async fn username_exists(&self, tx: &mut PgConnection) -> Result<bool, sqlx::Error> {
+    pub async fn username_exists(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE username = $1)")
             .bind(&self.username)
             .fetch_one(&mut *tx)
             .await
+            .map_err(|e| format!("Failed to check if username exists: {e}").into())
     }
 
     /// Validates the credentials for registration.
@@ -305,7 +324,7 @@ impl Credentials {
         &self,
         tx: &mut PgConnection,
         ip_hash: &str,
-    ) -> Result<Account, sqlx::Error> {
+    ) -> Result<Account, Box<dyn Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "INSERT INTO accounts (username, password_hash, ip_hash) ",
             "VALUES ($1, crypt($2, gen_salt('bf', $3)), $4) RETURNING *"
@@ -316,6 +335,7 @@ impl Credentials {
         .bind(ip_hash)
         .fetch_one(&mut *tx)
         .await
+        .map_err(|e| format!("Failed to register account: {e}").into())
     }
 
     /// Authenticates a user with the provided credentials.
@@ -328,7 +348,7 @@ impl Credentials {
     pub async fn authenticate(
         &self,
         tx: &mut PgConnection,
-    ) -> Result<Option<Account>, sqlx::Error> {
+    ) -> Result<Option<Account>, Box<dyn Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "SELECT * FROM accounts WHERE username = $1 ",
             "AND crypt($2, password_hash) = password_hash"
@@ -337,13 +357,17 @@ impl Credentials {
         .bind(&self.password)
         .fetch_optional(&mut *tx)
         .await
+        .map_err(|e| format!("Failed to authenticate: {e}").into())
     }
 
     /// Updates the password for an existing account.
     ///
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
-    pub async fn update_password(&self, tx: &mut PgConnection) -> Result<(), sqlx::Error> {
+    pub async fn update_password(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query(concat!(
             "UPDATE accounts SET password_hash = crypt($1, gen_salt('bf', $2)) ",
             "WHERE username = $3"
@@ -354,6 +378,7 @@ impl Credentials {
         .execute(&mut *tx)
         .await
         .map(|_| ())
+        .map_err(|e| format!("Failed to update password: {e}").into())
     }
 
     /// Checks if the year verification checkbox was checked.
