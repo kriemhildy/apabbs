@@ -98,7 +98,8 @@ pub async fn review_post(
     let review_action = post_review.determine_action(&post, &account.role);
 
     // Handle various review actions
-    let background_task: Option<BoxFuture> = match review_action {
+    let mut background_task = false;
+    match review_action {
         // Handle errors
         Err(SameStatus) => return Err(BadRequest("Post already has this status".to_string())),
         Err(ReturnToPending) => {
@@ -131,9 +132,7 @@ pub async fn review_post(
 
         // Handle media operations
         Ok(DecryptMedia | DeleteEncryptedMedia) => {
-            if post.media_filename.is_none() {
-                None
-            } else {
+            if post.media_filename.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
                     return Err(NotFound("Encrypted media file does not exist".to_string()));
@@ -141,14 +140,13 @@ pub async fn review_post(
 
                 if review_action == Ok(DecryptMedia) {
                     // Create background task for media decryption
-                    Some(Box::pin(decrypt_media_task(
+                    tokio::spawn(decrypt_media_task(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
                         encrypted_media_path.clone(),
-                    )))
-                } else {
-                    None
+                    ));
+                    background_task = true;
                 }
             }
         }
@@ -158,21 +156,23 @@ pub async fn review_post(
             if post.media_filename.as_ref().is_some() && post.published_media_path().exists() {
                 PostReview::delete_media_key_dir(&post.key).await?;
             }
-            None
         }
 
         // Handle media re-encryption
-        Ok(ReencryptMedia) => Some(Box::pin(reencrypt_media_task(
-            state.clone(),
-            post.clone(),
-            post_review.clone(),
-        ))),
+        Ok(ReencryptMedia) => {
+            tokio::spawn(reencrypt_media_task(
+                state.clone(),
+                post.clone(),
+                post_review.clone(),
+            ));
+            background_task = true;
+        }
 
-        Ok(NoAction) => None,
+        Ok(NoAction) => (),
     };
 
     // Set appropriate status based on background processing
-    let status = if background_task.is_some() {
+    let status = if background_task {
         Processing
     } else {
         post_review.status
@@ -196,6 +196,7 @@ pub async fn review_post(
     }
 
     // Ensure approved posts have thumbnails if needed
+    // This should be done more internally, and already is I think.
     if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
         return Err(InternalServerError(
             "Error setting post thumbnail".to_string(),
@@ -206,11 +207,6 @@ pub async fn review_post(
 
     // Notify clients of the update
     send_to_websocket(&state.sender, post);
-
-    // Start background task if needed
-    if let Some(task) = background_task {
-        tokio::task::spawn_blocking(move || tokio::runtime::Handle::current().block_on(task));
-    }
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {

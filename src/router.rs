@@ -34,7 +34,6 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::error::Error;
-use std::{future::Future, pin::Pin};
 use uuid::Uuid;
 
 //==================================================================================================
@@ -90,13 +89,6 @@ impl IntoResponse for ResponseError {
         (status, body).into_response()
     }
 }
-
-//==================================================================================================
-// Type Aliases
-//==================================================================================================
-
-/// Type alias for boxed background task futures.
-pub type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 //==================================================================================================
 // Router Configuration
