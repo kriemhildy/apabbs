@@ -473,7 +473,7 @@ impl PostReview {
         Ok(())
     }
 
-    /// Handles the media decryption and processing workflow for a post.
+    /// Decrypt and process media for publication.
     ///
     /// # Parameters
     /// - `tx`: Database connection (mutable reference)
@@ -482,7 +482,7 @@ impl PostReview {
     /// # Returns
     /// - `Ok(())` if processing was successful
     /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
-    pub async fn handle_decrypt_media(
+    pub async fn publish_media(
         tx: &mut PgConnection,
         post: &Post,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {

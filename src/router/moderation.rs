@@ -131,16 +131,16 @@ pub async fn review_post(
         }
 
         // Handle media operations
-        Ok(DecryptMedia | DeleteEncryptedMedia) => {
+        Ok(PublishMedia | DeleteEncryptedMedia) => {
             if post.media_filename.is_some() {
                 let encrypted_media_path = post.encrypted_media_path();
                 if !encrypted_media_path.exists() {
                     return Err(NotFound("Encrypted media file does not exist".to_string()));
                 }
 
-                if review_action == Ok(DecryptMedia) {
-                    // Create background task for media decryption
-                    background_task = Some(Box::pin(decrypt_media_task(
+                if review_action == Ok(PublishMedia) {
+                    // Create background task for media publication
+                    background_task = Some(Box::pin(publish_media_task(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
@@ -300,11 +300,11 @@ pub async fn decrypt_media(
 // Background Media Tasks
 // =========================
 
-/// Background task for decrypting media and updating post status.
+/// Background task for publishing media and updating post status.
 ///
-/// Handles media decryption, post status update, cleanup, and client notification asynchronously.
+/// Handles media publication, post status update, cleanup, and client notification asynchronously.
 /// Logs errors using `tracing::error!` if any step fails.
-pub async fn decrypt_media_task(
+pub async fn publish_media_task(
     state: AppState,
     initial_post: Post,
     post_review: PostReview,
@@ -313,8 +313,8 @@ pub async fn decrypt_media_task(
     let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
         let mut tx = begin_transaction(&state.db).await?;
 
-        // Attempt media decryption
-        PostReview::handle_decrypt_media(&mut tx, &initial_post).await?;
+        // Attempt media publication
+        PostReview::publish_media(&mut tx, &initial_post).await?;
 
         // Update post status
         initial_post
@@ -324,7 +324,7 @@ pub async fn decrypt_media_task(
         // Get updated post
         let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
             .await?
-            .ok_or_else(|| "post does not exist after decrypting media".to_string())?;
+            .ok_or_else(|| "post does not exist after publishing media".to_string())?;
 
         commit_transaction(tx).await?;
 
@@ -338,7 +338,7 @@ pub async fn decrypt_media_task(
     .await;
 
     if let Err(e) = result {
-        tracing::error!("Error in decrypt_media_task: {e}");
+        tracing::error!("Error in publish_media_task: {e}");
     }
 }
 

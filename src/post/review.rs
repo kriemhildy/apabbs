@@ -17,7 +17,7 @@ use uuid::Uuid;
 #[derive(PartialEq, Debug)]
 pub enum ReviewAction {
     /// Decrypt and process encrypted media for public viewing
-    DecryptMedia,
+    PublishMedia,
     /// Delete encrypted media files that haven't been published
     DeleteEncryptedMedia,
     /// Delete media files from the public directory
@@ -119,7 +119,7 @@ impl PostReview {
             Pending => match self.status {
                 Pending => Err(SameStatus),                    // No change needed
                 Processing => Err(ManualProcessing),           // Processing is set automatically
-                Approved | Delisted => Ok(DecryptMedia), // Approve: decrypt media for public view
+                Approved | Delisted => Ok(PublishMedia), // Approve: decrypt media for public view
                 Reported => Ok(NoAction),                // Just change status, no media action
                 Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete encrypted media
             },
@@ -163,7 +163,7 @@ impl PostReview {
                 match self.status {
                     Pending => Err(ReturnToPending),     // Can't go backwards to pending
                     Processing => Err(ManualProcessing), // Processing is set automatically
-                    Approved | Delisted => Ok(DecryptMedia), // Approve: decrypt for public view
+                    Approved | Delisted => Ok(PublishMedia), // Approve: decrypt for public view
                     Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete the encrypted media
                     Reported => Err(SameStatus),         // No change needed
                 }
@@ -196,7 +196,7 @@ mod tests {
         };
         assert_eq!(
             review.determine_action(&post, &AccountRole::Admin),
-            Ok(ReviewAction::DecryptMedia)
+            Ok(ReviewAction::PublishMedia)
         );
 
         // Case 2: Mod trying to modify a reported post (should fail)
