@@ -183,9 +183,9 @@ impl PostSubmission {
             .collect();
 
         for size in thumbnail_sizes {
-            let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size));
+            let local_thumbnail_path = video_id_dir.join(format!("{size}.jpg"));
             let remote_thumbnail_url =
-                format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size);
+                format!("https://img.youtube.com/vi/{video_id}/{size}.jpg");
             let curl_status = tokio::process::Command::new("curl")
                 .args(["--silent", "--fail", "--output"])
                 .arg(&local_thumbnail_path)
@@ -315,7 +315,7 @@ impl PostSubmission {
                 thumbnail_url = local_thumbnail_url,
                 key = key,
                 timestamp = timestamp
-                    .map(|t| format!("&amp;t={}", t))
+                    .map(|t| format!("&amp;t={t}"))
                     .unwrap_or_default(),
                 width = width,
                 height = height,

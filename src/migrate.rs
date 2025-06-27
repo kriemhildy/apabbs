@@ -151,7 +151,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
                 "--write-out",
                 "'%{http_code}'",
             ])
-            .arg(format!("https://www.youtube.com/shorts/{}", video_id))
+            .arg(format!("https://www.youtube.com/shorts/{video_id}"))
             .output()
             .expect("checks response code")
             .stdout;
@@ -371,7 +371,7 @@ pub async fn add_image_dimensions(db: PgPool) {
         let (width, height) = PostReview::image_dimensions(&published_media_path)
             .await
             .expect("gets dimensions");
-        println!("Setting media image dimensions: {}x{}", width, height);
+        println!("Setting media image dimensions: {width}x{height}");
         post.update_media_dimensions(&mut tx, width, height)
             .await
             .expect("query succeeds");
@@ -382,7 +382,7 @@ pub async fn add_image_dimensions(db: PgPool) {
             let (width, height) = PostReview::image_dimensions(&thumbnail_path)
                 .await
                 .expect("gets dimensions");
-            println!("Setting thumbnail image dimensions: {}x{}", width, height);
+            println!("Setting thumbnail image dimensions: {width}x{height}");
             post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
                 .await
                 .expect("query succeeds");

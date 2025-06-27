@@ -289,11 +289,11 @@ pub async fn decrypt_media(
         (CONTENT_TYPE, &content_type),
         (
             CONTENT_DISPOSITION,
-            &format!("inline; filename=\"{}\"", media_filename),
+            &format!("inline; filename=\"{media_filename}\""),
         ),
     ];
 
-    Ok((jar, headers, media_bytes).into_response())
+        Ok((jar, headers, media_bytes).into_response())
 }
 
 // =========================

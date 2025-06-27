@@ -116,7 +116,7 @@ pub fn generate_screenshot() -> Job {
                     "--disable-gpu",
                     "--hide-scrollbars",
                     "--force-dark-mode",
-                    &format!("--screenshot={}", output_path_str_clone),
+                    &format!("--screenshot={output_path_str_clone}"),
                     &url_clone,
                 ])
                 .stderr(std::process::Stdio::null())

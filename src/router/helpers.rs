@@ -250,7 +250,7 @@ pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
+    sqlx::query(&format!("SET TIME ZONE '{time_zone}'"))
         .execute(&mut *tx)
         .await
         .map(|_| ())

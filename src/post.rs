@@ -163,12 +163,12 @@ impl Post {
 
         // Add pagination constraint if post_id is provided
         if let Some(post_id) = post_id {
-            qb.push(format!(" AND id {} ", operator));
+            qb.push(format!(" AND id {operator} "));
             qb.push_bind(post_id);
         }
 
         // Add ordering and limit
-        qb.push(format!(" ORDER BY id {} LIMIT ", order));
+        qb.push(format!(" ORDER BY id {order} LIMIT "));
         qb.push_bind(limit as i32);
 
         // Execute query
