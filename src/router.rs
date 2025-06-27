@@ -60,15 +60,6 @@ pub enum ResponseError {
 
 use ResponseError::*;
 
-/// Convert an `sqlx::Error` into a `ResponseError`.
-impl From<sqlx::Error> for ResponseError {
-    /// Converts a database error into a 500 InternalServerError response.
-    fn from(error: sqlx::Error) -> Self {
-        tracing::error!("Database error: {}", error);
-        ResponseError::InternalServerError(error.to_string())
-    }
-}
-
 /// Convert a boxed error that is Send + Sync into a `ResponseError`.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.

@@ -79,7 +79,7 @@ impl PostReview {
         tx: &mut PgConnection,
         account_id: i32,
         post_id: i32,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
             .bind(account_id)
             .bind(post_id)
@@ -87,6 +87,7 @@ impl PostReview {
             .execute(&mut *tx)
             .await
             .map(|_| ())
+            .map_err(|e| format!("Failed to insert review: {e}").into())
     }
 
     /// Determines what action should be taken for a review based on post state and user role.
