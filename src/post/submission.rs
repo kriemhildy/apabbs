@@ -94,13 +94,13 @@ impl PostSubmission {
     ///
     /// # Returns
     /// - `Ok(Post)` if the post was created successfully
-    /// - `Err(Box<dyn Error>)` if an error occurred during insertion
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during insertion
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
         user: &User,
         key: &str,
-    ) -> Result<Post, Box<dyn Error>> {
+    ) -> Result<Post, Box<dyn Error + Send + Sync>> {
         let (media_category, media_mime_type) =
             Self::determine_media_type(self.media_filename.as_deref());
         let (session_token, account_id) = match user.account {
@@ -128,7 +128,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| Box::new(e) as Box<dyn Error>)
+        .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)
     }
 
     /// Downloads a YouTube thumbnail for the given video ID.
@@ -142,11 +142,11 @@ impl PostSubmission {
     /// # Returns
     /// - `Ok(Some((PathBuf, i32, i32)))` if a thumbnail was downloaded successfully (path, width, height)
     /// - `Ok(None)` if no thumbnail could be downloaded
-    /// - `Err(Box<dyn Error>)` if an error occurred during download
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during download
     pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
-    ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error>> {
+    ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_id = video_id, "Downloading YouTube thumbnail");
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
@@ -207,8 +207,8 @@ impl PostSubmission {
     ///
     /// # Returns
     /// - `Ok(String)` with the HTML-formatted body of the post
-    /// - `Err(Box<dyn Error>)` if an error occurred during conversion
-    pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during conversion
+    pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         let mut html = self
             .body
             .trim_end()
@@ -237,8 +237,11 @@ impl PostSubmission {
     ///
     /// # Returns
     /// - `Ok(String)` with the HTML content containing YouTube embeds
-    /// - `Err(Box<dyn Error>)` if an error occurred during embedding
-    pub async fn embed_youtube(mut html: String, key: &str) -> Result<String, Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during embedding
+    pub async fn embed_youtube(
+        mut html: String,
+        key: &str,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         // If this changes, will need to update the regex as well
         const STANDARD_PATH: &str = "watch?v=";
         const SHORTS_PATH: &str = "shorts/";

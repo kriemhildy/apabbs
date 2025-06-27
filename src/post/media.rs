@@ -127,8 +127,8 @@ impl Post {
     ///
     /// # Returns
     /// - `Ok(())` if re-encryption succeeded
-    /// - `Err(Box<dyn Error>)` if re-encryption failed
-    pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if re-encryption failed
+    pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path
             .parent()
@@ -166,8 +166,8 @@ impl Post {
     ///
     /// # Returns
     /// - `Ok(Vec<u8>)` with the decrypted file content as bytes
-    /// - `Err(Box<dyn Error>)` if decryption fails
-    pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if decryption fails
+    pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         if self.media_filename.is_none() {
             return Err("cannot decrypt media: post has no media file".into());
         }
@@ -307,11 +307,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file was written successfully
-    /// - `Err(Box<dyn Error>)` if an error occurred
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred
     pub async fn write_media_file(
         published_media_path: &Path,
         media_bytes: Vec<u8>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = published_media_path
             .parent()
             .ok_or("failed to get parent directory for media file")?;
@@ -331,10 +331,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(PathBuf)` to the generated thumbnail file (`.webp`)
-    /// - `Err(Box<dyn Error>)` if generation fails
+    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
     pub async fn generate_image_thumbnail(
         published_media_path: &Path,
-    ) -> Result<PathBuf, Box<dyn Error>> {
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         let media_path_str = published_media_path
             .to_str()
             .ok_or("failed to convert published_media_path to string")?
@@ -415,11 +415,11 @@ impl PostReview {
     /// # Returns
     /// - `Ok(true)` if the thumbnail is larger than the original
     /// - `Ok(false)` if the thumbnail is not larger
-    /// - `Err(Box<dyn Error>)` if file metadata cannot be read
+    /// - `Err(Box<dyn Error + Send + Sync>)` if file metadata cannot be read
     pub fn thumbnail_is_larger(
         thumbnail_path: &Path,
         published_media_path: &Path,
-    ) -> Result<bool, Box<dyn Error>> {
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         let thumbnail_len = thumbnail_path
             .metadata()
             .map_err(|e| format!("failed to get thumbnail metadata: {e}"))?
@@ -438,8 +438,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the file and directory were deleted successfully
-    /// - `Err(Box<dyn Error>)` otherwise
-    pub async fn delete_upload_key_dir(encrypted_media_path: &Path) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
+    pub async fn delete_upload_key_dir(
+        encrypted_media_path: &Path,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let uploads_key_dir = encrypted_media_path
             .parent()
             .ok_or("encrypted_media_path should have a parent directory")?;
@@ -461,8 +463,8 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if the directory and its contents were deleted successfully
-    /// - `Err(Box<dyn Error>)` otherwise
-    pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
+    pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
 
         tokio::fs::remove_dir_all(&media_key_dir)
@@ -479,11 +481,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error>)` with an error message if processing failed
+    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
     pub async fn handle_decrypt_media(
         tx: &mut PgConnection,
         post: &Post,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Decrypt the media file
         let media_bytes = post
             .decrypt_media_file()
@@ -519,8 +521,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error>)` with an error message if processing failed
-    pub async fn process_image(tx: &mut PgConnection, post: &Post) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
+    pub async fn process_image(
+        tx: &mut PgConnection,
+        post: &Post,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let published_media_path = post.published_media_path();
 
         // Generate a thumbnail for the image
@@ -566,8 +571,11 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error>)` with an error message if processing failed
-    pub async fn process_video(tx: &mut PgConnection, post: &Post) -> Result<(), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
+    pub async fn process_video(
+        tx: &mut PgConnection,
+        post: &Post,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let published_media_path = post.published_media_path();
 
         // If necessary, generate a compatibility video for browser playback
@@ -635,14 +643,19 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok((i32, i32))` with (width, height)
-    /// - `Err(Box<dyn Error>)` if an error occurs
-    pub async fn image_dimensions(image_path: &Path) -> Result<(i32, i32), Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
+    pub async fn image_dimensions(
+        image_path: &Path,
+    ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
         tracing::debug!(image_path = ?image_path, "Getting image dimensions");
         let image_path_str = image_path
             .to_str()
             .ok_or("failed to convert image_path to string")?;
 
-        async fn vipsheader(field: &str, image_path_str: &str) -> Result<i32, Box<dyn Error>> {
+        async fn vipsheader(
+            field: &str,
+            image_path_str: &str,
+        ) -> Result<i32, Box<dyn Error + Send + Sync>> {
             let output = tokio::process::Command::new("vipsheader")
                 .args(["-f", field, image_path_str])
                 .output()
@@ -675,8 +688,10 @@ impl PostReview {
     /// # Returns
     /// - `Ok(true)` if the video is compatible
     /// - `Ok(false)` if it needs conversion
-    /// - `Err(Box<dyn Error>)` if an error occurs
-    pub async fn video_is_compatible(video_path: &Path) -> Result<bool, Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
+    pub async fn video_is_compatible(
+        video_path: &Path,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_path = ?video_path, "Checking video compatibility");
         let video_path_str = video_path
             .to_str()
@@ -754,10 +769,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(PathBuf)` to the generated compatibility video file (`.mp4`)
-    /// - `Err(Box<dyn Error>)` if generation fails
+    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
     pub async fn generate_compatibility_video(
         video_path: &Path,
-    ) -> Result<PathBuf, Box<dyn Error>> {
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_path = ?video_path, "Generating compatibility video");
         let video_path_str = video_path
             .to_str()
@@ -825,8 +840,10 @@ impl PostReview {
     ///
     /// # Returns
     /// - `Ok(PathBuf)` to the generated poster image file (`.webp`)
-    /// - `Err(Box<dyn Error>)` if generation fails
-    pub async fn generate_video_poster(video_path: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
+    pub async fn generate_video_poster(
+        video_path: &Path,
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_path = ?video_path, "Generating video poster");
         let poster_path = video_path.with_extension("webp");
 
