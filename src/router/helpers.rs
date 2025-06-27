@@ -6,7 +6,8 @@
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use sqlx::PgConnection;
+use sqlx::{PgConnection, Postgres, Transaction};
+use std::error::Error;
 
 //==================================================================================================
 // Constants
@@ -45,7 +46,7 @@ pub async fn ban_if_flooding(
     tx: &mut PgConnection,
     ip_hash: &str,
     account_id: Option<i32>,
-) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
     if ban::flooding(tx, ip_hash).await? {
         let expires_at = ban::insert(tx, ip_hash, account_id, None).await?;
         ban::prune(tx, ip_hash).await?;
@@ -247,7 +248,7 @@ pub async fn init_user(
 pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     sqlx::query(&format!("SET TIME ZONE '{}'", time_zone))
         .execute(&mut *tx)
         .await
@@ -387,10 +388,34 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
 /// * `Err(sqlx::Error)` if the query fails.
 pub async fn utc_hour_timestamp(
     tx: &mut PgConnection,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<String, Box<dyn Error + Send + Sync>> {
     sqlx::query_scalar("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
         .bind(crate::POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
         .map_err(|e| format!("Failed to get UTC hour timestamp: {e}").into())
+}
+
+//==================================================================================================
+// Database transactions
+//==================================================================================================
+
+/// Begin a new database transaction.
+pub async fn begin_transaction(
+    state: &AppState,
+) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
+    state
+        .db
+        .begin()
+        .await
+        .map_err(|e| format!("Failed to begin database transaction: {e}").into())
+}
+
+/// Commit a database transaction.
+pub async fn commit_transaction(
+    tx: Transaction<'_, Postgres>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    tx.commit()
+        .await
+        .map_err(|e| format!("Failed to commit transaction: {e}").into())
 }
