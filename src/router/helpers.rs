@@ -45,21 +45,10 @@ pub async fn ban_if_flooding(
     tx: &mut PgConnection,
     ip_hash: &str,
     account_id: Option<i32>,
-) -> Result<Option<String>, ResponseError> {
-    if ban::flooding(tx, ip_hash).await.map_err(|e| {
-        tracing::error!("Failed to check flooding for IP: {e}");
-        InternalServerError("Cannot execute database query.".to_string())
-    })? {
-        let expires_at = ban::insert(tx, ip_hash, account_id, None)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to ban IP: {e}");
-                InternalServerError("Cannot execute database query.".to_string())
-            })?;
-        ban::prune(tx, ip_hash).await.map_err(|e| {
-            tracing::error!("Failed to prune content for flooding IP: {e}");
-            InternalServerError("Cannot execute database query.".to_string())
-        })?;
+) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+    if ban::flooding(tx, ip_hash).await? {
+        let expires_at = ban::insert(tx, ip_hash, account_id, None).await?;
+        ban::prune(tx, ip_hash).await?;
         return Ok(Some(expires_at));
     }
     Ok(None)
