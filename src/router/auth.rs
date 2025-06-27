@@ -144,18 +144,12 @@ pub async fn authenticate(
     })?;
 
     // Check if username exists
-    if !credentials.username_exists(&mut tx).await.map_err(|e| {
-        tracing::error!("Failed to check username existence: {:?}", e);
-        InternalServerError("Failed to check username existence.".to_string())
-    })? {
+    if !credentials.username_exists(&mut tx).await? {
         return Err(NotFound("Username does not exist".to_owned()));
     }
 
     // Validate credentials
-    let jar = match credentials.authenticate(&mut tx).await.map_err(|e| {
-        tracing::error!("Failed to authenticate credentials: {:?}", e);
-        InternalServerError("Failed to authenticate credentials.".to_string())
-    })? {
+    let jar = match credentials.authenticate(&mut tx).await? {
         None => return Err(BadRequest("Incorrect password".to_owned())),
         Some(account) => add_account_cookie(jar, &account, &credentials),
     };
@@ -204,10 +198,7 @@ pub async fn create_account(
     })?;
 
     // Check if username is already taken
-    if credentials.username_exists(&mut tx).await.map_err(|e| {
-        tracing::error!("Failed to check username existence: {:?}", e);
-        InternalServerError("Failed to check username existence.".to_string())
-    })? {
+    if credentials.username_exists(&mut tx).await? {
         return Err(BadRequest("Username is already taken".to_owned()));
     }
 
@@ -239,13 +230,7 @@ pub async fn create_account(
     }
 
     // Create the account
-    let account = credentials
-        .register(&mut tx, &user.ip_hash)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to register account: {:?}", e);
-            InternalServerError("Failed to register account.".to_string())
-        })?;
+    let account = credentials.register(&mut tx, &user.ip_hash).await?;
     let jar = add_account_cookie(jar, &account, &credentials);
 
     tx.commit().await.map_err(|e| {
@@ -352,10 +337,7 @@ pub async fn reset_account_token(
             ));
         }
         Some(account) => {
-            account.reset_token(&mut tx).await.map_err(|e| {
-                tracing::error!("Failed to reset account token: {:?}", e);
-                InternalServerError("Failed to reset account token.".to_string())
-            })?;
+            account.reset_token(&mut tx).await?;
             remove_account_cookie(jar)
         }
     };
