@@ -784,39 +784,35 @@ impl PostReview {
             .ok_or("failed to convert compatibility path to string")?
             .to_owned();
 
-        // Move the ffmpeg processing to a separate thread pool
-        let ffmpeg_result = tokio::task::spawn_blocking(move || {
-            std::process::Command::new("ffmpeg")
-                .args([
-                    "-nostdin", // No stdin interaction
-                    "-i",
-                    &video_path_str, // Input file
-                    "-f",
-                    "mp4", // Force MP4 container
-                    "-c:v",
-                    "libx264", // H.264 video codec
-                    "-crf",
-                    "23", // Constant rate factor (quality)
-                    "-preset",
-                    "medium", // Encoding speed/compression trade-off
-                    "-movflags",
-                    "+faststart", // Optimize for web playback
-                    "-profile:v",
-                    "high", // H.264 profile
-                    "-pix_fmt",
-                    "yuv420p", // Pixel format for compatibility
-                    "-c:a",
-                    "aac", // AAC audio codec
-                    "-b:a",
-                    "128k",                  // Audio bitrate
-                    &compatibility_path_str, // Output file
-                ])
-                .output()
-        })
-        .await
-        .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
-
-        let ffmpeg_output = ffmpeg_result.map_err(|e| format!("failed to run ffmpeg: {e}"))?;
+        // Run ffmpeg to convert the video
+        let ffmpeg_output = tokio::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin", // No stdin interaction
+                "-i",
+                &video_path_str, // Input file
+                "-f",
+                "mp4", // Force MP4 container
+                "-c:v",
+                "libx264", // H.264 video codec
+                "-crf",
+                "23", // Constant rate factor (quality)
+                "-preset",
+                "medium", // Encoding speed/compression trade-off
+                "-movflags",
+                "+faststart", // Optimize for web playback
+                "-profile:v",
+                "high", // H.264 profile
+                "-pix_fmt",
+                "yuv420p", // Pixel format for compatibility
+                "-c:a",
+                "aac", // AAC audio codec
+                "-b:a",
+                "128k",                  // Audio bitrate
+                &compatibility_path_str, // Output file
+            ])
+            .output()
+            .await
+            .map_err(|e| format!("failed to execute ffmpeg: {e}"))?;
 
         if !ffmpeg_output.status.success() {
             return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());

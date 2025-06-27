@@ -109,7 +109,7 @@ pub fn generate_screenshot() -> Job {
             let url_clone = url.clone();
             let output_path_str_clone = output_path_str.clone();
 
-            // Run the blocking operation in a separate thread
+            // Run the Chromium command to take a screenshot
             let status = tokio::process::Command::new("chromium")
                 .args([
                     "--headless=new",
