@@ -180,9 +180,7 @@ pub async fn submit_post(
 
     // Check for existing IP ban
     if let Some(expires_at) = user.ban_expires_at {
-        return Err(Forbidden(format!(
-            "You are banned until {expires_at}."
-        )));
+        return Err(Forbidden(format!("You are banned until {expires_at}.")));
     }
 
     // Ban user if they are flooding
