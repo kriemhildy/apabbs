@@ -58,10 +58,7 @@ pub async fn review_post(
     use ReviewAction::*;
     use ReviewError::*;
 
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        ResponseError::InternalServerError("Database transaction error".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(
@@ -205,10 +202,7 @@ pub async fn review_post(
         ));
     }
 
-    tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {:?}", e);
-        ResponseError::InternalServerError("Failed to commit transaction".to_string())
-    })?;
+    commit_transaction(tx).await?;
 
     // Notify clients of the update
     if let Err(e) = state.sender.send(post) {
@@ -325,12 +319,8 @@ pub async fn decrypt_media_task(
     post_review: PostReview,
     encrypted_media_path: std::path::PathBuf,
 ) {
-    let result: Result<(), Box<dyn std::error::Error>> = async {
-        let mut tx = state
-            .db
-            .begin()
-            .await
-            .map_err(|e| format!("Failed to begin database transaction: {:?}", e))?;
+    let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
+        let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media decryption
         PostReview::handle_decrypt_media(&mut tx, &initial_post)
@@ -349,9 +339,7 @@ pub async fn decrypt_media_task(
             .map_err(|e| format!("Failed to select updated post by key: {:?}", e))?
             .ok_or_else(|| "Post does not exist after decrypting media".to_string())?;
 
-        tx.commit()
-            .await
-            .map_err(|e| format!("Failed to commit transaction: {:?}", e))?;
+        commit_transaction(tx).await?;
 
         // Clean up and notify clients
         PostReview::delete_upload_key_dir(&encrypted_media_path)
@@ -374,12 +362,8 @@ pub async fn decrypt_media_task(
 /// Handles media re-encryption, post status update, and client notification asynchronously.
 /// Logs errors using `tracing::error!` if any step fails.
 pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_review: PostReview) {
-    let result: Result<(), Box<dyn std::error::Error>> = async {
-        let mut tx = state
-            .db
-            .begin()
-            .await
-            .map_err(|e| format!("Failed to begin database transaction: {:?}", e))?;
+    let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
+        let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media re-encryption
         initial_post
@@ -399,9 +383,7 @@ pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_revi
             .map_err(|e| format!("Failed to select updated post by key: {:?}", e))?
             .ok_or_else(|| "Post does not exist after re-encrypting media".to_string())?;
 
-        tx.commit()
-            .await
-            .map_err(|e| format!("Failed to commit transaction: {:?}", e))?;
+        commit_transaction(tx).await?;
 
         // Notify clients
         if let Err(e) = state.sender.send(updated_post) {

@@ -29,10 +29,7 @@ pub async fn user_profile(
     headers: HeaderMap,
     Path(username): Path<String>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        e
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session (may be anonymous)
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -84,10 +81,7 @@ pub async fn settings(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        e
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session (must be logged in)
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -144,10 +138,7 @@ pub async fn update_time_zone(
     headers: HeaderMap,
     Form(time_zone_update): Form<TimeZoneUpdate>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        e
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session (must be logged in)
     let (user, jar) = init_user(
@@ -177,10 +168,7 @@ pub async fn update_time_zone(
 
     // Update time zone preference
     time_zone_update.update(&mut tx, account.id).await?;
-    tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {:?}", e);
-        e
-    })?;
+    commit_transaction(tx).await?;
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Time zone updated.");
@@ -208,10 +196,7 @@ pub async fn update_password(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        e
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session (must be logged in)
     let (user, jar) = init_user(
@@ -250,10 +235,7 @@ pub async fn update_password(
 
     // Update password
     credentials.update_password(&mut tx).await?;
-    tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {:?}", e);
-        e
-    })?;
+    commit_transaction(tx).await?;
 
     // Set confirmation notice
     let jar = add_notice_cookie(jar, "Password updated.");

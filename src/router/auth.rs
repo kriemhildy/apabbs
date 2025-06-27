@@ -29,10 +29,7 @@ pub async fn login_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -69,10 +66,7 @@ pub async fn registration_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -114,10 +108,7 @@ pub async fn authenticate(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (_user, jar) = init_user(
@@ -164,10 +155,7 @@ pub async fn create_account(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(
@@ -202,10 +190,7 @@ pub async fn create_account(
     if let Some(expires_at) =
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
-        tx.commit().await.map_err(|e| {
-            tracing::error!("Failed to commit transaction: {:?}", e);
-            InternalServerError("Failed to commit transaction.".to_string())
-        })?;
+        commit_transaction(tx).await?;
         return Err(Forbidden(format!(
             "You have been banned for flooding until {expires_at}."
         )));
@@ -215,10 +200,7 @@ pub async fn create_account(
     let account = credentials.register(&mut tx, &user.ip_hash).await?;
     let jar = add_account_cookie(jar, &account, &credentials);
 
-    tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {:?}", e);
-        InternalServerError("Failed to commit transaction.".to_string())
-    })?;
+    commit_transaction(tx).await?;
 
     let redirect = Redirect::to(ROOT);
     Ok((jar, redirect).into_response())
@@ -254,10 +236,7 @@ pub async fn logout(
     headers: HeaderMap,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token)).await?;
@@ -293,10 +272,7 @@ pub async fn reset_account_token(
     headers: HeaderMap,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token)).await?;
@@ -314,10 +290,7 @@ pub async fn reset_account_token(
         }
     };
 
-    tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {:?}", e);
-        InternalServerError("Failed to commit transaction.".to_string())
-    })?;
+    commit_transaction(tx).await?;
 
     let redirect = Redirect::to(ROOT);
     Ok((jar, redirect).into_response())

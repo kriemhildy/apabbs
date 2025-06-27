@@ -53,10 +53,7 @@ pub async fn index(
     Path(path): Path<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {e}");
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -126,10 +123,7 @@ pub async fn solo_post(
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {e}");
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -183,10 +177,7 @@ pub async fn submit_post(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {e}");
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
@@ -264,10 +255,7 @@ pub async fn submit_post(
     if let Some(expires_at) =
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
-        tx.commit().await.map_err(|e| {
-            tracing::error!("Failed to commit transaction: {e}");
-            InternalServerError("Failed to commit transaction.".to_string())
-        })?;
+        commit_transaction(tx).await?;
         return Err(Forbidden(format!(
             "You have been banned for flooding until {expires_at}."
         )));
@@ -293,10 +281,7 @@ pub async fn submit_post(
         }
     }
 
-    tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {e}");
-        InternalServerError("Failed to commit transaction.".to_string())
-    })?;
+    commit_transaction(tx).await?;
 
     // Notify clients of new post
     if state.sender.send(post).is_err() {
@@ -337,10 +322,7 @@ pub async fn hide_post(
     Form(post_hiding): Form<PostHiding>,
 ) -> Result<Response, ResponseError> {
     use PostStatus::*;
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {e}");
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(
@@ -362,10 +344,7 @@ pub async fn hide_post(
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await?;
-                tx.commit().await.map_err(|e| {
-                    tracing::error!("Failed to commit transaction: {e}");
-                    InternalServerError("Failed to commit transaction.".to_string())
-                })?;
+                commit_transaction(tx).await?;
             }
             Reported | Banned => (),
             _ => {
@@ -457,17 +436,18 @@ pub async fn web_socket(
         }
     }
 
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {e}");
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, _jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Subscribe to broadcast channel and upgrade connection
     let receiver = state.sender.subscribe();
-    Ok(upgrade.on_upgrade(move |socket| watch_receiver(State(state), socket, receiver, user)))
+    let state_clone = state.clone();
+    Ok(
+        upgrade
+            .on_upgrade(move |socket| watch_receiver(State(state_clone), socket, receiver, user)),
+    )
 }
 
 /// Fetches posts created after the latest approved post.
@@ -492,10 +472,7 @@ pub async fn interim(
     headers: HeaderMap,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {e}");
-        InternalServerError("Database transaction error.".to_string())
-    })?;
+    let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;

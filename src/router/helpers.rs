@@ -6,7 +6,7 @@
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use sqlx::{PgConnection, Postgres, Transaction};
+use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::error::Error;
 
 //==================================================================================================
@@ -402,11 +402,9 @@ pub async fn utc_hour_timestamp(
 
 /// Begin a new database transaction.
 pub async fn begin_transaction(
-    state: &AppState,
+    db: &PgPool,
 ) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
-    state
-        .db
-        .begin()
+    db.begin()
         .await
         .map_err(|e| format!("Failed to begin database transaction: {e}").into())
 }
