@@ -69,11 +69,6 @@ impl PostReview {
     /// Records a review action in the database.
     ///
     /// Creates an entry in the reviews table to track moderation activity.
-    ///
-    /// # Parameters
-    /// - `tx`: Database transaction (mutable reference)
-    /// - `account_id`: ID of the account performing the review
-    /// - `post_id`: ID of the post being reviewed
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
@@ -90,20 +85,9 @@ impl PostReview {
             .map_err(|e| format!("failed to insert review: {e}").into())
     }
 
-    /// Determines what action should be taken for a review based on post state and user role.
+    /// Determines the moderation action for a post review based on post state and user role.
     ///
-    /// Implements the business rules that govern post moderation:
-    /// - Which transitions between post statuses are allowed
-    /// - Which roles can perform which actions
-    /// - What should happen to media files during each transition
-    ///
-    /// # Parameters
-    /// - `post`: The post being reviewed
-    /// - `reviewer_role`: Role of the user performing the review
-    ///
-    /// # Returns
-    /// - `Ok(ReviewAction)` if the action is allowed
-    /// - `Err(ReviewError)` if the action is not allowed
+    /// Returns an error if the action is not allowed by business rules.
     pub fn determine_action(
         &self,
         post: &Post,
@@ -179,7 +163,7 @@ impl PostReview {
 mod tests {
     use super::*;
 
-    /// Tests post status transitions and review actions for different user roles
+    /// Tests post status transitions and review actions for different user roles.
     #[tokio::test]
     async fn review_action_permissions() {
         // Create a post with defaults, only setting what we need for this test

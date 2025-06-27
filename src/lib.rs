@@ -31,28 +31,12 @@ pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
 
 /// Creates a connection pool to the PostgreSQL database.
-///
-/// Uses the `DATABASE_URL` environment variable to establish a connection.
-///
-/// # Returns
-/// A `PgPool` database connection pool.
-///
-/// # Panics
-/// Panics if `DATABASE_URL` is not set or the connection fails.
 pub async fn db() -> PgPool {
     let url = std::env::var("DATABASE_URL").expect("sets database env var");
     PgPool::connect(&url).await.expect("connects to postgres")
 }
 
 /// Returns the number of items to show per page.
-///
-/// Uses the `PER_PAGE` environment variable if set, otherwise defaults to 1000.
-///
-/// # Returns
-/// The number of items per page as a `usize`.
-///
-/// # Panics
-/// Panics if `PER_PAGE` is set but not a valid integer.
 pub fn per_page() -> usize {
     match std::env::var("PER_PAGE") {
         Ok(per_page) => per_page.parse().expect("per_page env var is integer"),
@@ -61,24 +45,11 @@ pub fn per_page() -> usize {
 }
 
 /// Checks if the application is running in development mode.
-///
-/// Development mode is enabled when the `DEV` environment variable is set to "1".
-///
-/// # Returns
-/// `true` if in development mode, `false` otherwise.
 pub fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
 }
 
 /// Returns the host domain name for the application.
-///
-/// Uses the `HOST` environment variable.
-///
-/// # Returns
-/// The host domain as a `String`.
-///
-/// # Panics
-/// Panics if `HOST` is not set.
 pub fn host() -> String {
     std::env::var("HOST").expect("sets host env var")
 }
@@ -86,12 +57,6 @@ pub fn host() -> String {
 /// Retrieves the application's secret key for secure operations.
 ///
 /// The secret key is used for encryption, cookie signing, and other security features.
-///
-/// # Returns
-/// The secret key as a `String`.
-///
-/// # Panics
-/// Panics if `SECRET_KEY` is not set.
 pub fn secret_key() -> String {
     std::env::var("SECRET_KEY").expect("sets secret key env var")
 }
@@ -112,9 +77,6 @@ pub struct AppState {
 /// Initializes the application state.
 ///
 /// Sets up database connections, configures template rendering, and creates a broadcast channel for real-time updates.
-///
-/// # Returns
-/// Configured application state ready for use by request handlers.
 pub async fn app_state() -> AppState {
     // Initialize database connection pool
     let db = db().await;
@@ -130,14 +92,7 @@ pub async fn app_state() -> AppState {
         env.set_lstrip_blocks(true);
         env.set_trim_blocks(true);
 
-        // Template filter to remove link wrappers from YouTube thumbnails
         /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
-        ///
-        /// # Parameters
-        /// - `body`: The HTML body string to process
-        ///
-        /// # Returns
-        /// The HTML string with YouTube thumbnail links replaced by plain images.
         fn remove_youtube_thumbnail_links(body: &str) -> String {
             let re = Regex::new(concat!(
                 r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
@@ -159,15 +114,7 @@ pub async fn app_state() -> AppState {
             remove_youtube_thumbnail_links,
         );
 
-        // Template filter to slice a string to a specific byte length
         /// Template filter to slice a string to a specific byte length.
-        ///
-        /// # Parameters
-        /// - `body`: The string to slice
-        /// - `end`: The byte index to slice to
-        ///
-        /// # Returns
-        /// The sliced string up to the specified byte index.
         fn byte_slice(body: &str, end: usize) -> String {
             // Ensure we don't exceed the string length
             let end = end.min(body.len());

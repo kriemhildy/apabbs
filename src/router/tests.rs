@@ -37,12 +37,6 @@ const TEST_MEDIA_DIR: &str = "tests/media";
 //==================================================================================================
 
 /// Initializes the test environment with a configured router and application state.
-///
-/// # Returns
-/// A tuple containing the router and application state for testing.
-///
-/// # Panics
-/// Panics if not running in development mode.
 async fn init_test() -> (Router, AppState) {
     init_tracing_for_test();
     let state = crate::app_state().await;
@@ -51,12 +45,6 @@ async fn init_test() -> (Router, AppState) {
 }
 
 /// Creates test credentials with random username and standard test password.
-///
-/// # Parameters
-/// - `user`: User to associate credentials with (for session token)
-///
-/// # Returns
-/// Credentials suitable for registration testing.
 fn test_credentials(user: &User) -> Credentials {
     Credentials {
         session_token: user.session_token,
@@ -68,12 +56,6 @@ fn test_credentials(user: &User) -> Credentials {
 }
 
 /// Creates a test user with optional account information.
-///
-/// # Parameters
-/// - `account`: Optional account to associate with the user
-///
-/// # Returns
-/// A user with a new session token and an IP hash based on the local IP address.
 fn test_user(account: Option<Account>) -> User {
     User {
         account,
@@ -84,21 +66,11 @@ fn test_user(account: Option<Account>) -> User {
 }
 
 /// Generates a hash for the local IP address.
-///
-/// # Returns
-/// A secure hash of the local IP address for testing.
 fn local_ip_hash() -> String {
     sha256::digest(crate::secret_key() + LOCAL_IP)
 }
 
 /// Creates a test account with the specified role.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `role`: Role to assign to the new account
-///
-/// # Returns
-/// A user with the newly created account.
 async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     let user = test_user(None);
     let credentials = test_credentials(&user);
@@ -130,10 +102,6 @@ async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
 }
 
 /// Deletes a test account.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `account`: Account to delete
 async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account.id)
@@ -143,15 +111,6 @@ async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
 }
 
 /// Creates a test post with optional media attachment.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `user`: User creating the post
-/// - `media_filename`: Optional media file to attach
-/// - `status`: Status to set for the post
-///
-/// # Returns
-/// The newly created post.
 async fn create_test_post(
     tx: &mut PgConnection,
     user: &User,
@@ -211,14 +170,6 @@ async fn create_test_post(
 }
 
 /// Checks if a response contains a specific cookie.
-///
-/// # Parameters
-/// - `response`: HTTP response to check
-/// - `cookie`: Cookie name to look for
-/// - `removed`: Whether to check if cookie is being removed
-///
-/// # Returns
-/// `true` if the cookie condition is met, `false` otherwise.
 fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -> bool {
     response.headers().get_all(SET_COOKIE).iter().any(|h| {
         let s = h.to_str().expect("converts header");
@@ -227,49 +178,22 @@ fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -
 }
 
 /// Checks if a response adds a cookie.
-///
-/// # Parameters
-/// - `response`: HTTP response to check
-/// - `cookie`: Cookie name to look for
-///
-/// # Returns
-/// `true` if the cookie is being added, `false` otherwise.
 fn response_adds_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, false)
 }
 
 /// Checks if a response removes a cookie.
-///
-/// # Parameters
-/// - `response`: HTTP response to check
-/// - `cookie`: Cookie name to look for
-///
-/// # Returns
-/// `true` if the cookie is being removed, `false` otherwise.
 fn response_removes_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, true)
 }
 
 /// Extracts the body of a response as a string.
-///
-/// # Parameters
-/// - `response`: HTTP response to process
-///
-/// # Returns
-/// The response body as a UTF-8 string.
 async fn response_body_str(response: Response<Body>) -> String {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     String::from_utf8(body.to_vec()).unwrap()
 }
 
 /// Retrieves the most recent post by session token.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `session_token`: Session token to search by
-///
-/// # Returns
-/// The newest post with the given session token, if any.
 async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
     session_token: &Uuid,
@@ -282,13 +206,6 @@ async fn select_latest_post_by_session_token(
 }
 
 /// Retrieves the most recent post by account ID.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `account_id`: Account ID to search by
-///
-/// # Returns
-/// The newest post with the given account ID, if any.
 async fn select_latest_post_by_account_id(tx: &mut PgConnection, account_id: i32) -> Option<Post> {
     sqlx::query_as("SELECT * FROM posts WHERE account_id = $1 ORDER BY id DESC LIMIT 1")
         .bind(account_id)
@@ -298,10 +215,6 @@ async fn select_latest_post_by_account_id(tx: &mut PgConnection, account_id: i32
 }
 
 /// Deletes a test ban record.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: IP hash to remove bans for
 async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query("DELETE FROM bans WHERE ip_hash = $1")
         .bind(ip_hash)

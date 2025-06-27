@@ -58,12 +58,6 @@ pub struct PostSubmission {
 
 impl PostSubmission {
     /// Generates a unique key for a post.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference) for checking key uniqueness.
-    ///
-    /// # Returns
-    /// A unique random string key for the post.
     pub async fn generate_key(
         tx: &mut PgConnection,
     ) -> Result<String, Box<dyn Error + Send + Sync>> {
@@ -89,15 +83,6 @@ impl PostSubmission {
     /// Inserts a new post into the database.
     ///
     /// Handles determining the media type, generating the post key, and extracting the intro limit from the body content.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `user`: Current user submitting the post
-    /// - `key`: Unique key for the post
-    ///
-    /// # Returns
-    /// - `Ok(Post)` if the post was created successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during insertion
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
@@ -134,18 +119,7 @@ impl PostSubmission {
         .map_err(|e| format!("failed to insert post: {e}").into())
     }
 
-    /// Downloads a YouTube thumbnail for the given video ID.
-    ///
-    /// Tries to download the thumbnail in various sizes and returns the path to the downloaded thumbnail image along with its dimensions.
-    ///
-    /// # Parameters
-    /// - `video_id`: The ID of the YouTube video
-    /// - `youtube_short`: Whether the video is a YouTube Shorts video
-    ///
-    /// # Returns
-    /// - `Ok(Some((PathBuf, i32, i32)))` if a thumbnail was downloaded successfully (path, width, height)
-    /// - `Ok(None)` if no thumbnail could be downloaded
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during download
+    /// Downloads a YouTube thumbnail for the given video ID, returning its path and dimensions if successful.
     pub async fn download_youtube_thumbnail(
         video_id: &str,
         youtube_short: bool,
@@ -200,16 +174,7 @@ impl PostSubmission {
         Ok(None)
     }
 
-    /// Converts the post body from plain text to HTML format.
-    ///
-    /// Performs basic HTML escaping and replaces URLs with anchor links. YouTube links are processed to embed thumbnails and video IDs.
-    ///
-    /// # Parameters
-    /// - `key`: The unique key of the post, used for generating YouTube links
-    ///
-    /// # Returns
-    /// - `Ok(String)` with the HTML-formatted body of the post
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during conversion
+    /// Converts the post body from plain text to HTML, escaping and linking URLs, and embedding YouTube thumbnails.
     pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         let mut html = self
             .body
@@ -229,17 +194,7 @@ impl PostSubmission {
         Self::embed_youtube(html, key).await
     }
 
-    /// Embeds YouTube video thumbnails in the post HTML.
-    ///
-    /// Scans the post HTML for YouTube links and replaces them with embedded thumbnail images and video IDs. Generates HTML for the YouTube embed.
-    ///
-    /// # Parameters
-    /// - `html`: The HTML content of the post body
-    /// - `key`: The unique key of the post, used in the embed HTML
-    ///
-    /// # Returns
-    /// - `Ok(String)` with the HTML content containing YouTube embeds
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred during embedding
+    /// Embeds YouTube video thumbnails in the post HTML, replacing links with embed markup.
     pub async fn embed_youtube(
         mut html: String,
         key: &str,
@@ -322,19 +277,7 @@ impl PostSubmission {
         Ok(html)
     }
 
-    /// Determines the intro limit for a post based on its HTML content.
-    ///
-    /// The intro limit is the byte offset where the post should be truncated in previews. It is determined by:
-    /// - Maximum byte length (`MAX_INTRO_BYTES`)
-    /// - Maximum number of line breaks (`MAX_INTRO_BREAKS`)
-    /// - Presence of YouTube video embeds
-    ///
-    /// # Parameters
-    /// - `html`: The HTML content of the post body
-    ///
-    /// # Returns
-    /// - `Some(i32)` with the byte offset for truncation if a limit is found
-    /// - `None` if no truncation is needed
+    /// Determines the intro limit for a post preview based on HTML content, line breaks, and YouTube embeds.
     pub fn intro_limit(html: &str) -> Option<i32> {
         tracing::debug!("html.len(): {}", html.len());
         if html.is_empty() {
@@ -427,7 +370,7 @@ impl PostSubmission {
 
 /// Represents a request to hide a post from public view
 ///
-/// This structure contains the session token of the user requesting to hide a post
+/// This structure contains the session token of the user requesting to hide the post
 /// and the unique key of the post to be hidden. Used primarily for moderation actions
 /// or user-initiated content hiding.
 #[derive(Serialize, Deserialize)]
@@ -440,15 +383,7 @@ pub struct PostHiding {
 }
 
 impl PostHiding {
-    /// Sets a post's hidden flag to true in the database.
-    ///
-    /// This effectively removes the post from public view without deleting it. The post will no longer appear in feeds or search results, but remains in the database for record-keeping and potential future restoration.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference) for executing the update
-    ///
-    /// # Note
-    /// This method does not verify authorization - the caller must ensure that the user identified by `session_token` has permission to hide this post.
+    /// Sets a post's hidden flag to true in the database. Caller must ensure authorization.
     pub async fn hide_post(
         &self,
         tx: &mut PgConnection,
@@ -467,14 +402,7 @@ mod tests {
     use super::*;
     use crate::init_tracing_for_test;
 
-    /// Tests the conversion of post body text to HTML with YouTube embed generation
-    ///
-    /// This test verifies:
-    /// - Basic HTML escaping (converting <, >, &, etc. to HTML entities)
-    /// - URL recognition and conversion to anchor tags
-    /// - YouTube link detection and conversion to embedded thumbnails
-    /// - Handling of various YouTube URL formats (standard, mobile, shorts, etc.)
-    /// - Proper timestamp handling in YouTube links
+    /// Tests the conversion of post body text to HTML with YouTube embed generation.
     #[tokio::test]
     pub async fn body_to_html() {
         init_tracing_for_test();
@@ -598,14 +526,7 @@ mod tests {
         }
     }
 
-    /// Tests the intro_limit functionality for post previews
-    ///
-    /// This test verifies the algorithm correctly determines where to truncate posts for previews based on:
-    /// - YouTube embed locations
-    /// - Line break counts
-    /// - Maximum size limits
-    /// - Character encoding boundaries
-    /// - HTML entity handling
+    /// Tests the intro_limit functionality for post previews.
     #[tokio::test]
     async fn intro_limit() {
         init_tracing_for_test();
@@ -667,7 +588,7 @@ mod tests {
         assert_eq!(PostSubmission::intro_limit(&html), Some(1598));
     }
 
-    /// Tests YouTube timestamp extraction from various URL formats
+    /// Tests YouTube timestamp extraction from various URL formats.
     #[tokio::test]
     async fn youtube_timestamp_extraction() {
         let submission = PostSubmission {

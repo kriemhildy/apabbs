@@ -65,20 +65,14 @@ pub struct User {
 }
 
 impl User {
-    /// Returns `true` if the user is a moderator or administrator.
-    ///
-    /// # Returns
-    /// `true` if the user has Mod or Admin role, `false` otherwise.
+    /// Returns true if the user is a moderator or administrator.
     pub fn mod_or_admin(&self) -> bool {
         self.account
             .as_ref()
             .is_some_and(|a| [AccountRole::Admin, AccountRole::Mod].contains(&a.role))
     }
 
-    /// Returns `true` if the user is an administrator.
-    ///
-    /// # Returns
-    /// `true` if the user has Admin role, `false` otherwise.
+    /// Returns true if the user is an administrator.
     pub fn admin(&self) -> bool {
         self.account
             .as_ref()
@@ -86,9 +80,6 @@ impl User {
     }
 
     /// Gets the user's preferred time zone, or "UTC" for anonymous users.
-    ///
-    /// # Returns
-    /// The user's preferred time zone as a string slice.
     pub fn time_zone(&self) -> &str {
         match self.account {
             Some(ref account) => &account.time_zone,
@@ -116,13 +107,6 @@ pub struct Account {
 
 impl Account {
     /// Retrieves an account by its authentication token.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `token`: Authentication token to search for
-    ///
-    /// # Returns
-    /// An optional `Account` matching the token.
     pub async fn select_by_token(
         tx: &mut PgConnection,
         token: &Uuid,
@@ -135,13 +119,6 @@ impl Account {
     }
 
     /// Retrieves an account by username, with formatted timestamps.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `username`: Username to search for
-    ///
-    /// # Returns
-    /// An optional `Account` matching the username, with formatted timestamps.
     pub async fn select_by_username(
         tx: &mut PgConnection,
         username: &str,
@@ -160,9 +137,6 @@ impl Account {
     }
 
     /// Generates and assigns a new authentication token for the account.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
     pub async fn reset_token(
         &self,
         tx: &mut PgConnection,
@@ -185,12 +159,6 @@ pub struct TimeZoneUpdate {
 
 impl TimeZoneUpdate {
     /// Retrieves a list of all valid time zones from the database.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    ///
-    /// # Returns
-    /// A vector of valid time zone names.
     pub async fn select_time_zones(
         tx: &mut PgConnection,
     ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
@@ -205,10 +173,6 @@ impl TimeZoneUpdate {
     }
 
     /// Updates the time zone setting for a user account.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `account_id`: ID of the account to update
     pub async fn update(
         &self,
         tx: &mut PgConnection,
@@ -238,12 +202,6 @@ pub struct Credentials {
 
 impl Credentials {
     /// Checks if a username already exists in the database.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    ///
-    /// # Returns
-    /// `true` if the username exists, `false` otherwise.
     pub async fn username_exists(
         &self,
         tx: &mut PgConnection,
@@ -257,16 +215,7 @@ impl Credentials {
 
     /// Validates the credentials for registration.
     ///
-    /// Performs various checks on username and password:
-    /// - Username format (4-16 word characters)
-    /// - Password length (8-64 characters)
-    /// - Reserved username check ("anon")
-    /// - Password containing username check
-    /// - Common password check ("password")
-    /// - Password confirmation match
-    ///
-    /// # Returns
-    /// A list of error messages if validation fails.
+    /// Performs checks on username and password format, reserved names, and confirmation.
     pub fn validate(&self) -> Vec<&str> {
         let mut errors: Vec<&str> = Vec::new();
 
@@ -313,13 +262,6 @@ impl Credentials {
     }
 
     /// Registers a new user account in the database.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `ip_hash`: Anonymized IP hash for the user
-    ///
-    /// # Returns
-    /// The newly created `Account`.
     pub async fn register(
         &self,
         tx: &mut PgConnection,
@@ -339,12 +281,6 @@ impl Credentials {
     }
 
     /// Authenticates a user with the provided credentials.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    ///
-    /// # Returns
-    /// An optional `Account` if authentication succeeds.
     pub async fn authenticate(
         &self,
         tx: &mut PgConnection,
@@ -361,9 +297,6 @@ impl Credentials {
     }
 
     /// Updates the password for an existing account.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
     pub async fn update_password(
         &self,
         tx: &mut PgConnection,
@@ -381,10 +314,7 @@ impl Credentials {
         .map_err(|e| format!("failed to update password: {e}").into())
     }
 
-    /// Checks if the year verification checkbox was checked.
-    ///
-    /// # Returns
-    /// `true` if the year field is present and set to "on", `false` otherwise.
+    /// Returns true if the year verification checkbox was checked.
     pub fn year_checked(&self) -> bool {
         matches!(self.year.as_deref(), Some("on"))
     }

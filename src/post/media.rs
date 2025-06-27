@@ -27,63 +27,29 @@ pub const MAX_THUMB_HEIGHT: i32 = 2160;
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 impl Post {
-    /// Returns the path where an encrypted media file is stored.
-    ///
-    /// # Returns
-    /// `PathBuf` to the encrypted media file for this post.
-    ///
-    /// # Panics
-    /// Panics if the post has no associated media file.
+    /// Returns the path to the encrypted media file for this post.
     pub fn encrypted_media_path(&self) -> PathBuf {
-        if self.media_filename.is_none() {
-            panic!("Cannot get encrypted_media_path: post has no media file");
-        }
         let encrypted_filename = format!("{}.gpg", self.media_filename.as_ref().unwrap());
         std::path::Path::new(UPLOADS_DIR)
             .join(&self.key)
             .join(encrypted_filename)
     }
 
-    /// Returns the path where published media is stored after processing.
-    ///
-    /// # Returns
-    /// `PathBuf` to the published (decrypted) media file for this post.
-    ///
-    /// # Panics
-    /// Panics if the post has no associated media file.
+    /// Returns the path to the published (decrypted) media file for this post.
     pub fn published_media_path(&self) -> PathBuf {
-        if self.media_filename.is_none() {
-            panic!("Cannot get published_media_path: post has no media file");
-        }
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
             .join(self.media_filename.as_ref().unwrap())
     }
 
-    /// Returns the path where a thumbnail is stored after processing.
-    ///
-    /// # Returns
-    /// `PathBuf` to the thumbnail file for this post.
-    ///
-    /// # Panics
-    /// Panics if the post has no associated thumbnail.
+    /// Returns the path to the thumbnail file for this post.
     pub fn thumbnail_path(&self) -> PathBuf {
-        if self.thumb_filename.is_none() {
-            panic!("Cannot get thumbnail_path: post has no thumbnail");
-        }
         std::path::Path::new(MEDIA_DIR)
             .join(&self.key)
             .join(self.thumb_filename.as_ref().unwrap())
     }
 
     /// Encrypts the provided bytes using GPG with the application's key.
-    ///
-    /// # Parameters
-    /// - `bytes`: The raw bytes of the media file to encrypt.
-    ///
-    /// # Returns
-    /// - `Ok(())` if encryption succeeded
-    /// - `Err(Box<dyn std::error::Error + Send + Sync>)` if encryption failed
     pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_media_path = self.encrypted_media_path();
         let encrypted_media_path_str = encrypted_media_path
@@ -124,10 +90,6 @@ impl Post {
     /// Re-encrypts a media file that has already been published.
     ///
     /// Used when media needs to be moved back from published to reported state.
-    ///
-    /// # Returns
-    /// - `Ok(())` if re-encryption succeeded
-    /// - `Err(Box<dyn Error + Send + Sync>)` if re-encryption failed
     pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_file_path = self.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path
@@ -163,10 +125,6 @@ impl Post {
     }
 
     /// Decrypts the post's media file using GPG.
-    ///
-    /// # Returns
-    /// - `Ok(Vec<u8>)` with the decrypted file content as bytes
-    /// - `Err(Box<dyn Error + Send + Sync>)` if decryption fails
     pub async fn decrypt_media_file(&self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         if self.media_filename.is_none() {
             return Err("cannot decrypt media: post has no media file".into());
@@ -195,30 +153,7 @@ impl Post {
 }
 
 impl PostSubmission {
-    /// Determines the media type (category and MIME type) based on the file extension.
-    ///
-    /// # Parameters
-    /// - `media_filename`: Optional filename to determine type from.
-    ///
-    /// # Returns
-    /// Tuple of (`Option<MediaCategory>`, `Option<String>`) for category and MIME type.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use apabbs::post::{PostSubmission, MediaCategory};
-    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.jpg"));
-    /// assert_eq!(cat, Some(MediaCategory::Image));
-    /// assert_eq!(mime, Some("image/jpeg".to_owned()));
-    ///
-    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.mp3"));
-    /// assert_eq!(cat, Some(MediaCategory::Audio));
-    /// assert_eq!(mime, Some("audio/mpeg".to_owned()));
-    ///
-    /// let (cat, mime) = PostSubmission::determine_media_type(Some("foo.unknown"));
-    /// assert_eq!(cat, None);
-    /// assert_eq!(mime, Some("application/octet-stream".to_owned()));
-    /// ```
+    /// Determines the media type and MIME type from the file extension.
     pub fn determine_media_type(
         media_filename: Option<&str>,
     ) -> (Option<MediaCategory>, Option<String>) {
@@ -267,13 +202,6 @@ impl PostSubmission {
     }
 
     /// Encrypts the uploaded file data for a post.
-    ///
-    /// # Parameters
-    /// - `post`: The Post to associate the encrypted file with.
-    ///
-    /// # Returns
-    /// - `Ok(())` if encryption succeeded
-    /// - `Err(Box<dyn Error + Send + Sync>)` if encryption failed
     pub async fn encrypt_uploaded_file(
         self,
         post: &Post,
@@ -300,14 +228,6 @@ impl PostSubmission {
 
 impl PostReview {
     /// Writes decrypted media file bytes to the public directory.
-    ///
-    /// # Parameters
-    /// - `published_media_path`: Path where the media should be stored
-    /// - `media_bytes`: Raw bytes of the decrypted media file
-    ///
-    /// # Returns
-    /// - `Ok(())` if the file was written successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurred
     pub async fn write_media_file(
         published_media_path: &Path,
         media_bytes: Vec<u8>,
@@ -325,13 +245,6 @@ impl PostReview {
     }
 
     /// Generates a thumbnail image for a given media file.
-    ///
-    /// # Parameters
-    /// - `published_media_path`: Path to the original image file
-    ///
-    /// # Returns
-    /// - `Ok(PathBuf)` to the generated thumbnail file (`.webp`)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
     pub async fn generate_image_thumbnail(
         published_media_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
@@ -381,14 +294,6 @@ impl PostReview {
     }
 
     /// Constructs an alternate file path for a derived media file.
-    ///
-    /// # Parameters
-    /// - `media_path`: Path to the original media file
-    /// - `prefix`: Prefix to prepend to the base filename (e.g., `"tn_"` for thumbnails)
-    /// - `extension`: New file extension for the derived file (e.g., `.webp`, `.mp4`)
-    ///
-    /// # Returns
-    /// `PathBuf` where the derived file should be stored, in the same directory as the original
     pub fn alternate_path(media_path: &Path, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
@@ -406,16 +311,7 @@ impl PostReview {
         key_dir.join(&alternate_filename)
     }
 
-    /// Determines if a thumbnail file is larger than the original media file.
-    ///
-    /// # Parameters
-    /// - `thumbnail_path`: Path to the thumbnail file
-    /// - `published_media_path`: Path to the original media file
-    ///
-    /// # Returns
-    /// - `Ok(true)` if the thumbnail is larger than the original
-    /// - `Ok(false)` if the thumbnail is not larger
-    /// - `Err(Box<dyn Error + Send + Sync>)` if file metadata cannot be read
+    /// Returns true if the thumbnail file is larger than the original media file.
     pub fn thumbnail_is_larger(
         thumbnail_path: &Path,
         published_media_path: &Path,
@@ -432,13 +328,6 @@ impl PostReview {
     }
 
     /// Deletes an encrypted media file and its containing directory.
-    ///
-    /// # Parameters
-    /// - `encrypted_media_path`: Path to the encrypted media file
-    ///
-    /// # Returns
-    /// - `Ok(())` if the file and directory were deleted successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
     pub async fn delete_upload_key_dir(
         encrypted_media_path: &Path,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -457,13 +346,6 @@ impl PostReview {
     }
 
     /// Deletes all media files associated with a post.
-    ///
-    /// # Parameters
-    /// - `key`: The unique key of the post whose media should be deleted
-    ///
-    /// # Returns
-    /// - `Ok(())` if the directory and its contents were deleted successfully
-    /// - `Err(Box<dyn Error + Send + Sync>)` otherwise
     pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
 
@@ -473,15 +355,7 @@ impl PostReview {
         Ok(())
     }
 
-    /// Decrypt and process media for publication.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `post`: The post whose media should be decrypted and processed
-    ///
-    /// # Returns
-    /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
+    /// Decrypts and processes media for publication.
     pub async fn publish_media(
         tx: &mut PgConnection,
         post: &Post,
@@ -513,15 +387,7 @@ impl PostReview {
         Ok(())
     }
 
-    /// Process image media for a post.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `post`: The post whose image media should be processed
-    ///
-    /// # Returns
-    /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
+    /// Processes image media for a post.
     pub async fn process_image(
         tx: &mut PgConnection,
         post: &Post,
@@ -563,15 +429,7 @@ impl PostReview {
         Ok(())
     }
 
-    /// Process video media for a post.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `post`: The post whose video media should be processed
-    ///
-    /// # Returns
-    /// - `Ok(())` if processing was successful
-    /// - `Err(Box<dyn Error + Send + Sync>)` with an error message if processing failed
+    /// Processes video media for a post.
     pub async fn process_video(
         tx: &mut PgConnection,
         post: &Post,
@@ -636,14 +494,7 @@ impl PostReview {
         Ok(())
     }
 
-    /// Determines the dimensions of an image using the vipsheader utility.
-    ///
-    /// # Parameters
-    /// - `image_path`: Path to the image file
-    ///
-    /// # Returns
-    /// - `Ok((i32, i32))` with (width, height)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
+    /// Returns the dimensions (width, height) of an image using vipsheader.
     pub async fn image_dimensions(
         image_path: &Path,
     ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
@@ -680,15 +531,7 @@ impl PostReview {
         Ok((width, height))
     }
 
-    /// Determines if a video is compatible for web playback using ffprobe.
-    ///
-    /// # Parameters
-    /// - `video_path`: Path to the video file
-    ///
-    /// # Returns
-    /// - `Ok(true)` if the video is compatible
-    /// - `Ok(false)` if it needs conversion
-    /// - `Err(Box<dyn Error + Send + Sync>)` if an error occurs
+    /// Returns true if the video is compatible for web playback using ffprobe.
     pub async fn video_is_compatible(
         video_path: &Path,
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
@@ -763,13 +606,6 @@ impl PostReview {
     }
 
     /// Generates a browser-compatible video variant for playback.
-    ///
-    /// # Parameters
-    /// - `video_path`: Path to the original video file
-    ///
-    /// # Returns
-    /// - `Ok(PathBuf)` to the generated compatibility video file (`.mp4`)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
     pub async fn generate_compatibility_video(
         video_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
@@ -830,13 +666,6 @@ impl PostReview {
     }
 
     /// Generates a poster image (still frame) from a video file.
-    ///
-    /// # Parameters
-    /// - `video_path`: Path to the video file
-    ///
-    /// # Returns
-    /// - `Ok(PathBuf)` to the generated poster image file (`.webp`)
-    /// - `Err(Box<dyn Error + Send + Sync>)` if generation fails
     pub async fn generate_video_poster(
         video_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
@@ -898,7 +727,7 @@ impl PostReview {
 mod tests {
     use super::*;
 
-    /// Tests MIME type and media category detection for different file extensions
+    /// Tests MIME type and media category detection for different file extensions.
     #[tokio::test]
     async fn media_type_detection() {
         // Test image file types
@@ -927,7 +756,7 @@ mod tests {
         assert_eq!(mime, None);
     }
 
-    /// Tests path construction for media files
+    /// Tests path construction for media files.
     #[tokio::test]
     async fn media_paths() {
         let post = Post {

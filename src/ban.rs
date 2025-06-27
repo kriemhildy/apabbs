@@ -25,15 +25,6 @@ use std::error::Error;
 pub const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
 
 /// Inserts a new ban record into the database.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: The hashed IP address to ban
-/// - `banned_account_id`: The account ID to ban, if any
-/// - `admin_account_id`: The admin account ID who issued the ban, if any
-///
-/// # Returns
-/// A string representation of the ban expiration time formatted according to RFC5322.
 pub async fn insert(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -54,14 +45,6 @@ pub async fn insert(
 }
 
 /// Checks if an active ban exists for an IP hash or account ID.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: The hashed IP address to check
-/// - `banned_account_id`: The account ID to check, if any
-///
-/// # Returns
-/// The expiration time of the ban if it exists and is unexpired, `None` otherwise.
 pub async fn exists(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -80,13 +63,6 @@ pub async fn exists(
 }
 
 /// Counts new accounts created from an IP address within the past day.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: The hashed IP address to check
-///
-/// # Returns
-/// The count of new accounts created from the IP address within the past day.
 pub async fn new_accounts_count(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -102,13 +78,6 @@ pub async fn new_accounts_count(
 }
 
 /// Counts pending posts created from an IP address within the past day.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: The hashed IP address to check
-///
-/// # Returns
-/// The count of pending posts created from the IP address within the past day.
 pub async fn new_posts_count(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -124,13 +93,6 @@ pub async fn new_posts_count(
 }
 
 /// Determines if an IP address is creating excessive content (flooding).
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: The hashed IP address to check
-///
-/// # Returns
-/// `true` if the IP is flooding (combined count >= MAX_CONTENT_PER_IP_DAILY), `false` otherwise.
 pub async fn flooding(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -141,12 +103,6 @@ pub async fn flooding(
 }
 
 /// Removes content from a banned IP address.
-///
-/// Deletes accounts that have only created pending posts and removes all pending posts associated with the IP address.
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
-/// - `ip_hash`: The hashed IP address to prune
 pub async fn prune(
     tx: &mut PgConnection,
     ip_hash: &str,
@@ -170,11 +126,6 @@ pub async fn prune(
 }
 
 /// Removes IP address data from older content for privacy.
-///
-/// Removes IP hash data from accounts and posts that are older than 1 day and are not in a state requiring IP tracking (like pending or banned posts).
-///
-/// # Parameters
-/// - `tx`: Database transaction (mutable reference)
 pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + Sync>> {
     // Scrub IP data from accounts older than 1 day
     sqlx::query(concat!(

@@ -28,23 +28,7 @@ use super::*;
 // Moderation Endpoints
 // =========================
 
-/// Processes post moderation actions.
-///
-/// Allows moderators and admins to approve, reject, ban, or re-encrypt posts, enforcing business rules and managing background media processing.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for request context
-/// - `Path(key)`: Path parameter for the post key
-/// - `Form(post_review)`: Form data containing the post review action
-///
-/// # Returns
-/// A `Response` indicating the result of the moderation action, with background processing as needed.
-///
-/// # Errors
-/// Returns appropriate `ResponseError` variants for authentication, authorization, business rule, or internal errors.
+/// Processes post moderation actions, enforcing business rules and managing background media processing.
 pub async fn review_post(
     method: Method,
     State(state): State<AppState>,
@@ -226,20 +210,6 @@ pub async fn review_post(
 // =========================
 
 /// Serves decrypted media files to moderators or admins for review.
-///
-/// Allows privileged users to access original media files for moderation or review.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Path(key)`: Path parameter for the post key
-///
-/// # Returns
-/// A `Response` containing the decrypted media file for download or inline viewing.
-///
-/// # Errors
-/// Returns `Unauthorized` if the user is not a moderator/admin, or `NotFound`/`InternalServerError` for missing or failed media operations.
 pub async fn decrypt_media(
     method: Method,
     State(state): State<AppState>,
@@ -300,10 +270,7 @@ pub async fn decrypt_media(
 // Background Media Tasks
 // =========================
 
-/// Background task for publishing media and updating post status.
-///
-/// Handles media publication, post status update, cleanup, and client notification asynchronously.
-/// Logs errors using `tracing::error!` if any step fails.
+/// Background task for publishing media and updating post status asynchronously.
 pub async fn publish_media_task(
     state: AppState,
     initial_post: Post,
@@ -342,10 +309,7 @@ pub async fn publish_media_task(
     }
 }
 
-/// Background task for re-encrypting media and updating post status.
-///
-/// Handles media re-encryption, post status update, and client notification asynchronously.
-/// Logs errors using `tracing::error!` if any step fails.
+/// Background task for re-encrypting media and updating post status asynchronously.
 pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_review: PostReview) {
     let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
         let mut tx = begin_transaction(&state.db).await?;

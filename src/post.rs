@@ -110,21 +110,7 @@ pub struct Post {
 impl Post {
     /// Selects posts visible to the user according to their access level.
     ///
-    /// Filters posts by status based on the user's role:
-    /// - Admins: all posts except rejected
-    /// - Mods: all except rejected and reported
-    /// - Others: only approved posts
-    ///
-    /// Additionally shows posts created by the user regardless of status.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `user`: Current user with session and account info
-    /// - `post_id`: Optional ID for pagination
-    /// - `invert`: Whether to invert the sort order
-    ///
-    /// # Returns
-    /// A vector of posts visible to the user, or a database error.
+    /// Filters by status based on user role and always includes the user's own posts.
     pub async fn select(
         tx: &mut PgConnection,
         user: &User,
@@ -181,13 +167,6 @@ impl Post {
     /// Selects approved posts created by the specified account.
     ///
     /// Returns only posts with status 'approved' and limits the result to the system-defined page size.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `account_id`: Account ID of the author
-    ///
-    /// # Returns
-    /// A vector of approved posts by the author, or a database error.
     pub async fn select_by_author(
         tx: &mut PgConnection,
         account_id: i32,
@@ -203,17 +182,7 @@ impl Post {
         .map_err(|e| format!("failed to select posts by author: {e}").into())
     }
 
-    /// Checks if the user is the author of this post.
-    ///
-    /// Returns true if either:
-    /// - The post's session token matches the user's session token
-    /// - The post's account ID matches the user's account ID
-    ///
-    /// # Parameters
-    /// - `user`: The user to check against
-    ///
-    /// # Returns
-    /// `true` if the user is the author, `false` otherwise.
+    /// Returns true if the user is the author of this post.
     ///
     /// # Examples
     ///
@@ -237,16 +206,7 @@ impl Post {
                 .is_some_and(|a| self.account_id.is_some_and(|id| id == a.id))
     }
 
-    /// Selects a post by its unique key with formatted timestamps.
-    ///
-    /// Also includes a flag indicating if the post is recent (less than 2 days old).
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `key`: Unique key of the post
-    ///
-    /// # Returns
-    /// An optional post matching the key, with formatted timestamps, or a database error.
+    /// Selects a post by its unique key with formatted timestamps and recent flag.
     pub async fn select_by_key(
         tx: &mut PgConnection,
         key: &str,
@@ -265,12 +225,6 @@ impl Post {
     }
 
     /// Permanently deletes a post from the database.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    ///
-    /// # Returns
-    /// Ok(()) if successful, or a database error.
     pub async fn delete(
         &self,
         tx: &mut PgConnection,
@@ -284,13 +238,6 @@ impl Post {
     }
 
     /// Updates the status of a post in the database.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `new_status`: The new status to set for the post
-    ///
-    /// # Returns
-    /// Ok(()) if successful, or a database error.
     pub async fn update_status(
         &self,
         tx: &mut PgConnection,
@@ -306,15 +253,6 @@ impl Post {
     }
 
     /// Updates thumbnail metadata for a post.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `thumbnail_path`: Path to the thumbnail image
-    /// - `width`: Width of the thumbnail in pixels
-    /// - `height`: Height of the thumbnail in pixels
-    ///
-    /// # Returns
-    /// Ok(()) if successful, or a database error.
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
@@ -342,20 +280,7 @@ impl Post {
         .map_err(|e| format!("failed to update thumbnail: {e}").into())
     }
 
-    /// Update the compatibility video filename for a post.
-    ///
-    /// This is used to store a fallback video format for browsers that do not support
-    /// the primary video format (e.g., H.264 for non-Chromium browsers).
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `compat_path`: Path to the compatibility video file
-    ///
-    /// # Returns
-    /// Ok(()) if successful, or a database error.
-    ///
-    /// # Panics
-    /// Panics if the compatibility video filename cannot be extracted or converted to a string.
+    /// Updates the compatibility video filename for a post.
     pub async fn update_compat_video(
         &self,
         tx: &mut PgConnection,
@@ -376,14 +301,6 @@ impl Post {
     }
 
     /// Updates the media dimensions for a post in the database.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `width`: Width of the media in pixels
-    /// - `height`: Height of the media in pixels
-    ///
-    /// # Returns
-    /// Ok(()) if successful, or a database error.
     pub async fn update_media_dimensions(
         &self,
         tx: &mut PgConnection,
@@ -401,16 +318,6 @@ impl Post {
     }
 
     /// Updates the poster filename for video posts.
-    ///
-    /// # Parameters
-    /// - `tx`: Database connection (mutable reference)
-    /// - `video_poster_path`: Path to the poster image file
-    ///
-    /// # Returns
-    /// Ok(()) if successful, or a database error.
-    ///
-    /// # Panics
-    /// Panics if the poster filename cannot be extracted or converted to a string.
     pub async fn update_poster(
         &self,
         tx: &mut PgConnection,

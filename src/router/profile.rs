@@ -9,19 +9,7 @@ use super::*;
 // Profile Display Endpoints
 // =========================
 
-/// Displays a user's profile page.
-///
-/// Shows information about a user and their public posts.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `Path(username)`: Path parameter for the username
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for user agent analysis
-///
-/// # Returns
-/// A `Response` containing the rendered user profile page, or an error if the user or posts cannot be found.
+/// Displays a user's profile page with their public posts.
 pub async fn user_profile(
     method: Method,
     State(state): State<AppState>,
@@ -63,18 +51,7 @@ pub async fn user_profile(
 // Settings Display & Update
 // =========================
 
-/// Displays the user settings page.
-///
-/// Shows options for account management and preferences. Requires the user to be logged in.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for user agent analysis
-///
-/// # Returns
-/// A `Response` containing the rendered settings page, or an error if the user is not logged in.
+/// Displays the user settings page. Requires the user to be logged in.
 pub async fn settings(
     method: Method,
     State(state): State<AppState>,
@@ -119,18 +96,7 @@ pub async fn settings(
 // Settings Update Handlers
 // =========================
 
-/// Updates a user's time zone preference.
-///
-/// Changes the time zone setting for a logged-in user after validation. Requires authentication and a valid time zone.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Form(time_zone_update)`: Form data containing the new time zone
-///
-/// # Returns
-/// A `Response` redirecting to the settings page with a confirmation notice, or an error if validation fails.
+/// Updates a user's time zone preference after validation.
 pub async fn update_time_zone(
     method: Method,
     State(state): State<AppState>,
@@ -177,18 +143,7 @@ pub async fn update_time_zone(
     Ok((jar, redirect).into_response())
 }
 
-/// Updates a user's password.
-///
-/// Changes the password for a logged-in user after validation. Requires authentication and password validation.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Form(credentials)`: Form data containing the new password and credentials
-///
-/// # Returns
-/// A `Response` redirecting to the settings page with a confirmation notice, or an error if validation fails.
+/// Updates a user's password after validation.
 pub async fn update_password(
     method: Method,
     State(state): State<AppState>,

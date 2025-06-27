@@ -11,18 +11,7 @@ use serde::{Deserialize, Serialize};
 // Login and Registration Forms
 // ================================================================================================
 
-/// Displays the login form.
-///
-/// Renders the page for user authentication.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state (database, config, etc.)
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for user agent analysis
-///
-/// # Returns
-/// A rendered login form as a `Response`.
+/// Displays the login form for user authentication.
 pub async fn login_form(
     method: Method,
     State(state): State<AppState>,
@@ -48,18 +37,7 @@ pub async fn login_form(
     Ok((jar, html).into_response())
 }
 
-/// Displays the registration form.
-///
-/// Renders the page for creating a new account.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for user agent analysis
-///
-/// # Returns
-/// A rendered registration form as a `Response`.
+/// Displays the registration form for creating a new account.
 pub async fn registration_form(
     method: Method,
     State(state): State<AppState>,
@@ -89,18 +67,7 @@ pub async fn registration_form(
 // Authentication and Account Actions
 // ================================================================================================
 
-/// Processes user login attempts.
-///
-/// Authenticates users with provided credentials and sets session cookies.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Form(credentials)`: User credentials submitted via form
-///
-/// # Returns
-/// Redirects to the root page on success, or an error response on failure.
+/// Processes user login attempts and sets session cookies.
 pub async fn authenticate(
     method: Method,
     State(state): State<AppState>,
@@ -135,19 +102,7 @@ pub async fn authenticate(
     Ok((jar, redirect).into_response())
 }
 
-/// Processes account creation requests.
-///
-/// Validates registration information and creates new user accounts.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for IP hash and ban checks
-/// - `Form(credentials)`: User credentials submitted via form
-///
-/// # Returns
-/// Redirects to the root page on success, or an error response on failure.
+/// Processes account creation requests and creates new user accounts.
 pub async fn create_account(
     method: Method,
     State(state): State<AppState>,
@@ -217,18 +172,7 @@ pub struct Logout {
     pub session_token: Uuid,
 }
 
-/// Processes user logout requests.
-///
-/// Clears authentication cookies and ends user session.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Form(logout)`: Logout request containing session token
-///
-/// # Returns
-/// Redirects to the root page after logout.
+/// Processes user logout requests, clearing authentication cookies and ending the session.
 pub async fn logout(
     method: Method,
     State(state): State<AppState>,
@@ -253,18 +197,7 @@ pub async fn logout(
     Ok((jar, redirect).into_response())
 }
 
-/// Resets a user's authentication token.
-///
-/// Invalidates all existing sessions for security purposes.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Form(logout)`: Logout request containing session token
-///
-/// # Returns
-/// Redirects to the root page after resetting the token.
+/// Resets a user's authentication token, invalidating all existing sessions.
 pub async fn reset_account_token(
     method: Method,
     State(state): State<AppState>,

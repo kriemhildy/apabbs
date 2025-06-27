@@ -31,21 +31,6 @@ use std::collections::HashMap;
 // =========================
 
 /// Handles the main index page and paginated content.
-///
-/// Renders the home page with a list of posts, supporting pagination through the optional page key parameter.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Path(path)`: Path parameters as a map (for pagination key)
-/// - `headers`: HTTP headers for user agent analysis
-///
-/// # Returns
-/// A `Response` containing the rendered index page.
-///
-/// # Errors
-/// Returns `InternalServerError` for database or rendering errors.
 pub async fn index(
     method: Method,
     State(state): State<AppState>,
@@ -98,21 +83,6 @@ pub async fn index(
 }
 
 /// Displays a single post in full-page view.
-///
-/// Renders a dedicated page for viewing a single post by its unique key.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Path(key)`: Path parameter for the post key
-/// - `headers`: HTTP headers for user agent analysis
-///
-/// # Returns
-/// A `Response` containing the rendered solo post page.
-///
-/// # Errors
-/// Returns `NotFound` if the post does not exist, or `InternalServerError` for database/rendering errors.
 pub async fn solo_post(
     method: Method,
     State(state): State<AppState>,
@@ -147,22 +117,7 @@ pub async fn solo_post(
 // Post Submission & Hiding
 // =========================
 
-/// Handles post submission.
-///
-/// Processes new post creation with optional media attachments.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for IP hash and validation
-/// - `multipart`: Multipart form data for post content and media
-///
-/// # Returns
-/// A `Response` indicating the result of the post submission.
-///
-/// # Errors
-/// Returns `BadRequest` for invalid input, `Banned` if user is banned, or `InternalServerError` for database/media errors.
+/// Handles post submission with optional media attachments.
 pub async fn submit_post(
     method: Method,
     State(state): State<AppState>,
@@ -287,22 +242,7 @@ pub async fn submit_post(
     Ok((jar, response).into_response())
 }
 
-/// Hides a post from the user's view.
-///
-/// Allows users to hide their rejected posts from view.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `headers`: HTTP headers for request context
-/// - `Form(post_hiding)`: Form data containing the post hiding request
-///
-/// # Returns
-/// A `Response` indicating the result of the hide action.
-///
-/// # Errors
-/// Returns `Unauthorized` if the user is not the author, `BadRequest` for invalid status, or `InternalServerError` for database errors.
+/// Hides a post from the user's view if authorized.
 pub async fn hide_post(
     method: Method,
     State(state): State<AppState>,
@@ -358,21 +298,7 @@ pub async fn hide_post(
 // Real-Time & Interim Updates
 // =========================
 
-/// Handles WebSocket connections for real-time updates.
-///
-/// Establishes a persistent connection to send new posts to the client as they're created.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `upgrade`: WebSocket upgrade request
-///
-/// # Returns
-/// A `Response` that upgrades the connection to a WebSocket.
-///
-/// # Errors
-/// Returns `InternalServerError` for database or websocket errors.
+/// Handles WebSocket connections for real-time post updates.
 pub async fn web_socket(
     method: Method,
     State(state): State<AppState>,
@@ -439,21 +365,7 @@ pub async fn web_socket(
     )
 }
 
-/// Fetches posts created after the latest approved post.
-///
-/// Used for recovering updates since websocket interruption.
-///
-/// # Parameters
-/// - `method`: HTTP method of the request
-/// - `State(state)`: Application state
-/// - `jar`: Cookie jar for session management
-/// - `Path(key)`: Path parameter for the reference post key
-///
-/// # Returns
-/// A `Response` containing new posts as rendered HTML in JSON format.
-///
-/// # Errors
-/// Returns `NotFound` if the reference post does not exist, or `InternalServerError` for database/rendering errors.
+/// Fetches posts created after the latest approved post for interim updates.
 pub async fn interim(
     method: Method,
     State(state): State<AppState>,
