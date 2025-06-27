@@ -137,7 +137,7 @@ pub async fn solo_post(
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
+        tracing::error!("Failed to begin database transaction: {e}");
         InternalServerError("Database transaction error.".to_string())
     })?;
 
@@ -199,7 +199,7 @@ pub async fn submit_post(
     mut multipart: Multipart,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
+        tracing::error!("Failed to begin database transaction: {e}");
         InternalServerError("Database transaction error.".to_string())
     })?;
 
@@ -250,7 +250,7 @@ pub async fn submit_post(
                     field
                         .bytes()
                         .await
-                        .map_err(|e| BadRequest(format!("Failed to read media file: {:?}", e)))?
+                        .map_err(|e| BadRequest(format!("Failed to read media file: {e}")))?
                         .to_vec(),
                 );
             }
@@ -284,7 +284,7 @@ pub async fn submit_post(
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
         tx.commit().await.map_err(|e| {
-            tracing::error!("Failed to commit transaction: {:?}", e);
+            tracing::error!("Failed to commit transaction: {e}");
             InternalServerError("Failed to commit transaction.".to_string())
         })?;
         return Err(Forbidden(format!(
@@ -301,14 +301,14 @@ pub async fn submit_post(
 
     // Generate unique key and insert post
     let key = PostSubmission::generate_key(&mut tx).await.map_err(|e| {
-        tracing::error!("Failed to generate post key: {:?}", e);
+        tracing::error!("Failed to generate post key: {e}");
         InternalServerError("Failed to generate post key.".to_string())
     })?;
     let post = post_submission
         .insert(&mut tx, &user, &key)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to insert post: {:?}", e);
+            tracing::error!("Failed to insert post: {e}");
             InternalServerError("Failed to insert post.".to_string())
         })?;
 
@@ -322,7 +322,7 @@ pub async fn submit_post(
     }
 
     tx.commit().await.map_err(|e| {
-        tracing::error!("Failed to commit transaction: {:?}", e);
+        tracing::error!("Failed to commit transaction: {e}");
         InternalServerError("Failed to commit transaction.".to_string())
     })?;
 
@@ -366,7 +366,7 @@ pub async fn hide_post(
 ) -> Result<Response, ResponseError> {
     use PostStatus::*;
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
+        tracing::error!("Failed to begin database transaction: {e}");
         InternalServerError("Database transaction error.".to_string())
     })?;
 
@@ -388,7 +388,7 @@ pub async fn hide_post(
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to select post by key: {:?}", e);
+            tracing::error!("Failed to select post by key: {e}");
             InternalServerError("Failed to select post by key.".to_string())
         })?
     {
@@ -400,11 +400,11 @@ pub async fn hide_post(
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await.map_err(|e| {
-                    tracing::error!("Failed to hide post: {:?}", e);
+                    tracing::error!("Failed to hide post: {e}");
                     InternalServerError("Failed to hide post.".to_string())
                 })?;
                 tx.commit().await.map_err(|e| {
-                    tracing::error!("Failed to commit transaction: {:?}", e);
+                    tracing::error!("Failed to commit transaction: {e}");
                     InternalServerError("Failed to commit transaction.".to_string())
                 })?;
             }
@@ -499,7 +499,7 @@ pub async fn web_socket(
     }
 
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
+        tracing::error!("Failed to begin database transaction: {e}");
         InternalServerError("Database transaction error.".to_string())
     })?;
 
@@ -539,7 +539,7 @@ pub async fn interim(
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("Failed to begin database transaction: {:?}", e);
+        tracing::error!("Failed to begin database transaction: {e}");
         InternalServerError("Database transaction error.".to_string())
     })?;
 
@@ -562,7 +562,7 @@ pub async fn interim(
     let new_posts = Post::select(&mut tx, &user, since_post_id, true)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to select new posts: {:?}", e);
+            tracing::error!("Failed to select new posts: {e}");
             InternalServerError("Failed to fetch new posts.".to_string())
         })?;
 
