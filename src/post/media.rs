@@ -490,22 +490,22 @@ impl PostReview {
         let media_bytes = post
             .decrypt_media_file()
             .await
-            .map_err(|e| format!("failed to decrypt media file: {e}"))?;
+            .map_err(|e| format!("Failed to decrypt media file: {e}"))?;
 
         // Write the decrypted file to the published media directory
         let published_media_path = post.published_media_path();
         Self::write_media_file(&published_media_path, media_bytes)
             .await
-            .map_err(|e| format!("failed to write decrypted media file: {e}"))?;
+            .map_err(|e| format!("Failed to write decrypted media file: {e}"))?;
 
         // Process according to media type
         match post.media_category {
             Some(MediaCategory::Image) => Self::process_image(tx, post)
                 .await
-                .map_err(|e| format!("failed to process image media: {e}"))?,
+                .map_err(|e| format!("Failed to process image media: {e}"))?,
             Some(MediaCategory::Video) => Self::process_video(tx, post)
                 .await
-                .map_err(|e| format!("failed to process video media: {e}"))?,
+                .map_err(|e| format!("Failed to process video media: {e}"))?,
             // Audio files and posts without media don't need processing
             Some(MediaCategory::Audio) | None => (),
         }

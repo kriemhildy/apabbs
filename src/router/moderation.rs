@@ -314,9 +314,7 @@ pub async fn decrypt_media_task(
         let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media decryption
-        PostReview::handle_decrypt_media(&mut tx, &initial_post)
-            .await
-            .map_err(|e| format!("Failed to decrypt media: {e}"))?;
+        PostReview::handle_decrypt_media(&mut tx, &initial_post).await?;
 
         // Update post status
         initial_post
