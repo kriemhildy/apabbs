@@ -54,7 +54,7 @@ pub async fn user_profile(
             account,
             posts,
         ),
-    ));
+    )?);
 
     Ok((jar, html).into_response())
 }
@@ -110,7 +110,7 @@ pub async fn settings(
             time_zones,
             notice,
         ),
-    ));
+    )?);
 
     Ok((jar, html).into_response())
 }

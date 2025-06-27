@@ -43,7 +43,7 @@ pub async fn login_form(
             host => crate::host(),
             user,
         ),
-    ));
+    )?);
 
     Ok((jar, html).into_response())
 }
@@ -80,7 +80,7 @@ pub async fn registration_form(
             host => crate::host(),
             user,
         ),
-    ));
+    )?);
 
     Ok((jar, html).into_response())
 }

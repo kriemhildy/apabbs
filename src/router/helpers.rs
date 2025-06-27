@@ -315,26 +315,28 @@ pub async fn init_post(
 ///
 /// # Returns
 /// * `Ok(String)` containing the rendered HTML.
-/// * `Err(InternalServerError)` if a lock cannot be acquired, the template is missing, or rendering fails.
+/// * `Box<dyn Error + Send + Sync>` if a lock cannot be acquired, the template is missing, or rendering fails.
 pub fn render(
     state: &AppState,
     name: &str,
     ctx: minijinja::value::Value,
-) -> Result<String, ResponseError> {
+) -> Result<String, Box<dyn Error + Send + Sync>> {
     if crate::dev() {
-        let mut env = state.jinja.write().map_err(|_| {
-            InternalServerError("Failed to acquire write lock for templates".to_string())
-        })?;
+        let mut env = state
+            .jinja
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock for templates: {e}"))?;
         env.clear_templates();
     }
-    let env = state.jinja.read().map_err(|_| {
-        InternalServerError("Failed to acquire read lock for templates".to_string())
-    })?;
+    let env = state
+        .jinja
+        .read()
+        .map_err(|e| format!("Failed to acquire read lock for templates: {e}"))?;
     let tmpl = env
         .get_template(name)
-        .map_err(|_| InternalServerError(format!("Template '{name}' not found")))?;
+        .map_err(|e| format!("Template \"{name}\" not found: {e}"))?;
     tmpl.render(ctx)
-        .map_err(|e| InternalServerError(format!("Template render error: {e}")))
+        .map_err(|e| format!("Template render error: {e}").into())
 }
 
 /// Determine if a request is an AJAX/fetch request (not a navigation).

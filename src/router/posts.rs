@@ -92,7 +92,7 @@ pub async fn index(
             prior_page_post,
             utc_hour_timestamp,
         ),
-    ));
+    )?);
 
     Ok((jar, html).into_response())
 }
@@ -138,7 +138,7 @@ pub async fn solo_post(
             user,
             post,
         ),
-    ));
+    )?);
 
     Ok((jar, html).into_response())
 }
