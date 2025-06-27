@@ -35,12 +35,7 @@ pub async fn login_form(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Render the login form
     let html = Html(render(
@@ -80,12 +75,7 @@ pub async fn registration_form(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Render the registration form
     let html = Html(render(
@@ -137,11 +127,7 @@ pub async fn authenticate(
         &headers,
         Some(credentials.session_token),
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    .await?;
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await? {
@@ -191,11 +177,7 @@ pub async fn create_account(
         &headers,
         Some(credentials.session_token),
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    .await?;
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await? {
@@ -278,12 +260,7 @@ pub async fn logout(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token)).await?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -322,12 +299,7 @@ pub async fn reset_account_token(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token))
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token)).await?;
 
     // Verify user is logged in and reset token
     let jar = match user.account {

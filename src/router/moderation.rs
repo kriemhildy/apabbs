@@ -71,11 +71,7 @@ pub async fn review_post(
         &headers,
         Some(post_review.session_token),
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    .await?;
 
     // Verify user has moderator privileges
     let account = match user.account {
@@ -266,12 +262,7 @@ pub async fn decrypt_media(
     })?;
 
     // Initialize user from session
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Verify user has required privileges
     if !user.mod_or_admin() {

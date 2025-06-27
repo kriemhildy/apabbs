@@ -35,12 +35,7 @@ pub async fn user_profile(
     })?;
 
     // Initialize user from session (may be anonymous)
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Find account by username (returns NotFound if user does not exist)
     let account = match Account::select_by_username(&mut tx, &username).await? {
@@ -95,12 +90,7 @@ pub async fn settings(
     })?;
 
     // Initialize user from session (must be logged in)
-    let (user, jar) = init_user(jar, &mut tx, method, &headers, None)
-        .await
-        .map_err(|e| {
-            tracing::warn!("Failed to initialize user session: {:?}", e);
-            e
-        })?;
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
     // Verify user is logged in
     if user.account.is_none() {
@@ -167,11 +157,7 @@ pub async fn update_time_zone(
         &headers,
         Some(time_zone_update.session_token),
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    .await?;
 
     // Verify user is logged in
     let account = match user.account {
@@ -184,16 +170,13 @@ pub async fn update_time_zone(
     };
 
     // Validate time zone
-    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx)
-        .await?;
+    let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
     if !time_zones.contains(&time_zone_update.time_zone) {
         return Err(BadRequest("Invalid time zone selection".to_owned()));
     }
 
     // Update time zone preference
-    time_zone_update
-        .update(&mut tx, account.id)
-        .await?;
+    time_zone_update.update(&mut tx, account.id).await?;
     tx.commit().await.map_err(|e| {
         tracing::error!("Failed to commit transaction: {:?}", e);
         e
@@ -238,11 +221,7 @@ pub async fn update_password(
         &headers,
         Some(credentials.session_token),
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Failed to initialize user session: {:?}", e);
-        e
-    })?;
+    .await?;
 
     // Verify user is logged in as the correct user
     match user.account {
