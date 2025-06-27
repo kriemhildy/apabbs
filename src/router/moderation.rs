@@ -293,7 +293,7 @@ pub async fn decrypt_media(
         ),
     ];
 
-        Ok((jar, headers, media_bytes).into_response())
+    Ok((jar, headers, media_bytes).into_response())
 }
 
 // =========================
