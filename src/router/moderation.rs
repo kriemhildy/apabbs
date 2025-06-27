@@ -1,26 +1,7 @@
-//! Admin and moderator post review and moderation handlers.
+//! Admin and moderator endpoints for post review and moderation.
 //!
-//! This module provides endpoints for post review, approval, rejection, banning, and media decryption.
-//! It enforces business rules for moderator/admin actions and manages background media processing.
-//!
-//! # Endpoints
-//! - `review_post`: Handles moderation actions (approve, reject, ban, decrypt, re-encrypt, delete media, etc.)
-//! - `decrypt_media`: Serves decrypted media files to moderators/admins for review
-//!
-//! # Business Rules
-//! - Only moderators and admins can perform moderation actions
-//! - Certain actions are restricted to admins only
-//! - Media operations are handled in the background when needed
-//! - Banned posts trigger IP/account bans and cleanup
-//! - Thumbnails are validated for approved posts
-//!
-//! # Error Handling
-//! - All errors are logged using `tracing` macros and returned as appropriate HTTP responses
-//! - User-facing errors are clear, actionable, and capitalized
-//!
-//! # Background Tasks
-//! - Media decryption and re-encryption are performed asynchronously
-//! - Clients are notified of post updates via broadcast
+//! This module provides handlers for approving, rejecting, banning, and decrypting posts.
+//! It enforces moderator/admin permissions and manages background media processing.
 
 use super::*;
 

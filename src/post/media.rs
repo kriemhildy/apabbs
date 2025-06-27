@@ -2,8 +2,7 @@
 //!
 //! Handles encryption, decryption, thumbnail and poster generation, compatibility conversion,
 //! and file system operations for post media. Provides helpers for MIME type detection,
-//! path construction, and media processing workflows. All error messages and panics are
-//! descriptive and actionable for maintainability.
+//! path construction, and media processing workflows.
 
 use super::submission::PostSubmission;
 use super::{MediaCategory, Post, PostReview};

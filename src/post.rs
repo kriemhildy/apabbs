@@ -1,16 +1,8 @@
-//! Post content management and media processing functionality.
+//! Post data structures, status enums, and database operations.
 //!
-//! This module provides the core data structures and functions for:
-//! - Post creation, submission, and moderation
-//! - Media file processing (encryption, decryption, thumbnailing)
-//! - YouTube embed handling and thumbnail caching
-//! - Content formatting and preview generation
-//!
-//! The main types include:
-//! - `Post`: A complete post object with all its metadata
-//! - `PostSubmission`: User-submitted content before processing
-//! - `PostReview`: Moderation actions for post approval/rejection
-//! - `PostHiding`: User requests to hide their own posts
+//! This module defines the `Post` type, post status and media enums, and related database queries.
+//! It supports post creation, moderation, media handling, and author verification.
+//! Used throughout the application for post management and display.
 
 pub mod media;
 pub mod review;

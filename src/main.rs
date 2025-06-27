@@ -3,10 +3,6 @@
 //! Sets up the web server, configures template rendering,
 //! initializes background tasks, and manages application state.
 
-/// Application entry point.
-///
-/// Sets up the environment, initializes application state, configures the HTTP server,
-/// starts background tasks, and begins listening for incoming requests.
 #[tokio::main]
 pub async fn main() {
     // Load environment variables from .env file (fail fast if missing)

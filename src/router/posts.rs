@@ -2,22 +2,6 @@
 //!
 //! This module provides endpoints for displaying, submitting, hiding, and streaming posts.
 //! It supports pagination, single post views, post creation with media, and websocket updates.
-//!
-//! # Endpoints
-//! - `index`: Home page and paginated post listing
-//! - `solo_post`: Single post full-page view
-//! - `submit_post`: Post creation with optional media
-//! - `hide_post`: Hide rejected posts from user view
-//! - `web_socket`: Real-time post updates via websocket
-//! - `interim`: Fetch posts created after a reference post
-//!
-//! # Error Handling
-//! - All errors are logged and returned as appropriate HTTP responses
-//! - User-facing errors are clear and actionable
-//!
-//! # Real-Time Updates
-//! - WebSocket endpoint streams new posts to clients
-//! - Interim endpoint recovers missed posts after disconnect
 
 use super::*;
 use axum::extract::{

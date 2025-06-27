@@ -2,13 +2,6 @@
 //!
 //! Utilities for user registration, authentication, credentials validation, and account management.
 //! Handles both anonymous and registered users through a session-based system.
-//!
-//! # Key Types
-//! - [`User`]: Anonymous or authenticated user with session tracking
-//! - [`Account`]: Registered user account with credentials and preferences
-//! - [`AccountRole`]: Permission levels (Novice, Member, Mod, Admin)
-//! - [`Credentials`]: User registration and login information
-//! - [`TimeZoneUpdate`]: User time zone preference management
 
 use crate::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
 use regex::Regex;

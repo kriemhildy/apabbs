@@ -4,11 +4,6 @@
 //! It handles automated maintenance such as database cleanup (e.g., scrubbing old IP hashes for privacy)
 //! and periodic content management (e.g., generating application screenshots for status pages).
 //!
-//! # Key Functions
-//! - [`init`]: Initializes and starts the job scheduler system.
-//! - [`scrub_ips`]: Schedules a daily job to remove old IP data for privacy protection.
-//! - [`generate_screenshot`]: Schedules an hourly job to capture a screenshot of the application.
-//!
 //! # Scheduling Format
 //! Uses standard cron syntax for job timing:
 //!
