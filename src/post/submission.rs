@@ -124,7 +124,7 @@ impl PostSubmission {
         video_id: &str,
         youtube_short: bool,
     ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error + Send + Sync>> {
-        tracing::debug!(video_id = video_id, "Downloading YouTube thumbnail");
+        tracing::debug!(video_id, "Downloading YouTube thumbnail");
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
         // Helper function only used in this function
