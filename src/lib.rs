@@ -25,7 +25,7 @@ use tokio::sync::broadcast::Sender;
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 
 /// Format string for HTML5 datetime attribute in PostgreSQL queries.
-pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM"#;
+pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM"#;
 
 /// Format string for UTC hour granularity in PostgreSQL queries.
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
