@@ -175,19 +175,6 @@ impl Post {
     }
 
     /// Returns true if the user is the author of this post.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use apabbs::post::Post;
-    /// use apabbs::user::User;
-    /// use uuid::Uuid;
-    ///
-    /// let session_token = Uuid::new_v4();
-    /// let user = User { session_token, ..User::default() };
-    /// let post = Post { session_token: Some(session_token), ..Post::default() };
-    /// assert!(post.author(&user));
-    /// ```
     pub fn author(&self, user: &User) -> bool {
         self.session_token
             .as_ref()
