@@ -91,6 +91,7 @@ pub fn generate_screenshot() -> Job {
                     "--disable-gpu",
                     "--hide-scrollbars",
                     "--force-dark-mode",
+                    "--window-size=1512,982", // 14" Macbook Pro resolution divided by 2
                     &format!("--screenshot={output_path_str_clone}"),
                     &url_clone,
                 ])
