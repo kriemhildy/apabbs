@@ -48,10 +48,10 @@ async fn init_test() -> (Router, AppState) {
 fn test_credentials(user: &User) -> Credentials {
     Credentials {
         session_token: user.session_token,
-        username: Uuid::new_v4().simple().to_string()[..16].to_owned(),
+        username: Uuid::new_v4().simple().to_string()[..16].to_string(),
         password: String::from("test_passw0rd"),
         confirm_password: Some(String::from("test_passw0rd")),
-        year: Some("on".to_owned()),
+        year: Some("on".to_string()),
     }
 }
 
@@ -122,7 +122,7 @@ async fn create_test_post(
         Some(media_filename) => {
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
             (
-                Some(path.file_name().unwrap().to_str().unwrap().to_owned()),
+                Some(path.file_name().unwrap().to_str().unwrap().to_string()),
                 Some(tokio::fs::read(path).await.expect("reads test media file")),
             )
         }
@@ -493,7 +493,7 @@ async fn autoban() {
     let mut credentials = test_credentials(&user);
     for _ in 0..3 {
         credentials.session_token = Uuid::new_v4();
-        credentials.username = Uuid::new_v4().simple().to_string()[..16].to_owned();
+        credentials.username = Uuid::new_v4().simple().to_string()[..16].to_string();
         credentials
             .register(&mut tx, &user.ip_hash)
             .await
@@ -1029,7 +1029,7 @@ async fn update_password() {
         username: account.username.clone(),
         password: String::from("new_passw0rd"),
         confirm_password: Some(String::from("new_passw0rd")),
-        year: Some("on".to_owned()),
+        year: Some("on".to_string()),
     };
     let credentials_str = serde_urlencoded::to_string(&credentials).unwrap();
     let request = Request::builder()

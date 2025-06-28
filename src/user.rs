@@ -319,8 +319,8 @@ mod tests {
 
     /// Helper function to set both password and confirmation fields.
     fn set_password_and_confirmation(credentials: &mut Credentials, password: &str) {
-        credentials.password = password.to_owned();
-        credentials.confirm_password = Some(password.to_owned());
+        credentials.password = password.to_string();
+        credentials.confirm_password = Some(password.to_string());
     }
 
     /// Tests the credential validation for various username and password combinations.
@@ -336,9 +336,9 @@ mod tests {
     fn validate_credentials() {
         let mut credentials = Credentials {
             session_token: Uuid::new_v4(),
-            username: "username".to_owned(),
-            password: "passw0rd".to_owned(),
-            confirm_password: Some("passw0rd".to_owned()),
+            username: "username".to_string(),
+            password: "passw0rd".to_string(),
+            confirm_password: Some("passw0rd".to_string()),
             year: None,
         };
 
@@ -346,23 +346,23 @@ mod tests {
         assert_eq!(credentials.validate().len(), 0);
 
         // Test username requirements
-        credentials.username = "bob".to_owned();
+        credentials.username = "bob".to_string();
         assert_eq!(credentials.validate().len(), 1);
 
-        credentials.username = "bob_the_magical_genius".to_owned();
+        credentials.username = "bob_the_magical_genius".to_string();
         assert_eq!(credentials.validate().len(), 1);
 
-        credentials.username = "bob cool".to_owned();
+        credentials.username = "bob cool".to_string();
         assert_eq!(credentials.validate().len(), 1);
 
-        credentials.username = "anon".to_owned();
+        credentials.username = "anon".to_string();
         assert_eq!(credentials.validate().len(), 1);
 
-        credentials.username = "anon1".to_owned();
+        credentials.username = "anon1".to_string();
         assert_eq!(credentials.validate().len(), 0);
 
         // Test password requirements
-        credentials.username = "username".to_owned();
+        credentials.username = "username".to_string();
         set_password_and_confirmation(&mut credentials, "passw0r");
         assert_eq!(credentials.validate().len(), 1);
 
@@ -376,10 +376,10 @@ mod tests {
         assert_eq!(credentials.validate().len(), 0);
 
         // Test password confirmation
-        credentials.confirm_password = Some("pass".to_owned());
+        credentials.confirm_password = Some("pass".to_string());
         assert_eq!(credentials.validate().len(), 1);
 
-        credentials.confirm_password = Some("passw0rd".to_owned());
+        credentials.confirm_password = Some("passw0rd".to_string());
         assert_eq!(credentials.validate().len(), 0);
 
         // Test common password patterns
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(credentials.validate().len(), 1);
 
         // Test multiple validation errors
-        credentials.username = "password".to_owned();
+        credentials.username = "password".to_string();
         assert_eq!(credentials.validate().len(), 2);
     }
 
@@ -448,9 +448,9 @@ mod tests {
     async fn year_checkbox_validation() {
         let mut credentials = Credentials {
             session_token: Uuid::new_v4(),
-            username: "username".to_owned(),
-            password: "password123".to_owned(),
-            confirm_password: Some("password123".to_owned()),
+            username: "username".to_string(),
+            password: "password123".to_string(),
+            confirm_password: Some("password123".to_string()),
             year: None,
         };
 
@@ -458,11 +458,11 @@ mod tests {
         assert!(!credentials.year_checked());
 
         // Test with year checked
-        credentials.year = Some("on".to_owned());
+        credentials.year = Some("on".to_string());
         assert!(credentials.year_checked());
 
         // Test with incorrect value
-        credentials.year = Some("yes".to_owned());
+        credentials.year = Some("yes".to_string());
         assert!(!credentials.year_checked());
     }
 }

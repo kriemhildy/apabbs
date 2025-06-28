@@ -118,7 +118,7 @@ pub async fn app_state() -> AppState {
         fn byte_slice(body: &str, end: usize) -> String {
             // Ensure we don't exceed the string length
             let end = end.min(body.len());
-            body[..end].to_owned()
+            body[..end].to_string()
         }
         env.add_filter("byte_slice", byte_slice);
 

@@ -54,7 +54,7 @@ impl Post {
         let encrypted_media_path_str = encrypted_media_path
             .to_str()
             .ok_or("failed to convert encrypted media path to string")?
-            .to_owned();
+            .to_string();
         let mut child = tokio::process::Command::new("gpg")
             .args([
                 "--batch",
@@ -132,7 +132,7 @@ impl Post {
             .encrypted_media_path()
             .to_str()
             .ok_or("failed to convert encrypted media path to string")?
-            .to_owned();
+            .to_string();
         let output = tokio::process::Command::new("gpg")
             .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
             .arg(&encrypted_file_path)
@@ -197,7 +197,7 @@ impl PostSubmission {
             },
             None => (None, APPLICATION_OCTET_STREAM),
         };
-        (media_category, Some(media_mime_type_str.to_owned()))
+        (media_category, Some(media_mime_type_str.to_string()))
     }
 
     /// Encrypts the uploaded file data for a post.
@@ -250,14 +250,14 @@ impl PostReview {
         let media_path_str = published_media_path
             .to_str()
             .ok_or("failed to convert published_media_path to string")?
-            .to_owned();
+            .to_string();
         let extension = media_path_str
             .split('.')
             .next_back()
             .ok_or("failed to get file extension from published media path")?;
 
         // For animated images (GIF, WebP), extract the last frame as the thumbnail
-        let vips_input_file_path = media_path_str.to_owned()
+        let vips_input_file_path = media_path_str.to_string()
             + match extension.to_lowercase().as_str() {
                 "gif" | "webp" => "[n=-1]", // animated image support
                 _ => "",
@@ -305,7 +305,7 @@ impl PostReview {
 
         // Create thumbnail filename with "tn_" prefix and specified extension
         let alternate_filename =
-            prefix.to_owned() + &extension_pattern.replace(media_filename, extension);
+            prefix.to_string() + &extension_pattern.replace(media_filename, extension);
 
         key_dir.join(&alternate_filename)
     }
@@ -538,7 +538,7 @@ impl PostReview {
         let video_path_str = video_path
             .to_str()
             .ok_or("failed to convert video_path to string")?
-            .to_owned();
+            .to_string();
 
         // Run ffprobe to get video codec information
         let output = tokio::process::Command::new("ffprobe")
@@ -612,12 +612,12 @@ impl PostReview {
         let video_path_str = video_path
             .to_str()
             .ok_or("failed to convert video_path to string")?
-            .to_owned();
+            .to_string();
         let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
         let compatibility_path_str = compatibility_path
             .to_str()
             .ok_or("failed to convert compatibility path to string")?
-            .to_owned();
+            .to_string();
 
         // Run ffmpeg to convert the video
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
@@ -674,11 +674,11 @@ impl PostReview {
         let video_path_str = video_path
             .to_str()
             .ok_or("failed to convert video_path to string")?
-            .to_owned();
+            .to_string();
         let poster_path_str = poster_path
             .to_str()
             .ok_or("failed to convert poster_path to string")?
-            .to_owned();
+            .to_string();
 
         // Generate the poster image using ffmpeg
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
@@ -732,22 +732,22 @@ mod tests {
         // Test image file types
         let (category, mime) = PostSubmission::determine_media_type(Some("test.jpg"));
         assert_eq!(category, Some(MediaCategory::Image));
-        assert_eq!(mime, Some("image/jpeg".to_owned()));
+        assert_eq!(mime, Some("image/jpeg".to_string()));
 
         // Test video file types
         let (category, mime) = PostSubmission::determine_media_type(Some("video.mp4"));
         assert_eq!(category, Some(MediaCategory::Video));
-        assert_eq!(mime, Some("video/mp4".to_owned()));
+        assert_eq!(mime, Some("video/mp4".to_string()));
 
         // Test audio file types
         let (category, mime) = PostSubmission::determine_media_type(Some("audio.mp3"));
         assert_eq!(category, Some(MediaCategory::Audio));
-        assert_eq!(mime, Some("audio/mpeg".to_owned()));
+        assert_eq!(mime, Some("audio/mpeg".to_string()));
 
         // Test unknown file type
         let (category, mime) = PostSubmission::determine_media_type(Some("document.pdf"));
         assert_eq!(category, None);
-        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_owned()));
+        assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
 
         // Test no file
         let (category, mime) = PostSubmission::determine_media_type(None);

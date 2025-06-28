@@ -80,7 +80,7 @@ pub fn generate_screenshot() -> Job {
             let output_path_str = output_path
                 .to_str()
                 .expect("converts path to string")
-                .to_owned();
+                .to_string();
             let url_clone = url.clone();
             let output_path_str_clone = output_path_str.clone();
 

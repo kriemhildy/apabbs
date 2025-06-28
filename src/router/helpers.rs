@@ -59,7 +59,7 @@ pub async fn ban_if_flooding(
 
 /// Create a cookie with secure, HTTP-only, and SameSite settings.
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
-    let mut cookie = Cookie::build((name.to_owned(), value.to_owned()))
+    let mut cookie = Cookie::build((name.to_string(), value.to_string()))
         .secure(!crate::dev())
         .http_only(true)
         .path("/")
@@ -73,7 +73,7 @@ pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static>
 
 /// Create a cookie for removal by setting its expiration in the past.
 pub fn removal_cookie(name: &str) -> Cookie<'static> {
-    Cookie::build(name.to_owned()).path("/").build()
+    Cookie::build(name.to_string()).path("/").build()
 }
 
 /// Add a notice cookie for flash messages to the cookie jar.
@@ -85,7 +85,7 @@ pub fn add_notice_cookie(jar: CookieJar, notice: &str) -> CookieJar {
 pub fn remove_notice_cookie(mut jar: CookieJar) -> (CookieJar, Option<String>) {
     let notice = match jar.get(NOTICE_COOKIE) {
         Some(cookie) => {
-            let value = cookie.value().to_owned();
+            let value = cookie.value().to_string();
             jar = jar.remove(removal_cookie(NOTICE_COOKIE));
             Some(value)
         }
@@ -161,13 +161,13 @@ pub async fn init_user(
     };
     if method != Method::GET && csrf_token.is_none() {
         return Err(Unauthorized(
-            "CSRF token required for non-GET requests".to_owned(),
+            "CSRF token required for non-GET requests".to_string(),
         ));
     }
     if let Some(csrf_token) = csrf_token {
         if session_token != csrf_token {
             return Err(Unauthorized(
-                "CSRF token mismatch: possible forgery attempt".to_owned(),
+                "CSRF token mismatch: possible forgery attempt".to_string(),
             ));
         }
     }
@@ -209,15 +209,15 @@ pub async fn init_post(
 ) -> Result<Post, ResponseError> {
     use PostStatus::*;
     match Post::select_by_key(tx, key).await? {
-        None => Err(NotFound("Post does not exist".to_owned())),
+        None => Err(NotFound("Post does not exist".to_string())),
         Some(post) => {
             if [Reported, Rejected, Banned].contains(&post.status) && !user.admin() {
                 return Err(Unauthorized(
-                    "Post is reported, rejected, or banned".to_owned(),
+                    "Post is reported, rejected, or banned".to_string(),
                 ));
             }
             if post.status == Pending && !(post.author(user) || user.mod_or_admin()) {
-                return Err(Unauthorized("Post is pending approval".to_owned()));
+                return Err(Unauthorized("Post is pending approval".to_string()));
             }
             Ok(post)
         }

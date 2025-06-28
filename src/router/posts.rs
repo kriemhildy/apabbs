@@ -121,7 +121,7 @@ pub async fn submit_post(
         let name = field
             .name()
             .ok_or_else(|| BadRequest("Missing field name.".to_string()))?
-            .to_owned();
+            .to_string();
         match name.as_str() {
             "session_token" => {
                 post_submission.session_token = match Uuid::try_parse(
@@ -151,7 +151,7 @@ pub async fn submit_post(
                 let filename = field
                     .file_name()
                     .ok_or_else(|| BadRequest("Media file has no filename.".to_string()))?
-                    .to_owned();
+                    .to_string();
                 if filename.is_empty() {
                     continue;
                 }

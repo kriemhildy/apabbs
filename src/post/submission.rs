@@ -241,7 +241,7 @@ impl PostSubmission {
                         .ok_or("failed to convert thumbnail path to string")?
                         .strip_prefix("pub")
                         .ok_or("failed to strip 'pub' prefix from thumbnail path")?
-                        .to_owned(),
+                        .to_string(),
                     width,
                     height,
                 ),
@@ -423,7 +423,7 @@ mod tests {
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ bar\n",
                 "https://www.youtube.com/watch?t=10s&app=desktop&v=28jr-6-XDPM",
             )
-            .to_owned(),
+            .to_string(),
             ..PostSubmission::default()
         };
 
@@ -556,7 +556,7 @@ mod tests {
         assert_eq!(PostSubmission::intro_limit(&html), Some(120));
 
         // Case 2: YouTube content first, then line breaks beyond the limit
-        let html = two_youtubes.to_owned() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
+        let html = two_youtubes.to_string() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
         assert_eq!(PostSubmission::intro_limit(&html), Some(141));
 
         // Case 3: Content shorter than the limit - shouldn't truncate
@@ -597,7 +597,7 @@ mod tests {
                 "https://www.youtube.com/watch?t=25s&v=dQw4w9WgXcQ\n",
                 "https://youtu.be/dQw4w9WgXcQ?t=42\n"
             )
-            .to_owned(),
+            .to_string(),
             ..PostSubmission::default()
         };
 

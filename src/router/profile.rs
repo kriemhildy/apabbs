@@ -24,7 +24,7 @@ pub async fn user_profile(
 
     // Find account by username (returns NotFound if user does not exist)
     let account = match Account::select_by_username(&mut tx, &username).await? {
-        None => return Err(NotFound("User account does not exist".to_owned())),
+        None => return Err(NotFound("User account does not exist".to_string())),
         Some(account) => account,
     };
 
@@ -66,7 +66,7 @@ pub async fn settings(
     // Verify user is logged in
     if user.account.is_none() {
         return Err(Unauthorized(
-            "You must be logged in to access settings".to_owned(),
+            "You must be logged in to access settings".to_string(),
         ));
     }
 
@@ -120,7 +120,7 @@ pub async fn update_time_zone(
     let account = match user.account {
         None => {
             return Err(Unauthorized(
-                "You must be logged in to update your time zone".to_owned(),
+                "You must be logged in to update your time zone".to_string(),
             ));
         }
         Some(account) => account,
@@ -129,7 +129,7 @@ pub async fn update_time_zone(
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
     if !time_zones.contains(&time_zone_update.time_zone) {
-        return Err(BadRequest("Invalid time zone selection".to_owned()));
+        return Err(BadRequest("Invalid time zone selection".to_string()));
     }
 
     // Update time zone preference
@@ -167,13 +167,13 @@ pub async fn update_password(
     match user.account {
         None => {
             return Err(Unauthorized(
-                "You must be logged in to update your password".to_owned(),
+                "You must be logged in to update your password".to_string(),
             ));
         }
         Some(account) => {
             if account.username != credentials.username {
                 return Err(Unauthorized(
-                    "You are not logged in as this user".to_owned(),
+                    "You are not logged in as this user".to_string(),
                 ));
             }
         }
