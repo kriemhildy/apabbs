@@ -110,6 +110,15 @@ function fixChromiumVideoPosters(key) {
     }
 }
 
+/**
+ * Removes a post from the DOM after it has been hidden.
+ */
+function removeHiddenPost(element) {
+    if (element.parentElement) {
+        element.parentElement.remove();
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Fetch missed posts after tab becomes active or reconnection
 // -----------------------------------------------------------------------------
@@ -274,15 +283,6 @@ function afterSuccessfulFetch(form) {
         case "/hide-post":
             removeHiddenPost(form);
             break;
-    }
-}
-
-/**
- * Removes a post from the DOM after it has been hidden.
- */
-function removeHiddenPost(element) {
-    if (element.parentElement) {
-        element.parentElement.remove();
     }
 }
 
