@@ -96,7 +96,7 @@ impl PostSubmission {
             None => (Some(self.session_token), None),
         };
         let html_body = self.body_to_html(key).await?;
-        let youtube = html_body.contains(r#"<a href=\"https://www.youtube.com"#);
+        let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
