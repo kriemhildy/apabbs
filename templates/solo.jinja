@@ -22,9 +22,8 @@
     {% endif %}
 {% endblock %}
 {% block main %}
-<main>
-    {# Include the post template with solo view flag set #}
-    {% set solo = true %}
+<main class="solo">
+    {# Include the post template #}
     {% filter indent(4) %}
     {%+ include "post.jinja" +%}
     {% endfilter %}

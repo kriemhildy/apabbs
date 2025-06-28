@@ -156,12 +156,15 @@ div#posts {
     display: flex;
     flex-wrap: wrap;
     gap: calc(1vh + 1vw + 16px);
-    margin-top: 12px;
-    margin-bottom: max(calc(4vh + 4vw - 50px), 12px);
+    margin: 12px 0;
     align-items: center;
 }
 
-div.post.solo details.review {
+main.index {
+    margin-bottom: 50px;
+}
+
+main.solo div.post details.review {
     height: 45px;
 }
 
@@ -254,6 +257,16 @@ div#user a {
 }
 
 p#notice {
+    color: var(--system);
+}
+
+p#next-page {
+    text-align: right;
+    margin-right: 5vw;
+}
+
+p#next-page a {
+    text-decoration: none;
     color: var(--system);
 }
 
