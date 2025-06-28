@@ -238,7 +238,7 @@ impl Credentials {
 
         // Check for common password patterns
         if lowercase_password.contains("password") {
-            errors.push(r#"password cannot contain \"password\""#);
+            errors.push(r#"password cannot contain "password""#);
         }
 
         // Validate password confirmation
