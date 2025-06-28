@@ -5,18 +5,18 @@
 /* Color variables for dark and light modes. All colors are referenced via these variables. */
 :root {
     /* Dark mode color scheme (default) */
-    --back: black;            /* Background color */
-    --fore: #e3e3e3;          /* Text color */
-    --border: #777;           /* Border color for inputs and divisions */
-    --system: #9cdcda;        /* System message color and accent color */
-    --review: #bebebe;        /* Color for review controls */
-    --pending: #111111;       /* Posts awaiting moderation */
-    --processing: #111111;    /* Posts being processed */
-    --delisted: #051d3a;      /* Posts hidden from main feed */
-    --reported: rgb(75, 10, 75); /* Posts flagged for review */
-    --rejected: rgb(37, 4, 4);   /* Posts that failed moderation */
-    --banned: rgb(105, 10, 10);  /* Posts from banned users */
-    --disabled: #444;         /* Disabled form elements */
+    --back: black;
+    --fore: #e3e3e3;
+    --border: #777;
+    --system: #9cdcda;
+    --review: #bebebe;
+    --pending: #111111;
+    --processing: #111111;
+    --delisted: #051d3a;
+    --reported: rgb(75, 10, 75);
+    --rejected: rgb(37, 4, 4);
+    --banned: rgb(105, 10, 10);
+    --disabled: #444;
 }
 
 /* Light mode color scheme (activated by system preference) */

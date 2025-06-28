@@ -76,10 +76,8 @@ fn capitalize_first(s: &str) -> String {
     }
 }
 
-/// Convert a boxed error that is Send + Sync into a `ResponseError`.
+/// Convert a boxed error that is Send + Sync into a ResponseError.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
-    /// Converts any boxed error that is Send + Sync into a 500 InternalServerError response.
-    /// This is commonly used for async and thread-safe error propagation.
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
         let msg = capitalize_first(&error.to_string());
         tracing::error!("{msg}");
@@ -87,7 +85,7 @@ impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     }
 }
 
-/// Convert a `ResponseError` into an HTTP response.
+/// Convert a ResponseError into an HTTP response.
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
         let (status, body) = match self {
