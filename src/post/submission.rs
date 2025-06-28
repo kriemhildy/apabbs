@@ -228,11 +228,7 @@ impl PostSubmission {
                     .find(|(k, _)| k == "t")
                     .map(|(_, v)| v.to_string())
             };
-            tracing::debug!(
-                video_id = video_id,
-                timestamp = timestamp,
-                "Parsed YouTube URL"
-            );
+            tracing::debug!(video_id, timestamp, "Parsed YouTube URL");
             let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short).await?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
