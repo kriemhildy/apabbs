@@ -364,11 +364,11 @@ impl PostSubmission {
     }
 }
 
-/// Represents a request to hide a post from public view
+/// Represents a request to hide a post from personal view
 ///
 /// This structure contains the session token of the user requesting to hide the post
-/// and the unique key of the post to be hidden. Used primarily for moderation actions
-/// or user-initiated content hiding.
+/// and the unique key of the post to be hidden. Used primarily for users to hide the own posts
+/// after they have been rejected.
 #[derive(Serialize, Deserialize)]
 pub struct PostHiding {
     /// Session token of the user requesting to hide the post
