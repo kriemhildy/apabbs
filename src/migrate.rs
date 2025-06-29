@@ -26,9 +26,7 @@ macro_rules! migrations {
 /// Registers and applies all migrations in order, tracking them in the database.
 #[tokio::main]
 pub async fn main() {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .init();
+    tracing_subscriber::fmt().init();
 
     // Register all migrations in the order they should be applied
     let migrations = migrations![
