@@ -26,6 +26,10 @@ macro_rules! migrations {
 /// Registers and applies all migrations in order, tracking them in the database.
 #[tokio::main]
 pub async fn main() {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     // Register all migrations in the order they should be applied
     let migrations = migrations![
         uuid_to_key,
@@ -59,7 +63,7 @@ pub async fn main() {
             continue;
         }
 
-        println!("Applying migration: {name}");
+        tracing::info!(migration = name, "Applying migration");
         func(db.clone()).await;
 
         // Record that migration was applied
@@ -118,7 +122,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
     .expect("selects youtube links");
 
     for video_id in video_ids {
-        println!("Downloading thumbnail for video {video_id}");
+        tracing::info!(video_id, "Downloading thumbnail for video");
 
         // Check if the YouTube video is a short
         let response_code = std::process::Command::new("curl")
@@ -136,7 +140,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
         let short = response_code == b"'200'";
 
         if short {
-            println!("Video is a YouTube short");
+            tracing::info!("Video is a YouTube short");
             // Update link URLs to use shorts format if needed
             sqlx::query(&format!(
                 concat!(
@@ -165,7 +169,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
                 .strip_prefix("pub")
                 .expect("strips pub prefix");
 
-            println!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
+            tracing::info!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
 
             // Update post content with new thumbnail URL and dimensions
             sqlx::query(&format!(
@@ -213,7 +217,7 @@ pub async fn uuid_to_key(db: PgPool) {
     .expect("checks uuid column");
 
     if !exists {
-        println!("uuid column does not exist, skipping migration");
+        tracing::info!("uuid column does not exist, skipping migration");
         return;
     }
 
@@ -234,11 +238,11 @@ pub async fn uuid_to_key(db: PgPool) {
 
     // Rename media directories
     for pair in pairs {
-        println!("Migrating {} to {}", pair.uuid, pair.key);
+        tracing::info!(from = %pair.uuid, to = %pair.key, "Migrating");
         let uuid_dir = format!("pub/media/{}", pair.uuid);
 
         if !std::path::Path::new(&uuid_dir).exists() {
-            println!("Media directory for uuid does not exist, skipping");
+            tracing::info!("Media directory for uuid does not exist, skipping");
             continue;
         }
 
@@ -274,10 +278,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
 
     for post in posts {
         let published_media_path = post.published_media_path();
-        println!(
-            "Generating thumbnail for media {}",
-            published_media_path.to_str().unwrap()
-        );
+        tracing::info!("Generating thumbnail for media {}", published_media_path.to_str().unwrap());
 
         // Generate thumbnail
         let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path)
@@ -292,7 +293,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
         if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path)
             .expect("comparison succeeds")
         {
-            println!("Thumbnail is larger than original, deleting");
+            tracing::info!("Thumbnail is larger than original, deleting");
             tokio::fs::remove_file(&thumbnail_path)
                 .await
                 .expect("removes file");
@@ -300,7 +301,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
         }
 
         // Update database with thumbnail information
-        println!("Setting thumb_filename, thumb_width, thumb_height");
+        tracing::info!("Setting thumb_filename, thumb_width, thumb_height");
         let (width, height) = PostReview::image_dimensions(&thumbnail_path)
             .await
             .expect("gets dimensions");
@@ -331,16 +332,13 @@ pub async fn add_image_dimensions(db: PgPool) {
 
     for post in posts {
         let published_media_path = post.published_media_path();
-        println!(
-            "Adding dimensions for media {}",
-            published_media_path.to_str().unwrap()
-        );
+        tracing::info!("Adding dimensions for media {}", published_media_path.to_str().unwrap());
 
         // Update original image dimensions
         let (width, height) = PostReview::image_dimensions(&published_media_path)
             .await
             .expect("gets dimensions");
-        println!("Setting media image dimensions: {width}x{height}");
+        tracing::info!("Setting media image dimensions: {width}x{height}");
         post.update_media_dimensions(&mut tx, width, height)
             .await
             .expect("query succeeds");
@@ -351,7 +349,7 @@ pub async fn add_image_dimensions(db: PgPool) {
             let (width, height) = PostReview::image_dimensions(&thumbnail_path)
                 .await
                 .expect("gets dimensions");
-            println!("Setting thumbnail image dimensions: {width}x{height}");
+            tracing::info!("Setting thumbnail image dimensions: {width}x{height}");
             post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
                 .await
                 .expect("query succeeds");
@@ -376,7 +374,7 @@ pub async fn process_videos(db: PgPool) {
     .expect("selects videos");
 
     for post in posts {
-        println!("Processing video for post {}...", post.key);
+        tracing::info!(post_key = post.key, "Processing video for post");
         // Iterate over media files and delete all besides the source video
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(&post.key);
         if media_key_dir.exists() {
@@ -390,7 +388,7 @@ pub async fn process_videos(db: PgPool) {
                 if path.file_name().unwrap().to_string_lossy()
                     != post.media_filename.as_ref().unwrap().as_str()
                 {
-                    println!("Deleting old media file: {}", path.display());
+                    tracing::info!(file = %path.display(), "Deleting old media file");
                     tokio::fs::remove_file(&path).await.expect("removes file");
                 }
             }
@@ -398,9 +396,9 @@ pub async fn process_videos(db: PgPool) {
         PostReview::process_video(&mut tx, &post)
             .await
             .expect("processes video");
-        println!("Completed processing post {}", post.key);
+        tracing::info!(post_key = post.key, "Completed processing post");
     }
 
     tx.commit().await.expect("commits");
-    println!("All video processing complete");
+    tracing::info!("All video processing complete");
 }
