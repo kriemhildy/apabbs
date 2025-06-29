@@ -157,7 +157,8 @@ impl PostSubmission {
                 .arg(&local_thumbnail_path)
                 .arg(&remote_thumbnail_url)
                 .status()
-                .await?;
+                .await
+                .map_err(|e| format!("curl process failed: {e}"))?;
             if curl_status.success() {
                 let (width, height) = (size.1, size.2);
                 return Ok(Some((local_thumbnail_path, width, height)));
