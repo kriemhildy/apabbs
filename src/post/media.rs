@@ -607,10 +607,10 @@ impl PostReview {
             None => false,
         };
 
-        let first_video = probe_stream(&video_path_str, "v:0").await?;
-        let first_audio = probe_stream(&video_path_str, "a:0").await?;
+        let video_stream = probe_stream(&video_path_str, "v:0").await?;
+        let audio_stream = probe_stream(&video_path_str, "a:0").await?;
 
-        let video_ok = first_video.as_ref().is_some_and(|v| {
+        let video_ok = video_stream.as_ref().is_some_and(|v| {
             v.codec_name.as_deref() == Some("h264")
                 && v.pix_fmt.as_deref() == Some("yuv420p")
                 && matches!(
@@ -619,7 +619,7 @@ impl PostReview {
                 )
                 && v.level.unwrap_or(0) <= 42
         });
-        let audio_ok = match &first_audio {
+        let audio_ok = match &audio_stream {
             None => true, // silent video is fine
             Some(a) => matches!(a.codec_name.as_deref(), Some("aac") | Some("mp3")),
         };
@@ -634,8 +634,8 @@ impl PostReview {
                 video_ok,
                 audio_ok,
                 is_mp4,
-                first_video = ?first_video,
-                first_audio = ?first_audio,
+                video_stream = ?video_stream,
+                audio_stream = ?audio_stream,
                 "Video is not compatible for web playback",
             );
         }
