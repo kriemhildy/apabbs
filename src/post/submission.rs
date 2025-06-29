@@ -116,7 +116,7 @@ impl PostSubmission {
         tracing::debug!(video_id, "Downloading YouTube thumbnail");
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
-        // Define thumbnail sizes as a local array of 4-tuples: (name, short, width, height)
+        // Compact array of size tuples (name, short, width, height)
         const THUMBNAIL_SIZES: &[(&str, bool, i32, i32)] = &[
             ("maxresdefault", false, 1280, 720),
             ("sddefault", false, 640, 480),
@@ -139,8 +139,8 @@ impl PostSubmission {
                     .ok_or("filename does not have a basename")?;
                 let (width, height) = THUMBNAIL_SIZES
                     .iter()
-                    .find(|(name, _, _, _)| *name == size)
-                    .map(|(_, _, width, height)| (*width, *height))
+                    .find(|s| s.0 == size)
+                    .map(|s| (s.2, s.3))
                     .expect("size exists");
                 return Ok(Some((existing_thumbnail_path, width, height)));
             }
@@ -148,12 +148,11 @@ impl PostSubmission {
             tokio::fs::create_dir(&video_id_dir).await?;
         }
 
-        for (size, is_short, width, height) in THUMBNAIL_SIZES {
-            if *is_short != short {
-                continue; // Skip sizes that do not match the short status
-            }
-            let local_thumbnail_path = video_id_dir.join(format!("{size}.jpg"));
-            let remote_thumbnail_url = format!("https://img.youtube.com/vi/{video_id}/{size}.jpg");
+        for size in THUMBNAIL_SIZES.iter().filter(|s| s.1 == short) {
+            let size_name = size.0;
+            let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size_name));
+            let remote_thumbnail_url =
+                format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size_name);
             let curl_status = tokio::process::Command::new("curl")
                 .args(["--silent", "--fail", "--output"])
                 .arg(&local_thumbnail_path)
@@ -161,7 +160,8 @@ impl PostSubmission {
                 .status()
                 .await?;
             if curl_status.success() {
-                return Ok(Some((local_thumbnail_path, *width, *height)));
+                let (width, height) = (size.2, size.3);
+                return Ok(Some((local_thumbnail_path, width, height)));
             }
         }
 
