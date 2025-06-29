@@ -102,7 +102,7 @@ impl IntoResponse for ResponseError {
             tracing::warn!("{capitalized_msg}");
         }
 
-        let body = format!("{}\n\n{}", status, capitalized_msg);
+        let body = format!("{status}\n\n{capitalized_msg}");
 
         (status, body).into_response()
     }
