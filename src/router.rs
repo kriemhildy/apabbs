@@ -67,40 +67,42 @@ pub enum ResponseError {
 
 use ResponseError::*;
 
-/// Capitalize the first character of a string.
-fn capitalize_first(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
-}
-
 /// Convert a boxed error that is Send + Sync into a ResponseError.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
-        let msg = capitalize_first(&error.to_string());
-        tracing::error!("{msg}");
-        ResponseError::InternalServerError(msg)
+        ResponseError::InternalServerError(error.to_string())
     }
 }
 
 /// Convert a ResponseError into an HTTP response.
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
-        let (status, body) = match self {
-            BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("400 Bad Request\n\n{msg}")),
-            Unauthorized(msg) => (
-                StatusCode::UNAUTHORIZED,
-                format!("401 Unauthorized\n\n{msg}"),
-            ),
-            Forbidden(msg) => (StatusCode::FORBIDDEN, format!("403 Forbidden\n\n{msg}")),
-            NotFound(msg) => (StatusCode::NOT_FOUND, format!("404 Not Found\n\n{msg}")),
-            InternalServerError(msg) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("500 Internal Server Error\n\n{msg}"),
-            ),
+        let (status, msg) = match self {
+            BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+            NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
+
+        /// Capitalize the first character of a string.
+        fn capitalize_first(s: &str) -> String {
+            let mut c = s.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        }
+
+        let capitalized_msg = capitalize_first(&msg);
+
+        if status == StatusCode::INTERNAL_SERVER_ERROR {
+            tracing::error!("{capitalized_msg}");
+        } else {
+            tracing::warn!("{capitalized_msg}");
+        }
+
+        let body = format!("{}\n\n{}", status, capitalized_msg);
 
         (status, body).into_response()
     }
