@@ -116,14 +116,14 @@ impl PostSubmission {
         tracing::debug!(video_id, "Downloading YouTube thumbnail");
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
-        // Compact array of size tuples (name, short, width, height)
-        const THUMBNAIL_SIZES: &[(&str, bool, i32, i32)] = &[
-            ("maxresdefault", false, 1280, 720),
-            ("sddefault", false, 640, 480),
-            ("hqdefault", false, 480, 360),
-            ("mqdefault", false, 320, 180),
-            ("default", false, 120, 90),
-            ("oar2", true, 1080, 1920),
+        // Compact array of size tuples (name, width, height)
+        const THUMBNAIL_SIZES: &[(&str, i32, i32)] = &[
+            ("maxresdefault", 1280, 720),
+            ("sddefault", 640, 480),
+            ("hqdefault", 480, 360),
+            ("mqdefault", 320, 180),
+            ("default", 120, 90),
+            ("oar2", 1080, 1920),
         ];
 
         if video_id_dir.exists() {
@@ -140,7 +140,7 @@ impl PostSubmission {
                 let (width, height) = THUMBNAIL_SIZES
                     .iter()
                     .find(|s| s.0 == size)
-                    .map(|s| (s.2, s.3))
+                    .map(|s| (s.1, s.2))
                     .expect("size exists");
                 return Ok(Some((existing_thumbnail_path, width, height)));
             }
@@ -148,11 +148,10 @@ impl PostSubmission {
             tokio::fs::create_dir(&video_id_dir).await?;
         }
 
-        for size in THUMBNAIL_SIZES.iter().filter(|s| s.1 == short) {
-            let size_name = size.0;
-            let local_thumbnail_path = video_id_dir.join(format!("{}.jpg", size_name));
-            let remote_thumbnail_url =
-                format!("https://img.youtube.com/vi/{}/{}.jpg", video_id, size_name);
+        for size in THUMBNAIL_SIZES.iter().filter(|s| (s.2 > s.1) == short) {
+            let name = size.0;
+            let local_thumbnail_path = video_id_dir.join(format!("{name}.jpg"));
+            let remote_thumbnail_url = format!("https://img.youtube.com/vi/{video_id}/{name}.jpg");
             let curl_status = tokio::process::Command::new("curl")
                 .args(["--silent", "--fail", "--output"])
                 .arg(&local_thumbnail_path)
@@ -160,7 +159,7 @@ impl PostSubmission {
                 .status()
                 .await?;
             if curl_status.success() {
-                let (width, height) = (size.2, size.3);
+                let (width, height) = (size.1, size.2);
                 return Ok(Some((local_thumbnail_path, width, height)));
             }
         }
