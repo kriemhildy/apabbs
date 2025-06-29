@@ -149,7 +149,7 @@ async fn create_test_post(
     // Process media if present
     if media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            eprintln!("{msg}");
+            tracing::error!("{msg}");
             std::process::exit(1);
         }
     }

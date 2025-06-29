@@ -40,7 +40,7 @@ pub async fn main() {
 
     // Load environment variables from .env file
     if let Err(error) = dotenv::dotenv() {
-        eprintln!("Failed to load .env file: {error}");
+        tracing::error!("Failed to load .env file: {error}");
         std::process::exit(1);
     }
 
@@ -286,7 +286,7 @@ pub async fn generate_image_thumbnails(db: PgPool) {
             .await
             .expect("generation succeeds");
         if !thumbnail_path.exists() {
-            eprintln!("Thumbnail not created successfully");
+            tracing::error!("Thumbnail not created successfully");
             std::process::exit(1);
         }
 
