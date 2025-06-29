@@ -111,6 +111,9 @@ pub async fn review_post(
                         post_review.clone(),
                         encrypted_media_path.clone(),
                     )));
+                } else {
+                    // Delete the encrypted media file
+                    PostReview::delete_upload_key_dir(&encrypted_media_path).await?;
                 }
             }
         }
