@@ -182,8 +182,8 @@ function handleWebSocketMessage(event) {
 function handleWebSocketClosed(event) {
     if (!event.wasClean && webSocketOpen) {
         webSocketOpen = false;
-        console.warn("WebSocket unexpectedly closed, attempting to reconnect every 10 seconds");
-        reconnectInterval = setInterval(initWebSocket, 10_000);
+        console.warn("WebSocket unexpectedly closed, attempting to reconnect every 30 seconds");
+        reconnectInterval = setInterval(initWebSocket, 30_000);
     }
 }
 
