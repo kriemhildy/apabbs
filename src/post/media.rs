@@ -576,18 +576,14 @@ impl PostReview {
             }
             let mut info = StreamInfo::default();
             for line in output_str.lines() {
-                let line = line.trim();
-                if line.is_empty() {
-                    continue;
-                }
-                if let Some(stripped) = line.strip_prefix("codec_name=") {
-                    info.codec_name = Some(stripped.to_string());
-                } else if let Some(stripped) = line.strip_prefix("pix_fmt=") {
-                    info.pix_fmt = Some(stripped.to_string());
-                } else if let Some(stripped) = line.strip_prefix("profile=") {
-                    info.profile = Some(stripped.to_string());
-                } else if let Some(stripped) = line.strip_prefix("level=") {
-                    info.level = stripped.parse::<i32>().ok();
+                if let Some((key, value)) = line.trim().split_once('=') {
+                    match key {
+                        "codec_name" => info.codec_name = Some(value.to_string()),
+                        "pix_fmt" => info.pix_fmt = Some(value.to_string()),
+                        "profile" => info.profile = Some(value.to_string()),
+                        "level" => info.level = value.parse::<i32>().ok(),
+                        _ => {}
+                    }
                 }
             }
             if info.codec_name.is_some() {
