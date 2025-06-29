@@ -542,68 +542,106 @@ impl PostReview {
             .ok_or("failed to convert video_path to string")?
             .to_string();
 
-        // Run ffprobe to get video codec information
-        let output = tokio::process::Command::new("ffprobe")
-            .args([
-                "-v",
-                "error", // Suppress non-error messages
-                "-select_streams",
-                "v:0", // Select the first video stream
-                "-show_entries",
-                "stream=codec_name,pix_fmt,profile,level",
-                "-of",
-                "default=noprint_wrappers=1", // Use key=value output
-                &video_path_str,              // Input video file
-            ])
-            .output()
-            .await
-            .map_err(|e| format!("failed to run ffprobe: {e}"))?;
-
-        if !output.status.success() {
-            return Err(format!(
-                "ffprobe failed, status: {}. stderr: {}",
-                output.status,
-                String::from_utf8_lossy(&output.stderr)
-            )
-            .into());
-        }
-
-        let output_str = String::from_utf8_lossy(&output.stdout);
-
-        // Parse the output by key
-        let mut codec = "";
-        let mut pix_fmt = "";
-        let mut profile = "";
-        let mut level = "";
-        for line in output_str.lines() {
-            tracing::debug!("ffprobe output: {}", line);
-            let line = line.trim();
-            if let Some(rest) = line.strip_prefix("codec_name=") {
-                codec = rest;
-            } else if let Some(rest) = line.strip_prefix("pix_fmt=") {
-                pix_fmt = rest;
-            } else if let Some(rest) = line.strip_prefix("profile=") {
-                profile = rest;
-            } else if let Some(rest) = line.strip_prefix("level=") {
-                level = rest;
+        // Helper to probe a single stream
+        async fn probe_stream(
+            video_path: &str,
+            select: &str,
+        ) -> Result<Option<StreamInfo>, Box<dyn Error + Send + Sync>> {
+            let output = tokio::process::Command::new("ffprobe")
+                .args([
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    select,
+                    "-show_entries",
+                    "stream=codec_name,pix_fmt,profile,level",
+                    "-of",
+                    "default=noprint_wrappers=1",
+                    video_path,
+                ])
+                .output()
+                .await
+                .map_err(|e| format!("failed to run ffprobe: {e}"))?;
+            if !output.status.success() {
+                return Err(format!(
+                    "ffprobe failed, status: {}. stderr: {}",
+                    output.status,
+                    String::from_utf8_lossy(&output.stderr)
+                )
+                .into());
             }
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            for line in output_str.lines() {
+                tracing::debug!(select, "ffprobe: {}", line);
+            }
+            let mut info = StreamInfo::default();
+            let mut found = false;
+            for line in output_str.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                if line.starts_with("codec_name=") {
+                    info.codec_name = Some(line[11..].to_string());
+                    found = true;
+                } else if line.starts_with("pix_fmt=") {
+                    info.pix_fmt = Some(line[8..].to_string());
+                } else if line.starts_with("profile=") {
+                    info.profile = Some(line[8..].to_string());
+                } else if line.starts_with("level=") {
+                    info.level = line[6..].parse::<i32>().ok();
+                }
+            }
+            if found { Ok(Some(info)) } else { Ok(None) }
         }
 
-        // Check if the video is compatible
-        let is_compatible = codec == "h264"
-            && pix_fmt == "yuv420p"
-            && ["Baseline", "Constrained Baseline", "Main", "High"].contains(&profile)
-            && level.parse::<i32>().unwrap_or(0) <= 42;
+        #[derive(Debug, Default)]
+        struct StreamInfo {
+            codec_name: Option<String>,
+            pix_fmt: Option<String>,
+            profile: Option<String>,
+            level: Option<i32>,
+        }
 
-        if is_compatible {
+        // Ensure the file extension is mp4
+        let is_mp4 = match video_path.extension().and_then(|e| e.to_str()) {
+            Some(ext) => ext.eq_ignore_ascii_case("mp4"),
+            None => false,
+        };
+
+        let first_video = probe_stream(&video_path_str, "v:0").await?;
+        let first_audio = probe_stream(&video_path_str, "a:0").await?;
+
+        let video_ok = first_video.as_ref().map_or(false, |v| {
+            v.codec_name.as_deref() == Some("h264")
+                && v.pix_fmt.as_deref() == Some("yuv420p")
+                && matches!(
+                    v.profile.as_deref(),
+                    Some("Baseline") | Some("Constrained Baseline") | Some("Main") | Some("High")
+                )
+                && v.level.unwrap_or(0) <= 42
+        });
+        let audio_ok = match &first_audio {
+            None => true, // silent video is fine
+            Some(a) => matches!(a.codec_name.as_deref(), Some("aac") | Some("mp3")),
+        };
+
+        let compatible = video_ok && audio_ok && is_mp4;
+
+        if compatible {
             tracing::info!(video_path = ?video_path, "Video is compatible for web playback");
         } else {
             tracing::info!(
                 video_path = ?video_path,
+                video_ok,
+                audio_ok,
+                is_mp4,
+                first_video = ?first_video,
+                first_audio = ?first_audio,
                 "Video is not compatible for web playback",
             );
         }
-        Ok(is_compatible)
+        Ok(compatible)
     }
 
     /// Generates a browser-compatible video variant for playback.
