@@ -140,10 +140,14 @@ function checkInterim() {
         return;
     }
     fetch(`/interim/${key}`).then((response) => {
+        // This must be 200 instead of "ok", as it will return 204 if there are no posts.
         if (response.status === 200) {
             response.json().then((json) => {
                 for (const post of json.posts) {
                     updatePost(post.key, post.html);
+                }
+                if (json.posts.length > 0) {
+                    console.log(`Updated ${json.posts.length} posts since key ${key}.`);
                 }
             });
         }
@@ -166,6 +170,7 @@ function handleWebSocketMessage(event) {
     try {
         const json = JSON.parse(event.data);
         updatePost(json.key, json.html);
+        console.log(`WebSocket: Received update for post ${json.key}.`);
     } catch (err) {
         console.error("Failed to process WebSocket message:", err);
     }
@@ -189,6 +194,7 @@ function handleWebSocketOpened(_event) {
     webSocketOpen = true;
     clearInterval(reconnectInterval);
     checkInterim();
+    console.log("WebSocket connection established.");
 }
 
 /**
@@ -199,6 +205,7 @@ function initWebSocket() {
     webSocket.addEventListener("message", handleWebSocketMessage);
     webSocket.addEventListener("close", handleWebSocketClosed);
     webSocket.addEventListener("open", handleWebSocketOpened);
+    console.log("Attempting to establish WebSocket connection...");
 }
 
 // -----------------------------------------------------------------------------
@@ -248,23 +255,29 @@ function handleFormSubmit(event) {
         fetchBody = new URLSearchParams(formData);
     }
     spinner.style.display = "block";
+    console.log(`Submitting form to ${this.action} ...`);
     fetch(this.action, {
         method: "POST",
         body: fetchBody,
     }).then((response) => {
         if (response.ok) {
+            console.log(`Form submission to ${this.action} succeeded.`);
             afterSuccessfulFetch(this);
         } else if ([400, 401, 403, 500].includes(response.status)) {
             response.text().then((text) => {
                 alert(text);
+                console.warn(`Form submission to ${this.action} failed with status ${response.status}: ${text}`);
             });
         } else if (response.status === 413) {
             alert("File must be under 20MB");
+            console.warn("Form submission failed: file too large (413)");
         } else {
             alert(`Unexpected error: ${response.status} ${response.statusText}`);
+            console.error(`Unexpected error during form submission: ${response.status} ${response.statusText}`);
         }
     }).catch((err) => {
         alert("Network error: " + err.message);
+        console.error("Network error during form submission:", err);
     }).finally(() => {
         restoreSubmitButtons();
         spinner.style.display = "none";
