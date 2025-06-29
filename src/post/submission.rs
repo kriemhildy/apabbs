@@ -84,7 +84,10 @@ impl PostSubmission {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),
         };
-        let html_body = self.body_to_html(key).await?;
+        let html_body = self
+            .body_to_html(key)
+            .await
+            .map_err(|e| format!("failed to convert post body to HTML: {e}"))?;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
@@ -158,7 +161,7 @@ impl PostSubmission {
                 .arg(&remote_thumbnail_url)
                 .status()
                 .await
-                .map_err(|e| format!("curl process failed: {e}"))?;
+                .map_err(|e| format!("failed to execute curl: {e}"))?;
             if curl_status.success() {
                 let (width, height) = (size.1, size.2);
                 return Ok(Some((local_thumbnail_path, width, height)));
@@ -185,7 +188,9 @@ impl PostSubmission {
         let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex");
         let anchor_tag = r#"<a href="$1">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
-        Self::embed_youtube(html, key).await
+        Self::embed_youtube(html, key)
+            .await
+            .map_err(|e| format!("failed to embed YouTube videos: {e}").into())
     }
 
     /// Embeds YouTube video thumbnails in the post HTML, replacing links with embed markup.
@@ -223,7 +228,9 @@ impl PostSubmission {
                     .map(|(_, v)| v.to_string())
             };
             tracing::debug!(video_id, timestamp, "Parsed YouTube URL");
-            let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short).await?;
+            let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short)
+                .await
+                .map_err(|e| format!("failed to download YouTube thumbnail: {e}"))?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (
