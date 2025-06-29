@@ -237,6 +237,10 @@ div.youtube-thumbnail img {
     width: auto;
 }
 
+main.solo div.youtube-thumbnail img {
+    max-height: 600px;
+}
+
 div#posts div.media img,
 div#posts div.media video,
 div#posts div.youtube-thumbnail img {
