@@ -572,7 +572,7 @@ impl PostReview {
             }
             let output_str = String::from_utf8_lossy(&output.stdout);
             for line in output_str.lines() {
-                tracing::debug!(select, "ffprobe: {}", line);
+                tracing::debug!(select, "ffprobe: {line}");
             }
             let mut info = StreamInfo::default();
             for line in output_str.lines() {
