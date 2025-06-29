@@ -9,11 +9,19 @@
 //! single post prior to its publication. [Only this will ensure that the fullness
 //! of the varied experience of the moderator will not go to waste.]
 
+// ==============================================================================
+// Module Declarations
+// ==============================================================================
+
 pub mod ban;
 pub mod cron;
 pub mod post;
 pub mod router;
 pub mod user;
+
+// ==============================================================================
+// Imports
+// ==============================================================================
 
 use crate::post::Post;
 use minijinja::Environment;
@@ -21,14 +29,22 @@ use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
+// ==============================================================================
+// Constants
+// ==============================================================================
+
 /// Format string for RFC 5322-style datetime in PostgreSQL queries.
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
 
 /// Format string for HTML5 datetime attribute in PostgreSQL queries.
-pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM"#;
+pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM"#;
 
 /// Format string for UTC hour granularity in PostgreSQL queries.
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
+
+// ==============================================================================
+// Environment/Config Functions
+// ==============================================================================
 
 /// Creates a connection pool to the PostgreSQL database.
 pub async fn db() -> PgPool {
@@ -60,6 +76,10 @@ pub fn host() -> String {
 pub fn secret_key() -> String {
     std::env::var("SECRET_KEY").expect("sets secret key env var")
 }
+
+// ==============================================================================
+// Application State
+// ==============================================================================
 
 /// Shared application state accessible to all request handlers.
 ///
@@ -130,6 +150,10 @@ pub async fn app_state() -> AppState {
 
     AppState { db, jinja, sender }
 }
+
+// ==============================================================================
+// Test Initialization
+// ==============================================================================
 
 // Ensure we are in development mode before running tests.
 #[cfg(test)]
