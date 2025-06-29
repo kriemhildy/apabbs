@@ -205,7 +205,6 @@ function initWebSocket() {
     webSocket.addEventListener("message", handleWebSocketMessage);
     webSocket.addEventListener("close", handleWebSocketClosed);
     webSocket.addEventListener("open", handleWebSocketOpened);
-    console.log("Attempting to establish WebSocket connection...");
 }
 
 // -----------------------------------------------------------------------------
@@ -255,7 +254,6 @@ function handleFormSubmit(event) {
         fetchBody = new URLSearchParams(formData);
     }
     spinner.style.display = "block";
-    console.log(`Submitting form to ${this.action} ...`);
     fetch(this.action, {
         method: "POST",
         body: fetchBody,
