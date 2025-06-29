@@ -5,7 +5,6 @@
 
 use crate::post::Post;
 use crate::user::User;
-use phf::phf_map;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
@@ -28,16 +27,6 @@ pub const MAX_INTRO_BYTES: usize = 1600;
 
 /// Maximum number of line breaks allowed in a post intro preview.
 pub const MAX_INTRO_BREAKS: usize = 24;
-
-/// Static map for YouTube thumbnail sizes with dimensions and short video flag.
-static YOUTUBE_THUMBNAIL_SIZES: phf::Map<&'static str, (i32, i32, bool)> = phf_map! {
-    "maxresdefault" => (1280, 720, false),
-    "sddefault" => (640, 480, false),
-    "hqdefault" => (480, 360, false),
-    "mqdefault" => (320, 180, false),
-    "default" => (120, 90, false),
-    "oar2" => (1080, 1920, true),
-};
 
 /// Represents a post submission from a user.
 ///
@@ -122,15 +111,20 @@ impl PostSubmission {
     /// Downloads a YouTube thumbnail for the given video ID, returning its path and dimensions if successful.
     pub async fn download_youtube_thumbnail(
         video_id: &str,
-        youtube_short: bool,
+        short: bool,
     ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_id, "Downloading YouTube thumbnail");
         let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
-        // Helper function only used in this function
-        fn dimensions(size: &str) -> (i32, i32, bool) {
-            *YOUTUBE_THUMBNAIL_SIZES.get(size).expect("size exists")
-        }
+        // Define thumbnail sizes as a local array of 4-tuples: (name, short, width, height)
+        const THUMBNAIL_SIZES: &[(&str, bool, i32, i32)] = &[
+            ("maxresdefault", false, 1280, 720),
+            ("sddefault", false, 640, 480),
+            ("hqdefault", false, 480, 360),
+            ("mqdefault", false, 320, 180),
+            ("default", false, 120, 90),
+            ("oar2", true, 1080, 1920),
+        ];
 
         if video_id_dir.exists() {
             if let Some(first_entry) = video_id_dir.read_dir()?.next() {
@@ -143,20 +137,23 @@ impl PostSubmission {
                     .split('.')
                     .next()
                     .ok_or("filename does not have a basename")?;
-                let (width, height, _) = dimensions(size);
+                let (width, height) = THUMBNAIL_SIZES
+                    .iter()
+                    .find(|(name, _, _, _)| *name == size)
+                    .map(|(_, _, width, height)| (*width, *height))
+                    .expect("size exists");
                 return Ok(Some((existing_thumbnail_path, width, height)));
             }
         } else {
             tokio::fs::create_dir(&video_id_dir).await?;
         }
 
-        let thumbnail_sizes: Vec<&str> = YOUTUBE_THUMBNAIL_SIZES
-            .entries()
-            .filter(|(_, value)| value.2 == youtube_short)
-            .map(|(size, _)| *size)
+        let thumbnail_sizes: Vec<&(&str, bool, i32, i32)> = THUMBNAIL_SIZES
+            .iter()
+            .filter(|(_, is_short, _, _)| *is_short == short)
             .collect();
 
-        for size in thumbnail_sizes {
+        for (size, _, width, height) in thumbnail_sizes {
             let local_thumbnail_path = video_id_dir.join(format!("{size}.jpg"));
             let remote_thumbnail_url = format!("https://img.youtube.com/vi/{video_id}/{size}.jpg");
             let curl_status = tokio::process::Command::new("curl")
@@ -166,8 +163,7 @@ impl PostSubmission {
                 .status()
                 .await?;
             if curl_status.success() {
-                let (width, height, _) = dimensions(size);
-                return Ok(Some((local_thumbnail_path, width, height)));
+                return Ok(Some((local_thumbnail_path, *width, *height)));
             }
         }
 
