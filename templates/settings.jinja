@@ -5,7 +5,7 @@
 {% block main %}
 <main>
     {# Display notification messages if present #}
-    {% if notice is not none %}
+    {% if notice %}
     {% set notice = notice %}
     <p id="notice">{{ notice }}</p>
     {% endif %}

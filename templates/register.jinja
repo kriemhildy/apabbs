@@ -9,11 +9,11 @@
         <li>You will be able to set a time zone.</li>
     </ul>
     {# Registration form with grid layout #}
-    {% if user.ban_expires_at is not none %}
+    {% if user.ban_expires_at %}
     <p class="system">You are banned from registering until {{ user.ban_expires_at }}.</p>
     {% endif %}
-    <form method="post" {{ "inert" if user.ban_expires_at is not none }}>
-        <fieldset class="grid"{{ " disabled" if user.ban_expires_at is not none }}>
+    <form method="post">
+        <fieldset class="grid"{{ " disabled" if user.ban_expires_at }}>
             {# Hidden session token for CSRF protection #}
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             {# Username field with character limit #}

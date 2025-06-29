@@ -5,7 +5,7 @@
 {% endblock %}
 {% block meta %}
     {# Add metadata for embedding in social media platforms #}
-    {% if post.media_category is not none %}
+    {% if post.media_category %}
     {% set embed_path = "/m/" + post.key + "/" + post.media_filename|urlencode %}
     {# Image-specific meta tags for Twitter card #}
     {% if post.media_category == "image" %}

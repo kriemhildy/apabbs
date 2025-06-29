@@ -10,15 +10,15 @@
 {% block main %}
 <main class="index">
     {# If viewing a paginated result set, show the page marker #}
-    {% if page_post is not none %}
+    {% if page_post %}
     <p class="system">Page beginning "{{ page_post.key }}"</p>
     {# Otherwise show the post submission form for new content #}
     {% else %}
-    {% if user.ban_expires_at is not none %}
+    {% if user.ban_expires_at %}
     <p class="system">You are banned from posting until {{ user.ban_expires_at }}.</p>
     {% endif %}
     <form action="/submit-post" method="post" enctype="multipart/form-data">
-        <fieldset{{ " disabled" if user.ban_expires_at is not none }}>
+        <fieldset{{ " disabled" if user.ban_expires_at }}>
             {# User session token for authentication/tracking #}
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body"></textarea>
@@ -41,7 +41,7 @@
         {% endfilter %}
     </div>
     {# Pagination control if more posts are available #}
-    {% if next_page_post is not none %}
+    {% if next_page_post %}
     <footer>
         <p id="next-page"><a href="/page/{{ next_page_post.key }}" class="system">Next page</a></p>
     </footer>

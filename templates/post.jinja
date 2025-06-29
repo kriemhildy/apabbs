@@ -21,7 +21,7 @@
         {% endfilter +%}
     </div>
     {# Show "See more" link for truncated posts #}
-    {% if not solo and post.intro_limit is not none %}
+    {% if not solo and post.intro_limit %}
     <div class="see-more">
         <a href="/p/{{ post.key }}">[See more…]</a>
     </div>
@@ -32,20 +32,20 @@
     {###################################################################################}
     {# Include the media template if we have media file #}
     {% set media_path = none %}
-    {% set thumb = not solo and post.thumb_filename is not none %}
+    {% set thumb = not solo and post.thumb_filename %}
     {# For approved or delisted posts, use public media paths #}
     {% if post.status in ["approved", "delisted"] %}
     {% set media_filename = (post.thumb_filename if post.media_category == "image" and thumb)
-        or (post.compat_video if post.compat_video is not none and not chromium)
+        or (post.compat_video if post.compat_video)
         or post.media_filename %}
     {% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}
     {# For pending/reported posts, allow admins/mods to see encrypted media #}
-    {% elif user.account is not none and (
+    {% elif user.account and (
         (user.account.role in ["admin", "mod"] and post.status == "pending")
         or (user.account.role == "admin" and post.status == "reported")) %}
     {% set media_path = "/decrypt-media/" + post.key %}
     {% endif %}
-    {% if media_path is not none %}
+    {% if media_path %}
     {% filter indent(4) %}
     {%+ include "media.jinja" +%}
     {% endfilter %}
@@ -56,7 +56,7 @@
     {# Show status indicator for non-approved posts #}
     {% if post.status != "approved" %}
     <div class="status">
-        {% if post.media_filename is not none %}
+        {% if post.media_filename %}
         File: {{ post.media_filename|escape }}<br>
         {% endif %}
         Status: {{ post.status|capitalize }}
@@ -67,10 +67,14 @@
     {###################################################################################}
     {# Show creation timestamp in solo view #}
     {% if solo %}
-    {% set created_at_html = post.created_at_html %}
-    {% set created_at_rfc5322 = post.created_at_rfc5322 %}
+    {% if post.media_category == "video" and post.compat_video %}
+    <div id="original-video">
+        {% set original_path = "/m/" + post.key + "/" + post.media_filename|urlencode %}
+        Original: <a href="{{ original_path }}">{{ post.media_filename }}</a>
+    </div>
+    {% endif %}
     <div id="created-at">
-        <time datetime="{{ created_at_html }}">{{ created_at_rfc5322 }}</time>
+        <time datetime="{{ post.created_at_html }}">{{ post.created_at_rfc5322 }}</time>
     </div>
     {% endif %}
     {###################################################################################}
@@ -82,7 +86,7 @@
         and (post.media_category is none
             or post.media_category != "image"
             or (post.status in ["pending", "reported"]
-                and user.account is not none and user.account.role not in ["admin", "mod"]))
+                and user.account and user.account.role not in ["admin", "mod"]))
         and not post.youtube
         and post.intro_limit is none %}
     <div class="arrow">
@@ -105,11 +109,11 @@
     {# Hide #}
     {###################################################################################}
     {# Allow post author to hide their own rejected posts #}
-    {% set session_token = post.session_token if post.session_token is not none %}
-    {% set post_account_id = post.account_id if post.account_id is not none %}
+    {% set session_token = post.session_token if post.session_token %}
+    {% set post_account_id = post.account_id if post.account_id %}
     {% if post.status == "rejected" and
-        (post.session_token is not none and session_token == user.session_token
-            or (post.account_id is not none and user.account is not none
+        (post.session_token and session_token == user.session_token
+            or (post.account_id and user.account
                 and post_account_id == user.account.id)) %}
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
