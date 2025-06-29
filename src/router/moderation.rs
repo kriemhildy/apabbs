@@ -248,9 +248,11 @@ pub async fn decrypt_media(
 // Background Media Tasks
 // =========================
 
+use std::error::Error;
+
 /// Background task for publishing media and updating post status.
 pub async fn publish_media_task(state: AppState, post: Post, post_review: PostReview) {
-    let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
+    let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media publication
@@ -278,7 +280,7 @@ pub async fn publish_media_task(state: AppState, post: Post, post_review: PostRe
 
 /// Background task for re-encrypting media and updating post status.
 pub async fn reencrypt_media_task(state: AppState, post: Post, post_review: PostReview) {
-    let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
+    let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media re-encryption
