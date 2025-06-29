@@ -5,20 +5,20 @@
 
 #[tokio::main]
 pub async fn main() {
-    // Load environment variables from .env file (fail fast if missing)
-    if let Err(error) = dotenv::dotenv() {
-        eprintln!("Failed to load .env file: {error}");
-        std::process::exit(1);
-    }
-
     // Initialize global tracing subscriber for logging and diagnostics
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
+    // Load environment variables from .env file (fail fast if missing)
+    if let Err(error) = dotenv::dotenv() {
+        tracing::error!("Failed to load .env file: {error}");
+        std::process::exit(1);
+    }
+
     // Ensure critical configuration is present
     if apabbs::secret_key().len() < 16 {
-        eprintln!("SECRET_KEY environment variable must be at least 16 characters");
+        tracing::error!("SECRET_KEY environment variable must be at least 16 characters");
         std::process::exit(1);
     }
 
