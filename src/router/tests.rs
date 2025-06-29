@@ -285,6 +285,7 @@ async fn solo_post() {
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body_str = response_body_str(response).await;
     assert!(!body_str.contains(r#"<div id="posts">"#));
+    assert!(body_str.contains(r#"<div id="created-at">"#));
 
     // Clean up
     let mut tx = state.db.begin().await.expect("begins");
