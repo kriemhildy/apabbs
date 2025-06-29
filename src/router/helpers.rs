@@ -159,7 +159,7 @@ pub async fn init_user(
         }
         Some(token) => token,
     };
-    if method != Method::GET && csrf_token.is_none() {
+    if ![Method::GET, Method::HEAD].contains(&method) && csrf_token.is_none() {
         return Err(Unauthorized(
             "CSRF token required for non-GET requests".to_string(),
         ));
