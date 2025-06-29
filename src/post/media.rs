@@ -182,6 +182,8 @@ impl PostSubmission {
                 "flv" => (Some(Video), "video/x-flv"),
                 "mov" => (Some(Video), "video/quicktime"),
                 "wmv" => (Some(Video), "video/x-ms-wmv"),
+                "mkv" => (Some(Video), "video/x-matroska"),
+                "ts" => (Some(Video), "video/mp2t"),
                 "mp3" => (Some(Audio), "audio/mpeg"),
                 "ogg" => (Some(Audio), "audio/ogg"),
                 "wav" => (Some(Audio), "audio/wav"),
