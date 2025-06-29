@@ -148,12 +148,10 @@ impl PostSubmission {
             tokio::fs::create_dir(&video_id_dir).await?;
         }
 
-        let thumbnail_sizes: Vec<&(&str, bool, i32, i32)> = THUMBNAIL_SIZES
-            .iter()
-            .filter(|(_, is_short, _, _)| *is_short == short)
-            .collect();
-
-        for (size, _, width, height) in thumbnail_sizes {
+        for (size, is_short, width, height) in THUMBNAIL_SIZES {
+            if *is_short != short {
+                continue; // Skip sizes that do not match the short status
+            }
             let local_thumbnail_path = video_id_dir.join(format!("{size}.jpg"));
             let remote_thumbnail_url = format!("https://img.youtube.com/vi/{video_id}/{size}.jpg");
             let curl_status = tokio::process::Command::new("curl")
