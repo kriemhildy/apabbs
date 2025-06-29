@@ -612,7 +612,7 @@ impl PostReview {
         let first_video = probe_stream(&video_path_str, "v:0").await?;
         let first_audio = probe_stream(&video_path_str, "a:0").await?;
 
-        let video_ok = first_video.as_ref().map_or(false, |v| {
+        let video_ok = first_video.as_ref().is_some_and(|v| {
             v.codec_name.as_deref() == Some("h264")
                 && v.pix_fmt.as_deref() == Some("yuv420p")
                 && matches!(
@@ -808,17 +808,17 @@ mod tests {
         // Test path construction
         assert_eq!(
             post.encrypted_media_path().to_str().unwrap(),
-            format!("{}/abcd1234/test.jpg.gpg", UPLOADS_DIR)
+            format!("{UPLOADS_DIR}/abcd1234/test.jpg.gpg")
         );
 
         assert_eq!(
             post.published_media_path().to_str().unwrap(),
-            format!("{}/abcd1234/test.jpg", MEDIA_DIR)
+            format!("{MEDIA_DIR}/abcd1234/test.jpg")
         );
 
         assert_eq!(
             post.thumbnail_path().to_str().unwrap(),
-            format!("{}/abcd1234/tn_test.webp", MEDIA_DIR)
+            format!("{MEDIA_DIR}/abcd1234/tn_test.webp")
         );
     }
 }

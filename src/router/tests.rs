@@ -591,7 +591,7 @@ async fn autoban() {
         .uri("/submit-post")
         .header(
             COOKIE,
-            format!("{}={}", SESSION_COOKIE, bogus_session_token),
+            format!("{SESSION_COOKIE}={bogus_session_token}"),
         )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, BAN_IP)
@@ -1429,7 +1429,7 @@ async fn websocket_connection() {
         assert_eq!(json["key"], post.key);
         assert!(json["html"].as_str().unwrap().contains(&post.key));
     } else {
-        panic!("Expected text message, got {:?}", message);
+        panic!("Expected text message, got {message:?}");
     }
 
     // Clean up
