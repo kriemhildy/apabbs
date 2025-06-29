@@ -589,10 +589,7 @@ async fn autoban() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(
-            COOKIE,
-            format!("{SESSION_COOKIE}={bogus_session_token}"),
-        )
+        .header(COOKIE, format!("{SESSION_COOKIE}={bogus_session_token}"))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, BAN_IP)
         .body(Body::from(form.finish().unwrap()))

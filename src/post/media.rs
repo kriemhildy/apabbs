@@ -581,15 +581,15 @@ impl PostReview {
                 if line.is_empty() {
                     continue;
                 }
-                if line.starts_with("codec_name=") {
-                    info.codec_name = Some(line[11..].to_string());
+                if let Some(stripped) = line.strip_prefix("codec_name=") {
+                    info.codec_name = Some(stripped.to_string());
                     found = true;
-                } else if line.starts_with("pix_fmt=") {
-                    info.pix_fmt = Some(line[8..].to_string());
-                } else if line.starts_with("profile=") {
-                    info.profile = Some(line[8..].to_string());
-                } else if line.starts_with("level=") {
-                    info.level = line[6..].parse::<i32>().ok();
+                } else if let Some(stripped) = line.strip_prefix("pix_fmt=") {
+                    info.pix_fmt = Some(stripped.to_string());
+                } else if let Some(stripped) = line.strip_prefix("profile=") {
+                    info.profile = Some(stripped.to_string());
+                } else if let Some(stripped) = line.strip_prefix("level=") {
+                    info.level = stripped.parse::<i32>().ok();
                 }
             }
             if found { Ok(Some(info)) } else { Ok(None) }

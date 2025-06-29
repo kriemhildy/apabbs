@@ -278,7 +278,10 @@ pub async fn generate_image_thumbnails(db: PgPool) {
 
     for post in posts {
         let published_media_path = post.published_media_path();
-        tracing::info!("Generating thumbnail for media {}", published_media_path.to_str().unwrap());
+        tracing::info!(
+            "Generating thumbnail for media {}",
+            published_media_path.to_str().unwrap()
+        );
 
         // Generate thumbnail
         let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path)
@@ -332,7 +335,10 @@ pub async fn add_image_dimensions(db: PgPool) {
 
     for post in posts {
         let published_media_path = post.published_media_path();
-        tracing::info!("Adding dimensions for media {}", published_media_path.to_str().unwrap());
+        tracing::info!(
+            "Adding dimensions for media {}",
+            published_media_path.to_str().unwrap()
+        );
 
         // Update original image dimensions
         let (width, height) = PostReview::image_dimensions(&published_media_path)
