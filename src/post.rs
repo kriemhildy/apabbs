@@ -221,13 +221,12 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         new_status: PostStatus,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        sqlx::query("UPDATE posts SET status = $1 WHERE id = $2")
+    ) -> Result<Post, Box<dyn std::error::Error + Send + Sync>> {
+        sqlx::query_as("UPDATE posts SET status = $1 WHERE id = $2 RETURNING *")
             .bind(new_status)
             .bind(self.id)
-            .execute(&mut *tx)
+            .fetch_one(&mut *tx)
             .await
-            .map(|_| ())
             .map_err(|e| format!("failed to update post status: {e}").into())
     }
 

@@ -109,7 +109,6 @@ pub async fn review_post(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
-                        encrypted_media_path.clone(),
                     )));
                 } else {
                     // Delete the encrypted media file
@@ -145,13 +144,8 @@ pub async fn review_post(
     };
 
     // Update post status and record review action
-    post.update_status(&mut tx, status).await?;
+    let post = post.update_status(&mut tx, status).await?;
     post_review.insert(&mut tx, account.id, post.id).await?;
-
-    // Get updated post
-    let post = Post::select_by_key(&mut tx, &key)
-        .await?
-        .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Handle banned post cleanup
     if post.status == Banned {
@@ -254,36 +248,25 @@ pub async fn decrypt_media(
 // Background Media Tasks
 // =========================
 
-/// Background task for publishing media and updating post status asynchronously.
-pub async fn publish_media_task(
-    state: AppState,
-    initial_post: Post,
-    post_review: PostReview,
-    encrypted_media_path: std::path::PathBuf,
-) {
+/// Background task for publishing media and updating post status.
+pub async fn publish_media_task(state: AppState, post: Post, post_review: PostReview) {
     let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
         let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media publication
-        PostReview::publish_media(&mut tx, &initial_post).await?;
+        PostReview::publish_media(&mut tx, &post).await?;
 
         // Update post status
-        initial_post
-            .update_status(&mut tx, post_review.status)
-            .await?;
-
-        // Get updated post
-        let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
-            .await?
-            .ok_or_else(|| "post does not exist after publishing media".to_string())?;
+        let post = post.update_status(&mut tx, post_review.status).await?;
 
         commit_transaction(tx).await?;
 
         // Clean up and notify clients
+        let encrypted_media_path = post.encrypted_media_path();
         PostReview::delete_upload_key_dir(&encrypted_media_path)
             .await
             .map_err(|e| format!("failed to delete upload directory: {e}"))?;
-        send_to_websocket(&state.sender, updated_post);
+        send_to_websocket(&state.sender, post);
         Ok(())
     }
     .await;
@@ -293,31 +276,23 @@ pub async fn publish_media_task(
     }
 }
 
-/// Background task for re-encrypting media and updating post status asynchronously.
-pub async fn reencrypt_media_task(state: AppState, initial_post: Post, post_review: PostReview) {
+/// Background task for re-encrypting media and updating post status.
+pub async fn reencrypt_media_task(state: AppState, post: Post, post_review: PostReview) {
     let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
         let mut tx = begin_transaction(&state.db).await?;
 
         // Attempt media re-encryption
-        initial_post
-            .reencrypt_media_file()
+        post.reencrypt_media_file()
             .await
             .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
 
         // Update post status
-        initial_post
-            .update_status(&mut tx, post_review.status)
-            .await?;
-
-        // Get updated post
-        let updated_post = Post::select_by_key(&mut tx, &initial_post.key)
-            .await?
-            .ok_or_else(|| "post does not exist after re-encrypting media".to_string())?;
+        let post = post.update_status(&mut tx, post_review.status).await?;
 
         commit_transaction(tx).await?;
 
         // Notify clients
-        send_to_websocket(&state.sender, updated_post);
+        send_to_websocket(&state.sender, post);
         Ok(())
     }
     .await;
