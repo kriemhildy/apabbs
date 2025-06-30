@@ -27,9 +27,9 @@ else
     # Local development deployment steps
     # ----------------------------------
 
-    # Safety check: Ensure we're on the main branch
-    if [ `git branch --show-current` != "main" ]; then
-        echo "Not on main branch"
+    # Safety check: Ensure we're on the master branch
+    if [ `git branch --show-current` != "master" ]; then
+        echo "Not on master branch"
         exit 1
     fi
 
