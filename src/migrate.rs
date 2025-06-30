@@ -47,7 +47,23 @@ pub async fn main() {
     // Connect to database
     let db = apabbs::db().await;
 
-    // Process each migration
+    // Force execution of a specific migration if provided as an argument
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 2 {
+        // Run a specific migration by name, even if already applied
+        let migration_name = &args[1];
+        let found = migrations.iter().find(|(name, _)| name == migration_name);
+        if let Some((name, func)) = found {
+            tracing::info!(migration = name, "Forcing execution of migration");
+            func(db.clone()).await;
+        } else {
+            tracing::error!("Migration not found: {migration_name}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // Process each migration (default behavior)
     for (name, func) in migrations {
         // Check if migration has already been applied
         let exists: bool =
