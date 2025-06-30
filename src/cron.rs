@@ -87,11 +87,10 @@ pub fn generate_screenshot() -> Job {
             // Run the Chromium command to take a screenshot
             let status = tokio::process::Command::new("chromium")
                 .args([
-                    "--headless=new",
-                    "--disable-gpu",
+                    "--headless",
                     "--hide-scrollbars",
                     "--force-dark-mode",
-                    "--window-size=1512,982", // 14" Macbook Pro resolution divided by 2
+                    "--window-size=1920,1080",
                     &format!("--screenshot={output_path_str_clone}"),
                     &url_clone,
                 ])
