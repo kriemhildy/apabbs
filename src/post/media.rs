@@ -6,6 +6,7 @@
 
 use super::submission::PostSubmission;
 use super::{MediaCategory, Post, PostReview};
+use crate::{AppState, utilities::*};
 use regex::Regex;
 use sqlx::PgConnection;
 use std::error::Error;
@@ -757,6 +758,64 @@ impl PostReview {
             "Video poster generated successfully"
         );
         Ok(poster_path)
+    }
+
+    // =========================
+    // Background Media Tasks
+    // =========================
+
+    /// Background task for publishing media and updating post status.
+    pub async fn publish_media_task(state: AppState, post: Post, post_review: PostReview) {
+        let result: Result<(), Box<dyn Error + Send + Sync>> = async {
+            let mut tx = begin_transaction(&state.db).await?;
+
+            // Attempt media publication
+            PostReview::publish_media(&mut tx, &post).await?;
+
+            // Update post status
+            let post = post.update_status(&mut tx, post_review.status).await?;
+
+            commit_transaction(tx).await?;
+
+            // Clean up and notify clients
+            let encrypted_media_path = post.encrypted_media_path();
+            PostReview::delete_upload_key_dir(&encrypted_media_path)
+                .await
+                .map_err(|e| format!("failed to delete upload directory: {e}"))?;
+            send_to_websocket(&state.sender, post);
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            tracing::error!("Error in publish_media_task: {e}");
+        }
+    }
+
+    /// Background task for re-encrypting media and updating post status.
+    pub async fn reencrypt_media_task(state: AppState, post: Post, post_review: PostReview) {
+        let result: Result<(), Box<dyn Error + Send + Sync>> = async {
+            let mut tx = begin_transaction(&state.db).await?;
+
+            // Attempt media re-encryption
+            post.reencrypt_media_file()
+                .await
+                .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
+
+            // Update post status
+            let post = post.update_status(&mut tx, post_review.status).await?;
+
+            commit_transaction(tx).await?;
+
+            // Notify clients
+            send_to_websocket(&state.sender, post);
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            tracing::error!("Error in reencrypt_media_task: {e}");
+        }
     }
 }
 

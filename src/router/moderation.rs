@@ -104,7 +104,7 @@ pub async fn review_post(
 
                 if review_action == Ok(PublishMedia) {
                     // Create background task for media publication
-                    background_task = Some(Box::pin(publish_media_task(
+                    background_task = Some(Box::pin(PostReview::publish_media_task(
                         state.clone(),
                         post.clone(),
                         post_review.clone(),
@@ -125,7 +125,7 @@ pub async fn review_post(
 
         // Handle media re-encryption
         Ok(ReencryptMedia) => {
-            background_task = Some(Box::pin(reencrypt_media_task(
+            background_task = Some(Box::pin(PostReview::reencrypt_media_task(
                 state.clone(),
                 post.clone(),
                 post_review.clone(),
@@ -241,64 +241,4 @@ pub async fn decrypt_media(
     ];
 
     Ok((jar, headers, media_bytes).into_response())
-}
-
-// =========================
-// Background Media Tasks
-// =========================
-
-use std::error::Error;
-
-/// Background task for publishing media and updating post status.
-pub async fn publish_media_task(state: AppState, post: Post, post_review: PostReview) {
-    let result: Result<(), Box<dyn Error + Send + Sync>> = async {
-        let mut tx = begin_transaction(&state.db).await?;
-
-        // Attempt media publication
-        PostReview::publish_media(&mut tx, &post).await?;
-
-        // Update post status
-        let post = post.update_status(&mut tx, post_review.status).await?;
-
-        commit_transaction(tx).await?;
-
-        // Clean up and notify clients
-        let encrypted_media_path = post.encrypted_media_path();
-        PostReview::delete_upload_key_dir(&encrypted_media_path)
-            .await
-            .map_err(|e| format!("failed to delete upload directory: {e}"))?;
-        send_to_websocket(&state.sender, post);
-        Ok(())
-    }
-    .await;
-
-    if let Err(e) = result {
-        tracing::error!("Error in publish_media_task: {e}");
-    }
-}
-
-/// Background task for re-encrypting media and updating post status.
-pub async fn reencrypt_media_task(state: AppState, post: Post, post_review: PostReview) {
-    let result: Result<(), Box<dyn Error + Send + Sync>> = async {
-        let mut tx = begin_transaction(&state.db).await?;
-
-        // Attempt media re-encryption
-        post.reencrypt_media_file()
-            .await
-            .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
-
-        // Update post status
-        let post = post.update_status(&mut tx, post_review.status).await?;
-
-        commit_transaction(tx).await?;
-
-        // Notify clients
-        send_to_websocket(&state.sender, post);
-        Ok(())
-    }
-    .await;
-
-    if let Err(e) = result {
-        tracing::error!("Error in reencrypt_media_task: {e}");
-    }
 }
