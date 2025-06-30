@@ -451,7 +451,7 @@ pub async fn rerun_failed_tasks(db: PgPool) {
         // If the second status does not exist, set the post to Pending.
         // Otherwise, update the post to the second status.
         let next_status = statuses[0];
-        let restore_status = if statuses.len() < 2 {
+        let prior_status = if statuses.len() < 2 {
             Pending
         } else {
             statuses[1]
@@ -459,9 +459,10 @@ pub async fn rerun_failed_tasks(db: PgPool) {
         tracing::info!(
             post_key = post.key,
             "Restoring post status to {:?}",
-            restore_status
+            prior_status
         );
-        let post = post.update_status(&mut tx, restore_status)
+        let post = post
+            .update_status(&mut tx, prior_status)
             .await
             .expect("updates post status");
 
