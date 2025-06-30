@@ -150,7 +150,7 @@ pub fn router(state: AppState, trace: bool) -> axum::Router {
         .route("/review/{key}", post(moderation::review_post))
         .route("/decrypt-media/{key}", get(moderation::decrypt_media))
         // File size limit for uploads
-        .layer(DefaultBodyLimit::max(30_000_000));
+        .layer(DefaultBodyLimit::max(26_214_400)); // 25 MiB
 
     let router = if trace {
         use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
