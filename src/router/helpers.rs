@@ -6,9 +6,8 @@
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use sqlx::{PgConnection, PgPool, Postgres, Transaction};
+use sqlx::{PgConnection};
 use std::error::Error;
-use tokio::sync::broadcast::Sender;
 
 //==================================================================================================
 // Constants
@@ -288,37 +287,4 @@ pub async fn utc_hour_timestamp(
         .fetch_one(tx)
         .await
         .map_err(|e| format!("failed to get UTC hour timestamp: {e}").into())
-}
-
-//==================================================================================================
-// Database transactions
-//==================================================================================================
-
-/// Begin a new database transaction.
-pub async fn begin_transaction(
-    db: &PgPool,
-) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
-    db.begin()
-        .await
-        .map_err(|e| format!("failed to begin database transaction: {e}").into())
-}
-
-/// Commit a database transaction.
-pub async fn commit_transaction(
-    tx: Transaction<'_, Postgres>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    tx.commit()
-        .await
-        .map_err(|e| format!("failed to commit transaction: {e}").into())
-}
-
-//==================================================================================================
-// WebSocket utilities
-//==================================================================================================
-
-/// Send a message to a WebSocket connection.
-pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
-    if let Err(e) = sender.send(post) {
-        tracing::warn!("No active WebSocket receivers to send to: {e}");
-    }
 }

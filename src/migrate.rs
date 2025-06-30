@@ -37,7 +37,7 @@ pub async fn main() {
         update_intro_limit,
         add_image_dimensions,
         process_videos,
-        continue_failed_processing,
+        rerun_failed_tasks,
     ];
 
     // Load environment variables from .env file
@@ -426,7 +426,7 @@ pub async fn process_videos(db: PgPool) {
 }
 
 /// Attempts to continue processing of any post that was interrupted.
-pub async fn continue_failed_processing(db: PgPool) {
+pub async fn rerun_failed_tasks(db: PgPool) {
     use apabbs::post::{Post, PostReview, PostStatus, PostStatus::*, ReviewAction::*};
 
     let mut tx = db.begin().await.expect("begins");

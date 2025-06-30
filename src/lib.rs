@@ -151,6 +151,44 @@ pub async fn app_state() -> AppState {
     AppState { db, jinja, sender }
 }
 
+mod utilities {
+    use super::*;
+    use sqlx::{Postgres, Transaction};
+    use std::error::Error;
+    //==================================================================================================
+    // Database transactions
+    //==================================================================================================
+
+    /// Begin a new database transaction.
+    pub async fn begin_transaction(
+        db: &PgPool,
+    ) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
+        db.begin()
+            .await
+            .map_err(|e| format!("failed to begin database transaction: {e}").into())
+    }
+
+    /// Commit a database transaction.
+    pub async fn commit_transaction(
+        tx: Transaction<'_, Postgres>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        tx.commit()
+            .await
+            .map_err(|e| format!("failed to commit transaction: {e}").into())
+    }
+
+    //==================================================================================================
+    // WebSocket utilities
+    //==================================================================================================
+
+    /// Send a message to a WebSocket connection.
+    pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
+        if let Err(e) = sender.send(post) {
+            tracing::warn!("No active WebSocket receivers to send to: {e}");
+        }
+    }
+}
+
 // ==============================================================================
 // Test Initialization
 // ==============================================================================
