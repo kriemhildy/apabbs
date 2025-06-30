@@ -2,6 +2,7 @@
 //!
 //! Provides sequential database migrations, tracking applied migrations in the `_rust_migrations` table.
 
+use apabbs::user::AccountRole;
 use sqlx::PgPool;
 use std::future::Future;
 use std::pin::Pin;
@@ -36,6 +37,7 @@ pub async fn main() {
         update_intro_limit,
         add_image_dimensions,
         process_videos,
+        continue_failed_processing,
     ];
 
     // Load environment variables from .env file
@@ -421,4 +423,83 @@ pub async fn process_videos(db: PgPool) {
 
     tx.commit().await.expect("commits");
     tracing::info!("All video processing complete");
+}
+
+/// Attempts to continue processing of any post that was interrupted.
+pub async fn continue_failed_processing(db: PgPool) {
+    use apabbs::post::{Post, PostReview, PostStatus, PostStatus::*, ReviewAction::*};
+
+    let mut tx = db.begin().await.expect("begins");
+
+    // Get all posts that are in Processing state
+    let posts: Vec<Post> =
+        sqlx::query_as(concat!("SELECT * FROM posts WHERE status = 'processing'",))
+            .fetch_all(&mut *tx)
+            .await
+            .expect("selects processing posts");
+
+    for post in posts {
+        // Select the latest two review statuses for the post
+        let statuses: Vec<PostStatus> = sqlx::query_scalar(
+            "SELECT status FROM reviews WHERE post_id = $1 ORDER BY id DESC LIMIT 2",
+        )
+        .bind(post.id)
+        .fetch_all(&mut *tx)
+        .await
+        .expect("selects latest review statuses");
+
+        // If the second status does not exist, set the post to Pending.
+        // Otherwise, update the post to the second status.
+        let next_status = statuses[0];
+        let restore_status = if statuses.len() < 2 {
+            Pending
+        } else {
+            statuses[1]
+        };
+        tracing::info!(
+            post_key = post.key,
+            "Restoring post status to {:?}",
+            restore_status
+        );
+        let post = post.update_status(&mut tx, restore_status)
+            .await
+            .expect("updates post status");
+
+        let action = PostReview::determine_action(&post, next_status, AccountRole::Admin)
+            .expect("determines action");
+        tracing::info!(post_key = post.key, "Determined action: {:?}", action);
+
+        // Only PublishMedia and ReencryptMedia actions are allowed to continue processing
+        match action {
+            PublishMedia => {
+                tracing::info!(post_key = post.key, "Continue publishing media");
+                PostReview::publish_media(&mut tx, &post)
+                    .await
+                    .expect("publishes media");
+            }
+            ReencryptMedia => {
+                tracing::info!(post_key = post.key, "Continue re-encrypting media");
+                post.reencrypt_media_file().await.expect("reencrypts media");
+            }
+            _ => {
+                tracing::error!(post_key = post.key, "Invalid action for post: {:?}", action);
+                continue; // Skip to next post if action is not allowed
+            }
+        }
+
+        tracing::info!(post_key = post.key, "Post action completed: {:?}", action);
+
+        // Update status to next status
+        post.update_status(&mut tx, next_status)
+            .await
+            .expect("updates post status");
+
+        tracing::info!(
+            post_key = post.key,
+            "Post updated to status: {:?}",
+            next_status
+        );
+    }
+
+    tx.commit().await.expect("commits");
 }

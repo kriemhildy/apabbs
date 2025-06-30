@@ -60,7 +60,7 @@ pub async fn review_post(
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Determine appropriate review action
-    let review_action = post_review.determine_action(&post, &account.role);
+    let review_action = PostReview::determine_action(&post, post_review.status, account.role);
 
     // Handle various review actions
     let mut background_task: Option<BoxFuture> = None;
@@ -70,7 +70,6 @@ pub async fn review_post(
         Err(ReturnToPending) => {
             return Err(BadRequest("Cannot return post to pending".to_string()));
         }
-        Err(ModOnly) => return Err(Unauthorized("Only moderators can report posts".to_string())),
         Err(AdminOnly) => {
             return Err(Unauthorized(
                 "Only admins can ban or reject posts".to_string(),
