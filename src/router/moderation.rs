@@ -66,32 +66,16 @@ pub async fn review_post(
     let mut background_task: Option<BoxFuture> = None;
     match review_action {
         // Handle errors
-        Err(SameStatus) => return Err(BadRequest("Post already has this status".to_string())),
-        Err(ReturnToPending) => {
-            return Err(BadRequest("Cannot return post to pending".to_string()));
+        Err(e @ SameStatus)
+        | Err(e @ ReturnToPending)
+        | Err(e @ RejectedOrBanned)
+        | Err(e @ CurrentlyProcessing)
+        | Err(e @ ManualProcessing) => {
+            return Err(BadRequest(e.to_string()));
         }
-        Err(AdminOnly) => {
-            return Err(Unauthorized(
-                "Only admins can ban or reject posts".to_string(),
-            ));
-        }
-        Err(RejectedOrBanned) => {
-            return Err(BadRequest(
-                "Cannot review a banned or rejected post".to_string(),
-            ));
-        }
-        Err(RecentOnly) => {
-            return Err(Unauthorized(
-                "Moderators can only review approved posts for two days".to_string(),
-            ));
-        }
-        Err(CurrentlyProcessing) => {
-            return Err(BadRequest("Post is currently being processed".to_string()));
-        }
-        Err(ManualProcessing) => {
-            return Err(BadRequest(
-                "Cannot manually set post to processing".to_string(),
-            ));
+        Err(e @ AdminOnly)
+        | Err(e @ RecentOnly) => {
+            return Err(Unauthorized(e.to_string()));
         }
 
         // Handle media operations

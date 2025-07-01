@@ -50,6 +50,23 @@ pub enum ReviewError {
     ManualProcessing,
 }
 
+use ReviewError::*;
+use std::fmt;
+
+impl fmt::Display for ReviewError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SameStatus => write!(f, "Attempted to change post to its current status."),
+            ReturnToPending => write!(f, "Cannot revert a post back to pending status."),
+            AdminOnly => write!(f, "Operation restricted to administrator role."),
+            RejectedOrBanned => write!(f, "Cannot modify rejected or banned posts."),
+            RecentOnly => write!(f, "Moderators can only modify recent posts."),
+            CurrentlyProcessing => write!(f, "Cannot modify a post that's being processed."),
+            ManualProcessing => write!(f, "Cannot manually set a post to processing status."),
+        }
+    }
+}
+
 /// Represents a post review action submitted by a moderator or admin
 ///
 /// Contains the reviewer's session token and the proposed new status for the post.
