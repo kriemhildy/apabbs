@@ -1,3 +1,18 @@
+0.43.0
+
+Allow forcing the re-run of migrations which have already been executed.
+Add a migration for retrying failed background tasks.
+Check a video's audio type and file format when inspecting compatibility.
+Show compatibility video in all browsers if present; link to the original file.
+Increase maximum upload size to 25 MiB (was 20 MB).
+WebSocket reconnect interval changed to 30 sec (was 10 sec).
+Fix HTML datetime format, youtube flag, and youtube thumbnail migration regex bugs.
+Increase screenshot size to 1920x1080.
+Improve pagination link styling.
+Allow HEAD requests.
+Log warnings for non-error status codes.
+Add .mkv and .ts video support.
+
 0.42.0
 
 Simplify error handling, logging and documentation.
