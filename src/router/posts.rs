@@ -212,7 +212,7 @@ pub async fn submit_post(
     commit_transaction(tx).await?;
 
     // Notify clients of new post
-    send_to_websocket(&state.sender, post);
+    send_to_websocket(&state.sender, &post);
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {

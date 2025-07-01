@@ -26,7 +26,10 @@ pub mod user;
 use crate::post::Post;
 use minijinja::Environment;
 use sqlx::PgPool;
-use std::sync::{Arc, RwLock};
+use std::{
+    pin::Pin,
+    sync::{Arc, RwLock},
+};
 use tokio::sync::broadcast::Sender;
 
 // ==============================================================================
@@ -41,6 +44,13 @@ pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM
 
 /// Format string for UTC hour granularity in PostgreSQL queries.
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
+
+//==================================================================================================
+// Type Aliases
+//==================================================================================================
+
+/// Type alias for boxed background task futures.
+pub type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 // ==============================================================================
 // Environment/Config Functions
@@ -182,8 +192,8 @@ mod utilities {
     //==================================================================================================
 
     /// Send a message to a WebSocket connection.
-    pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
-        if let Err(e) = sender.send(post) {
+    pub fn send_to_websocket(sender: &Sender<Post>, post: &Post) {
+        if let Err(e) = sender.send(post.clone()) {
             tracing::warn!("No active WebSocket receivers to send to: {e}");
         }
     }

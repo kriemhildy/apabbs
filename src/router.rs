@@ -21,7 +21,7 @@ pub mod tests;
 // Imports
 //==================================================================================================
 
-use crate::{AppState, ban, post::*, user::*, utilities::*};
+use crate::{AppState, BoxFuture, ban, post::*, user::*, utilities::*};
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
     http::{
@@ -33,7 +33,6 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use helpers::*;
 use std::error::Error;
-use std::{future::Future, pin::Pin};
 use uuid::Uuid;
 
 //==================================================================================================
@@ -42,13 +41,6 @@ use uuid::Uuid;
 
 /// Root path for the application.
 pub const ROOT: &str = "/";
-
-//==================================================================================================
-// Type Aliases
-//==================================================================================================
-
-/// Type alias for boxed background task futures.
-pub type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 //==================================================================================================
 // Error Handling

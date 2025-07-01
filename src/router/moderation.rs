@@ -20,7 +20,6 @@ pub async fn review_post(
 ) -> Result<Response, ResponseError> {
     use AccountRole::*;
     use PostStatus::*;
-    use ReviewAction::*;
     use ReviewError::*;
 
     let mut tx = begin_transaction(&state.db).await?;
@@ -63,8 +62,7 @@ pub async fn review_post(
     let review_action = PostReview::determine_action(&post, post_review.status, account.role);
 
     // Handle various review actions
-    let mut background_task: Option<BoxFuture> = None;
-    match review_action {
+    let background_task: Option<BoxFuture> = match review_action {
         // Handle errors
         Err(e @ SameStatus)
         | Err(e @ ReturnToPending)
@@ -73,50 +71,14 @@ pub async fn review_post(
         | Err(e @ ManualProcessing) => {
             return Err(BadRequest(e.to_string()));
         }
-        Err(e @ AdminOnly)
-        | Err(e @ RecentOnly) => {
+        Err(e @ AdminOnly) | Err(e @ RecentOnly) => {
             return Err(Unauthorized(e.to_string()));
         }
 
         // Handle media operations
-        Ok(PublishMedia | DeleteEncryptedMedia) => {
-            if post.media_filename.is_some() {
-                let encrypted_media_path = post.encrypted_media_path();
-                if !encrypted_media_path.exists() {
-                    return Err(NotFound("Encrypted media file does not exist".to_string()));
-                }
-
-                if review_action == Ok(PublishMedia) {
-                    // Create background task for media publication
-                    background_task = Some(Box::pin(PostReview::publish_media_task(
-                        state.clone(),
-                        post.clone(),
-                        post_review.clone(),
-                    )));
-                } else {
-                    // Delete the encrypted media file
-                    PostReview::delete_upload_key_dir(&encrypted_media_path).await?;
-                }
-            }
+        Ok(action) => {
+            PostReview::process_action(&state.db, &post, post_review.status, action).await?
         }
-
-        // Handle media deletion
-        Ok(DeletePublishedMedia) => {
-            if post.media_filename.as_ref().is_some() && post.published_media_path().exists() {
-                PostReview::delete_media_key_dir(&post.key).await?;
-            }
-        }
-
-        // Handle media re-encryption
-        Ok(ReencryptMedia) => {
-            background_task = Some(Box::pin(PostReview::reencrypt_media_task(
-                state.clone(),
-                post.clone(),
-                post_review.clone(),
-            )));
-        }
-
-        Ok(NoAction) => (),
     };
 
     // Set appropriate status based on background processing
@@ -128,32 +90,22 @@ pub async fn review_post(
 
     // Update post status and record review action
     let post = post.update_status(&mut tx, status).await?;
-    post_review.insert(&mut tx, account.id, post.id).await?;
-
-    // Handle banned post cleanup
-    if post.status == Banned {
-        if let Some(ref ip_hash) = post.ip_hash {
-            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await?;
-        }
-        post.delete(&mut tx).await?;
-    }
-
-    // Ensure approved posts have thumbnails if needed
-    // This should be done more internally, and already is I think.
-    if post.status == Approved && post.thumb_filename.is_some() && !post.thumbnail_path().exists() {
-        return Err(InternalServerError(
-            "Error setting post thumbnail".to_string(),
-        ));
-    }
 
     commit_transaction(tx).await?;
 
     // Notify clients of the update
-    send_to_websocket(&state.sender, post);
+    send_to_websocket(&state.sender, &post);
 
     // If we have a background task, spawn it
     if let Some(task) = background_task {
-        tokio::spawn(task);
+        // add a special websocket update here instead of having it be in the background task itself
+        // try to avoid passing AppState into the background tasks
+        // avoid error handling in the task as well
+        tokio::spawn(async move {
+            task.await;
+            // Notify clients of the update
+            send_to_websocket(&state.sender, &post);
+        });
     }
 
     // Return appropriate response based on request type

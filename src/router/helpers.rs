@@ -6,7 +6,7 @@
 
 use super::*;
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use sqlx::{PgConnection};
+use sqlx::PgConnection;
 use std::error::Error;
 
 //==================================================================================================

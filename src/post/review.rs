@@ -3,18 +3,21 @@
 //! This module defines the review workflow for posts, including allowed status transitions,
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
-use super::Post;
-use super::PostStatus;
-use crate::user::AccountRole;
+use super::{Post, PostStatus};
+use crate::{BoxFuture, user::AccountRole, utilities::*};
+use ReviewAction::*;
+use ReviewError::*;
 use serde::{Deserialize, Serialize};
-use sqlx::PgConnection;
+use sqlx::{PgConnection, PgPool};
+use std::error::Error;
+use std::fmt;
 use uuid::Uuid;
 
 /// Defines possible actions resulting from post review decisions.
 ///
 /// Each action represents a specific operation to perform on a post's media
 /// or status during the moderation workflow.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum ReviewAction {
     /// Decrypt and process encrypted media for public viewing
     PublishMedia,
@@ -49,9 +52,6 @@ pub enum ReviewError {
     /// Cannot manually set a post to processing status
     ManualProcessing,
 }
-
-use ReviewError::*;
-use std::fmt;
 
 impl fmt::Display for ReviewError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -89,7 +89,7 @@ impl PostReview {
         tx: &mut PgConnection,
         account_id: i32,
         post_id: i32,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("INSERT INTO reviews (account_id, post_id, status) VALUES ($1, $2, $3)")
             .bind(account_id)
             .bind(post_id)
@@ -110,8 +110,6 @@ impl PostReview {
     ) -> Result<ReviewAction, ReviewError> {
         use AccountRole::*;
         use PostStatus::*;
-        use ReviewAction::*;
-        use ReviewError::*;
 
         match post.status {
             // Rules for posts in Pending status
@@ -166,6 +164,104 @@ impl PostReview {
 
             // Rejected or banned posts are final and can't be changed
             Rejected | Banned => Err(RejectedOrBanned),
+        }
+    }
+
+    /// Process a review action and optionally return a background task future.
+    pub async fn process_action(
+        db: &PgPool,
+        post: &Post,
+        status: PostStatus,
+        action: ReviewAction,
+    ) -> Result<Option<BoxFuture>, Box<dyn Error + Send + Sync>> {
+        let background_task: Option<BoxFuture> = match action {
+            PublishMedia => {
+                // Create background task for media publication
+                Some(Box::pin(PostReview::publish_media_task(
+                    db.clone(),
+                    post.clone(),
+                    status,
+                )))
+            }
+
+            DeleteEncryptedMedia => {
+                // Delete the encrypted media file
+                let encrypted_media_path = post.encrypted_media_path();
+                PostReview::delete_upload_key_dir(&encrypted_media_path).await?;
+                None
+            }
+
+            // Handle media deletion
+            DeletePublishedMedia => {
+                PostReview::delete_media_key_dir(&post.key).await?;
+                None
+            }
+
+            // Handle media re-encryption
+            ReencryptMedia => Some(Box::pin(PostReview::reencrypt_media_task(
+                db.clone(),
+                post.clone(),
+                status,
+            ))),
+
+            NoAction => None,
+        };
+
+        Ok(background_task)
+    }
+
+    // =========================
+    // Background Media Tasks
+    // =========================
+
+    /// Background task for publishing media and updating post status.
+    pub async fn publish_media_task(db: PgPool, post: Post, status: PostStatus) {
+        let result: Result<(), Box<dyn Error + Send + Sync>> = async {
+            let mut tx = begin_transaction(&db).await?;
+
+            // Attempt media publication
+            PostReview::publish_media(&mut tx, &post).await?;
+
+            // Update post status
+            let post = post.update_status(&mut tx, status).await?;
+
+            commit_transaction(tx).await?;
+
+            // Clean up and notify clients
+            let encrypted_media_path = post.encrypted_media_path();
+            PostReview::delete_upload_key_dir(&encrypted_media_path)
+                .await
+                .map_err(|e| format!("failed to delete upload directory: {e}"))?;
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            tracing::error!("Error in publish_media_task: {e}");
+        }
+    }
+
+    /// Background task for re-encrypting media and updating post status.
+    pub async fn reencrypt_media_task(db: PgPool, post: Post, status: PostStatus) {
+        let result: Result<(), Box<dyn Error + Send + Sync>> = async {
+            let mut tx = begin_transaction(&db).await?;
+
+            // Attempt media re-encryption
+            post.reencrypt_media_file()
+                .await
+                .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
+
+            // Update post status
+            post.update_status(&mut tx, status).await?;
+
+            commit_transaction(tx).await?;
+
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            tracing::error!("Error in reencrypt_media_task: {e}");
         }
     }
 }

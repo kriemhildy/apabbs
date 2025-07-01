@@ -427,7 +427,7 @@ pub async fn process_videos(db: PgPool) {
 
 /// Attempts to continue processing of any post that was interrupted.
 pub async fn rerun_failed_tasks(db: PgPool) {
-    use apabbs::post::{Post, PostReview, PostStatus, PostStatus::*, ReviewAction::*};
+    use apabbs::post::{Post, PostReview, PostStatus, PostStatus::*};
 
     let mut tx = db.begin().await.expect("begins");
 
@@ -470,22 +470,12 @@ pub async fn rerun_failed_tasks(db: PgPool) {
             .expect("determines action");
         tracing::info!(post_key = post.key, "Determined action: {:?}", action);
 
-        // Only PublishMedia and ReencryptMedia actions are allowed to continue processing
-        match action {
-            PublishMedia => {
-                tracing::info!(post_key = post.key, "Continue publishing media");
-                PostReview::publish_media(&mut tx, &post)
-                    .await
-                    .expect("publishes media");
-            }
-            ReencryptMedia => {
-                tracing::info!(post_key = post.key, "Continue re-encrypting media");
-                post.reencrypt_media_file().await.expect("reencrypts media");
-            }
-            _ => {
-                tracing::error!(post_key = post.key, "Invalid action for post: {:?}", action);
-                continue; // Skip to next post if action is not allowed
-            }
+        if let Some(task) = PostReview::process_action(&db, &post, next_status, action)
+            .await
+            .expect("processes action")
+        {
+            // Execute the task in the foreground
+            task.await;
         }
 
         tracing::info!(post_key = post.key, "Post action completed: {:?}", action);
