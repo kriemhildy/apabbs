@@ -2,14 +2,14 @@
 //!
 //! Provides sequential database migrations, tracking applied migrations in the `_rust_migrations` table.
 
+use apabbs::AppState;
 use apabbs::user::AccountRole;
-use sqlx::PgPool;
 use std::future::Future;
 use std::pin::Pin;
 
 /// Type alias for migration functions that take a database connection pool
 /// and return an async operation.
-pub type MigrationFn = fn(PgPool) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+pub type MigrationFn = fn(AppState) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
 /// Macro to create an array of migration functions paired with their names.
 ///
@@ -18,7 +18,7 @@ pub type MigrationFn = fn(PgPool) -> Pin<Box<dyn Future<Output = ()> + Send + 's
 #[macro_export]
 macro_rules! migrations {
     ($($func:ident),* $(,)?) => {
-        [$((stringify!($func), (|db| Box::pin($func(db))) as MigrationFn)),*]
+        [$((stringify!($func), (|state| Box::pin($func(state))) as MigrationFn)),*]
     };
 }
 
@@ -37,7 +37,7 @@ pub async fn main() {
         update_intro_limit,
         add_image_dimensions,
         process_videos,
-        rerun_failed_tasks,
+        retry_failed_tasks,
     ];
 
     // Load environment variables from .env file
@@ -46,8 +46,8 @@ pub async fn main() {
         std::process::exit(1);
     }
 
-    // Connect to database
-    let db = apabbs::db().await;
+    // Initialize state
+    let state = apabbs::app_state().await;
 
     // Force execution of a specific migration if provided as an argument
     let args: Vec<String> = std::env::args().collect();
@@ -57,7 +57,7 @@ pub async fn main() {
         let found = migrations.iter().find(|(name, _)| name == migration_name);
         if let Some((name, func)) = found {
             tracing::info!(migration = name, "Forcing execution of migration");
-            func(db.clone()).await;
+            func(state.clone()).await;
         } else {
             tracing::error!("Migration not found: {migration_name}");
             std::process::exit(1);
@@ -71,7 +71,7 @@ pub async fn main() {
         let exists: bool =
             sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM _rust_migrations WHERE name = $1)")
                 .bind(name)
-                .fetch_one(&db)
+                .fetch_one(&state.db)
                 .await
                 .expect("query succeeds");
 
@@ -80,12 +80,12 @@ pub async fn main() {
         }
 
         tracing::info!(migration = name, "Applying migration");
-        func(db.clone()).await;
+        func(state.clone()).await;
 
         // Record that migration was applied
         sqlx::query("INSERT INTO _rust_migrations (name) VALUES ($1)")
             .bind(name)
-            .execute(&db)
+            .execute(&state.db)
             .await
             .expect("query succeeds");
     }
@@ -94,9 +94,9 @@ pub async fn main() {
 /// Updates post intro_limit values based on content analysis.
 ///
 /// Recalculates the intro_limit field for all posts that have it set.
-pub async fn update_intro_limit(db: PgPool) {
+pub async fn update_intro_limit(state: AppState) {
     use apabbs::post::{Post, PostSubmission};
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
@@ -118,11 +118,11 @@ pub async fn update_intro_limit(db: PgPool) {
 ///
 /// Finds YouTube links in posts, determines if they're shorts or regular videos,
 /// downloads appropriate thumbnails, and updates post content with the new thumbnail URLs.
-pub async fn download_youtube_thumbnails(db: PgPool) {
+pub async fn download_youtube_thumbnails(state: AppState) {
     use apabbs::post::PostSubmission;
     use tokio::time::Duration;
 
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Extract all YouTube video IDs from posts with YouTube embeds
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
@@ -219,9 +219,9 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
 /// Migrates from UUID-based media paths to key-based paths.
 ///
 /// Renames media directories from UUID format to the new key format and removes the now unused UUID column.
-pub async fn uuid_to_key(db: PgPool) {
+pub async fn uuid_to_key(state: AppState) {
     use uuid::Uuid;
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Check if the UUID column exists before proceeding
     let exists: bool = sqlx::query_scalar(concat!(
@@ -279,9 +279,9 @@ pub async fn uuid_to_key(db: PgPool) {
 /// Generates thumbnails for image posts.
 ///
 /// Creates smaller versions of images for faster loading and updates the database with the thumbnail paths and dimensions.
-pub async fn generate_image_thumbnails(db: PgPool) {
+pub async fn generate_image_thumbnails(state: AppState) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -336,9 +336,9 @@ pub async fn generate_image_thumbnails(db: PgPool) {
 ///
 /// Updates the database with dimension information for both original images
 /// and their thumbnails.
-pub async fn add_image_dimensions(db: PgPool) {
+pub async fn add_image_dimensions(state: AppState) {
     use apabbs::post::{Post, PostReview};
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -382,9 +382,9 @@ pub async fn add_image_dimensions(db: PgPool) {
 }
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
-pub async fn process_videos(db: PgPool) {
+pub async fn process_videos(state: AppState) {
     use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Get all video posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -418,7 +418,7 @@ pub async fn process_videos(db: PgPool) {
         PostReview::process_video(&mut tx, &post)
             .await
             .expect("processes video");
-        tracing::info!(post_key = post.key, "Completed processing post");
+        tracing::info!(post_id = post.id, "Completed processing post");
     }
 
     tx.commit().await.expect("commits");
@@ -426,17 +426,18 @@ pub async fn process_videos(db: PgPool) {
 }
 
 /// Attempts to continue processing of any post that was interrupted.
-pub async fn rerun_failed_tasks(db: PgPool) {
+pub async fn retry_failed_tasks(state: AppState) {
     use apabbs::post::{Post, PostReview, PostStatus, PostStatus::*};
 
-    let mut tx = db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("begins");
 
     // Get all posts that are in Processing state
-    let posts: Vec<Post> =
-        sqlx::query_as(concat!("SELECT * FROM posts WHERE status = 'processing'",))
-            .fetch_all(&mut *tx)
-            .await
-            .expect("selects processing posts");
+    let posts: Vec<Post> = sqlx::query_as(concat!(
+        "SELECT * FROM posts WHERE status = 'processing' ORDER BY id",
+    ))
+    .fetch_all(&mut *tx)
+    .await
+    .expect("selects processing posts");
 
     for post in posts {
         // Select the latest two review statuses for the post
@@ -457,20 +458,30 @@ pub async fn rerun_failed_tasks(db: PgPool) {
             statuses[1]
         };
         tracing::info!(
-            post_key = post.key,
-            "Restoring post status to {:?}",
+            post_id = post.id,
+            prior_status = ?prior_status,
+            next_status = ?next_status,
+            "Determined statuses from reviews"
+        );
+
+        // Dummy version of the post with the prior status
+        tracing::info!(
+            post_id = post.id,
+            "Creating dummy post with prior status: {:?}",
             prior_status
         );
-        let post = post
-            .update_status(&mut tx, prior_status)
-            .await
-            .expect("updates post status");
+        let prior_post = Post {
+            status: prior_status,
+            ..post.clone()
+        };
 
-        let action = PostReview::determine_action(&post, next_status, AccountRole::Admin)
+        // Determine the action to take based on the prior post status and next status
+        let action = PostReview::determine_action(&prior_post, next_status, AccountRole::Admin)
             .expect("determines action");
-        tracing::info!(post_key = post.key, "Determined action: {:?}", action);
+        tracing::info!(post_id = post.id, "Determined action: {:?}", action);
 
-        if let Some(task) = PostReview::process_action(&db, &post, next_status, action)
+        // Process the action
+        if let Some(task) = PostReview::process_action(&state, &prior_post, next_status, action)
             .await
             .expect("processes action")
         {
@@ -478,18 +489,7 @@ pub async fn rerun_failed_tasks(db: PgPool) {
             task.await;
         }
 
-        tracing::info!(post_key = post.key, "Post action completed: {:?}", action);
-
-        // Update status to next status
-        post.update_status(&mut tx, next_status)
-            .await
-            .expect("updates post status");
-
-        tracing::info!(
-            post_key = post.key,
-            "Post updated to status: {:?}",
-            next_status
-        );
+        tracing::info!(post_id = post.id, "Task retry attempt completed");
     }
 
     tx.commit().await.expect("commits");

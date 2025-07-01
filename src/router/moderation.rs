@@ -76,9 +76,7 @@ pub async fn review_post(
         }
 
         // Handle media operations
-        Ok(action) => {
-            PostReview::process_action(&state.db, &post, post_review.status, action).await?
-        }
+        Ok(action) => PostReview::process_action(&state, &post, post_review.status, action).await?,
     };
 
     // Set appropriate status based on background processing
@@ -104,11 +102,7 @@ pub async fn review_post(
         // add a special websocket update here instead of having it be in the background task itself
         // try to avoid passing AppState into the background tasks
         // avoid error handling in the task as well
-        tokio::spawn(async move {
-            task.await;
-            // Notify clients of the update
-            send_to_websocket(&state.sender, post);
-        });
+        tokio::spawn(task);
     }
 
     // Return appropriate response based on request type

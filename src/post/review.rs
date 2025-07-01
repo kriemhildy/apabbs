@@ -4,13 +4,12 @@
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
 use super::{Post, PostStatus};
-use crate::{BoxFuture, user::AccountRole, utils::*};
+use crate::{AppState, BoxFuture, user::AccountRole, utils::*};
 use ReviewAction::*;
 use ReviewError::*;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool};
-use std::error::Error;
-use std::fmt;
+use sqlx::PgConnection;
+use std::{error::Error, fmt};
 use uuid::Uuid;
 
 /// Defines possible actions resulting from post review decisions.
@@ -169,7 +168,7 @@ impl PostReview {
 
     /// Process a review action and optionally return a background task future.
     pub async fn process_action(
-        db: &PgPool,
+        state: &AppState,
         post: &Post,
         status: PostStatus,
         action: ReviewAction,
@@ -178,7 +177,7 @@ impl PostReview {
             PublishMedia => {
                 // Create background task for media publication
                 Some(Box::pin(PostReview::publish_media_task(
-                    db.clone(),
+                    state.clone(),
                     post.clone(),
                     status,
                 )))
@@ -199,7 +198,7 @@ impl PostReview {
 
             // Handle media re-encryption
             ReencryptMedia => Some(Box::pin(PostReview::reencrypt_media_task(
-                db.clone(),
+                state.clone(),
                 post.clone(),
                 status,
             ))),
@@ -215,9 +214,10 @@ impl PostReview {
     // =========================
 
     /// Background task for publishing media and updating post status.
-    pub async fn publish_media_task(db: PgPool, post: Post, status: PostStatus) {
+    pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus) {
         let result: Result<(), Box<dyn Error + Send + Sync>> = async {
-            let mut tx = begin_transaction(&db).await?;
+            tracing::info!("Publishing media for post {}", post.id,);
+            let mut tx = begin_transaction(&state.db).await?;
 
             // Attempt media publication
             PostReview::publish_media(&mut tx, &post).await?;
@@ -225,13 +225,18 @@ impl PostReview {
             // Update post status
             let post = post.update_status(&mut tx, status).await?;
 
-            commit_transaction(tx).await?;
-
-            // Clean up and notify clients
+            // Delete the upload key directory after publishing
             let encrypted_media_path = post.encrypted_media_path();
             PostReview::delete_upload_key_dir(&encrypted_media_path)
                 .await
                 .map_err(|e| format!("failed to delete upload directory: {e}"))?;
+
+            commit_transaction(tx).await?;
+
+            // Notify clients
+            send_to_websocket(&state.sender, post.clone());
+
+            tracing::info!("Media publication task completed for post {}", post.id);
             Ok(())
         }
         .await;
@@ -242,9 +247,14 @@ impl PostReview {
     }
 
     /// Background task for re-encrypting media and updating post status.
-    pub async fn reencrypt_media_task(db: PgPool, post: Post, status: PostStatus) {
+    pub async fn reencrypt_media_task(state: AppState, post: Post, status: PostStatus) {
         let result: Result<(), Box<dyn Error + Send + Sync>> = async {
-            let mut tx = begin_transaction(&db).await?;
+            tracing::info!(
+                "Re-encrypting media for post {} with status {:?}",
+                post.id,
+                status
+            );
+            let mut tx = begin_transaction(&state.db).await?;
 
             // Attempt media re-encryption
             post.reencrypt_media_file()
@@ -252,10 +262,14 @@ impl PostReview {
                 .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
 
             // Update post status
-            post.update_status(&mut tx, status).await?;
+            let post = post.update_status(&mut tx, status).await?;
 
             commit_transaction(tx).await?;
 
+            // Notify clients
+            send_to_websocket(&state.sender, post.clone());
+
+            tracing::info!("Re-encryption task completed for post {}", post.id);
             Ok(())
         }
         .await;
