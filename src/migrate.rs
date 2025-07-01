@@ -467,7 +467,7 @@ pub async fn retry_failed_tasks(state: AppState) {
         // Dummy version of the post with the prior status
         tracing::info!(
             post_id = post.id,
-            "Creating dummy post with prior status: {:?}",
+            "Initializing dummy post with prior status: {:?}",
             prior_status
         );
         let prior_post = Post {
@@ -491,6 +491,4 @@ pub async fn retry_failed_tasks(state: AppState) {
 
         tracing::info!(post_id = post.id, "Task retry attempt completed");
     }
-
-    tx.commit().await.expect("commits");
 }
