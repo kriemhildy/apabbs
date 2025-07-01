@@ -91,6 +91,9 @@ pub async fn review_post(
     // Update post status and record review action
     let post = post.update_status(&mut tx, status).await?;
 
+    // Record the review action
+    post_review.insert(&mut tx, account.id, post.id).await?;
+
     commit_transaction(tx).await?;
 
     // Notify clients of the update
