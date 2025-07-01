@@ -156,7 +156,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
         let short = response_code == b"'200'";
 
         if short {
-            tracing::info!("Video is a YouTube short");
+            tracing::info!("Video is a YouTube Short");
             // Update link URLs to use shorts format if needed
             sqlx::query(&format!(
                 concat!(
@@ -451,7 +451,7 @@ pub async fn rerun_failed_tasks(db: PgPool) {
         // If the second status does not exist, set the post to Pending.
         // Otherwise, update the post to the second status.
         let next_status = statuses[0];
-        let prior_status = if statuses.len() < 2 {
+        let prior_status = if statuses.len() == 1 {
             Pending
         } else {
             statuses[1]
@@ -474,7 +474,7 @@ pub async fn rerun_failed_tasks(db: PgPool) {
             .await
             .expect("processes action")
         {
-            // Execute the task in the foreground
+            // This is normally a background task, but here we run it in the foreground
             task.await;
         }
 
