@@ -131,8 +131,8 @@ pub async fn create_account(
     let errors = credentials.validate();
     if !errors.is_empty() {
         return Err(BadRequest(format!(
-            "Invalid registration data:\n{}",
-            errors.join("\n")
+            "Invalid registration data: {}",
+            errors.join(", ")
         )));
     }
 

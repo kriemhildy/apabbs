@@ -232,7 +232,7 @@ impl Credentials {
         }
 
         // Check password doesn't contain username
-        if lowercase_password.contains(&lowercase_username) {
+        if lowercase_password.contains(&lowercase_username) && !lowercase_username.is_empty() {
             errors.push("password cannot contain username");
         }
 
