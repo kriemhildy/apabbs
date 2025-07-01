@@ -86,7 +86,8 @@
         and (post.media_category is none
             or post.media_category != "image"
             or (post.status in ["pending", "reported"]
-                and user.account and user.account.role not in ["admin", "mod"]))
+                and user.account and user.account.role not in ["admin", "mod"])
+            or post.status == "processing")
         and not post.youtube
         and post.intro_limit is none %}
     <div class="arrow">
