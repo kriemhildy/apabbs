@@ -4,7 +4,7 @@
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
 use super::{Post, PostStatus};
-use crate::{BoxFuture, user::AccountRole, utilities::*};
+use crate::{BoxFuture, user::AccountRole, utils::*};
 use ReviewAction::*;
 use ReviewError::*;
 use serde::{Deserialize, Serialize};

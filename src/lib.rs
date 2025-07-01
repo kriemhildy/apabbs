@@ -161,7 +161,7 @@ pub async fn app_state() -> AppState {
     AppState { db, jinja, sender }
 }
 
-mod utilities {
+mod utils {
     use super::*;
     use sqlx::{Postgres, Transaction};
     use std::error::Error;

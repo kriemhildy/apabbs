@@ -21,7 +21,7 @@ pub mod tests;
 // Imports
 //==================================================================================================
 
-use crate::{AppState, BoxFuture, ban, post::*, user::*, utilities::*};
+use crate::{AppState, BoxFuture, ban, post::*, user::*, utils::*};
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
     http::{
