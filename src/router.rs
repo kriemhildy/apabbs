@@ -46,7 +46,7 @@ pub const ROOT: &str = "/";
 // Error Handling
 //==================================================================================================
 
-/// Custom error type for application errors.
+/// HTTP error responses.
 #[derive(Debug)]
 pub enum ResponseError {
     BadRequest(String),
@@ -76,16 +76,11 @@ impl IntoResponse for ResponseError {
             InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
-        /// Capitalize the first character of a string.
-        fn capitalize_first(s: &str) -> String {
-            let mut c = s.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        }
-
-        let capitalized_msg = capitalize_first(&msg);
+        // Capitalize the first character of the message
+        let capitalized_msg = match msg.chars().next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + &msg[f.len_utf8()..],
+        };
 
         if status == StatusCode::INTERNAL_SERVER_ERROR {
             tracing::error!("{capitalized_msg}");
