@@ -44,13 +44,10 @@ pub async fn review_post(
         Some(account) => account,
     };
 
-    match account.role {
-        Admin | Mod => (),
-        _ => {
-            return Err(Unauthorized(
-                "You must be an admin or moderator to perform this action".to_string(),
-            ));
-        }
+    if ![Admin, Mod].contains(&account.role) {
+        return Err(Unauthorized(
+            "You must be an admin or moderator to perform this action".to_string(),
+        ));
     };
 
     // Get the post to review
@@ -88,8 +85,6 @@ pub async fn review_post(
 
     // Update post status and record review action
     let post = post.update_status(&mut tx, status).await?;
-
-    // Record the review action
     post_review.insert(&mut tx, account.id, post.id).await?;
 
     commit_transaction(tx).await?;
@@ -99,9 +94,6 @@ pub async fn review_post(
 
     // If we have a background task, spawn it
     if let Some(task) = background_task {
-        // add a special websocket update here instead of having it be in the background task itself
-        // try to avoid passing AppState into the background tasks
-        // avoid error handling in the task as well
         tokio::spawn(task);
     }
 
