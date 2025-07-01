@@ -94,7 +94,7 @@ pub async fn review_post(
     commit_transaction(tx).await?;
 
     // Notify clients of the update
-    send_to_websocket(&state.sender, &post);
+    send_to_websocket(&state.sender, post.clone());
 
     // If we have a background task, spawn it
     if let Some(task) = background_task {
@@ -104,7 +104,7 @@ pub async fn review_post(
         tokio::spawn(async move {
             task.await;
             // Notify clients of the update
-            send_to_websocket(&state.sender, &post);
+            send_to_websocket(&state.sender, post);
         });
     }
 
