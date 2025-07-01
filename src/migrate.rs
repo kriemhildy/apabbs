@@ -128,7 +128,7 @@ pub async fn download_youtube_thumbnails(db: PgPool) {
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
         "SELECT matches[1] AS video_id FROM ",
         "(SELECT regexp_matches(body, ",
-        r#"'<a href="https://www\\.youtube\\.com/(?:watch\?v=|shorts/)([\w\-]{11})', 'g') "#,
+        r#"'<a href="https://www\.youtube\.com/(?:watch\?v=|shorts/)([\w\-]{11})', 'g') "#,
         r#"FROM posts WHERE body LIKE '%<img src="/youtube/%' "#,
         "AND status IN ('approved', 'delisted')) ",
         " AS subquery(matches)"
