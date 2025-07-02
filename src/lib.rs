@@ -143,7 +143,7 @@ pub async fn app_state() -> AppState {
 // Test Initialization
 // ==============================================================================
 
-// Ensure we are in development mode before running tests.
+/// Ensure we are in development mode before running tests.
 #[cfg(test)]
 #[ctor::ctor]
 fn init() {
@@ -153,9 +153,8 @@ fn init() {
     }
 }
 
-// Initializes tracing for tests to capture logs and output them to the console.
-#[cfg(test)]
-fn init_tracing_for_test() {
+/// Initializes tracing for tests to capture logs and output them to the console.
+pub fn init_tracing_for_test() {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| {
