@@ -12,7 +12,6 @@ use crate::{
     user::{AccountRole, User},
     utils::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME},
 };
-use review::PostReview;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use std::path::Path;
