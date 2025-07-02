@@ -14,11 +14,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 pub const LOCAL_IP: &str = "::1";
-#[allow(dead_code)]
-pub const BAN_IP: &str = "192.0.2.0";
-#[allow(dead_code)]
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
-#[allow(dead_code)]
 pub const TEST_MEDIA_DIR: &str = "tests/media";
 
 pub async fn init_test() -> (Router, AppState) {
@@ -145,7 +141,6 @@ pub async fn create_test_post(
     }
 }
 
-#[allow(dead_code)]
 pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -> bool {
     response
         .headers()
