@@ -13,10 +13,14 @@ use sqlx::PgConnection;
 use std::path::Path;
 use uuid::Uuid;
 
+/// A sample local IP address (IPv6 loopback).
 pub const LOCAL_IP: &str = "::1";
+/// The content type for form submissions.
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
+/// Directory containing test media files.
 pub const TEST_MEDIA_DIR: &str = "tests/media";
 
+/// Initialize tracing, app state, and router for integration tests.
 pub async fn init_test() -> (Router, AppState) {
     use apabbs::{app_state, init_tracing_for_test, router::router};
 
@@ -26,6 +30,7 @@ pub async fn init_test() -> (Router, AppState) {
     (router, state)
 }
 
+/// Generate test credentials for a user.
 pub fn test_credentials(user: &User) -> Credentials {
     Credentials {
         session_token: user.session_token,
@@ -36,6 +41,7 @@ pub fn test_credentials(user: &User) -> Credentials {
     }
 }
 
+/// Create a test user with a random session token and local IP hash.
 pub fn test_user(account: Option<Account>) -> User {
     User {
         account,
@@ -45,10 +51,12 @@ pub fn test_user(account: Option<Account>) -> User {
     }
 }
 
+/// Compute the hash of the local test IP using the app secret key.
 pub fn local_ip_hash() -> String {
     sha256::digest(apabbs::secret_key() + LOCAL_IP)
 }
 
+/// Create a test user account in the database with the given role.
 pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     let user = test_user(None);
     let credentials = test_credentials(&user);
@@ -79,6 +87,7 @@ pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> Us
     }
 }
 
+/// Delete a test account from the database by account id.
 pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account.id)
@@ -87,6 +96,7 @@ pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
         .expect("deletes test account");
 }
 
+/// Create a test post in the database for a user, with optional media and status.
 #[allow(dead_code)]
 pub async fn create_test_post(
     tx: &mut PgConnection,
@@ -141,6 +151,7 @@ pub async fn create_test_post(
     }
 }
 
+/// Check if a response adds or removes a cookie.
 pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -> bool {
     response
         .headers()
@@ -152,22 +163,26 @@ pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: boo
         })
 }
 
+/// Check if a response adds a cookie.
 #[allow(dead_code)]
 pub fn response_adds_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, false)
 }
 
+/// Check if a response removes a cookie.
 #[allow(dead_code)]
 pub fn response_removes_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, true)
 }
 
+/// Extract the response body as a string.
 #[allow(dead_code)]
 pub async fn response_body_str(response: Response<Body>) -> String {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     String::from_utf8(body.to_vec()).unwrap()
 }
 
+/// Select the latest post by session token.
 #[allow(dead_code)]
 pub async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
@@ -180,6 +195,7 @@ pub async fn select_latest_post_by_session_token(
         .expect("selects by session token")
 }
 
+/// Select the latest post by account id.
 #[allow(dead_code)]
 pub async fn select_latest_post_by_account_id(
     tx: &mut PgConnection,
@@ -192,6 +208,7 @@ pub async fn select_latest_post_by_account_id(
         .expect("selects by account id")
 }
 
+/// Delete a test ban from the database by IP hash.
 #[allow(dead_code)]
 pub async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query("DELETE FROM bans WHERE ip_hash = $1")
