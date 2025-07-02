@@ -4,7 +4,7 @@ mod helpers;
 
 use apabbs::{
     ban,
-    post::{Post, PostStatus, PostStatus::*, review::PostReview, submission::PostSubmission},
+    post::{Post, PostStatus, review::PostReview, submission::PostSubmission},
     router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
     user::{AccountRole, User},
 };
@@ -15,16 +15,51 @@ use axum::{
         header::{CONTENT_TYPE, COOKIE},
     },
 };
+use form_data_builder::FormData;
 use helpers::*;
-use std::time::Duration;
 use tower::ServiceExt;
 use uuid::Uuid;
+
+/// Tests decrypting and serving media files.
+#[tokio::test]
+async fn decrypt_media() {
+    use axum::http::header::CONTENT_DISPOSITION;
+
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect("begins");
+    let anon_user = test_user(None);
+    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let account = user.account.as_ref().unwrap();
+    tx.commit().await.expect("commits");
+
+    // Request the encrypted media
+    let key = format!("/decrypt-media/{}", &post.key);
+    let request = Request::builder()
+        .uri(&key)
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+
+    // Verify response headers and status
+    assert!(response.status().is_success());
+    let content_type = response.headers().get(CONTENT_TYPE).unwrap();
+    assert_eq!(content_type, "image/jpeg");
+    let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
+    assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
+
+    // Clean up
+    let mut tx = state.db.begin().await.expect("begins");
+    post.delete(&mut tx).await.expect("query succeeds");
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect("commits");
+}
 
 /// Tests automatic banning functionality for suspicious activity.
 #[tokio::test]
 async fn autoban() {
-    use form_data_builder::FormData;
-
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let user = User {
@@ -172,23 +207,25 @@ async fn autoban() {
     tx.commit().await.expect("commits");
 }
 
+/// Tests reviewing a post with a normal image.
 #[tokio::test]
 async fn review_post_with_normal_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect("commits");
+
     let post_review = PostReview {
         session_token: user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
-        .method("POST")
+        .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
@@ -196,18 +233,24 @@ async fn review_post_with_normal_image() {
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
         .unwrap();
+
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
         .expect("query succeeds")
         .expect("post exists");
     tx.commit().await.expect("commits");
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
-    let wait_time = Duration::from_millis(500);
+    let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
+
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("begins");
@@ -216,8 +259,11 @@ async fn review_post_with_normal_image() {
             .expect("query succeeds")
             .expect("post exists");
         tx.commit().await.expect("commits");
+
         if updated_post.status != PostStatus::Processing {
             processed = true;
+
+            // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
             let published_media_path = updated_post.published_media_path();
@@ -226,13 +272,17 @@ async fn review_post_with_normal_image() {
             assert!(thumbnail_path.exists());
             assert!(updated_post.media_width.is_some());
             assert!(updated_post.media_height.is_some());
+
             break;
         }
     }
+
     assert!(
         processed,
         "Background processing did not complete in the expected time"
     );
+
+    // Clean up
     let mut tx = state.db.begin().await.expect("begins");
     let final_post = Post::select_by_key(&mut tx, &post.key)
         .await
@@ -246,23 +296,25 @@ async fn review_post_with_normal_image() {
     tx.commit().await.expect("commits");
 }
 
+/// Tests reviewing a post with a small image.
 #[tokio::test]
 async fn review_post_with_small_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("small.png"), Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect("commits");
+
     let post_review = PostReview {
         session_token: user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
-        .method("POST")
+        .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
@@ -270,18 +322,24 @@ async fn review_post_with_small_image() {
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
         .unwrap();
+
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
         .expect("query succeeds")
         .expect("post exists");
     tx.commit().await.expect("commits");
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
-    let wait_time = Duration::from_millis(500);
+    let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
+
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("begins");
@@ -290,22 +348,31 @@ async fn review_post_with_small_image() {
             .expect("query succeeds")
             .expect("post exists");
         tx.commit().await.expect("commits");
+
         if updated_post.status != PostStatus::Processing {
             processed = true;
+
+            // After processing completes, verify assets
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
             let published_media_path = updated_post.published_media_path();
             assert!(published_media_path.exists());
+
+            // Small images shouldn't have thumbnails
             assert!(updated_post.thumb_filename.is_none());
             let thumbnail_path = PostReview::alternate_path(&published_media_path, "tn_", ".webp");
             assert!(!thumbnail_path.exists());
+
             break;
         }
     }
+
     assert!(
         processed,
         "Background processing did not complete in the expected time"
     );
+
+    // Clean up
     let mut tx = state.db.begin().await.expect("begins");
     let final_post = Post::select_by_key(&mut tx, &post.key)
         .await
@@ -319,23 +386,25 @@ async fn review_post_with_small_image() {
     tx.commit().await.expect("commits");
 }
 
+/// Tests reviewing a post with a video.
 #[tokio::test]
 async fn review_post_with_video() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("video.mp4"), Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("video.mp4"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect("commits");
+
     let post_review = PostReview {
         session_token: user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
-        .method("POST")
+        .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
@@ -343,18 +412,24 @@ async fn review_post_with_video() {
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
         .unwrap();
+
     let response = router.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
     let mut tx = state.db.begin().await.expect("begins");
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
         .expect("query succeeds")
         .expect("post exists");
     tx.commit().await.expect("commits");
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
-    let wait_time = Duration::from_millis(500);
+    let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
+
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("begins");
@@ -363,12 +438,17 @@ async fn review_post_with_video() {
             .expect("query succeeds")
             .expect("post exists");
         tx.commit().await.expect("commits");
+
         if updated_post.status != PostStatus::Processing {
             processed = true;
+
+            // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
             let published_media_path = updated_post.published_media_path();
             assert!(published_media_path.exists());
+            // Thumbnail is only created for very large videos now
+            // Check for compatibility video, though
             assert!(updated_post.thumb_filename.is_none());
             assert!(
                 PostReview::video_is_compatible(&published_media_path)
@@ -378,13 +458,17 @@ async fn review_post_with_video() {
             assert!(updated_post.compat_video.is_none());
             assert!(updated_post.media_width.is_some());
             assert!(updated_post.media_height.is_some());
+
             break;
         }
     }
+
     assert!(
         processed,
         "Background processing did not complete in the expected time"
     );
+
+    // Clean up
     let mut tx = state.db.begin().await.expect("begins");
     let final_post = Post::select_by_key(&mut tx, &post.key)
         .await

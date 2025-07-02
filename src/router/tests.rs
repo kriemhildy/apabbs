@@ -1352,43 +1352,6 @@ async fn review_post_with_video() {
     tx.commit().await.expect("commits");
 }
 
-/// Tests decrypting and serving media files.
-#[tokio::test]
-async fn decrypt_media() {
-    use axum::http::header::CONTENT_DISPOSITION;
-
-    let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
-    let anon_user = test_user(None);
-    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
-    let user = create_test_account(&mut tx, AccountRole::Admin).await;
-    let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
-
-    // Request the encrypted media
-    let key = format!("/decrypt-media/{}", &post.key);
-    let request = Request::builder()
-        .uri(&key)
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
-
-    // Verify response headers and status
-    assert!(response.status().is_success());
-    let content_type = response.headers().get(CONTENT_TYPE).unwrap();
-    assert_eq!(content_type, "image/jpeg");
-    let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
-    assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
-
-    // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
-    post.delete(&mut tx).await.expect("query succeeds");
-    delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
-}
-
 /// Tests establishing a WebSocket connection and receiving real-time updates.
 #[tokio::test]
 async fn websocket_connection() {
