@@ -1,3 +1,8 @@
+0.43.1
+
+Fix panic caused when reviewing posts with no media.
+Fix manual ban functionality.
+
 0.43.0
 
 Allow forcing the re-run of migrations which have already been executed.
