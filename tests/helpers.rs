@@ -1,4 +1,5 @@
 //! Shared test helpers for integration tests.
+// The "dead code" is used in other test files but not in this one.
 
 use apabbs::{
     AppState,
@@ -13,8 +14,11 @@ use std::path::Path;
 use uuid::Uuid;
 
 pub const LOCAL_IP: &str = "::1";
+#[allow(dead_code)]
 pub const BAN_IP: &str = "192.0.2.0";
+#[allow(dead_code)]
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
+#[allow(dead_code)]
 pub const TEST_MEDIA_DIR: &str = "tests/media";
 
 pub async fn init_test() -> (Router, AppState) {
@@ -87,6 +91,7 @@ pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
         .expect("deletes test account");
 }
 
+#[allow(dead_code)]
 pub async fn create_test_post(
     tx: &mut PgConnection,
     user: &User,
@@ -140,6 +145,7 @@ pub async fn create_test_post(
     }
 }
 
+#[allow(dead_code)]
 pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: bool) -> bool {
     response
         .headers()
@@ -151,19 +157,23 @@ pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: boo
         })
 }
 
+#[allow(dead_code)]
 pub fn response_adds_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, false)
 }
 
+#[allow(dead_code)]
 pub fn response_removes_cookie(response: &Response<Body>, cookie: &str) -> bool {
     response_has_cookie(response, cookie, true)
 }
 
+#[allow(dead_code)]
 pub async fn response_body_str(response: Response<Body>) -> String {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     String::from_utf8(body.to_vec()).unwrap()
 }
 
+#[allow(dead_code)]
 pub async fn select_latest_post_by_session_token(
     tx: &mut PgConnection,
     session_token: &Uuid,
@@ -175,6 +185,7 @@ pub async fn select_latest_post_by_session_token(
         .expect("selects by session token")
 }
 
+#[allow(dead_code)]
 pub async fn select_latest_post_by_account_id(
     tx: &mut PgConnection,
     account_id: i32,
@@ -186,6 +197,7 @@ pub async fn select_latest_post_by_account_id(
         .expect("selects by account id")
 }
 
+#[allow(dead_code)]
 pub async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
     sqlx::query("DELETE FROM bans WHERE ip_hash = $1")
         .bind(ip_hash)
