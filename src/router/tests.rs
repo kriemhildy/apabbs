@@ -1438,12 +1438,13 @@ async fn websocket_connection() {
         .unwrap();
 
     // Check content
-    if let tungstenite::Message::Text(text) = message {
-        let json: serde_json::Value = serde_json::from_str(&text).expect("parse json");
-        assert_eq!(json["key"], post.key);
-        assert!(json["html"].as_str().unwrap().contains(&post.key));
-    } else {
-        panic!("Expected text message, got {message:?}");
+    match message {
+        tungstenite::Message::Text(text) => {
+            let json: serde_json::Value = serde_json::from_str(&text).expect("parse json");
+            assert_eq!(json["key"], post.key);
+            assert!(json["html"].as_str().unwrap().contains(&post.key));
+        }
+        other => panic!("Expected text message, got {other:?}"),
     }
 
     // Clean up
