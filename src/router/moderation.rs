@@ -15,7 +15,7 @@ use crate::{
     AppState,
     post::{Post, review::PostReview},
     router::ROOT,
-    utils::{BoxFuture, begin_transaction, commit_transaction, send_to_websocket},
+    utils::{begin_transaction, commit_transaction, send_to_websocket},
 };
 use axum::{
     Form,
@@ -75,8 +75,9 @@ pub async fn review_post(
     // Determine appropriate review action
     let review_action = PostReview::determine_action(&post, post_review.status, account.role);
 
+    use futures::future::BoxFuture;
     // Handle various review actions
-    let background_task: Option<BoxFuture> = match review_action {
+    let background_task: Option<BoxFuture<'static, ()>> = match review_action {
         // Handle errors
         Err(e @ SameStatus)
         | Err(e @ ReturnToPending)

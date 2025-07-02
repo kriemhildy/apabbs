@@ -7,10 +7,11 @@ use super::{Post, PostStatus};
 use crate::{
     AppState,
     user::AccountRole,
-    utils::{BoxFuture, begin_transaction, commit_transaction, send_to_websocket},
+    utils::{begin_transaction, commit_transaction, send_to_websocket},
 };
 use ReviewAction::*;
 use ReviewError::*;
+use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use std::{error::Error, fmt};
@@ -176,8 +177,8 @@ impl PostReview {
         post: &Post,
         status: PostStatus,
         action: ReviewAction,
-    ) -> Result<Option<BoxFuture>, Box<dyn Error + Send + Sync>> {
-        let background_task: Option<BoxFuture> = match action {
+    ) -> Result<Option<BoxFuture<'static, ()>>, Box<dyn Error + Send + Sync>> {
+        let background_task: Option<BoxFuture<'static, ()>> = match action {
             PublishMedia => {
                 // Create background task for media publication
                 Some(Box::pin(PostReview::publish_media_task(

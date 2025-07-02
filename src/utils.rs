@@ -1,6 +1,6 @@
 use crate::{AppState, post::Post};
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
-use std::{error::Error, pin::Pin};
+use std::error::Error;
 use tokio::sync::broadcast::Sender;
 
 // ==============================================================================
@@ -15,13 +15,6 @@ pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM
 
 /// Format string for UTC hour granularity in PostgreSQL queries.
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
-
-//==================================================================================================
-// Type Aliases
-//==================================================================================================
-
-/// Type alias for boxed background task futures.
-pub type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 //==================================================================================================
 // Database transactions
