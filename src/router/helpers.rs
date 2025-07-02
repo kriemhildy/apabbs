@@ -4,6 +4,7 @@
 //! user authentication, security checks, template rendering, session management, and browser
 //! detection. It also includes functions for managing posts and validating access permissions.
 
+use super::errors::ResponseError::{self, *};
 use crate::{
     ban,
     post::Post,
@@ -18,8 +19,6 @@ use axum_extra::extract::{
 use sqlx::PgConnection;
 use std::error::Error;
 use uuid::Uuid;
-
-use super::ResponseError::{self, *};
 
 //==================================================================================================
 // Constants

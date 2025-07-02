@@ -5,7 +5,7 @@
 
 use super::{
     ROOT,
-    ResponseError::{self, *},
+    errors::ResponseError::{self, *},
     helpers::{add_account_cookie, init_user, remove_account_cookie},
 };
 use crate::{

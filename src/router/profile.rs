@@ -8,7 +8,7 @@
 // =========================
 
 use super::{
-    ResponseError::{self, *},
+    errors::ResponseError::{self, *},
     helpers::{add_notice_cookie, init_user, remove_notice_cookie},
 };
 use crate::user::TimeZoneUpdate;

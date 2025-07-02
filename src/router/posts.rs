@@ -5,7 +5,7 @@
 
 use super::{
     ROOT,
-    ResponseError::{self, *},
+    errors::ResponseError::{self, *},
     helpers::{ban_if_flooding, init_post, init_user, is_fetch_request},
 };
 use crate::{

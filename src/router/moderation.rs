@@ -8,7 +8,7 @@
 // =========================
 
 use super::{
-    ResponseError::{self, *},
+    errors::ResponseError::{self, *},
     helpers::{init_user, is_fetch_request},
 };
 use crate::{
