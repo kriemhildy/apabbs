@@ -3,11 +3,27 @@
 //! This module provides handlers for approving, rejecting, banning, and decrypting posts.
 //! It enforces moderator/admin permissions and manages background media processing.
 
-use super::*;
-
 // =========================
 // Moderation Endpoints
 // =========================
+
+use super::{
+    ResponseError::{self, *},
+    helpers::{init_user, is_fetch_request},
+};
+use crate::{
+    AppState,
+    post::{Post, review::PostReview},
+    router::ROOT,
+    utils::{BoxFuture, begin_transaction, commit_transaction, send_to_websocket},
+};
+use axum::{
+    Form,
+    extract::{Path, State},
+    http::{HeaderMap, Method, StatusCode},
+    response::{IntoResponse, Redirect, Response},
+};
+use axum_extra::extract::CookieJar;
 
 /// Processes post moderation actions, enforcing business rules and managing background media processing.
 pub async fn review_post(
@@ -18,9 +34,10 @@ pub async fn review_post(
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
 ) -> Result<Response, ResponseError> {
-    use AccountRole::*;
-    use PostStatus::*;
-    use ReviewError::*;
+    use crate::{
+        post::{PostStatus::*, review::ReviewError::*},
+        user::AccountRole::*,
+    };
 
     let mut tx = begin_transaction(&state.db).await?;
 
@@ -119,6 +136,8 @@ pub async fn decrypt_media(
     headers: HeaderMap,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
+    use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+
     let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session

@@ -3,8 +3,7 @@
 //! Utilities for user registration, authentication, credentials validation, and account management.
 //! Handles both anonymous and registered users through a session-based system.
 
-use crate::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
-use regex::Regex;
+use crate::utils::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use std::error::Error;
@@ -210,6 +209,8 @@ impl Credentials {
     ///
     /// Performs checks on username and password format, reserved names, and confirmation.
     pub fn validate(&self) -> Vec<&str> {
+        use regex::Regex;
+
         let mut errors: Vec<&str> = Vec::new();
 
         // Validate username format

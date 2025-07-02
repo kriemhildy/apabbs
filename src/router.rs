@@ -21,19 +21,9 @@ pub mod tests;
 // Imports
 //==================================================================================================
 
-use crate::{AppState, BoxFuture, ban, post::*, user::*, utils::*};
-use axum::{
-    extract::{DefaultBodyLimit, Path, State},
-    http::{
-        Method, StatusCode,
-        header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderMap},
-    },
-    response::{Form, Html, IntoResponse, Redirect, Response},
-};
-use axum_extra::extract::cookie::CookieJar;
-use helpers::*;
+use crate::AppState;
+use axum::response::{IntoResponse, Response};
 use std::error::Error;
-use uuid::Uuid;
 
 //==================================================================================================
 // Constants
@@ -45,6 +35,8 @@ pub const ROOT: &str = "/";
 //==================================================================================================
 // Error Handling
 //==================================================================================================
+
+// Can we use built-in Axum error handling middleware?
 
 /// HTTP error responses.
 #[derive(Debug)]
@@ -68,6 +60,8 @@ impl From<Box<dyn Error + Send + Sync>> for ResponseError {
 /// Convert a ResponseError into an HTTP response.
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
+        use axum::http::StatusCode;
+
         let (status, msg) = match self {
             BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
@@ -100,7 +94,14 @@ impl IntoResponse for ResponseError {
 
 /// Configures the application router with routes and middleware.
 pub fn router(state: AppState, trace: bool) -> axum::Router {
-    use axum::routing::{get, post};
+    use auth;
+    use axum::{
+        extract::DefaultBodyLimit,
+        routing::{get, post},
+    };
+    use moderation;
+    use posts;
+    use profile;
 
     let router = axum::Router::new()
         // Public content routes

@@ -3,13 +3,11 @@
 //! This module provides the `PostSubmission` struct and related logic for handling new post creation,
 //! media uploads, YouTube embed processing, and intro preview truncation.
 
-use crate::post::Post;
-use crate::user::User;
+use crate::{post::Post, user::User};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
-use std::error::Error;
-use std::path::PathBuf;
+use std::{error::Error, path::PathBuf};
 use url::Url;
 use uuid::Uuid;
 

@@ -95,7 +95,8 @@ pub async fn main() {
 ///
 /// Recalculates the intro_limit field for all posts that have it set.
 pub async fn update_intro_limit(state: AppState) {
-    use apabbs::post::{Post, PostSubmission};
+    use apabbs::post::{Post, submission::PostSubmission};
+
     let mut tx = state.db.begin().await.expect("begins");
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
@@ -119,7 +120,7 @@ pub async fn update_intro_limit(state: AppState) {
 /// Finds YouTube links in posts, determines if they're shorts or regular videos,
 /// downloads appropriate thumbnails, and updates post content with the new thumbnail URLs.
 pub async fn download_youtube_thumbnails(state: AppState) {
-    use apabbs::post::PostSubmission;
+    use apabbs::post::submission::PostSubmission;
     use tokio::time::Duration;
 
     let mut tx = state.db.begin().await.expect("begins");
@@ -280,7 +281,7 @@ pub async fn uuid_to_key(state: AppState) {
 ///
 /// Creates smaller versions of images for faster loading and updates the database with the thumbnail paths and dimensions.
 pub async fn generate_image_thumbnails(state: AppState) {
-    use apabbs::post::{Post, PostReview};
+    use apabbs::post::{Post, review::PostReview};
     let mut tx = state.db.begin().await.expect("begins");
 
     // Get all image posts
@@ -337,7 +338,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
 /// Updates the database with dimension information for both original images
 /// and their thumbnails.
 pub async fn add_image_dimensions(state: AppState) {
-    use apabbs::post::{Post, PostReview};
+    use apabbs::post::{Post, review::PostReview};
     let mut tx = state.db.begin().await.expect("begins");
 
     // Get all image posts
@@ -383,7 +384,7 @@ pub async fn add_image_dimensions(state: AppState) {
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
 pub async fn process_videos(state: AppState) {
-    use apabbs::post::{Post, PostReview, media::MEDIA_DIR};
+    use apabbs::post::{Post, media::MEDIA_DIR, review::PostReview};
     let mut tx = state.db.begin().await.expect("begins");
 
     // Get all video posts
@@ -427,7 +428,7 @@ pub async fn process_videos(state: AppState) {
 
 /// Attempts to continue processing of any post that was interrupted.
 pub async fn retry_failed_tasks(state: AppState) {
-    use apabbs::post::{Post, PostReview, PostStatus, PostStatus::*};
+    use apabbs::post::{Post, PostStatus, PostStatus::*, review::PostReview};
 
     let mut tx = state.db.begin().await.expect("begins");
 

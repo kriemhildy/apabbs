@@ -4,12 +4,13 @@
 //! and file system operations for post media. Provides helpers for MIME type detection,
 //! path construction, and media processing workflows.
 
-use super::submission::PostSubmission;
-use super::{MediaCategory, Post, PostReview};
+use super::{MediaCategory, Post, PostReview, submission::PostSubmission};
 use regex::Regex;
 use sqlx::PgConnection;
-use std::error::Error;
-use std::path::{Path, PathBuf};
+use std::{
+    error::Error,
+    path::{Path, PathBuf},
+};
 
 /// Directory name for encrypted (at-rest) media file storage.
 pub const UPLOADS_DIR: &str = "uploads";

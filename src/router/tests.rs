@@ -3,9 +3,22 @@
 //! This module provides comprehensive tests for all API endpoints, authentication,
 //! content moderation, and user account operations.
 
-use super::auth::Logout;
-use super::*;
+use super::{
+    ROOT,
+    auth::Logout,
+    helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
+    router,
+};
 use crate::init_tracing_for_test;
+use crate::{
+    AppState, ban,
+    post::{
+        MediaCategory, Post, PostStatus,
+        review::PostReview,
+        submission::{PostHiding, PostSubmission},
+    },
+    user::{Account, AccountRole, Credentials, User},
+};
 use axum::{
     Router,
     body::Body,
@@ -16,9 +29,11 @@ use axum::{
 };
 use form_data_builder::FormData;
 use http_body_util::BodyExt;
+use sha256;
 use sqlx::PgConnection;
 use std::path::Path;
 use tower::util::ServiceExt; // for `call`, `oneshot`, and `ready`
+use uuid::Uuid;
 
 /// Local IP address for testing
 const LOCAL_IP: &str = "::1";
@@ -1340,6 +1355,8 @@ async fn review_post_with_video() {
 /// Tests decrypting and serving media files.
 #[tokio::test]
 async fn decrypt_media() {
+    use axum::http::header::CONTENT_DISPOSITION;
+
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let anon_user = test_user(None);

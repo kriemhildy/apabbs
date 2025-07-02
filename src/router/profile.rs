@@ -3,13 +3,28 @@
 //! This module provides endpoints for displaying user profiles, managing account settings,
 //! updating time zones, and changing passwords. It enforces authentication and input validation.
 
-use super::*;
-
 // =========================
 // Profile Display Endpoints
 // =========================
 
-/// Displays a user's profile page with their public posts.
+use super::{
+    ResponseError::{self, *},
+    helpers::{add_notice_cookie, init_user, remove_notice_cookie},
+};
+use crate::user::TimeZoneUpdate;
+use crate::{
+    AppState,
+    post::Post,
+    user::{Account, Credentials},
+    utils::{begin_transaction, commit_transaction, render},
+};
+use axum::{
+    extract::{Form, Path, State},
+    http::{HeaderMap, Method},
+    response::{Html, IntoResponse, Redirect, Response},
+};
+use axum_extra::extract::CookieJar;
+
 pub async fn user_profile(
     method: Method,
     State(state): State<AppState>,

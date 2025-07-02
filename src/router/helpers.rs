@@ -4,10 +4,22 @@
 //! user authentication, security checks, template rendering, session management, and browser
 //! detection. It also includes functions for managing posts and validating access permissions.
 
-use super::*;
-use axum_extra::extract::cookie::{Cookie, SameSite};
+use crate::{
+    ban,
+    post::Post,
+    user::{Account, Credentials, User, UserAgent},
+    utils::set_session_time_zone,
+};
+use axum::http::{HeaderMap, Method};
+use axum_extra::extract::{
+    CookieJar,
+    cookie::{Cookie, SameSite},
+};
 use sqlx::PgConnection;
 use std::error::Error;
+use uuid::Uuid;
+
+use super::ResponseError::{self, *};
 
 //==================================================================================================
 // Constants
@@ -184,18 +196,6 @@ pub async fn init_user(
     Ok((user, jar))
 }
 
-/// Set the PostgreSQL session time zone for the current connection.
-pub async fn set_session_time_zone(
-    tx: &mut PgConnection,
-    time_zone: &str,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    sqlx::query(&format!("SET TIME ZONE '{time_zone}'"))
-        .execute(&mut *tx)
-        .await
-        .map(|_| ())
-        .map_err(|e| format!("failed to set session time zone: {e}").into())
-}
-
 //==================================================================================================
 // Post and Content Management
 //==================================================================================================
@@ -206,7 +206,8 @@ pub async fn init_post(
     key: &str,
     user: &User,
 ) -> Result<Post, ResponseError> {
-    use PostStatus::*;
+    use crate::post::PostStatus::*;
+
     match Post::select_by_key(tx, key).await? {
         None => Err(NotFound("Post does not exist".to_string())),
         Some(post) => {
@@ -223,31 +224,9 @@ pub async fn init_post(
     }
 }
 
+//===================================================================================================
+// Request and Response Utilities
 //==================================================================================================
-// Templating and Rendering
-//==================================================================================================
-
-/// Render a template with the given context using the application's Jinja environment.
-pub fn render(
-    state: &AppState,
-    name: &str,
-    ctx: minijinja::value::Value,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    if crate::dev() {
-        let mut env = state
-            .jinja
-            .write()
-            .map_err(|e| format!("failed to acquire write lock for template \"{name}\": {e}"))?;
-        env.clear_templates();
-    }
-    let env = state
-        .jinja
-        .read()
-        .map_err(|e| format!("failed to acquire read lock for template \"{name}\": {e}"))?;
-    let tmpl = env.get_template(name)?;
-    tmpl.render(ctx)
-        .map_err(|e| format!("failed to render template \"{name}\": {e}").into())
-}
 
 /// Determine if a request is an AJAX/fetch request (not a navigation).
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
@@ -276,15 +255,4 @@ pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
         mac: user_agent_str.contains("Macintosh"),
         chromium: user_agent_str.contains("Chrome"),
     })
-}
-
-/// Generate a UTC timestamp string for the current hour.
-pub async fn utc_hour_timestamp(
-    tx: &mut PgConnection,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    sqlx::query_scalar("SELECT to_char(current_timestamp AT TIME ZONE 'UTC', $1)")
-        .bind(crate::POSTGRES_UTC_HOUR)
-        .fetch_one(tx)
-        .await
-        .map_err(|e| format!("failed to get UTC hour timestamp: {e}").into())
 }

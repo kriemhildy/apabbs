@@ -18,6 +18,7 @@ pub mod cron;
 pub mod post;
 pub mod router;
 pub mod user;
+pub mod utils;
 
 // ==============================================================================
 // Imports
@@ -26,31 +27,8 @@ pub mod user;
 use crate::post::Post;
 use minijinja::Environment;
 use sqlx::PgPool;
-use std::{
-    pin::Pin,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
-
-// ==============================================================================
-// Constants
-// ==============================================================================
-
-/// Format string for RFC 5322-style datetime in PostgreSQL queries.
-pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
-
-/// Format string for HTML5 datetime attribute in PostgreSQL queries.
-pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD\"T\"HH24:MI:SS.FF3TZH:TZM"#;
-
-/// Format string for UTC hour granularity in PostgreSQL queries.
-pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
-
-//==================================================================================================
-// Type Aliases
-//==================================================================================================
-
-/// Type alias for boxed background task futures.
-pub type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 // ==============================================================================
 // Environment/Config Functions
@@ -159,44 +137,6 @@ pub async fn app_state() -> AppState {
     let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
 
     AppState { db, jinja, sender }
-}
-
-mod utils {
-    use super::*;
-    use sqlx::{Postgres, Transaction};
-    use std::error::Error;
-    //==================================================================================================
-    // Database transactions
-    //==================================================================================================
-
-    /// Begin a new database transaction.
-    pub async fn begin_transaction(
-        db: &PgPool,
-    ) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
-        db.begin()
-            .await
-            .map_err(|e| format!("failed to begin database transaction: {e}").into())
-    }
-
-    /// Commit a database transaction.
-    pub async fn commit_transaction(
-        tx: Transaction<'_, Postgres>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        tx.commit()
-            .await
-            .map_err(|e| format!("failed to commit transaction: {e}").into())
-    }
-
-    //==================================================================================================
-    // WebSocket utilities
-    //==================================================================================================
-
-    /// Send a message to a WebSocket connection.
-    pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
-        if let Err(e) = sender.send(post) {
-            tracing::warn!("No active WebSocket receivers to send to: {e}");
-        }
-    }
 }
 
 // ==============================================================================

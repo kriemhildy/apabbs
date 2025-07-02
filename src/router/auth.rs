@@ -3,9 +3,25 @@
 //! This module provides endpoints for user login, registration, logout, and account token reset.
 //! It handles session management, credential validation, and user authentication flows.
 
-use super::*;
-use axum::response::{IntoResponse, Response};
+use super::{
+    ROOT,
+    ResponseError::{self, *},
+    helpers::{add_account_cookie, init_user, remove_account_cookie},
+};
+use crate::{
+    AppState,
+    user::Credentials,
+    utils::{begin_transaction, commit_transaction, render},
+};
+use axum::{
+    Form,
+    extract::State,
+    http::{HeaderMap, Method},
+    response::{Html, IntoResponse, Redirect, Response},
+};
+use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ================================================================================================
 // Login and Registration Forms
@@ -110,6 +126,8 @@ pub async fn create_account(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
+    use super::helpers::ban_if_flooding;
+
     let mut tx = begin_transaction(&state.db).await?;
 
     // Initialize user from session
