@@ -12,7 +12,7 @@ use super::{
     helpers::{init_user, is_fetch_request},
 };
 use crate::{
-    AppState,
+    AppState, ban,
     post::{Post, review::PostReview},
     router::ROOT,
     utils::{begin_transaction, commit_transaction, send_to_websocket},
@@ -104,6 +104,14 @@ pub async fn review_post(
     // Update post status and record review action
     let post = post.update_status(&mut tx, status).await?;
     post_review.insert(&mut tx, account.id, post.id).await?;
+
+    // Handle banned post cleanup
+    if post.status == Banned {
+        if let Some(ip_hash) = post.ip_hash.as_ref() {
+            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await?;
+        }
+        post.delete(&mut tx).await?;
+    }
 
     commit_transaction(tx).await?;
 
