@@ -11,7 +11,7 @@ use apabbs::{
 use axum::{
     body::Body,
     http::{
-        Request, StatusCode,
+        Method, Request, StatusCode,
         header::{CONTENT_TYPE, COOKIE},
     },
 };
@@ -20,14 +20,19 @@ use std::time::Duration;
 use tower::ServiceExt;
 use uuid::Uuid;
 
+/// Tests automatic banning functionality for suspicious activity.
 #[tokio::test]
 async fn autoban() {
+    use form_data_builder::FormData;
+
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("begins");
     let user = User {
         ip_hash: sha256::digest(apabbs::secret_key() + BAN_IP),
         ..User::default()
     };
+
+    // Create several accounts from the same IP
     let mut credentials = test_credentials(&user);
     for _ in 0..3 {
         credentials.session_token = Uuid::new_v4();
@@ -37,6 +42,8 @@ async fn autoban() {
             .await
             .expect("query succeeds");
     }
+
+    // Create several posts from the same IP
     let mut post_submission = PostSubmission {
         session_token: user.session_token,
         body: String::from("trololol"),
@@ -52,6 +59,8 @@ async fn autoban() {
             .await
             .expect("query succeeds");
     }
+
+    // Verify state before flooding threshold is reached
     assert_eq!(
         ban::new_accounts_count(&mut tx, &user.ip_hash)
             .await
@@ -75,6 +84,8 @@ async fn autoban() {
             .await
             .expect("query succeeds")
     );
+
+    // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
     let key = PostSubmission::generate_key(&mut tx)
         .await
@@ -83,6 +94,8 @@ async fn autoban() {
         .insert(&mut tx, &user, &key)
         .await
         .expect("query succeeds");
+
+    // Verify flooding is detected but ban not yet applied
     assert_eq!(
         ban::new_accounts_count(&mut tx, &user.ip_hash)
             .await
@@ -107,24 +120,28 @@ async fn autoban() {
             .expect("query succeeds")
     );
     tx.commit().await.expect("commits");
-    let mut form = form_data_builder::FormData::new(Vec::new());
+
+    // Attempt another post to trigger the ban
+    let mut form = FormData::new(Vec::new());
     let bogus_session_token = Uuid::new_v4();
     form.write_field("session_token", &bogus_session_token.to_string())
         .unwrap();
     form.write_field("body", "trololol").unwrap();
+
     let request = Request::builder()
-        .method("POST")
+        .method(Method::POST)
         .uri("/submit-post")
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, bogus_session_token),
-        )
-        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(COOKIE, format!("{SESSION_COOKIE}={bogus_session_token}"))
+        .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, BAN_IP)
         .body(Body::from(form.finish().unwrap()))
         .unwrap();
     let response = router.oneshot(request).await.unwrap();
+
+    // Verify ban was applied
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    // Verify ban state after ban
     let mut tx = state.db.begin().await.expect("begins");
     assert!(
         ban::exists(&mut tx, &user.ip_hash, None)
@@ -149,6 +166,8 @@ async fn autoban() {
             .expect("query succeeds"),
         0
     );
+
+    // Clean up
     delete_test_ban(&mut tx, &user.ip_hash).await;
     tx.commit().await.expect("commits");
 }

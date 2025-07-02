@@ -47,7 +47,7 @@ async fn index() {
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert!(body_str.contains(r#"<div id=\"posts\">"#));
+    assert!(body_str.contains(r#"<div id="posts">"#));
     assert!(body_str.contains(&apabbs::host()));
 }
 
@@ -68,8 +68,8 @@ async fn solo_post() {
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
     let body_str = response_body_str(response).await;
-    assert!(!body_str.contains(r#"<div id=\"posts\">"#));
-    assert!(body_str.contains(r#"<div id=\"created-at\">"#));
+    assert!(!body_str.contains(r#"<div id="posts">"#));
+    assert!(body_str.contains(r#"<div id="created-at">"#));
     let mut tx = state.db.begin().await.expect("begins");
     post.delete(&mut tx).await.expect("query succeeds");
     tx.commit().await.expect("commits");
@@ -309,7 +309,7 @@ async fn decrypt_media() {
         .unwrap();
     assert_eq!(content_type, "image/jpeg");
     let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
-    assert_eq!(content_disposition, r#"inline; filename=\"image.jpeg\""#);
+    assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
     let mut tx = state.db.begin().await.expect("begins");
     post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
