@@ -14,8 +14,6 @@ pub mod helpers;
 pub mod moderation;
 pub mod posts;
 pub mod profile;
-#[cfg(test)]
-pub mod tests;
 
 //==================================================================================================
 // Imports
