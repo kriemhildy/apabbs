@@ -178,6 +178,10 @@ impl PostReview {
         status: PostStatus,
         action: ReviewAction,
     ) -> Result<Option<BoxFuture<'static, ()>>, Box<dyn Error + Send + Sync>> {
+        if post.media_category.is_none() {
+            return Ok(None); // No media to process
+        }
+
         let background_task: Option<BoxFuture<'static, ()>> = match action {
             PublishMedia => {
                 // Create background task for media publication
