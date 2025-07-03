@@ -75,7 +75,9 @@ pub fn render(
         .jinja
         .read()
         .map_err(|e| format!("failed to acquire read lock for template \"{name}\": {e}"))?;
-    let tmpl = env.get_template(name)?;
+    let tmpl = env.get_template(name).map_err(|e| {
+        Box::<dyn Error + Send + Sync>::from(format!("failed to get template \"{name}\": {e}"))
+    })?;
     tmpl.render(ctx)
         .map_err(|e| format!("failed to render template \"{name}\": {e}").into())
 }
