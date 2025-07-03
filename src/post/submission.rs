@@ -184,7 +184,7 @@ impl PostSubmission {
             .replace("\r", "\n")
             .replace("\n", "<br>\n");
         let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("builds regex");
-        let anchor_tag = r#"<a href="$1">$1</a>"#;
+        let anchor_tag = r#"<a href="$1" rel="noopener" target="_blank">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         Self::embed_youtube(html, key)
             .await
@@ -203,7 +203,7 @@ impl PostSubmission {
             r#"(?m)^ *<a href=""#,
             r#"(https?://(?:youtu\.be/|(?:www\.|m\.)?youtube\.com/"#,
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
-            r#"([^&\s\?]+)\S*)">\S+</a> *(?:<br>)?$"#,
+            r#"([^&\s\?]+)\S*)" rel="noopener" target="_blank">\S+</a> *(?:<br>)?$"#,
         );
         let link_regex = Regex::new(LINK_PATTERN).expect("builds regex");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
@@ -246,7 +246,8 @@ impl PostSubmission {
                 concat!(
                     "<div class=\"youtube\">\n",
                     "    <div class=\"youtube-logo\">\n",
-                    "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\">",
+                    "        <a href=\"https://www.youtube.com/{url_path}{video_id}{timestamp}\" ",
+                    "rel=\"noopener\" target=\"_blank\">",
                     "<img src=\"/youtube.svg\" alt=\"YouTube {video_id}\" ",
                     "width=\"20\" height=\"20\">",
                     "</a>\n",
@@ -445,10 +446,12 @@ mod tests {
             concat!(
                 "&lt;&amp;test body&quot;&apos; コンピューター<br>\n",
                 "<br>\n",
-                "<a href=\"https://example.com\">https://example.com</a><br>\n",
+                "<a href=\"https://example.com\" rel=\"noopener\" target=\"_blank\">",
+                "https://example.com</a><br>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"youtube-logo\">\n",
-                "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\">",
+                "        <a href=\"https://www.youtube.com/watch?v=jNQXAC9IVRw\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube jNQXAC9IVRw\" width=\"20\" height=\"20\">",
                 "</a>\n",
                 "    </div>\n",
@@ -461,7 +464,8 @@ mod tests {
                 "</div>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"youtube-logo\">\n",
-                "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\">",
+                "        <a href=\"https://www.youtube.com/watch?v=kixirmHePCc&amp;t=3\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube kixirmHePCc\" width=\"20\" height=\"20\">",
                 "</a>\n",
                 "    </div>\n",
@@ -474,7 +478,8 @@ mod tests {
                 "</div>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"youtube-logo\">\n",
-                "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\">",
+                "        <a href=\"https://www.youtube.com/shorts/cHMCGCWit6U\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube cHMCGCWit6U\" width=\"20\" height=\"20\">",
                 "</a>\n",
                 "    </div>\n",
@@ -485,20 +490,24 @@ mod tests {
                 "</a>\n",
                 "    </div>\n",
                 "</div>\n",
-                "<a href=\"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\">",
+                "<a href=\"https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "https://example.com?m.youtube.com/watch?v=jNQXAC9IVRw",
                 "</a><br>\n",
                 "foo ",
-                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s\">",
+                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ&amp;t=2m1s",
                 "</a><br>\n",
                 "<br>\n",
-                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ\">",
+                "<a href=\"https://www.youtube.com/watch?v=ySrBS4ulbmQ\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "https://www.youtube.com/watch?v=ySrBS4ulbmQ",
                 "</a> bar<br>\n",
                 "<div class=\"youtube\">\n",
                 "    <div class=\"youtube-logo\">\n",
-                "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\">",
+                "        <a href=\"https://www.youtube.com/watch?v=28jr-6-XDPM&amp;t=10s\" ",
+                "rel=\"noopener\" target=\"_blank\">",
                 "<img src=\"/youtube.svg\" alt=\"YouTube 28jr-6-XDPM\" width=\"20\" height=\"20\">",
                 "</a>\n",
                 "    </div>\n",
