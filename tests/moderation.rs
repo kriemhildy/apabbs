@@ -62,6 +62,10 @@ async fn decrypt_media() {
     post.delete(&mut tx).await.expect("query succeeds");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("commits");
+    let encrypted_file_path = post.encrypted_media_path();
+    PostReview::delete_upload_key_dir(&encrypted_file_path)
+        .await
+        .expect("deletes upload key dir");
 }
 
 /// Tests automatic banning functionality for suspicious activity.
