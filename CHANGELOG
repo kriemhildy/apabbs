@@ -1,3 +1,9 @@
+0.43.2
+
+Fix HTML datetime format.
+Remove video metadata preloading on index pages.
+Reduce image brightness and adjust background color.
+
 0.43.1
 
 Fix panic caused when reviewing posts with no media.
