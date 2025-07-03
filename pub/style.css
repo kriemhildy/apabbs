@@ -5,7 +5,7 @@
 /* Color variables for dark and light modes. All colors are referenced via these variables. */
 :root {
     /* Dark mode color scheme (default) */
-    --back: black;
+    --back: rgb(13, 13, 13);
     --fore: #e3e3e3;
     --border: #777;
     --system: #9cdcda;
@@ -17,6 +17,11 @@
     --rejected: rgb(37, 4, 4);
     --banned: rgb(105, 10, 10);
     --disabled: #444;
+}
+
+/* Reduce brightness in dark mode to reduce discomfort */
+img, video {
+    filter: brightness(0.87);
 }
 
 /* Light mode color scheme (activated by system preference) */
@@ -34,6 +39,11 @@
         --rejected: rgb(250, 226, 226);
         --banned: rgb(231, 102, 102);
         --disabled: #ccc;
+    }
+
+    /* Use standard brightness in light mode */
+    img, video {
+        filter: unset;
     }
 }
 
