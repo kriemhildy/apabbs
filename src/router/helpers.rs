@@ -4,7 +4,10 @@
 //! user authentication, security checks, template rendering, session management, and browser
 //! detection. It also includes functions for managing posts and validating access permissions.
 
-use super::errors::ResponseError::{self, *};
+use super::{
+    ROOT,
+    errors::ResponseError::{self, *},
+};
 use crate::{
     ban,
     post::Post,
@@ -72,7 +75,7 @@ pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static>
     let mut cookie = Cookie::build((name.to_string(), value.to_string()))
         .secure(!crate::dev())
         .http_only(true)
-        .path("/")
+        .path(ROOT)
         .same_site(SameSite::Lax)
         .build();
     if permanent {
@@ -83,7 +86,7 @@ pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static>
 
 /// Create a cookie for removal by setting its expiration in the past.
 pub fn removal_cookie(name: &str) -> Cookie<'static> {
-    Cookie::build(name.to_string()).path("/").build()
+    Cookie::build(name.to_string()).path(ROOT).build()
 }
 
 /// Add a notice cookie for flash messages to the cookie jar.
