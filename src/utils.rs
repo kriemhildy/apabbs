@@ -1,3 +1,8 @@
+//! General utility functions and constants for database, rendering, and time handling.
+//!
+//! This module provides helpers for database transactions, WebSocket messaging,
+//! template rendering, and time/date formatting used throughout the application.
+
 use crate::{AppState, post::Post};
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::error::Error;
