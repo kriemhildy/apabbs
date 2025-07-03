@@ -16,7 +16,8 @@
     {% set mime_type = "video/mp4" if post.compat_video else post.media_mime_type %}
     {% set poster_filename = post.thumb_filename if thumb else post.video_poster %}
     {% set poster_path = "/m/" + post.key + "/" + poster_filename|urlencode %}
-    <video width="{{ width }}" height="{{ height }}" controls poster="{{ poster_path }}" preload="metadata">
+    {% set preload = "metadata" if solo else "none" %}
+    <video width="{{ width }}" height="{{ height }}" controls poster="{{ poster_path }}" preload="{{ preload }}">
         <source src="{{ media_path }}" type="{{ mime_type }}">
         Video {{ post.media_filename }}
     </video>

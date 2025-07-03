@@ -23,9 +23,9 @@
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <textarea name="body"></textarea>
             <div class="row">
+                <input type="submit" value="Post">
                 {# File upload field for images/videos #}
                 <input type="file" name="media">
-                <input type="submit" value="Post">
                 {# Loading indicator that shows during form submission #}
                 <div id="spinner"></div>
             </div>
