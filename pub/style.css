@@ -19,7 +19,7 @@
     --disabled: #444;
 }
 
-/* Reduce brightness in dark mode to reduce discomfort */
+/* Reduce brightness in dark mode to avoid discomfort. */
 img, video {
     filter: brightness(0.87);
 }
@@ -41,7 +41,7 @@ img, video {
         --disabled: #ccc;
     }
 
-    /* Use standard brightness in light mode */
+    /* Use standard brightness in light mode. */
     img, video {
         filter: unset;
     }
