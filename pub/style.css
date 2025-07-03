@@ -107,6 +107,10 @@ select {
     margin: 7px 0;
 }
 
+input#post-button {
+    font-weight: bold;
+}
+
 input[type="text"],
 input[type="password"] {
     margin: 4px 0;
