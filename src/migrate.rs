@@ -47,7 +47,7 @@ pub async fn main() {
     }
 
     // Initialize state
-    let state = apabbs::app_state().await;
+    let state = apabbs::init_app_state().await;
 
     // Force execution of a specific migration if provided as an argument
     let args: Vec<String> = std::env::args().collect();

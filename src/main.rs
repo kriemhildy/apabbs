@@ -26,7 +26,7 @@ pub async fn main() {
     apabbs::cron::init().await;
 
     // Build application state (DB, templates, broadcast channel)
-    let state = apabbs::app_state().await;
+    let state = apabbs::init_app_state().await;
 
     // Build router with all routes and middleware
     let router = apabbs::router::init_router(state, true);

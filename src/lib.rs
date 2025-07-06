@@ -85,7 +85,7 @@ pub struct AppState {
 /// Initializes the application state.
 ///
 /// Sets up database connections, configures template rendering, and creates a broadcast channel for real-time updates.
-pub async fn app_state() -> AppState {
+pub async fn init_app_state() -> AppState {
     // Initialize database connection pool
     let db = db().await;
 
