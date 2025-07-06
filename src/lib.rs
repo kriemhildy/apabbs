@@ -34,12 +34,6 @@ use tokio::sync::broadcast::Sender;
 // Environment/Config Functions
 // ==============================================================================
 
-/// Creates a connection pool to the PostgreSQL database.
-pub async fn db() -> PgPool {
-    let url = std::env::var("DATABASE_URL").expect("sets database env var");
-    PgPool::connect(&url).await.expect("connects to postgres")
-}
-
 /// Returns the number of items to show per page.
 pub fn per_page() -> usize {
     match std::env::var("PER_PAGE") {
@@ -70,8 +64,6 @@ pub fn secret_key() -> String {
 // ==============================================================================
 
 /// Shared application state accessible to all request handlers.
-///
-/// Contains database connections, template rendering engine, and event broadcasting channels.
 #[derive(Clone)]
 pub struct AppState {
     /// Database connection pool
@@ -83,60 +75,67 @@ pub struct AppState {
 }
 
 /// Initializes the application state.
-///
-/// Sets up database connections, configures template rendering, and creates a broadcast channel for real-time updates.
 pub async fn init_app_state() -> AppState {
-    // Initialize database connection pool
-    let db = db().await;
+    AppState {
+        db: init_db().await,
+        jinja: init_jinja(),
+        sender: init_sender(),
+    }
+}
 
-    // Configure template rendering environment
-    let jinja = {
-        use regex::Regex;
-        let mut env = Environment::new();
+/// Creates a connection pool to the PostgreSQL database.
+pub async fn init_db() -> PgPool {
+    let url = std::env::var("DATABASE_URL").expect("sets database env var");
+    PgPool::connect(&url).await.expect("connects to postgres")
+}
 
-        // Configure template loading and rendering options
-        env.set_loader(minijinja::path_loader("templates"));
-        env.set_keep_trailing_newline(true);
-        env.set_lstrip_blocks(true);
-        env.set_trim_blocks(true);
+/// Initializes the template rendering environment with filters and loaders.
+pub fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
+    use regex::Regex;
+    let mut env = Environment::new();
 
-        /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
-        fn remove_youtube_thumbnail_links(body: &str) -> String {
-            let re = Regex::new(concat!(
-                r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
-                r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
-            ))
-            .expect("builds regex");
+    // Configure template loading and rendering options
+    env.set_loader(minijinja::path_loader("templates"));
+    env.set_keep_trailing_newline(true);
+    env.set_lstrip_blocks(true);
+    env.set_trim_blocks(true);
 
-            re.replace_all(
-                body,
-                concat!(
-                    r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
-                    r#"width="$3" height="$4">"#,
-                ),
-            )
-            .to_string()
-        }
-        env.add_filter(
-            "remove_youtube_thumbnail_links",
-            remove_youtube_thumbnail_links,
-        );
+    /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
+    fn remove_youtube_thumbnail_links(body: &str) -> String {
+        let re = Regex::new(concat!(
+            r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
+            r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
+        ))
+        .expect("builds regex");
 
-        /// Template filter to slice a string to a specific byte length.
-        fn byte_slice(body: &str, end: usize) -> String {
-            // Ensure we don't exceed the string length
-            let end = end.min(body.len());
-            body[..end].to_string()
-        }
-        env.add_filter("byte_slice", byte_slice);
+        re.replace_all(
+            body,
+            concat!(
+                r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
+                r#"width="$3" height="$4">"#,
+            ),
+        )
+        .to_string()
+    }
+    env.add_filter(
+        "remove_youtube_thumbnail_links",
+        remove_youtube_thumbnail_links,
+    );
 
-        Arc::new(RwLock::new(env))
-    };
+    /// Template filter to slice a string to a specific byte length.
+    fn byte_slice(body: &str, end: usize) -> String {
+        // Ensure we don't exceed the string length
+        let end = end.min(body.len());
+        body[..end].to_string()
+    }
+    env.add_filter("byte_slice", byte_slice);
 
-    // Create broadcast channel for real-time updates
-    let sender = Arc::new(tokio::sync::broadcast::channel(100).0);
+    Arc::new(RwLock::new(env))
+}
 
-    AppState { db, jinja, sender }
+/// Initializes the broadcast channel for real-time updates.
+pub fn init_sender() -> Arc<Sender<Post>> {
+    Arc::new(tokio::sync::broadcast::channel(100).0)
 }
 
 // ==============================================================================
