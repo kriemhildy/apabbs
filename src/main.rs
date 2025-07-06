@@ -29,7 +29,7 @@ pub async fn main() {
     let state = apabbs::app_state().await;
 
     // Build router with all routes and middleware
-    let router = apabbs::router::router(state, true);
+    let router = apabbs::router::init_router(state, true);
 
     // Get server port from environment or use default
     let port = std::env::var("PORT")

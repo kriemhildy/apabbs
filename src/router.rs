@@ -18,7 +18,7 @@ use crate::AppState;
 pub const ROOT: &str = "/";
 
 /// Configures the application router with routes and middleware.
-pub fn router(state: AppState, trace: bool) -> axum::Router {
+pub fn init_router(state: AppState, trace: bool) -> axum::Router {
     use auth;
     use axum::{
         extract::DefaultBodyLimit,

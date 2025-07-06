@@ -22,11 +22,11 @@ pub const TEST_MEDIA_DIR: &str = "tests/media";
 
 /// Initialize tracing, app state, and router for integration tests.
 pub async fn init_test() -> (Router, AppState) {
-    use apabbs::{app_state, init_tracing_for_test, router::router};
+    use apabbs::{app_state, init_tracing_for_test, router::init_router};
 
     init_tracing_for_test();
     let state = app_state().await;
-    let router = router(state.clone(), false);
+    let router = init_router(state.clone(), false);
     (router, state)
 }
 
