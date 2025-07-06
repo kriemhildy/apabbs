@@ -146,7 +146,7 @@ pub async fn init_app_state() -> AppState {
 /// Ensure we are in development mode before running tests.
 #[cfg(test)]
 #[ctor::ctor]
-fn init() {
+fn ensure_dev() {
     if !dev() {
         eprintln!("Only run tests in development mode (DEV=1)");
         std::process::exit(1);
