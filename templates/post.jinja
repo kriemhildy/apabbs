@@ -32,6 +32,7 @@
     {###################################################################################}
     {# Include the media template if we have media file #}
     {% if post.media_filename %}
+    {% set media_path = none %}
     {% set thumb = not solo and post.thumb_filename %}
     {# For approved or delisted posts, use public media paths #}
     {% if post.status in ["approved", "delisted"] %}
