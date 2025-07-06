@@ -31,8 +31,7 @@
     {# Media #}
     {###################################################################################}
     {# Include the media template if we have media file #}
-    {% if post.media_filename %}
-    {% set media_path = none %}
+    {% if post.media_filename and post.status not in ["processing", "rejected", "banned"] %}
     {% set thumb = not solo and post.thumb_filename %}
     {# For approved or delisted posts, use public media paths #}
     {% if post.status in ["approved", "delisted"] %}
