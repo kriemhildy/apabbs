@@ -32,10 +32,11 @@
     {###################################################################################}
     {# Include the media template if we have media file #}
     {% if post.media_filename and post.status not in ["processing", "rejected", "banned"] %}
-    {% set thumb = not solo and post.thumb_filename %}
+    {% set media_path = none %}
+    {% set use_thumb = not solo and post.thumb_filename %}
     {# For approved or delisted posts, use public media paths #}
     {% if post.status in ["approved", "delisted"] %}
-    {% set media_filename = (post.thumb_filename if post.media_category == "image" and thumb)
+    {% set media_filename = (post.thumb_filename if post.media_category == "image" and use_thumb)
         or (post.compat_video if post.compat_video)
         or post.media_filename %}
     {% set media_path = "/m/" + post.key + "/" + media_filename|urlencode %}

@@ -1,7 +1,7 @@
 {# Media display template for images, videos, and audio files #}
 {# Set filename, dimensions and type based on whether to use thumbnail or full media #}
-{% set width = post.thumb_width if thumb else post.media_width %}
-{% set height = post.thumb_height if thumb else post.media_height %}
+{% set width = post.thumb_width if use_thumb else post.media_width %}
+{% set height = post.thumb_height if use_thumb else post.media_height %}
 <div class="media">
     {# Image display handling #}
     {% if post.media_category == "image" %}
@@ -14,7 +14,7 @@
     {# Video display handling with poster image #}
     {% elif post.media_category == "video" %}
     {% set mime_type = "video/mp4" if post.compat_video else post.media_mime_type %}
-    {% set poster_filename = post.thumb_filename if thumb else post.video_poster %}
+    {% set poster_filename = post.thumb_filename if use_thumb else post.video_poster %}
     {% set poster_path = "/m/" + post.key + "/" + poster_filename|urlencode %}
     {% set preload = "metadata" if solo else "none" %}
     <video width="{{ width }}" height="{{ height }}" controls poster="{{ poster_path }}" preload="{{ preload }}">
