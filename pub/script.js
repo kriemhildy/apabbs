@@ -162,7 +162,7 @@ const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
 let webSocket;
 const MIN_RECONNECT_DURATION = 5_000;
 const MAX_RECONNECT_DURATION = 60_000;
-let reconnectDuration = MIN_RECONNECT_DURATION;
+let reconnectDuration;
 let reconnectTimeout = null;
 
 /**
