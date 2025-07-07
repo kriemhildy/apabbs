@@ -238,9 +238,9 @@ impl Post {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let thumbnail_filename = thumbnail_path
             .file_name()
-            .expect("filename exists")
+            .expect("Get filename from Path")
             .to_str()
-            .expect("filename to str");
+            .expect("Convert filename to str");
 
         sqlx::query(concat!(
             "UPDATE posts SET thumb_filename = $1, thumb_width = $2, ",
@@ -264,9 +264,9 @@ impl Post {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let compat_filename = compat_path
             .file_name()
-            .expect("filename exists")
+            .expect("Get filename from Path")
             .to_str()
-            .expect("filename to str");
+            .expect("Convert filename to str");
         sqlx::query("UPDATE posts SET compat_video = $1 WHERE id = $2")
             .bind(compat_filename)
             .bind(self.id)
@@ -301,9 +301,9 @@ impl Post {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let media_poster_filename = video_poster_path
             .file_name()
-            .expect("filename exists")
+            .expect("Get filename from Path")
             .to_str()
-            .expect("filename to str");
+            .expect("Convert filename to str");
 
         sqlx::query("UPDATE posts SET video_poster = $1 WHERE id = $2")
             .bind(media_poster_filename)

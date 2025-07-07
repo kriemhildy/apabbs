@@ -33,12 +33,12 @@ async fn decrypt_media() {
     use axum::http::header::CONTENT_DISPOSITION;
 
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let anon_user = test_user(None);
     let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Request the encrypted media
     let key = format!("/decrypt-media/{}", &post.key);
@@ -58,21 +58,21 @@ async fn decrypt_media() {
     assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
-    post.delete(&mut tx).await.expect("query succeeds");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
+    post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
     let encrypted_file_path = post.encrypted_media_path();
     PostReview::delete_upload_key_dir(&encrypted_file_path)
         .await
-        .expect("deletes upload key dir");
+        .expect("Delete directory");
 }
 
 /// Tests automatic banning functionality for suspicious activity.
 #[tokio::test]
 async fn autoban() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = User {
         ip_hash: sha256::digest(apabbs::secret_key() + BAN_IP),
         ..User::default()
@@ -86,7 +86,7 @@ async fn autoban() {
         credentials
             .register(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds");
+            .expect("Execute query");
     }
 
     // Create several posts from the same IP
@@ -99,73 +99,73 @@ async fn autoban() {
         post_submission.session_token = Uuid::new_v4();
         let key = PostSubmission::generate_key(&mut tx)
             .await
-            .expect("query succeeds");
+            .expect("Execute query");
         post_submission
             .insert(&mut tx, &user, &key)
             .await
-            .expect("query succeeds");
+            .expect("Execute query");
     }
 
     // Verify state before flooding threshold is reached
     assert_eq!(
         ban::new_accounts_count(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds"),
+            .expect("Execute query"),
         3
     );
     assert_eq!(
         ban::new_posts_count(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds"),
+            .expect("Execute query"),
         5
     );
     assert!(
         ban::exists(&mut tx, &user.ip_hash, None)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
             .is_none()
     );
     assert!(
         !ban::flooding(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
     );
 
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
     let key = PostSubmission::generate_key(&mut tx)
         .await
-        .expect("query succeeds");
+        .expect("Execute query");
     post_submission
         .insert(&mut tx, &user, &key)
         .await
-        .expect("query succeeds");
+        .expect("Execute query");
 
     // Verify flooding is detected but ban not yet applied
     assert_eq!(
         ban::new_accounts_count(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds"),
+            .expect("Execute query"),
         3
     );
     assert_eq!(
         ban::new_posts_count(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds"),
+            .expect("Execute query"),
         6
     );
     assert!(
         ban::exists(&mut tx, &user.ip_hash, None)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
             .is_none()
     );
     assert!(
         ban::flooding(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
     );
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Attempt another post to trigger the ban
     let mut form = FormData::new(Vec::new());
@@ -188,47 +188,47 @@ async fn autoban() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 
     // Verify ban state after ban
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     assert!(
         ban::exists(&mut tx, &user.ip_hash, None)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
             .is_some()
     );
     assert!(
         !ban::flooding(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
     );
     assert_eq!(
         ban::new_accounts_count(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds"),
+            .expect("Execute query"),
         0
     );
     assert_eq!(
         ban::new_posts_count(&mut tx, &user.ip_hash)
             .await
-            .expect("query succeeds"),
+            .expect("Execute query"),
         0
     );
 
     // Clean up
     delete_test_ban(&mut tx, &user.ip_hash).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests reviewing a post with a normal image.
 #[tokio::test]
 async fn review_post_with_normal_image() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     let post_review = PostReview {
         session_token: user.session_token,
@@ -249,12 +249,12 @@ async fn review_post_with_normal_image() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Initial check - post should be in processing state
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("query succeeds")
-        .expect("post exists");
-    tx.commit().await.expect("commits");
+        .expect("Execute query")
+        .unwrap();
+    tx.commit().await.expect("Commit transaction");
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
@@ -264,12 +264,12 @@ async fn review_post_with_normal_image() {
 
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
-        let mut tx = state.db.begin().await.expect("begins");
+        let mut tx = state.db.begin().await.expect("Begin transaction");
         let updated_post = Post::select_by_key(&mut tx, &post.key)
             .await
-            .expect("query succeeds")
-            .expect("post exists");
-        tx.commit().await.expect("commits");
+            .expect("Execute query")
+            .unwrap();
+        tx.commit().await.expect("Commit transaction");
 
         if updated_post.status != PostStatus::Processing {
             processed = true;
@@ -294,30 +294,30 @@ async fn review_post_with_normal_image() {
     );
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let final_post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("query succeeds")
-        .expect("post exists");
+        .expect("Execute query")
+        .unwrap();
     PostReview::delete_media_key_dir(&post.key)
         .await
-        .expect("deletes media key dir");
-    final_post.delete(&mut tx).await.expect("query succeeds");
+        .expect("Delete directory");
+    final_post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests reviewing a post with a small image.
 #[tokio::test]
 async fn review_post_with_small_image() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     let post_review = PostReview {
         session_token: user.session_token,
@@ -338,12 +338,12 @@ async fn review_post_with_small_image() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Initial check - post should be in processing state
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("query succeeds")
-        .expect("post exists");
-    tx.commit().await.expect("commits");
+        .expect("Execute query")
+        .unwrap();
+    tx.commit().await.expect("Commit transaction");
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
@@ -353,12 +353,12 @@ async fn review_post_with_small_image() {
 
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
-        let mut tx = state.db.begin().await.expect("begins");
+        let mut tx = state.db.begin().await.expect("Begin transaction");
         let updated_post = Post::select_by_key(&mut tx, &post.key)
             .await
-            .expect("query succeeds")
-            .expect("post exists");
-        tx.commit().await.expect("commits");
+            .expect("Execute query")
+            .unwrap();
+        tx.commit().await.expect("Commit transaction");
 
         if updated_post.status != PostStatus::Processing {
             processed = true;
@@ -384,30 +384,30 @@ async fn review_post_with_small_image() {
     );
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let final_post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("query succeeds")
-        .expect("post exists");
+        .expect("Execute query")
+        .unwrap();
     PostReview::delete_media_key_dir(&post.key)
         .await
-        .expect("deletes media key dir");
-    final_post.delete(&mut tx).await.expect("query succeeds");
+        .expect("Delete directory");
+    final_post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests reviewing a post with a video.
 #[tokio::test]
 async fn review_post_with_video() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("video.mp4"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     let post_review = PostReview {
         session_token: user.session_token,
@@ -428,12 +428,12 @@ async fn review_post_with_video() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Initial check - post should be in processing state
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("query succeeds")
-        .expect("post exists");
-    tx.commit().await.expect("commits");
+        .expect("Execute query")
+        .unwrap();
+    tx.commit().await.expect("Commit transaction");
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
@@ -443,12 +443,12 @@ async fn review_post_with_video() {
 
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
-        let mut tx = state.db.begin().await.expect("begins");
+        let mut tx = state.db.begin().await.expect("Begin transaction");
         let updated_post = Post::select_by_key(&mut tx, &post.key)
             .await
-            .expect("query succeeds")
-            .expect("post exists");
-        tx.commit().await.expect("commits");
+            .expect("Execute query")
+            .unwrap();
+        tx.commit().await.expect("Commit transaction");
 
         if updated_post.status != PostStatus::Processing {
             processed = true;
@@ -480,15 +480,15 @@ async fn review_post_with_video() {
     );
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let final_post = Post::select_by_key(&mut tx, &post.key)
         .await
-        .expect("query succeeds")
-        .expect("post exists");
+        .expect("Execute query")
+        .unwrap();
     PostReview::delete_media_key_dir(&post.key)
         .await
-        .expect("deletes media key dir");
-    final_post.delete(&mut tx).await.expect("query succeeds");
+        .expect("Delete directory");
+    final_post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }

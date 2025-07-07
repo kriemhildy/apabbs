@@ -23,12 +23,12 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn user_profile() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Request the user profile page
     let request = Request::builder()
@@ -44,21 +44,21 @@ async fn user_profile() {
     assert!(body_str.contains(&account.username));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests the settings page rendering and functionality.
 #[tokio::test]
 async fn settings() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Request the settings page
     let request = Request::builder()
@@ -76,9 +76,9 @@ async fn settings() {
     assert!(body_str.contains("Settings"));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests updating the user's time zone setting.
@@ -87,12 +87,12 @@ async fn update_time_zone() {
     use apabbs::user::TimeZoneUpdate;
 
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Submit time zone update
     let time_zone_update = TimeZoneUpdate {
@@ -114,28 +114,28 @@ async fn update_time_zone() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify time zone was updated
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
-        .expect("query succeeds")
-        .expect("account exists");
+        .expect("Execute query")
+        .unwrap();
     assert_eq!(updated_account.time_zone, time_zone_update.time_zone);
 
     // Clean up
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests updating the user's password.
 #[tokio::test]
 async fn update_password() {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
 
     // Create a test user account
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Submit password update
     let credentials = Credentials {
@@ -160,20 +160,20 @@ async fn update_password() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify password was updated
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
-        .expect("query succeeds")
-        .expect("account exists");
+        .expect("Execute query")
+        .unwrap();
     assert!(
         credentials
             .authenticate(&mut tx)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
             .is_some_and(|a| a.id == updated_account.id)
     );
 
     // Clean up
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }

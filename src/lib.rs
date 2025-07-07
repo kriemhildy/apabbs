@@ -37,7 +37,9 @@ use tokio::sync::broadcast::Sender;
 /// Returns the number of items to show per page.
 pub fn per_page() -> usize {
     match std::env::var("PER_PAGE") {
-        Ok(per_page) => per_page.parse().expect("per_page env var is integer"),
+        Ok(per_page) => per_page
+            .parse()
+            .expect("Parse PER_PAGE environment variable as integer"),
         Err(_) => 1000,
     }
 }
@@ -49,14 +51,14 @@ pub fn dev() -> bool {
 
 /// Returns the host domain name for the application.
 pub fn host() -> String {
-    std::env::var("HOST").expect("sets host env var")
+    std::env::var("HOST").expect("Read HOST environment variable")
 }
 
 /// Retrieves the application's secret key for secure operations.
 ///
 /// The secret key is used for encryption, cookie signing, and other security features.
 pub fn secret_key() -> String {
-    std::env::var("SECRET_KEY").expect("sets secret key env var")
+    std::env::var("SECRET_KEY").expect("Read SECRET_KEY environment variable")
 }
 
 // ==============================================================================
@@ -85,8 +87,8 @@ pub async fn init_app_state() -> AppState {
 
 /// Creates a connection pool to the PostgreSQL database.
 pub async fn init_db() -> PgPool {
-    let url = std::env::var("DATABASE_URL").expect("sets database env var");
-    PgPool::connect(&url).await.expect("connects to postgres")
+    let url = std::env::var("DATABASE_URL").expect("Read DATABASE_URL environment variable");
+    PgPool::connect(&url).await.expect("Connect to PostgreSQL")
 }
 
 /// Initializes the template rendering environment with filters and loaders.
@@ -106,7 +108,7 @@ pub fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
             r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
             r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
         ))
-        .expect("builds regex");
+        .expect("Build regular expression");
 
         re.replace_all(
             body,

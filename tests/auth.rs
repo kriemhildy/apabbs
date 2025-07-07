@@ -46,14 +46,14 @@ async fn authenticate() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
     let credentials = test_credentials(&user);
     let account = credentials
         .register(&mut tx, &local_ip_hash())
         .await
-        .expect("query succeeds");
-    tx.commit().await.expect("commits");
+        .expect("Execute query");
+    tx.commit().await.expect("Commit transaction");
 
     // Attempt login
     let creds_str = serde_urlencoded::to_string(&credentials).unwrap();
@@ -74,9 +74,9 @@ async fn authenticate() {
     assert!(response_adds_cookie(&response, ACCOUNT_COOKIE));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     delete_test_account(&mut tx, &account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests the account registration form page.
@@ -122,15 +122,15 @@ async fn create_account() {
     assert!(response_adds_cookie(&response, ACCOUNT_COOKIE));
 
     // Verify account was created
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let account = Account::select_by_username(&mut tx, &credentials.username)
         .await
-        .expect("query succeeds")
-        .expect("account exists");
+        .expect("Execute query")
+        .unwrap();
 
     // Clean up
     delete_test_account(&mut tx, &account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests logging out from a user account.
@@ -139,10 +139,10 @@ async fn logout() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Submit logout request
     let logout = Logout {
@@ -164,9 +164,9 @@ async fn logout() {
     assert!(response_removes_cookie(&response, ACCOUNT_COOKIE));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }
 
 /// Tests resetting the account token.
@@ -175,10 +175,10 @@ async fn reset_account_token() {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
     let account = user.account.as_ref().unwrap();
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 
     // Submit token reset request
     let logout = Logout {
@@ -200,14 +200,14 @@ async fn reset_account_token() {
     assert!(response_removes_cookie(&response, ACCOUNT_COOKIE));
 
     // Verify token was updated
-    let mut tx = state.db.begin().await.expect("begins");
+    let mut tx = state.db.begin().await.expect("Begin transaction");
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await
-        .expect("query succeeds")
-        .expect("account exists");
+        .expect("Execute query")
+        .unwrap();
     assert_ne!(updated_account.token, account.token);
 
     // Clean up
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("commits");
+    tx.commit().await.expect("Commit transaction");
 }

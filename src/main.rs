@@ -45,5 +45,7 @@ pub async fn main() {
     tracing::info!("Server listening on port {port}");
 
     // Start HTTP server
-    axum::serve(listener, router).await.expect("server starts");
+    axum::serve(listener, router)
+        .await
+        .expect("Start Axum server");
 }

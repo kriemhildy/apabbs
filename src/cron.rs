@@ -25,15 +25,15 @@ use tokio_cron_scheduler::Job;
 /// Initializes and starts the scheduled job system in the background for the application's lifetime.
 pub async fn init() {
     use tokio_cron_scheduler::JobScheduler;
-    let sched = JobScheduler::new().await.expect("creates job scheduler");
+    let sched = JobScheduler::new().await.expect("Create job scheduler");
 
     // Add all scheduled jobs to the scheduler
     for job in [scrub_ips(), generate_screenshot()] {
-        sched.add(job).await.expect("adds job to scheduler");
+        sched.add(job).await.expect("Add job to scheduler");
     }
 
     // Start the scheduler running
-    sched.start().await.expect("starts job scheduler");
+    sched.start().await.expect("Start job scheduler");
 }
 
 /// Creates a scheduled job that removes old IP hash data for privacy.
@@ -44,18 +44,18 @@ pub fn scrub_ips() -> Job {
 
             // Connect to the database and start a transaction
             let db = crate::init_db().await;
-            let mut tx = db.begin().await.expect("begins transaction");
+            let mut tx = db.begin().await.expect("Begin transaction");
 
             // Execute the IP scrubbing operation
-            ban::scrub(&mut tx).await.expect("query succeeds");
+            ban::scrub(&mut tx).await.expect("Execute query");
 
             // Commit the transaction
-            tx.commit().await.expect("commits transaction");
+            tx.commit().await.expect("Commit transaction");
 
             tracing::info!("Old IP hashes scrubbed");
         })
     })
-    .expect("creates ip scrub job")
+    .expect("Create job")
 }
 
 /// Creates a scheduled job that takes a screenshot of the application and saves it to disk.
@@ -64,7 +64,7 @@ pub fn generate_screenshot() -> Job {
         Box::pin(async move {
             use std::path::Path;
 
-            tracing::info!("Taking screenshot with Chromium");
+            tracing::info!("Taking screenshot with Chromium...");
 
             // Determine the URL to screenshot
             let url = if crate::dev() {
@@ -79,7 +79,7 @@ pub fn generate_screenshot() -> Job {
             // Build the full output path
             let output_path_str = output_path
                 .to_str()
-                .expect("converts path to string")
+                .expect("Convert Path to str")
                 .to_string();
             let url_clone = url.clone();
             let output_path_str_clone = output_path_str.clone();
@@ -97,7 +97,7 @@ pub fn generate_screenshot() -> Job {
                 .stderr(std::process::Stdio::null())
                 .status()
                 .await
-                .expect("executes chromium command");
+                .expect("Execute command");
 
             if status.success() {
                 tracing::info!(
@@ -112,5 +112,5 @@ pub fn generate_screenshot() -> Job {
             }
         })
     })
-    .expect("creates screenshot job")
+    .expect("Create job")
 }

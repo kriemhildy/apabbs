@@ -299,12 +299,12 @@ impl PostReview {
     pub fn alternate_path(media_path: &Path, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path
             .file_name()
-            .expect("gets media filename")
+            .expect("Get filename from Path")
             .to_str()
-            .expect("converts media filename");
+            .expect("Convert filename to str");
 
         let key_dir = media_path.parent().unwrap();
-        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("builds regex");
+        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("Build regular expression");
 
         // Create thumbnail filename with "tn_" prefix and specified extension
         let alternate_filename =

@@ -63,7 +63,7 @@ pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> Us
     let account = credentials
         .register(tx, &local_ip_hash())
         .await
-        .expect("query succeeds");
+        .expect("Execute query");
 
     let account = if role != AccountRole::Novice {
         sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
@@ -71,10 +71,10 @@ pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> Us
             .bind(account.id)
             .execute(&mut *tx)
             .await
-            .expect("sets account as role");
+            .expect("Execute query");
         Account::select_by_username(tx, &account.username)
             .await
-            .expect("query succeeds")
+            .expect("Execute query")
             .unwrap()
     } else {
         account
@@ -93,7 +93,7 @@ pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
         .bind(account.id)
         .execute(tx)
         .await
-        .expect("deletes test account");
+        .expect("Execute query");
 }
 
 /// Create a test post in the database for a user, with optional media and status.
@@ -109,7 +109,7 @@ pub async fn create_test_post(
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
             (
                 Some(path.file_name().unwrap().to_str().unwrap().to_string()),
-                Some(tokio::fs::read(path).await.expect("reads test media file")),
+                Some(tokio::fs::read(path).await.expect("Read file")),
             )
         }
         None => (None, None),
@@ -124,11 +124,11 @@ pub async fn create_test_post(
 
     let key = PostSubmission::generate_key(tx)
         .await
-        .expect("query succeeds");
+        .expect("Execute query");
     let post = post_submission
         .insert(tx, user, &key)
         .await
-        .expect("query succeeds");
+        .expect("Execute query");
 
     if media_filename.is_some() {
         if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
@@ -140,13 +140,11 @@ pub async fn create_test_post(
     match status {
         PostStatus::Pending => post,
         _ => {
-            post.update_status(tx, status)
-                .await
-                .expect("query succeeds");
+            post.update_status(tx, status).await.expect("Execute query");
             Post::select_by_key(tx, &post.key)
                 .await
-                .expect("query succeeds")
-                .expect("post exists")
+                .expect("Execute query")
+                .unwrap()
         }
     }
 }
@@ -158,7 +156,7 @@ pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: boo
         .get_all(axum::http::header::SET_COOKIE)
         .iter()
         .any(|h| {
-            let s = h.to_str().expect("converts header");
+            let s = h.to_str().expect("Convert header to str");
             s.contains(cookie) && (removed == s.contains("Max-Age=0"))
         })
 }
@@ -192,7 +190,7 @@ pub async fn select_latest_post_by_session_token(
         .bind(session_token)
         .fetch_optional(tx)
         .await
-        .expect("selects by session token")
+        .expect("Execute query")
 }
 
 /// Select the latest post by account id.
@@ -205,7 +203,7 @@ pub async fn select_latest_post_by_account_id(
         .bind(account_id)
         .fetch_optional(tx)
         .await
-        .expect("selects by account id")
+        .expect("Execute query")
 }
 
 /// Delete a test ban from the database by IP hash.
@@ -215,5 +213,5 @@ pub async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
         .bind(ip_hash)
         .execute(tx)
         .await
-        .expect("deletes ban");
+        .expect("Execute query");
 }

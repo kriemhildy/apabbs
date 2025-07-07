@@ -131,10 +131,7 @@ impl PostReview {
             // Rules for already approved or delisted posts
             Approved | Delisted => {
                 // Mods can only change recent posts
-                if post.status == Approved
-                    && reviewer_role == Mod
-                    && !post.recent.expect("recent exists")
-                {
+                if post.status == Approved && reviewer_role == Mod && !post.recent.unwrap() {
                     return Err(RecentOnly);
                 }
 

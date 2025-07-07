@@ -214,7 +214,7 @@ impl Credentials {
         let mut errors: Vec<&str> = Vec::new();
 
         // Validate username format
-        let pattern = Regex::new(r"^\w{4,16}$").expect("builds regex");
+        let pattern = Regex::new(r"^\w{4,16}$").expect("Build regular expression");
         if !pattern.is_match(&self.username) {
             errors.push("username must be 4 to 16 word characters");
         }
