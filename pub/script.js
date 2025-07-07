@@ -160,8 +160,10 @@ function checkInterim() {
 
 const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
 let webSocket;
-let reconnectInterval;
-let webSocketOpen = false; // Track connection state to prevent multiple reconnects
+const MIN_RECONNECT_DURATION = 5_000;
+const MAX_RECONNECT_DURATION = 60_000;
+let reconnectDuration = MIN_RECONNECT_DURATION;
+let reconnectTimeout = null;
 
 /**
  * Processes incoming WebSocket messages containing post updates.
@@ -180,10 +182,14 @@ function handleWebSocketMessage(event) {
  * Handles WebSocket connection closure and attempts to reconnect if needed.
  */
 function handleWebSocketClosed(event) {
-    if (!event.wasClean && webSocketOpen) {
-        webSocketOpen = false;
-        console.warn("WebSocket unexpectedly closed, attempting to reconnect every 30 seconds");
-        reconnectInterval = setInterval(initWebSocket, 30_000);
+    if (!event.wasClean) {
+        if (reconnectTimeout === null) {
+            console.warn("WebSocket unexpectedly closed, attempting to reconnect...");
+            reconnectDuration = MIN_RECONNECT_DURATION;
+        } else {
+            reconnectDuration = Math.min(reconnectDuration * 2, MAX_RECONNECT_DURATION);
+        }
+        reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
     }
 }
 
@@ -191,20 +197,24 @@ function handleWebSocketClosed(event) {
  * Handles successful WebSocket connection and checks for missed posts.
  */
 function handleWebSocketOpened(_event) {
-    webSocketOpen = true;
-    clearInterval(reconnectInterval);
-    checkInterim();
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
     console.log("WebSocket connection established.");
+    checkInterim();
 }
 
 /**
  * Establishes a WebSocket connection to the server and sets up event handlers.
  */
 function initWebSocket() {
+    // Prevent Firefox from opening multiple connections due to reconnect attempts.
+    if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
+        return;
+    }
     webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
-    webSocket.addEventListener("message", handleWebSocketMessage);
-    webSocket.addEventListener("close", handleWebSocketClosed);
-    webSocket.addEventListener("open", handleWebSocketOpened);
+    webSocket.onmessage = handleWebSocketMessage;
+    webSocket.onclose = handleWebSocketClosed;
+    webSocket.onopen = handleWebSocketOpened;
 }
 
 // -----------------------------------------------------------------------------
