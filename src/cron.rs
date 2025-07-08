@@ -62,8 +62,6 @@ pub fn scrub_ips() -> Job {
 pub fn generate_screenshot() -> Job {
     Job::new_async("0 55 * * * *", |_uuid, _l| {
         Box::pin(async move {
-            use std::path::Path;
-
             tracing::info!("Taking screenshot with Chromium...");
 
             // Determine the URL to screenshot
@@ -73,16 +71,8 @@ pub fn generate_screenshot() -> Job {
                 format!("https://{}", crate::host())
             };
 
-            // Ensure the output directory exists
-            let output_path = Path::new("pub/screenshot.webp");
-
             // Build the full output path
-            let output_path_str = output_path
-                .to_str()
-                .expect("Convert Path to str")
-                .to_string();
-            let url_clone = url.clone();
-            let output_path_str_clone = output_path_str.clone();
+            let output_path = "pub/screenshot.webp";
 
             // Run the Chromium command to take a screenshot
             let status = tokio::process::Command::new("chromium")
@@ -91,8 +81,8 @@ pub fn generate_screenshot() -> Job {
                     "--hide-scrollbars",
                     "--force-dark-mode",
                     "--window-size=1920,1080",
-                    &format!("--screenshot={output_path_str_clone}"),
-                    &url_clone,
+                    &format!("--screenshot={output_path}"),
+                    &url,
                 ])
                 .stderr(std::process::Stdio::null())
                 .status()
