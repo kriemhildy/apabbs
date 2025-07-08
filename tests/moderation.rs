@@ -62,8 +62,7 @@ async fn decrypt_media() {
     post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, account).await;
     tx.commit().await.expect("Commit transaction");
-    let encrypted_file_path = post.encrypted_media_path();
-    PostReview::delete_upload_key_dir(&encrypted_file_path)
+    PostReview::delete_upload_key_dir(&post.key)
         .await
         .expect("Delete directory");
 }
@@ -490,6 +489,77 @@ async fn review_post_with_video() {
         .expect("Delete directory");
     final_post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect("Commit transaction");
+}
+
+/// Tests a mod reporting an approved post, which should re-encrypt the media file.
+#[tokio::test]
+async fn mod_reports_approved_post() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let user = test_user(None);
+    // Create a post with status Approved and a media file
+    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Approved).await;
+
+    // Create a mod account
+    let mod_user = create_test_account(&mut tx, AccountRole::Mod).await;
+    let mod_account = mod_user.account.as_ref().unwrap();
+    tx.commit().await.expect("Commit transaction");
+
+    // Mod reports the approved post
+    let post_review = PostReview {
+        session_token: mod_user.session_token,
+        status: PostStatus::Reported,
+    };
+    let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/review/{}", &post.key))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, mod_account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, mod_user.session_token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(post_review_str))
+        .unwrap();
+
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Wait for background processing to complete
+    let max_attempts = 10;
+    let wait_time = std::time::Duration::from_millis(500);
+    let mut processed = false;
+    for _ in 0..max_attempts {
+        tokio::time::sleep(wait_time).await;
+        let mut tx = state.db.begin().await.expect("Begin transaction");
+        let updated_post = Post::select_by_key(&mut tx, &post.key)
+            .await
+            .expect("Execute query")
+            .unwrap();
+        tx.commit().await.expect("Commit transaction");
+        // The post should now be in Reported status
+        if updated_post.status == PostStatus::Reported {
+            // The published media file should have been re-encrypted (i.e., removed from published location)
+            assert!(!post.published_media_path().exists(), "Published media should be removed");
+            // The encrypted media file should exist again
+            assert!(post.encrypted_media_path().exists(), "Encrypted media should exist after re-encryption");
+            processed = true;
+            break;
+        }
+    }
+    assert!(processed, "Background processing did not complete in the expected time");
+
+    // Clean up
+    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let final_post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("Execute query")
+        .unwrap();
+    PostReview::delete_upload_key_dir(&post.key)
+        .await
+        .expect("Delete directory");
+    final_post.delete(&mut tx).await.expect("Execute query");
+    delete_test_account(&mut tx, mod_account).await;
     tx.commit().await.expect("Commit transaction");
 }
 

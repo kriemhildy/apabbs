@@ -230,8 +230,7 @@ async fn submit_post_with_media() {
     // Clean up
     post.delete(&mut tx).await.expect("Execute query");
     tx.commit().await.expect("Commit transaction");
-    let encrypted_file_path = post.encrypted_media_path();
-    PostReview::delete_upload_key_dir(&encrypted_file_path)
+    PostReview::delete_upload_key_dir(&post.key)
         .await
         .expect("Delete directory");
 }

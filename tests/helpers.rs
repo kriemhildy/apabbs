@@ -3,7 +3,7 @@
 
 use apabbs::{
     AppState,
-    post::{Post, PostStatus, submission::PostSubmission},
+    post::{Post, PostStatus, review::PostReview, submission::PostSubmission},
     user::{Account, AccountRole, Credentials, User},
 };
 use axum::{Router, body::Body, http::Response};
@@ -104,21 +104,20 @@ pub async fn create_test_post(
     media_filename: Option<&str>,
     status: PostStatus,
 ) -> Post {
-    let (media_filename, media_bytes) = match media_filename {
+    use PostStatus::*;
+
+    let media_bytes = match media_filename {
         Some(media_filename) => {
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
-            (
-                Some(path.file_name().unwrap().to_str().unwrap().to_string()),
-                Some(tokio::fs::read(path).await.expect("Read file")),
-            )
+            Some(tokio::fs::read(path).await.expect("Read file"))
         }
-        None => (None, None),
+        None => None,
     };
 
     let post_submission = PostSubmission {
         session_token: user.session_token,
         body: String::from("<&test body"),
-        media_filename: media_filename.clone(),
+        media_filename: media_filename.map(|s| s.to_string()),
         media_bytes,
     };
 
@@ -131,22 +130,41 @@ pub async fn create_test_post(
         .expect("Execute query");
 
     if media_filename.is_some() {
-        if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
-            tracing::error!("{msg}");
-            std::process::exit(1);
+        match status {
+            Pending => {
+                if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
+                    tracing::error!("{msg}");
+                    std::process::exit(1);
+                }
+            }
+            Approved | Delisted => {
+                let published_media_path = post.published_media_path();
+                if let Err(msg) = PostReview::write_media_file(
+                    &published_media_path,
+                    post_submission.media_bytes.unwrap(),
+                )
+                .await
+                {
+                    tracing::error!("{msg}");
+                    std::process::exit(1);
+                }
+            }
+            _ => {
+                tracing::error!("Unhandled post status: {:?}", status);
+                std::process::exit(1);
+            }
         }
     }
 
-    match status {
-        PostStatus::Pending => post,
-        _ => {
-            post.update_status(tx, status).await.expect("Execute query");
-            Post::select_by_key(tx, &post.key)
-                .await
-                .expect("Execute query")
-                .unwrap()
-        }
+    if status == Pending {
+        return post;
     }
+
+    post.update_status(tx, status).await.expect("Execute query");
+    Post::select_by_key(tx, &post.key)
+        .await
+        .expect("Execute query")
+        .unwrap()
 }
 
 /// Check if a response adds or removes a cookie.

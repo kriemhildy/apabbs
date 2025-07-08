@@ -330,18 +330,10 @@ impl PostReview {
     }
 
     /// Deletes an encrypted media file and its containing directory.
-    pub async fn delete_upload_key_dir(
-        encrypted_media_path: &Path,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let uploads_key_dir = encrypted_media_path
-            .parent()
-            .ok_or("encrypted_media_path should have a parent directory")?;
+    pub async fn delete_upload_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let upload_key_dir = std::path::Path::new(UPLOADS_DIR).join(key);
 
-        tokio::fs::remove_file(&encrypted_media_path)
-            .await
-            .map_err(|e| format!("failed to remove encrypted media: {e}"))?;
-
-        tokio::fs::remove_dir(&uploads_key_dir)
+        tokio::fs::remove_dir_all(&upload_key_dir)
             .await
             .map_err(|e| format!("failed to remove uploads key dir: {e}"))?;
         Ok(())

@@ -191,8 +191,7 @@ impl PostReview {
 
             DeleteEncryptedMedia => {
                 // Delete the encrypted media file
-                let encrypted_media_path = post.encrypted_media_path();
-                PostReview::delete_upload_key_dir(&encrypted_media_path).await?;
+                PostReview::delete_upload_key_dir(&post.key).await?;
                 None
             }
 
@@ -232,8 +231,7 @@ impl PostReview {
             let post = post.update_status(&mut tx, status).await?;
 
             // Delete the upload key directory after publishing
-            let encrypted_media_path = post.encrypted_media_path();
-            PostReview::delete_upload_key_dir(&encrypted_media_path)
+            PostReview::delete_upload_key_dir(&post.key)
                 .await
                 .map_err(|e| format!("failed to delete upload directory: {e}"))?;
 
