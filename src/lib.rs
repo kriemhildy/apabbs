@@ -93,7 +93,8 @@ pub async fn init_db() -> PgPool {
 
 /// Initializes the template rendering environment with filters and loaders.
 pub fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
-    use regex::Regex;
+    use utils::{byte_slice, unlink_youtube_thumbnails};
+
     let mut env = Environment::new();
 
     // Configure template loading and rendering options
@@ -101,35 +102,7 @@ pub fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
     env.set_keep_trailing_newline(true);
     env.set_lstrip_blocks(true);
     env.set_trim_blocks(true);
-
-    /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
-    fn remove_youtube_thumbnail_links(body: &str) -> String {
-        let re = Regex::new(concat!(
-            r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
-            r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
-        ))
-        .expect("Build regular expression");
-
-        re.replace_all(
-            body,
-            concat!(
-                r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
-                r#"width="$3" height="$4">"#,
-            ),
-        )
-        .to_string()
-    }
-    env.add_filter(
-        "remove_youtube_thumbnail_links",
-        remove_youtube_thumbnail_links,
-    );
-
-    /// Template filter to slice a string to a specific byte length.
-    fn byte_slice(body: &str, end: usize) -> String {
-        // Ensure we don't exceed the string length
-        let end = end.min(body.len());
-        body[..end].to_string()
-    }
+    env.add_filter("unlink_youtube_thumbnails", unlink_youtube_thumbnails);
     env.add_filter("byte_slice", byte_slice);
 
     Arc::new(RwLock::new(env))

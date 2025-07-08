@@ -72,7 +72,11 @@ mod tests {
             (unauthorized, StatusCode::UNAUTHORIZED, "Unauthorized"),
             (forbidden, StatusCode::FORBIDDEN, "Forbidden"),
             (not_found, StatusCode::NOT_FOUND, "Not found"),
-            (internal, StatusCode::INTERNAL_SERVER_ERROR, "Internal error"),
+            (
+                internal,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal error",
+            ),
         ];
 
         for (err, status, msg) in cases {

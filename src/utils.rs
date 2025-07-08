@@ -82,6 +82,33 @@ pub fn render(
         .map_err(|e| format!("failed to render template \"{name}\": {e}").into())
 }
 
+/// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
+pub fn unlink_youtube_thumbnails(body: &str) -> String {
+    use regex::Regex;
+
+    let re = Regex::new(concat!(
+        r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
+        r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
+    ))
+    .expect("Build regular expression");
+
+    re.replace_all(
+        body,
+        concat!(
+            r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
+            r#"width="$3" height="$4">"#,
+        ),
+    )
+    .to_string()
+}
+
+/// Template filter to slice a string to a specific byte length.
+pub fn byte_slice(body: &str, end: usize) -> String {
+    // Ensure we don't exceed the string length
+    let end = end.min(body.len());
+    body[..end].to_string()
+}
+
 //==================================================================================================
 // Time and Date Utilities
 //==================================================================================================
@@ -107,4 +134,40 @@ pub async fn utc_hour_timestamp(
         .fetch_one(tx)
         .await
         .map_err(|e| format!("failed to get UTC hour timestamp: {e}").into())
+}
+
+//==================================================================================================
+// Tests
+//==================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unlink_youtube_thumbnails() {
+        let input = concat!(
+            r#"<a href="/p/12345678"><img src="/youtube/abcdefghijk/abcd.jpg" "#,
+            r#"alt="Post 12345678" width="320" height="180"></a>"#
+        );
+        let expected = concat!(
+            r#"<img src="/youtube/abcdefghijk/abcd.jpg" alt="YouTube thumbnail abcdefghijk" "#,
+            r#"width="320" height="180">"#
+        );
+        let output = unlink_youtube_thumbnails(input);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_byte_slice() {
+        let s = "héllo"; // 'é' is two bytes
+        // Slicing at 1 byte should give 'h'
+        assert_eq!(byte_slice(s, 1), "h");
+        // Slicing at 2 bytes should still give 'h' (since 'é' is two bytes)
+        // assert_eq!(byte_slice(s, 2), "h");
+        // Slicing at 3 bytes should give 'hé'
+        assert_eq!(byte_slice(s, 3), "hé");
+        // Slicing at 10 bytes should give the whole string
+        assert_eq!(byte_slice(s, 10), "héllo");
+    }
 }

@@ -9,7 +9,7 @@
         {% filter indent(8) %}
         {# Handle YouTube embeds differently in solo view #}
         {% if solo and post.youtube %}
-        {{ post.body|remove_youtube_thumbnail_links }}
+        {{ post.body|unlink_youtube_thumbnails }}
         {# Show full body in solo view or if no intro limit exists #}
         {% elif solo or post.intro_limit is none %}
         {{ post.body }}
