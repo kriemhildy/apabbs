@@ -219,7 +219,7 @@ async fn autoban() {
 
 /// Tests reviewing a post with a normal image.
 #[tokio::test]
-async fn review_post_with_normal_image() {
+async fn approve_post_with_normal_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
@@ -264,24 +264,22 @@ async fn review_post_with_normal_image() {
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("Begin transaction");
-        let updated_post = Post::select_by_key(&mut tx, &post.key)
+        let post = Post::select_by_key(&mut tx, &post.key)
             .await
             .expect("Execute query")
             .unwrap();
         tx.commit().await.expect("Commit transaction");
 
-        if updated_post.status != PostStatus::Processing {
+        if post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            let published_media_path = updated_post.published_media_path();
-            assert!(published_media_path.exists());
-            let thumbnail_path = updated_post.thumbnail_path();
-            assert!(thumbnail_path.exists());
-            assert!(updated_post.media_width.is_some());
-            assert!(updated_post.media_height.is_some());
+            assert!(post.published_media_path().exists());
+            assert!(post.thumbnail_path().exists());
+            assert!(post.media_width.is_some());
+            assert!(post.media_height.is_some());
 
             break;
         }
@@ -308,7 +306,7 @@ async fn review_post_with_normal_image() {
 
 /// Tests reviewing a post with a small image.
 #[tokio::test]
-async fn review_post_with_small_image() {
+async fn approve_post_with_small_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
@@ -396,9 +394,9 @@ async fn review_post_with_small_image() {
     tx.commit().await.expect("Commit transaction");
 }
 
-/// Tests reviewing a post with a video.
+/// Tests reviewing a post with a compatible video.
 #[tokio::test]
-async fn review_post_with_video() {
+async fn approve_post_with_compatible_video() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
@@ -443,31 +441,111 @@ async fn review_post_with_video() {
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("Begin transaction");
-        let updated_post = Post::select_by_key(&mut tx, &post.key)
+        let post = Post::select_by_key(&mut tx, &post.key)
             .await
             .expect("Execute query")
             .unwrap();
         tx.commit().await.expect("Commit transaction");
 
-        if updated_post.status != PostStatus::Processing {
+        if post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            let published_media_path = updated_post.published_media_path();
-            assert!(published_media_path.exists());
-            // Thumbnail is only created for very large videos now
-            // Check for compatibility video, though
-            assert!(updated_post.thumb_filename.is_none());
-            assert!(
-                PostReview::video_is_compatible(&published_media_path)
-                    .await
-                    .unwrap()
-            );
-            assert!(updated_post.compat_video.is_none());
-            assert!(updated_post.media_width.is_some());
-            assert!(updated_post.media_height.is_some());
+            assert!(post.published_media_path().exists());
+            assert!(post.thumb_filename.is_none());
+            assert!(post.compat_video.is_none());
+            assert!(post.media_width.is_some());
+            assert!(post.media_height.is_some());
+
+            break;
+        }
+    }
+
+    assert!(
+        processed,
+        "Background processing did not complete in the expected time"
+    );
+
+    // Clean up
+    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let final_post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("Execute query")
+        .unwrap();
+    PostReview::delete_media_key_dir(&post.key)
+        .await
+        .expect("Delete directory");
+    final_post.delete(&mut tx).await.expect("Execute query");
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await.expect("Commit transaction");
+}
+
+#[tokio::test]
+async fn approve_post_with_incompatible_video() {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let user = test_user(None);
+    let post = create_test_post(&mut tx, &user, Some("video.webm"), PostStatus::Pending).await;
+    let encrypted_media_path = post.encrypted_media_path();
+    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let account = user.account.as_ref().unwrap();
+    tx.commit().await.expect("Commit transaction");
+
+    let post_review = PostReview {
+        session_token: user.session_token,
+        status: PostStatus::Approved,
+    };
+    let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/review/{}", &post.key))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(post_review_str))
+        .unwrap();
+
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
+    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let post = Post::select_by_key(&mut tx, &post.key)
+        .await
+        .expect("Execute query")
+        .unwrap();
+    tx.commit().await.expect("Commit transaction");
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
+    let max_attempts = 10;
+    let wait_time = std::time::Duration::from_millis(500);
+    let mut processed = false;
+
+    for _ in 0..max_attempts {
+        tokio::time::sleep(wait_time).await;
+        let mut tx = state.db.begin().await.expect("Begin transaction");
+        let post = Post::select_by_key(&mut tx, &post.key)
+            .await
+            .expect("Execute query")
+            .unwrap();
+        tx.commit().await.expect("Commit transaction");
+
+        if post.status != PostStatus::Processing {
+            processed = true;
+
+            // After processing completes, verify all assets were created
+            let uploads_key_dir = encrypted_media_path.parent().unwrap();
+            assert!(!uploads_key_dir.exists());
+            assert!(post.published_media_path().exists());
+            assert!(post.thumb_filename.is_none());
+            assert!(post.compat_video.is_some());
+            assert!(post.compat_video_path().exists());
+            assert!(post.media_width.is_some());
+            assert!(post.media_height.is_some());
 
             break;
         }
@@ -516,7 +594,10 @@ async fn mod_reports_approved_post() {
         .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, mod_account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, mod_user.session_token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, mod_user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))
@@ -532,22 +613,31 @@ async fn mod_reports_approved_post() {
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await.expect("Begin transaction");
-        let updated_post = Post::select_by_key(&mut tx, &post.key)
+        let post = Post::select_by_key(&mut tx, &post.key)
             .await
             .expect("Execute query")
             .unwrap();
         tx.commit().await.expect("Commit transaction");
         // The post should now be in Reported status
-        if updated_post.status == PostStatus::Reported {
+        if post.status == PostStatus::Reported {
             // The published media file should have been re-encrypted (i.e., removed from published location)
-            assert!(!post.published_media_path().exists(), "Published media should be removed");
+            assert!(
+                !post.published_media_path().exists(),
+                "Published media should be removed"
+            );
             // The encrypted media file should exist again
-            assert!(post.encrypted_media_path().exists(), "Encrypted media should exist after re-encryption");
+            assert!(
+                post.encrypted_media_path().exists(),
+                "Encrypted media should exist after re-encryption"
+            );
             processed = true;
             break;
         }
     }
-    assert!(processed, "Background processing did not complete in the expected time");
+    assert!(
+        processed,
+        "Background processing did not complete in the expected time"
+    );
 
     // Clean up
     let mut tx = state.db.begin().await.expect("Begin transaction");

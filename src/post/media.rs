@@ -49,6 +49,13 @@ impl Post {
             .join(self.thumb_filename.as_ref().unwrap())
     }
 
+    /// Returns the path of a compatibility video file for this post.
+    pub fn compat_video_path(&self) -> PathBuf {
+        std::path::Path::new(MEDIA_DIR)
+            .join(&self.key)
+            .join(self.compat_video.as_ref().unwrap())
+    }
+
     /// Encrypts the provided bytes using GPG with the application's key.
     pub async fn gpg_encrypt(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_media_path = self.encrypted_media_path();
