@@ -186,7 +186,7 @@ function handleWebSocketClosed(event) {
         if (reconnectTimeout === null) {
             console.warn("WebSocket unexpectedly closed, attempting to reconnect...");
             reconnectDuration = MIN_RECONNECT_DURATION;
-        } else {
+        } else if (reconnectDuration < MAX_RECONNECT_DURATION) {
             reconnectDuration = Math.min(reconnectDuration * 2, MAX_RECONNECT_DURATION);
         }
         reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
