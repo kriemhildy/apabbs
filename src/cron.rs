@@ -28,7 +28,7 @@ pub async fn init() {
     let sched = JobScheduler::new().await.expect("Create job scheduler");
 
     // Add all scheduled jobs to the scheduler
-    for job in [scrub_ips(), generate_screenshot()] {
+    for job in [create_scrub_job(), create_screenshot_job()] {
         sched.add(job).await.expect("Add job to scheduler");
     }
 
@@ -37,7 +37,7 @@ pub async fn init() {
 }
 
 /// Creates a scheduled job that removes old IP hash data for privacy.
-pub fn scrub_ips() -> Job {
+pub fn create_scrub_job() -> Job {
     Job::new_async("0 0 11 * * *", |_uuid, _l| {
         Box::pin(async move {
             tracing::info!("Scrubbing old IP hashes");
@@ -58,49 +58,70 @@ pub fn scrub_ips() -> Job {
     .expect("Create job")
 }
 
+/// Takes a screenshot of the given URL and saves it to the specified output path.
+pub async fn take_screenshot(url: &str, output_path: &str) -> Result<(), String> {
+    tracing::info!(url, output_path, "Taking screenshot with Chromium...");
+    let status = tokio::process::Command::new("chromium")
+        .args([
+            "--headless",
+            "--hide-scrollbars",
+            "--force-dark-mode",
+            "--window-size=1920,1080",
+            &format!("--screenshot={output_path}"),
+            url,
+        ])
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await
+        .map_err(|e| format!("Failed to execute chromium: {e}"))?;
+
+    if status.success() {
+        tracing::info!(output_path, "Chromium screenshot saved");
+        Ok(())
+    } else {
+        let msg = format!(
+            "Failed to generate screenshot. Chromium exited with code: {:?}",
+            status.code()
+        );
+        tracing::error!("{msg}");
+        Err(msg)
+    }
+}
+
 /// Creates a scheduled job that takes a screenshot of the application and saves it to disk.
-pub fn generate_screenshot() -> Job {
+pub fn create_screenshot_job() -> Job {
     Job::new_async("0 55 * * * *", |_uuid, _l| {
         Box::pin(async move {
-            tracing::info!("Taking screenshot with Chromium...");
-
-            // Determine the URL to screenshot
             let url = if crate::dev() {
-                String::from("http://localhost")
+                "http://localhost".to_string()
             } else {
                 format!("https://{}", crate::host())
             };
-
-            // Build the full output path
             let output_path = "pub/screenshot.webp";
-
-            // Run the Chromium command to take a screenshot
-            let status = tokio::process::Command::new("chromium")
-                .args([
-                    "--headless",
-                    "--hide-scrollbars",
-                    "--force-dark-mode",
-                    "--window-size=1920,1080",
-                    &format!("--screenshot={output_path}"),
-                    &url,
-                ])
-                .stderr(std::process::Stdio::null())
-                .status()
-                .await
-                .expect("Execute command");
-
-            if status.success() {
-                tracing::info!(
-                    output_path = ?output_path,
-                    "Chromium screenshot saved"
-                );
-            } else {
-                tracing::error!(
-                    "Failed to generate screenshot. Chromium exited with code: {:?}",
-                    status.code()
-                );
+            if let Err(e) = take_screenshot(&url, output_path).await {
+                tracing::error!("Scheduled screenshot failed: {e}");
             }
         })
     })
     .expect("Create job")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[tokio::test]
+    async fn take_screenshot_creates_file() {
+        let url = "https://example.com";
+        let output_path = "pub/test_screenshot.webp";
+        let result = take_screenshot(url, output_path).await;
+        assert!(result.is_ok(), "Screenshot should succeed: {result:?}");
+        assert!(
+            fs::metadata(output_path).is_ok(),
+            "Screenshot file should exist"
+        );
+        // Clean up
+        fs::remove_file(output_path).expect("Remove test screenshot");
+    }
 }
