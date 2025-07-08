@@ -52,3 +52,51 @@ impl IntoResponse for ResponseError {
         (status, body).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    #[test]
+    fn test_response_error_variants() {
+        let bad_request = ResponseError::BadRequest("bad request".into());
+        let unauthorized = ResponseError::Unauthorized("unauthorized".into());
+        let forbidden = ResponseError::Forbidden("forbidden".into());
+        let not_found = ResponseError::NotFound("not found".into());
+        let internal = ResponseError::InternalServerError("internal error".into());
+
+        let cases = vec![
+            (bad_request, StatusCode::BAD_REQUEST, "Bad request"),
+            (unauthorized, StatusCode::UNAUTHORIZED, "Unauthorized"),
+            (forbidden, StatusCode::FORBIDDEN, "Forbidden"),
+            (not_found, StatusCode::NOT_FOUND, "Not found"),
+            (internal, StatusCode::INTERNAL_SERVER_ERROR, "Internal error"),
+        ];
+
+        for (err, status, msg) in cases {
+            let response = err.into_response();
+            assert_eq!(response.status(), status);
+            // Extract body as string (axum 0.7+)
+            let body = response.into_body();
+            // Use axum's body::to_bytes if available, otherwise use http_body_util
+            // Use http_body_util::BodyExt for to_bytes
+            use http_body_util::BodyExt;
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let body_bytes = rt.block_on(async { body.collect().await.unwrap().to_bytes() });
+            let body_str = String::from_utf8_lossy(&body_bytes);
+            assert!(body_str.contains(msg));
+        }
+    }
+
+    #[test]
+    fn test_from_boxed_error() {
+        let boxed: Box<dyn std::error::Error + Send + Sync> = "some error".to_string().into();
+        let err: ResponseError = boxed.into();
+        match err {
+            ResponseError::InternalServerError(msg) => assert!(msg.contains("some error")),
+            _ => panic!("Expected InternalServerError"),
+        }
+    }
+}
