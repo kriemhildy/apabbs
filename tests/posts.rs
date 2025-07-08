@@ -3,7 +3,7 @@
 mod helpers;
 
 use apabbs::{
-    post::{MediaCategory, Post, PostStatus, review::PostReview, submission::PostHiding},
+    post::{MediaCategory, Post, PostStatus::*, review::PostReview, submission::PostHiding},
     router::{
         ROOT,
         helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
@@ -71,7 +71,7 @@ async fn solo_post() {
     // Create a test post
     let user = test_user(None);
     let mut tx = state.db.begin().await.expect("Begin transaction");
-    let post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post = create_test_post(&mut tx, &user, None, Approved).await;
     tx.commit().await.expect("Commit transaction");
 
     // Request the post page
@@ -104,9 +104,9 @@ async fn index_with_page() {
     // Create test posts
     let user = test_user(None);
     let mut tx = state.db.begin().await.expect("Begin transaction");
-    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, Approved).await;
     tx.commit().await.expect("Commit transaction");
 
     // Request a specific page
@@ -179,7 +179,7 @@ async fn submit_post_without_media() {
     assert_eq!(post.media_mime_type, None);
     assert_eq!(post.session_token, Some(user.session_token));
     assert_eq!(post.account_id, None);
-    assert_eq!(post.status, PostStatus::Pending);
+    assert_eq!(post.status, Pending);
 
     // Clean up
     post.delete(&mut tx).await.expect("Execute query");
@@ -290,10 +290,10 @@ async fn hide_post() {
     let user = test_user(None);
 
     // Create a post and admin user
-    let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &user, None, Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin_user.account.as_ref().unwrap();
-    post.update_status(&mut tx, PostStatus::Rejected)
+    post.update_status(&mut tx, Rejected)
         .await
         .expect("Execute query");
     tx.commit().await.expect("Commit transaction");
@@ -334,9 +334,9 @@ async fn interim() {
     let user = test_user(None);
 
     // Create approved and pending posts
-    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, Approved).await;
     tx.commit().await.expect("Commit transaction");
 
     // Request the interim page
@@ -379,7 +379,7 @@ async fn websocket_connection() {
     // Create a test post to trigger notifications
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
-    let test_post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let test_post = create_test_post(&mut tx, &user, None, Approved).await;
     tx.commit().await.expect("Commit transaction");
 
     // Start a server for testing

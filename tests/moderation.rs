@@ -4,7 +4,7 @@ mod helpers;
 
 use apabbs::{
     ban,
-    post::{Post, PostStatus, review::PostReview, submission::PostSubmission},
+    post::{Post, PostStatus::*, review::PostReview, submission::PostSubmission},
     router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
     user::{AccountRole, User},
 };
@@ -35,7 +35,7 @@ async fn decrypt_media() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let anon_user = test_user(None);
-    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), Pending).await;
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
     tx.commit().await.expect("Commit transaction");
@@ -223,7 +223,7 @@ async fn approve_post_with_normal_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
@@ -231,7 +231,7 @@ async fn approve_post_with_normal_image() {
 
     let post_review = PostReview {
         session_token: user.session_token,
-        status: PostStatus::Approved,
+        status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
@@ -254,7 +254,7 @@ async fn approve_post_with_normal_image() {
         .expect("Execute query")
         .unwrap();
     tx.commit().await.expect("Commit transaction");
-    assert_eq!(post.status, PostStatus::Processing);
+    assert_eq!(post.status, Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -270,7 +270,7 @@ async fn approve_post_with_normal_image() {
             .unwrap();
         tx.commit().await.expect("Commit transaction");
 
-        if post.status != PostStatus::Processing {
+        if post.status != Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
@@ -310,7 +310,7 @@ async fn approve_post_with_small_image() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("small.png"), PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("small.png"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
@@ -318,7 +318,7 @@ async fn approve_post_with_small_image() {
 
     let post_review = PostReview {
         session_token: user.session_token,
-        status: PostStatus::Approved,
+        status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
@@ -341,7 +341,7 @@ async fn approve_post_with_small_image() {
         .expect("Execute query")
         .unwrap();
     tx.commit().await.expect("Commit transaction");
-    assert_eq!(post.status, PostStatus::Processing);
+    assert_eq!(post.status, Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -357,7 +357,7 @@ async fn approve_post_with_small_image() {
             .unwrap();
         tx.commit().await.expect("Commit transaction");
 
-        if updated_post.status != PostStatus::Processing {
+        if updated_post.status != Processing {
             processed = true;
 
             // After processing completes, verify assets
@@ -400,7 +400,7 @@ async fn approve_post_with_compatible_video() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("video.mp4"), PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("video.mp4"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
@@ -408,7 +408,7 @@ async fn approve_post_with_compatible_video() {
 
     let post_review = PostReview {
         session_token: user.session_token,
-        status: PostStatus::Approved,
+        status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
@@ -431,7 +431,7 @@ async fn approve_post_with_compatible_video() {
         .expect("Execute query")
         .unwrap();
     tx.commit().await.expect("Commit transaction");
-    assert_eq!(post.status, PostStatus::Processing);
+    assert_eq!(post.status, Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -447,7 +447,7 @@ async fn approve_post_with_compatible_video() {
             .unwrap();
         tx.commit().await.expect("Commit transaction");
 
-        if post.status != PostStatus::Processing {
+        if post.status != Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
@@ -487,7 +487,7 @@ async fn approve_post_with_incompatible_video() {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("video.webm"), PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &user, Some("video.webm"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = user.account.as_ref().unwrap();
@@ -495,7 +495,7 @@ async fn approve_post_with_incompatible_video() {
 
     let post_review = PostReview {
         session_token: user.session_token,
-        status: PostStatus::Approved,
+        status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
@@ -518,7 +518,7 @@ async fn approve_post_with_incompatible_video() {
         .expect("Execute query")
         .unwrap();
     tx.commit().await.expect("Commit transaction");
-    assert_eq!(post.status, PostStatus::Processing);
+    assert_eq!(post.status, Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -534,7 +534,7 @@ async fn approve_post_with_incompatible_video() {
             .unwrap();
         tx.commit().await.expect("Commit transaction");
 
-        if post.status != PostStatus::Processing {
+        if post.status != Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
@@ -577,7 +577,7 @@ async fn mod_reports_approved_post() {
     let mut tx = state.db.begin().await.expect("Begin transaction");
     let user = test_user(None);
     // Create a post with status Approved and a media file
-    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), PostStatus::Approved).await;
+    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Approved).await;
 
     // Create a mod account
     let mod_user = create_test_account(&mut tx, AccountRole::Mod).await;
@@ -587,7 +587,7 @@ async fn mod_reports_approved_post() {
     // Mod reports the approved post
     let post_review = PostReview {
         session_token: mod_user.session_token,
-        status: PostStatus::Reported,
+        status: Reported,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review).unwrap();
     let request = Request::builder()
@@ -619,7 +619,7 @@ async fn mod_reports_approved_post() {
             .unwrap();
         tx.commit().await.expect("Commit transaction");
         // The post should now be in Reported status
-        if post.status == PostStatus::Reported {
+        if post.status == Reported {
             // The published media file should have been re-encrypted (i.e., removed from published location)
             assert!(
                 !post.published_media_path().exists(),
