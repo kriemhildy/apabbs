@@ -19,11 +19,6 @@
     --disabled: #444;
 }
 
-/* Reduce brightness in dark mode to avoid discomfort. */
-img, video {
-    filter: brightness(0.87);
-}
-
 /* Light mode color scheme (activated by system preference) */
 @media (prefers-color-scheme: light) {
     :root {
@@ -39,11 +34,6 @@ img, video {
         --rejected: rgb(250, 226, 226);
         --banned: rgb(231, 102, 102);
         --disabled: #ccc;
-    }
-
-    /* Use standard brightness in light mode. */
-    img, video {
-        filter: unset;
     }
 }
 
@@ -165,8 +155,8 @@ details.review form {
     display: inline;
 }
 
-/* Post layout and styling. */
-div#posts {
+/* List page post layout and styling. */
+main.list div#posts {
     display: flex;
     flex-wrap: wrap;
     gap: calc(1vh + 1vw + 16px);
@@ -174,16 +164,16 @@ div#posts {
     align-items: center;
 }
 
-main.index {
+main.list div.post {
+    flex: clamp(300px, 34vh, 800px);
+}
+
+main.list {
     margin-bottom: 50px;
 }
 
 main.solo div.post details.review {
     height: 45px;
-}
-
-div#posts div.post {
-    flex: clamp(300px, 34vh, 800px);
 }
 
 div.post {
@@ -249,15 +239,26 @@ div.youtube-thumbnail img {
     margin: 0 -8px;
     height: auto;
     width: auto;
+    /* Reduce brightness in dark mode to avoid discomfort. */
+    filter: brightness(0.87);
+}
+
+/* Restore standard brightness in light mode. */
+@media (prefers-color-scheme: light) {
+    div.media img,
+    div.media video,
+    div.youtube-thumbnail img {
+        filter: unset;
+    }
 }
 
 main.solo div.youtube-thumbnail img {
     max-height: 600px;
 }
 
-div#posts div.media img,
-div#posts div.media video,
-div#posts div.youtube-thumbnail img {
+main.list div.media img,
+main.list div.media video,
+main.list div.youtube-thumbnail img {
     max-height: clamp(300px, 80vh, 1200px);
 }
 
