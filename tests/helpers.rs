@@ -14,11 +14,16 @@ use std::path::Path;
 use uuid::Uuid;
 
 /// A sample local IP address (IPv6 loopback).
+#[allow(dead_code)]
 pub const LOCAL_IP: &str = "::1";
 /// The content type for form submissions.
+#[allow(dead_code)]
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
 /// Directory containing test media files.
 pub const TEST_MEDIA_DIR: &str = "tests/media";
+/// A sample IP address used for testing bans.
+#[allow(dead_code)]
+pub const BAN_IP: &str = "192.0.2.0";
 
 /// Initialize tracing, app state, and router for integration tests.
 pub async fn init_test() -> (Router, AppState) {
@@ -31,6 +36,7 @@ pub async fn init_test() -> (Router, AppState) {
 }
 
 /// Generate test credentials for a user.
+#[allow(dead_code)]
 pub fn test_credentials(user: &User) -> Credentials {
     Credentials {
         session_token: user.session_token,
@@ -42,6 +48,7 @@ pub fn test_credentials(user: &User) -> Credentials {
 }
 
 /// Create a test user with a random session token and local IP hash.
+#[allow(dead_code)]
 pub fn test_user(account: Option<Account>) -> User {
     User {
         account,
@@ -57,6 +64,7 @@ pub fn local_ip_hash() -> String {
 }
 
 /// Create a test user account in the database with the given role.
+#[allow(dead_code)]
 pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
     let user = test_user(None);
     let credentials = test_credentials(&user);
@@ -88,6 +96,7 @@ pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> Us
 }
 
 /// Delete a test account from the database by account id.
+#[allow(dead_code)]
 pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account.id)

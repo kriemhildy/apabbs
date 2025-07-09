@@ -23,9 +23,7 @@ use helpers::{
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use crate::helpers::{create_test_post, delete_test_ban};
-
-pub const BAN_IP: &str = "192.0.2.0";
+use crate::helpers::{BAN_IP, create_test_post, delete_test_ban};
 
 /// Tests decrypting and serving media files.
 #[tokio::test]
@@ -650,47 +648,5 @@ async fn mod_reports_approved_post() {
         .expect("Delete directory");
     final_post.delete(&mut tx).await.expect("Execute query");
     delete_test_account(&mut tx, mod_account).await;
-    tx.commit().await.expect("Commit transaction");
-}
-
-/// Tests IP hash scrubbing for old posts.
-#[tokio::test]
-async fn scrub_ips() {
-    let (_router, state) = init_test().await;
-    let ip_hash = sha256::digest(apabbs::secret_key() + BAN_IP);
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    let key = PostSubmission::generate_key(&mut tx)
-        .await
-        .expect("Generate test key");
-
-    // Insert the post directly using SQL to set created_at in the past
-    sqlx::query(concat!(
-        "INSERT INTO posts (body, status, key, ip_hash, created_at) ",
-        "VALUES ($1, 'approved', $2, $3, now() - interval '2 days') ",
-        "RETURNING id"
-    ))
-    .bind("test body")
-    .bind(&key)
-    .bind(&ip_hash)
-    .execute(&mut *tx)
-    .await
-    .expect("Insert test post");
-
-    // Run the scrub command
-    let result = apabbs::ban::scrub(&mut tx).await;
-    assert!(result.is_ok(), "Scrub should succeed: {result:?}");
-
-    // Verify the post no longer has an ip_hash
-    let post = Post::select_by_key(&mut tx, &key)
-        .await
-        .expect("Select post by key after scrub")
-        .unwrap();
-    assert!(
-        post.ip_hash.is_none(),
-        "ip_hash should be scrubbed (set to NULL)"
-    );
-
-    // Clean up
-    post.delete(&mut tx).await.expect("Delete test post");
     tx.commit().await.expect("Commit transaction");
 }

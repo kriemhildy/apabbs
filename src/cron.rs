@@ -24,9 +24,6 @@ use std::error::Error;
 use tokio_cron_scheduler::Job;
 
 /// The path where screenshots will be saved
-#[cfg(test)]
-const SCREENSHOT_PATH: &str = "pub/test_screenshot.webp";
-#[cfg(not(test))]
 const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
 
 /// Initializes and starts the scheduled job system in the background for the application's lifetime.
@@ -73,21 +70,21 @@ pub fn create_scrub_job() -> Job {
 }
 
 /// Takes a screenshot of the homepage.
-pub async fn screenshot_task() {
+pub async fn screenshot_task(screenshot_path: &str) {
     let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         let url = if crate::dev() {
             "http://localhost".to_string()
         } else {
             format!("https://{}", crate::host())
         };
-        tracing::info!(url, SCREENSHOT_PATH, "Taking screenshot with Chromium...");
+        tracing::info!(url, screenshot_path, "Taking screenshot with Chromium...");
         let status = tokio::process::Command::new("chromium")
             .args([
                 "--headless",
                 "--hide-scrollbars",
                 "--force-dark-mode",
                 "--window-size=1920,1080",
-                &format!("--screenshot={SCREENSHOT_PATH}"),
+                &format!("--screenshot={screenshot_path}"),
                 &url,
             ])
             .stderr(std::process::Stdio::null())
@@ -104,35 +101,22 @@ pub async fn screenshot_task() {
     .await;
 
     match result {
-        Err(e) => tracing::error!(SCREENSHOT_PATH, "Failed to take screenshot: {e}"),
-        Ok(_) => tracing::info!(SCREENSHOT_PATH, "Chromium screenshot saved"),
+        Err(e) => tracing::error!(screenshot_path, "Failed to take screenshot: {e}"),
+        Ok(_) => tracing::info!(screenshot_path, "Chromium screenshot saved"),
     }
 }
 
 /// Creates a scheduled job that takes a screenshot of the application and saves it to disk.
 pub fn create_screenshot_job() -> Job {
-    Job::new_async("0 55 * * * *", |_uuid, _l| Box::pin(screenshot_task())).expect("Create job")
+    Job::new_async("0 55 * * * *", |_uuid, _l| {
+        Box::pin(screenshot_task(SCREENSHOT_PATH))
+    })
+    .expect("Create job")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-
-    #[tokio::test]
-    async fn test_screenshot_task() {
-        assert!(
-            fs::metadata(SCREENSHOT_PATH).is_err(),
-            "Screenshot file should not exist before test"
-        );
-        screenshot_task().await;
-        assert!(
-            fs::metadata(SCREENSHOT_PATH).is_ok(),
-            "Screenshot file should exist"
-        );
-        // Clean up
-        fs::remove_file(SCREENSHOT_PATH).expect("Remove test screenshot");
-    }
 
     #[tokio::test]
     async fn test_init() {
