@@ -35,7 +35,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
     let anon_user = test_user(None);
     let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), Pending).await;
-    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -151,7 +151,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -227,7 +227,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("small.png"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -306,7 +306,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("video.mp4"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -382,7 +382,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     let user = test_user(None);
     let post = create_test_post(&mut tx, &user, Some("video.webm"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -462,7 +462,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Approved).await;
 
     // Create a mod account
-    let mod_user = create_test_account(&mut tx, AccountRole::Mod).await;
+    let mod_user = create_test_account(&mut tx, AccountRole::Mod).await?;
     let mod_account = mod_user.account.as_ref().unwrap();
     tx.commit().await?;
 

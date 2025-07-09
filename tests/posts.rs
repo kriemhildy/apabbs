@@ -237,7 +237,7 @@ async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> 
 
     // Create test account
     let mut tx = state.db.begin().await?;
-    let user = create_test_account(&mut tx, AccountRole::Novice).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
     tx.commit().await?;
     let account = user.account.as_ref().unwrap();
 
@@ -285,7 +285,7 @@ async fn hide_post() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create a post and admin user
     let post = create_test_post(&mut tx, &user, None, Pending).await;
-    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = admin_user.account.as_ref().unwrap();
     post.update_status(&mut tx, Rejected).await?;
     tx.commit().await?;

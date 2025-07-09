@@ -10,7 +10,7 @@ use axum::{Router, body::Body, http::Response};
 use http_body_util::BodyExt;
 use sha256;
 use sqlx::PgConnection;
-use std::path::Path;
+use std::{error::Error, path::Path};
 use uuid::Uuid;
 
 /// A sample local IP address (IPv6 loopback).
@@ -65,13 +65,13 @@ pub fn local_ip_hash() -> String {
 
 /// Create a test user account in the database with the given role.
 #[allow(dead_code)]
-pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> User {
+pub async fn create_test_account(
+    tx: &mut PgConnection,
+    role: AccountRole,
+) -> Result<User, Box<dyn Error + Send + Sync>> {
     let user = test_user(None);
     let credentials = test_credentials(&user);
-    let account = credentials
-        .register(tx, &local_ip_hash())
-        .await
-        .expect("Execute query");
+    let account = credentials.register(tx, &local_ip_hash()).await?;
 
     let account = if role != AccountRole::Novice {
         sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
@@ -79,20 +79,19 @@ pub async fn create_test_account(tx: &mut PgConnection, role: AccountRole) -> Us
             .bind(account.id)
             .execute(&mut *tx)
             .await
-            .expect("Execute query");
+            .expect("update account role");
         Account::select_by_username(tx, &account.username)
-            .await
-            .expect("Execute query")
+            .await?
             .unwrap()
     } else {
         account
     };
 
-    User {
+    Ok(User {
         account: Some(account),
         session_token: user.session_token,
         ..user
-    }
+    })
 }
 
 /// Delete a test account from the database by account id.
@@ -102,7 +101,7 @@ pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
         .bind(account.id)
         .execute(tx)
         .await
-        .expect("Execute query");
+        .expect("delete account");
 }
 
 /// Create a test post in the database for a user, with optional media and status.
@@ -118,7 +117,7 @@ pub async fn create_test_post(
     let media_bytes = match media_filename {
         Some(media_filename) => {
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
-            Some(tokio::fs::read(path).await.expect("Read file"))
+            Some(tokio::fs::read(path).await.unwrap())
         }
         None => None,
     };

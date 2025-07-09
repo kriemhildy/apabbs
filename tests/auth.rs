@@ -137,7 +137,7 @@ async fn logout() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create test account
     let mut tx = state.db.begin().await?;
-    let user = create_test_account(&mut tx, AccountRole::Novice).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -173,7 +173,7 @@ async fn reset_account_token() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create test account
     let mut tx = state.db.begin().await?;
-    let user = create_test_account(&mut tx, AccountRole::Novice).await;
+    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
