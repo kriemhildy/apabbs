@@ -3,9 +3,9 @@
 //! Provides core path helpers, constants, and utility functions for post media files.
 //! Most media processing logic (encryption, image, and video handling) is delegated to submodules.
 
-mod encryption;
-mod images;
-mod video;
+pub mod encryption;
+pub mod images;
+pub mod video;
 
 use super::{MediaCategory, Post, review::PostReview, submission::PostSubmission};
 use regex::Regex;
