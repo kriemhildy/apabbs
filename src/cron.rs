@@ -20,7 +20,14 @@
 //! ```
 
 use crate::ban;
+use std::error::Error;
 use tokio_cron_scheduler::Job;
+
+/// The path where screenshots will be saved
+#[cfg(test)]
+const SCREENSHOT_PATH: &str = "pub/test_screenshot.webp";
+#[cfg(not(test))]
+const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
 
 /// Initializes and starts the scheduled job system in the background for the application's lifetime.
 pub async fn init() {
@@ -36,74 +43,75 @@ pub async fn init() {
     sched.start().await.expect("Start job scheduler");
 }
 
-/// Creates a scheduled job that removes old IP hash data for privacy.
-pub fn create_scrub_job() -> Job {
-    Job::new_async("0 0 11 * * *", |_uuid, _l| {
-        Box::pin(async move {
-            tracing::info!("Scrubbing old IP hashes");
+/// The function executed by the scrub job.
+pub async fn scrub_task() {
+    let result: Result<(), Box<dyn Error + Send + Sync>> = async {
+        tracing::info!("Scrubbing old IP hashes...");
 
-            // Connect to the database and start a transaction
-            let db = crate::init_db().await;
-            let mut tx = db.begin().await.expect("Begin transaction");
+        // Connect to the database and start a transaction
+        let db = crate::init_db().await;
+        let mut tx = db.begin().await?;
 
-            // Execute the IP scrubbing operation
-            ban::scrub(&mut tx).await.expect("Execute query");
+        // Execute the IP scrubbing operation
+        ban::scrub(&mut tx).await?;
 
-            // Commit the transaction
-            tx.commit().await.expect("Commit transaction");
+        // Commit the transaction
+        tx.commit().await?;
+        Ok(())
+    }
+    .await;
 
-            tracing::info!("Old IP hashes scrubbed");
-        })
-    })
-    .expect("Create job")
+    match result {
+        Err(e) => tracing::error!("Failed to scrub old IP hashes: {e}"),
+        Ok(_) => tracing::info!("Scrub task completed successfully"),
+    }
 }
 
-/// Takes a screenshot of the given URL and saves it to the specified output path.
-pub async fn take_screenshot(url: &str, output_path: &str) -> Result<(), String> {
-    tracing::info!(url, output_path, "Taking screenshot with Chromium...");
-    let status = tokio::process::Command::new("chromium")
-        .args([
-            "--headless",
-            "--hide-scrollbars",
-            "--force-dark-mode",
-            "--window-size=1920,1080",
-            &format!("--screenshot={output_path}"),
-            url,
-        ])
-        .stderr(std::process::Stdio::null())
-        .status()
-        .await
-        .map_err(|e| format!("Failed to execute chromium: {e}"))?;
+/// Creates a scheduled job that removes old IP hash data for privacy.
+pub fn create_scrub_job() -> Job {
+    Job::new_async("0 0 11 * * *", |_uuid, _l| Box::pin(scrub_task())).expect("Create job")
+}
 
-    if status.success() {
-        tracing::info!(output_path, "Chromium screenshot saved");
-        Ok(())
-    } else {
-        let msg = format!(
-            "Failed to generate screenshot. Chromium exited with code: {:?}",
-            status.code()
-        );
-        tracing::error!("{msg}");
-        Err(msg)
+/// Takes a screenshot of the homepage.
+pub async fn screenshot_task() {
+    let result: Result<(), Box<dyn Error + Send + Sync>> = async {
+        let url = if crate::dev() {
+            "http://localhost".to_string()
+        } else {
+            format!("https://{}", crate::host())
+        };
+        tracing::info!(url, SCREENSHOT_PATH, "Taking screenshot with Chromium...");
+        let status = tokio::process::Command::new("chromium")
+            .args([
+                "--headless",
+                "--hide-scrollbars",
+                "--force-dark-mode",
+                "--window-size=1920,1080",
+                &format!("--screenshot={SCREENSHOT_PATH}"),
+                &url,
+            ])
+            .stderr(std::process::Stdio::null())
+            .status()
+            .await
+            .map_err(|e| format!("Failed to execute chromium: {e}"))?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("Chromium exited with code: {:?}", status.code()).into())
+        }
+    }
+    .await;
+
+    match result {
+        Err(e) => tracing::error!(SCREENSHOT_PATH, "Failed to take screenshot: {e}"),
+        Ok(_) => tracing::info!(SCREENSHOT_PATH, "Chromium screenshot saved"),
     }
 }
 
 /// Creates a scheduled job that takes a screenshot of the application and saves it to disk.
 pub fn create_screenshot_job() -> Job {
-    Job::new_async("0 55 * * * *", |_uuid, _l| {
-        Box::pin(async move {
-            let url = if crate::dev() {
-                "http://localhost".to_string()
-            } else {
-                format!("https://{}", crate::host())
-            };
-            let output_path = "pub/screenshot.webp";
-            if let Err(e) = take_screenshot(&url, output_path).await {
-                tracing::error!("Scheduled screenshot failed: {e}");
-            }
-        })
-    })
-    .expect("Create job")
+    Job::new_async("0 55 * * * *", |_uuid, _l| Box::pin(screenshot_task())).expect("Create job")
 }
 
 #[cfg(test)]
@@ -112,16 +120,22 @@ mod tests {
     use std::fs;
 
     #[tokio::test]
-    async fn take_screenshot_creates_file() {
-        let url = "https://example.com";
-        let output_path = "pub/test_screenshot.webp";
-        let result = take_screenshot(url, output_path).await;
-        assert!(result.is_ok(), "Screenshot should succeed: {result:?}");
+    async fn test_screenshot_task() {
         assert!(
-            fs::metadata(output_path).is_ok(),
+            fs::metadata(SCREENSHOT_PATH).is_err(),
+            "Screenshot file should not exist before test"
+        );
+        screenshot_task().await;
+        assert!(
+            fs::metadata(SCREENSHOT_PATH).is_ok(),
             "Screenshot file should exist"
         );
         // Clean up
-        fs::remove_file(output_path).expect("Remove test screenshot");
+        fs::remove_file(SCREENSHOT_PATH).expect("Remove test screenshot");
+    }
+
+    #[tokio::test]
+    async fn test_init() {
+        init().await;
     }
 }
