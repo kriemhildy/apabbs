@@ -129,53 +129,33 @@ impl PostReview {
         published_media_path: &Path,
         media_bytes: Vec<u8>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let media_key_dir = published_media_path
-            .parent()
-            .ok_or("failed to get parent directory for media file")?;
-        tokio::fs::create_dir(media_key_dir)
-            .await
-            .map_err(|e| format!("failed to create media key directory: {e}"))?;
-        tokio::fs::write(&published_media_path, media_bytes)
-            .await
-            .map_err(|e| format!("failed to write media file: {e}"))?;
+        let media_key_dir = published_media_path.parent().unwrap();
+        tokio::fs::create_dir(media_key_dir).await?;
+        tokio::fs::write(&published_media_path, media_bytes).await?;
         Ok(())
     }
 
     /// Constructs an alternate file path for a derived media file.
     pub fn alternate_path(media_path: &Path, prefix: &str, extension: &str) -> PathBuf {
-        let media_filename = media_path
-            .file_name()
-            .expect("Get filename from Path")
-            .to_str()
-            .expect("Convert filename to str");
-
+        let media_filename = media_path.file_name().unwrap().to_str().unwrap();
         let key_dir = media_path.parent().unwrap();
         let extension_pattern = Regex::new(r"\.[^\.]+$").expect("Build regular expression");
-
-        // Create thumbnail filename with "tn_" prefix and specified extension
         let alternate_filename =
             prefix.to_string() + &extension_pattern.replace(media_filename, extension);
-
         key_dir.join(&alternate_filename)
     }
 
     /// Deletes all media files associated with a post.
     pub async fn delete_media_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_key_dir = std::path::Path::new(MEDIA_DIR).join(key);
-
-        tokio::fs::remove_dir_all(&media_key_dir)
-            .await
-            .map_err(|e| format!("failed to remove media key dir and its contents: {e}"))?;
+        tokio::fs::remove_dir_all(&media_key_dir).await?;
         Ok(())
     }
 
     /// Deletes an encrypted media file and its containing directory.
     pub async fn delete_upload_key_dir(key: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let upload_key_dir = std::path::Path::new(UPLOADS_DIR).join(key);
-
-        tokio::fs::remove_dir_all(&upload_key_dir)
-            .await
-            .map_err(|e| format!("failed to remove uploads key dir: {e}"))?;
+        tokio::fs::remove_dir_all(&upload_key_dir).await?;
         Ok(())
     }
 
@@ -184,27 +164,12 @@ impl PostReview {
         tx: &mut PgConnection,
         post: &Post,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // Decrypt the media file
-        let media_bytes = post
-            .decrypt_media_file()
-            .await
-            .map_err(|e| format!("failed to decrypt media file: {e}"))?;
-
-        // Write the decrypted file to the published media directory
+        let media_bytes = post.gpg_decrypt().await?;
         let published_media_path = post.published_media_path();
-        Self::write_media_file(&published_media_path, media_bytes)
-            .await
-            .map_err(|e| format!("failed to write decrypted media file: {e}"))?;
-
-        // Process according to media type
+        Self::write_media_file(&published_media_path, media_bytes).await?;
         match post.media_category {
-            Some(MediaCategory::Image) => Self::process_image(tx, post)
-                .await
-                .map_err(|e| format!("failed to process image media: {e}"))?,
-            Some(MediaCategory::Video) => Self::process_video(tx, post)
-                .await
-                .map_err(|e| format!("failed to process video media: {e}"))?,
-            // Audio files and posts without media don't need processing
+            Some(MediaCategory::Image) => Self::process_image(tx, post).await?,
+            Some(MediaCategory::Video) => Self::process_video(tx, post).await?,
             Some(MediaCategory::Audio) | None => (),
         }
 

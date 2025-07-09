@@ -183,7 +183,7 @@ pub fn response_has_cookie(response: &Response<Body>, cookie: &str, removed: boo
         .get_all(axum::http::header::SET_COOKIE)
         .iter()
         .any(|h| {
-            let s = h.to_str().expect("Convert header to str");
+            let s = h.to_str().unwrap();
             s.contains(cookie) && (removed == s.contains("Max-Age=0"))
         })
 }

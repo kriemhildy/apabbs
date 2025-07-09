@@ -31,7 +31,7 @@ pub async fn begin_transaction(
 ) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
     db.begin()
         .await
-        .map_err(|e| format!("failed to begin database transaction: {e}").into())
+        .map_err(|e| format!("begin database transaction: {e}").into())
 }
 
 /// Commit a database transaction.
@@ -40,7 +40,7 @@ pub async fn commit_transaction(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     tx.commit()
         .await
-        .map_err(|e| format!("failed to commit transaction: {e}").into())
+        .map_err(|e| format!("commit transaction: {e}").into())
 }
 
 //==================================================================================================
@@ -68,18 +68,18 @@ pub fn render(
         let mut env = state
             .jinja
             .write()
-            .map_err(|e| format!("failed to acquire write lock for template \"{name}\": {e}"))?;
+            .map_err(|e| format!("acquire write lock for template \"{name}\": {e}"))?;
         env.clear_templates();
     }
     let env = state
         .jinja
         .read()
-        .map_err(|e| format!("failed to acquire read lock for template \"{name}\": {e}"))?;
+        .map_err(|e| format!("acquire read lock for template \"{name}\": {e}"))?;
     let tmpl = env.get_template(name).map_err(|e| {
-        Box::<dyn Error + Send + Sync>::from(format!("failed to get template \"{name}\": {e}"))
+        Box::<dyn Error + Send + Sync>::from(format!("get template \"{name}\": {e}"))
     })?;
     tmpl.render(ctx)
-        .map_err(|e| format!("failed to render template \"{name}\": {e}").into())
+        .map_err(|e| format!("render template \"{name}\": {e}").into())
 }
 
 /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.
@@ -122,7 +122,7 @@ pub async fn set_session_time_zone(
         .execute(&mut *tx)
         .await
         .map(|_| ())
-        .map_err(|e| format!("failed to set session time zone: {e}").into())
+        .map_err(|e| format!("set session time zone: {e}").into())
 }
 
 /// Generate a UTC timestamp string for the current hour.
@@ -133,7 +133,7 @@ pub async fn utc_hour_timestamp(
         .bind(POSTGRES_UTC_HOUR)
         .fetch_one(tx)
         .await
-        .map_err(|e| format!("failed to get UTC hour timestamp: {e}").into())
+        .map_err(|e| format!("get UTC hour timestamp: {e}").into())
 }
 
 //==================================================================================================

@@ -101,7 +101,7 @@ impl PostReview {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("failed to insert review: {e}").into())
+            .map_err(|e| format!("insert review: {e}").into())
     }
 
     /// Determines the moderation action for a post review based on post state and user role.
@@ -233,7 +233,7 @@ impl PostReview {
             // Delete the upload key directory after publishing
             PostReview::delete_upload_key_dir(&post.key)
                 .await
-                .map_err(|e| format!("failed to delete upload directory: {e}"))?;
+                .map_err(|e| format!("delete upload directory: {e}"))?;
 
             commit_transaction(tx).await?;
 
@@ -263,7 +263,7 @@ impl PostReview {
             // Attempt media re-encryption
             post.reencrypt_media_file()
                 .await
-                .map_err(|e| format!("failed to re-encrypt media: {e}"))?;
+                .map_err(|e| format!("re-encrypt media: {e}"))?;
 
             // Update post status
             let post = post.update_status(&mut tx, status).await?;

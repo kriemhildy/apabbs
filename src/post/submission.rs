@@ -60,7 +60,7 @@ impl PostSubmission {
                     .bind(&key)
                     .fetch_one(&mut *tx)
                     .await
-                    .map_err(|e| format!("failed to check post key existence: {e}"))?;
+                    .map_err(|e| format!("check post key existence: {e}"))?;
             if !exists {
                 return Ok(key);
             }
@@ -85,7 +85,7 @@ impl PostSubmission {
         let html_body = self
             .body_to_html(key)
             .await
-            .map_err(|e| format!("failed to convert post body to HTML: {e}"))?;
+            .map_err(|e| format!("convert post body to HTML: {e}"))?;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit = Self::intro_limit(&html_body);
         sqlx::query_as(concat!(
@@ -106,7 +106,7 @@ impl PostSubmission {
         .bind(intro_limit)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| format!("failed to insert post: {e}").into())
+        .map_err(|e| format!("insert post: {e}").into())
     }
 
     /// Downloads a YouTube thumbnail for the given video ID, returning its path and dimensions if successful.
@@ -159,7 +159,7 @@ impl PostSubmission {
                 .arg(&remote_thumbnail_url)
                 .status()
                 .await
-                .map_err(|e| format!("failed to execute curl: {e}"))?;
+                .map_err(|e| format!("execute curl: {e}"))?;
             if curl_status.success() {
                 let (width, height) = (size.1, size.2);
                 return Ok(Some((local_thumbnail_path, width, height)));
@@ -189,7 +189,7 @@ impl PostSubmission {
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         Self::embed_youtube(html, key)
             .await
-            .map_err(|e| format!("failed to embed YouTube videos: {e}").into())
+            .map_err(|e| format!("embed YouTube videos: {e}").into())
     }
 
     /// Embeds YouTube video thumbnails in the post HTML, replacing links with embed markup.
@@ -229,14 +229,14 @@ impl PostSubmission {
             tracing::debug!(video_id, timestamp, "Parsed YouTube URL");
             let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short)
                 .await
-                .map_err(|e| format!("failed to download YouTube thumbnail: {e}"))?;
+                .map_err(|e| format!("download YouTube thumbnail: {e}"))?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (
                     path.to_str()
-                        .ok_or("failed to convert thumbnail path to string")?
+                        .ok_or("convert thumbnail path to string")?
                         .strip_prefix("pub")
-                        .ok_or("failed to strip 'pub' prefix from thumbnail path")?
+                        .ok_or("strip 'pub' prefix from thumbnail path")?
                         .to_string(),
                     width,
                     height,
@@ -391,7 +391,7 @@ impl PostHiding {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("failed to hide post: {e}").into())
+            .map_err(|e| format!("hide post: {e}").into())
     }
 }
 

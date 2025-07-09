@@ -27,58 +27,32 @@ impl PostReview {
         let published_media_path = post.published_media_path();
 
         // If necessary, generate a compatibility video for browser playback
-        if !Self::video_is_compatible(&published_media_path)
-            .await
-            .map_err(|e| format!("failed to check video compatibility: {e}"))?
-        {
-            let compatibility_path = Self::generate_compatibility_video(&published_media_path)
-                .await
-                .map_err(|e| format!("failed to generate compatibility video: {e}"))?;
-
-            if !compatibility_path.exists() {
-                return Err("compatibility video generation failed".into());
-            }
+        if !Self::video_is_compatible(&published_media_path).await? {
+            let compatibility_path =
+                Self::generate_compatibility_video(&published_media_path).await?;
 
             // Update the database with the compatibility video path
-            post.update_compat_video(tx, &compatibility_path)
-                .await
-                .map_err(|e| format!("failed to update compatibility video in database: {e}"))?;
+            post.update_compat_video(tx, &compatibility_path).await?
         }
 
         // Generate a poster image from the video
-        let video_poster_path = Self::generate_video_poster(&published_media_path)
-            .await
-            .map_err(|e| format!("failed to generate video poster: {e}"))?;
-        post.update_poster(tx, &video_poster_path)
-            .await
-            .map_err(|e| format!("failed to update video poster in database: {e}"))?;
+        let video_poster_path = Self::generate_video_poster(&published_media_path).await?;
+        post.update_poster(tx, &video_poster_path).await?;
 
         // Update the post with media dimensions and poster
-        let (media_width, media_height) = Self::image_dimensions(&video_poster_path)
-            .await
-            .map_err(|e| format!("failed to get video poster dimensions: {e}"))?;
+        let (media_width, media_height) = Self::image_dimensions(&video_poster_path).await?;
         post.update_media_dimensions(tx, media_width, media_height)
-            .await
-            .map_err(|e| format!("failed to update media dimensions in database: {e}"))?;
+            .await?;
 
         // Check if dimensions are large enough to necessitate a thumbnail
         if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
-            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path)
-                .await
-                .map_err(|e| format!("failed to generate video thumbnail: {e}"))?;
+            let thumbnail_path = Self::generate_image_thumbnail(&video_poster_path).await?;
 
-            if !thumbnail_path.exists() {
-                return Err("thumbnail was not created successfully".into());
-            }
-
-            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path)
-                .await
-                .map_err(|e| format!("failed to get video thumbnail dimensions: {e}"))?;
+            let (thumb_width, thumb_height) = Self::image_dimensions(&thumbnail_path).await?;
 
             // Update the post with thumbnail info
             post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
-                .await
-                .map_err(|e| format!("failed to update video thumbnail in database: {e}"))?;
+                .await?;
         }
 
         Ok(())
@@ -89,10 +63,7 @@ impl PostReview {
         video_path: &Path,
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_path = ?video_path, "Checking video compatibility");
-        let video_path_str = video_path
-            .to_str()
-            .ok_or("failed to convert video_path to string")?
-            .to_string();
+        let video_path_str = video_path.to_str().unwrap().to_string();
 
         // Helper to probe a single stream
         async fn probe_stream(
@@ -113,7 +84,7 @@ impl PostReview {
                 ])
                 .output()
                 .await
-                .map_err(|e| format!("failed to run ffprobe: {e}"))?;
+                .map_err(|e| format!("run ffprobe: {e}"))?;
             if !output.status.success() {
                 return Err(format!(
                     "ffprobe failed, status: {}. stderr: {}",
@@ -199,22 +170,17 @@ impl PostReview {
         video_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_path = ?video_path, "Generating compatibility video");
-        let video_path_str = video_path
-            .to_str()
-            .ok_or("failed to convert video_path to string")?
-            .to_string();
+        let video_path_str = video_path.to_str().unwrap();
+
         let compatibility_path = Self::alternate_path(video_path, "cm_", ".mp4");
-        let compatibility_path_str = compatibility_path
-            .to_str()
-            .ok_or("failed to convert compatibility path to string")?
-            .to_string();
+        let compatibility_path_str = compatibility_path.to_str().unwrap();
 
         // Run ffmpeg to convert the video
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
             .args([
                 "-nostdin", // No stdin interaction
                 "-i",
-                &video_path_str, // Input file
+                video_path_str, // Input file
                 "-f",
                 "mp4", // Force MP4 container
                 "-c:v",
@@ -232,12 +198,12 @@ impl PostReview {
                 "-c:a",
                 "aac", // AAC audio codec
                 "-b:a",
-                "128k",                  // Audio bitrate
-                &compatibility_path_str, // Output file
+                "128k",                 // Audio bitrate
+                compatibility_path_str, // Output file
             ])
             .output()
             .await
-            .map_err(|e| format!("failed to execute ffmpeg: {e}"))?;
+            .map_err(|e| format!("execute ffmpeg: {e}"))?;
 
         if !ffmpeg_output.status.success() {
             return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
@@ -259,23 +225,17 @@ impl PostReview {
         video_path: &Path,
     ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         tracing::debug!(video_path = ?video_path, "Generating video poster");
-        let poster_path = video_path.with_extension("webp");
+        let video_path_str = video_path.to_str().unwrap();
 
-        let video_path_str = video_path
-            .to_str()
-            .ok_or("failed to convert video_path to string")?
-            .to_string();
-        let poster_path_str = poster_path
-            .to_str()
-            .ok_or("failed to convert poster_path to string")?
-            .to_string();
+        let poster_path = video_path.with_extension("webp");
+        let poster_path_str = poster_path.to_str().unwrap();
 
         // Generate the poster image using ffmpeg
         let ffmpeg_output = tokio::process::Command::new("ffmpeg")
             .args([
                 "-nostdin", // No stdin interaction
                 "-i",
-                &video_path_str, // Input file
+                video_path_str, // Input file
                 "-ss",
                 "00:00:01.000", // Seek to 1 second into the video
                 "-vframes",
@@ -289,12 +249,12 @@ impl PostReview {
                 "-quality",
                 "80", // Image quality
                 "-preset",
-                "picture",        // Optimize for still image
-                &poster_path_str, // Output file
+                "picture",       // Optimize for still image
+                poster_path_str, // Output file
             ])
             .output()
             .await
-            .map_err(|e| format!("failed to complete ffmpeg: {e}"))?;
+            .map_err(|e| format!("complete ffmpeg: {e}"))?;
 
         if !ffmpeg_output.status.success() {
             return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());

@@ -174,7 +174,7 @@ pub async fn decrypt_media(
         .media_filename
         .as_ref()
         .ok_or_else(|| InternalServerError("Missing filename".to_string()))?;
-    let media_bytes = post.decrypt_media_file().await?;
+    let media_bytes = post.gpg_decrypt().await?;
     if media_bytes.is_empty() {
         return Err(InternalServerError(
             "Decrypted media bytes are empty".to_string(),

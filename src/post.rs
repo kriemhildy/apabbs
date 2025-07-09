@@ -151,7 +151,7 @@ impl Post {
         qb.build_query_as()
             .fetch_all(&mut *tx)
             .await
-            .map_err(|e| format!("failed to select posts: {e}").into())
+            .map_err(|e| format!("select posts: {e}").into())
     }
 
     /// Selects approved posts created by the specified account.
@@ -169,7 +169,7 @@ impl Post {
         .bind(crate::per_page() as i32)
         .fetch_all(&mut *tx)
         .await
-        .map_err(|e| format!("failed to select posts by author: {e}").into())
+        .map_err(|e| format!("select posts by author: {e}").into())
     }
 
     /// Returns true if the user is the author of this post.
@@ -198,7 +198,7 @@ impl Post {
         .bind(key)
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| format!("failed to select post by key: {e}").into())
+        .map_err(|e| format!("select post by key: {e}").into())
     }
 
     /// Permanently deletes a post from the database.
@@ -211,7 +211,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("failed to delete post: {e}").into())
+            .map_err(|e| format!("delete post: {e}").into())
     }
 
     /// Updates the status of a post in the database.
@@ -225,7 +225,7 @@ impl Post {
             .bind(self.id)
             .fetch_one(&mut *tx)
             .await
-            .map_err(|e| format!("failed to update post status: {e}").into())
+            .map_err(|e| format!("update post status: {e}").into())
     }
 
     /// Updates thumbnail metadata for a post.
@@ -236,11 +236,7 @@ impl Post {
         width: i32,
         height: i32,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let thumbnail_filename = thumbnail_path
-            .file_name()
-            .expect("Get filename from Path")
-            .to_str()
-            .expect("Convert filename to str");
+        let thumbnail_filename = thumbnail_path.file_name().unwrap().to_str().unwrap();
 
         sqlx::query(concat!(
             "UPDATE posts SET thumb_filename = $1, thumb_width = $2, ",
@@ -253,7 +249,7 @@ impl Post {
         .execute(&mut *tx)
         .await
         .map(|_| ())
-        .map_err(|e| format!("failed to update thumbnail: {e}").into())
+        .map_err(|e| format!("update thumbnail: {e}").into())
     }
 
     /// Updates the compatibility video filename for a post.
@@ -262,18 +258,15 @@ impl Post {
         tx: &mut PgConnection,
         compat_path: &Path,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let compat_filename = compat_path
-            .file_name()
-            .expect("Get filename from Path")
-            .to_str()
-            .expect("Convert filename to str");
+        let compat_filename = compat_path.file_name().unwrap().to_str().unwrap();
+
         sqlx::query("UPDATE posts SET compat_video = $1 WHERE id = $2")
             .bind(compat_filename)
             .bind(self.id)
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("failed to update compat video: {e}").into())
+            .map_err(|e| format!("update compat video: {e}").into())
     }
 
     /// Updates the media dimensions for a post in the database.
@@ -290,7 +283,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("failed to update media dimensions: {e}").into())
+            .map_err(|e| format!("update media dimensions: {e}").into())
     }
 
     /// Updates the poster filename for video posts.
@@ -299,11 +292,7 @@ impl Post {
         tx: &mut PgConnection,
         video_poster_path: &Path,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let media_poster_filename = video_poster_path
-            .file_name()
-            .expect("Get filename from Path")
-            .to_str()
-            .expect("Convert filename to str");
+        let media_poster_filename = video_poster_path.file_name().unwrap().to_str().unwrap();
 
         sqlx::query("UPDATE posts SET video_poster = $1 WHERE id = $2")
             .bind(media_poster_filename)
@@ -311,7 +300,7 @@ impl Post {
             .execute(&mut *tx)
             .await
             .map(|_| ())
-            .map_err(|e| format!("failed to update video poster: {e}").into())
+            .map_err(|e| format!("update video poster: {e}").into())
     }
 }
 

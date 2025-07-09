@@ -29,7 +29,7 @@ pub async fn insert(
     .bind(POSTGRES_RFC5322_DATETIME)
     .fetch_one(&mut *tx)
     .await
-    .map_err(|e| format!("failed to insert ban: {e}").into())
+    .map_err(|e| format!("insert ban: {e}").into())
 }
 
 /// Checks if an active ban exists for an IP hash or account ID.
@@ -47,7 +47,7 @@ pub async fn exists(
     .bind(banned_account_id)
     .fetch_optional(&mut *tx)
     .await
-    .map_err(|e| format!("failed to check for existing ban: {e}").into())
+    .map_err(|e| format!("check for existing ban: {e}").into())
 }
 
 /// Counts new accounts created from an IP address within the past day.
@@ -62,7 +62,7 @@ pub async fn new_accounts_count(
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .map_err(|e| format!("failed to count new accounts: {e}").into())
+    .map_err(|e| format!("count new accounts: {e}").into())
 }
 
 /// Counts pending posts created from an IP address within the past day.
@@ -77,7 +77,7 @@ pub async fn new_posts_count(
     .bind(ip_hash)
     .fetch_one(&mut *tx)
     .await
-    .map_err(|e| format!("failed to count new posts: {e}").into())
+    .map_err(|e| format!("count new posts: {e}").into())
 }
 
 /// Determines if an IP address is creating excessive content (flooding).
@@ -102,13 +102,13 @@ pub async fn prune(
     .bind(ip_hash)
     .execute(&mut *tx)
     .await
-    .map_err(|e| format!("failed to prune accounts: {e}"))?;
+    .map_err(|e| format!("prune accounts: {e}"))?;
 
     sqlx::query("DELETE FROM posts WHERE ip_hash = $1 AND status = 'pending'")
         .bind(ip_hash)
         .execute(&mut *tx)
         .await
-        .map_err(|e| format!("failed to prune posts: {e}"))?;
+        .map_err(|e| format!("prune posts: {e}"))?;
 
     Ok(())
 }
@@ -122,7 +122,7 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     ))
     .execute(&mut *tx)
     .await
-    .map_err(|e| format!("failed to scrub accounts: {e}"))?;
+    .map_err(|e| format!("scrub accounts: {e}"))?;
 
     // Scrub IP data from posts older than 1 day that don't need IP tracking
     sqlx::query(concat!(
@@ -132,7 +132,7 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     ))
     .execute(&mut *tx)
     .await
-    .map_err(|e| format!("failed to scrub posts: {e}"))?;
+    .map_err(|e| format!("scrub posts: {e}"))?;
 
     Ok(())
 }
