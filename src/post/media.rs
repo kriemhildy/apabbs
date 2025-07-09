@@ -2,6 +2,18 @@
 //!
 //! Provides core path helpers, constants, and utility functions for post media files.
 //! Most media processing logic (encryption, image, and video handling) is delegated to submodules.
+//!
+//! Functions provided in this module:
+//! - Post::encrypted_media_path
+//! - Post::published_media_path
+//! - Post::thumbnail_path
+//! - Post::compat_video_path
+//! - PostSubmission::determine_media_type
+//! - PostReview::write_media_file
+//! - PostReview::alternate_path
+//! - PostReview::delete_media_key_dir
+//! - PostReview::delete_upload_key_dir
+//! - PostReview::publish_media
 
 pub mod encryption;
 pub mod images;

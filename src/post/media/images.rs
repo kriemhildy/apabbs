@@ -1,6 +1,12 @@
 //! Image media processing helpers for posts.
 //!
 //! Handles thumbnail generation, image dimension extraction, and related utilities for image files.
+//!
+//! Functions provided in this module:
+//! - PostReview::generate_image_thumbnail
+//! - PostReview::thumbnail_is_larger
+//! - PostReview::process_image
+//! - PostReview::image_dimensions
 
 use super::{
     super::{Post, review::PostReview},

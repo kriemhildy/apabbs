@@ -1,6 +1,12 @@
 //! Media encryption and decryption helpers for posts.
 //!
 //! Provides GPG-based encryption, decryption, and re-encryption utilities for post media files.
+//!
+//! Functions provided in this module:
+//! - Post::gpg_encrypt
+//! - Post::reencrypt_media_file
+//! - Post::decrypt_media_file
+//! - PostSubmission::encrypt_uploaded_file
 
 use super::super::{Post, review::PostReview, submission::PostSubmission};
 use std::error::Error;

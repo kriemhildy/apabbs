@@ -1,6 +1,12 @@
 //! Video media processing helpers for posts.
 //!
 //! Handles video compatibility checks, transcoding, poster generation, and related utilities for video files.
+//!
+//! Functions provided in this module:
+//! - PostReview::process_video
+//! - PostReview::video_is_compatible
+//! - PostReview::generate_compatibility_video
+//! - PostReview::generate_video_poster
 
 use super::{
     super::{Post, review::PostReview},
