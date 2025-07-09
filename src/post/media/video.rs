@@ -1,3 +1,7 @@
+//! Video media processing helpers for posts.
+//!
+//! Handles video compatibility checks, transcoding, poster generation, and related utilities for video files.
+
 use super::{
     super::{Post, review::PostReview},
     MAX_THUMB_HEIGHT, MAX_THUMB_WIDTH,

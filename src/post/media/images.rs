@@ -1,3 +1,7 @@
+//! Image media processing helpers for posts.
+//!
+//! Handles thumbnail generation, image dimension extraction, and related utilities for image files.
+
 use super::{
     super::{Post, review::PostReview},
     MAX_THUMB_HEIGHT, MAX_THUMB_WIDTH,

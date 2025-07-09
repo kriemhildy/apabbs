@@ -1,8 +1,7 @@
-//! Media file management and processing for posts.
+//! Media module for posts.
 //!
-//! Handles encryption, decryption, thumbnail and poster generation, compatibility conversion,
-//! and file system operations for post media. Provides helpers for MIME type detection,
-//! path construction, and media processing workflows.
+//! Provides core path helpers, constants, and utility functions for post media files.
+//! Most media processing logic (encryption, image, and video handling) is delegated to submodules.
 
 mod encryption;
 mod images;
