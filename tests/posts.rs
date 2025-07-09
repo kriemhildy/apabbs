@@ -23,7 +23,7 @@ use helpers::{
     delete_test_account, init_test, response_adds_cookie, response_body_str, test_user,
 };
 use http_body_util::BodyExt;
-use std::path::Path;
+use std::{error::Error, path::Path};
 use tower::ServiceExt;
 
 use crate::helpers::{
@@ -32,56 +32,55 @@ use crate::helpers::{
 
 /// Tests the 404 Not Found handler.
 #[tokio::test]
-async fn not_found() {
+async fn not_found() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/not-found")
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::empty())?;
+    let response = router.oneshot(request).await?;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    Ok(())
 }
 
 /// Tests the index page rendering and session creation.
 #[tokio::test]
-async fn index() {
+async fn index() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri(ROOT)
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::empty())?;
+    let response = router.oneshot(request).await?;
 
     assert!(response.status().is_success());
     assert!(response_adds_cookie(&response, SESSION_COOKIE));
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    let body = response.into_body().collect().await?.to_bytes();
+    let body_str = String::from_utf8(body.to_vec())?;
     assert!(body_str.contains(r#"<div id="posts">"#));
     assert!(body_str.contains(&apabbs::host()));
+    Ok(())
 }
 
 /// Tests viewing a single post page.
 #[tokio::test]
-async fn solo_post() {
+async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
 
     // Create a test post
     let user = test_user(None);
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let post = create_test_post(&mut tx, &user, None, Approved).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
 
     // Request the post page
     let uri = format!("/p/{}", &post.key);
     let request = Request::builder()
         .uri(&uri)
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::empty())?;
+    let response = router.oneshot(request).await?;
 
     // Verify response
     assert!(response.status().is_success());
@@ -91,32 +90,32 @@ async fn solo_post() {
     assert!(body_str.contains(r#"<div id="created-at">"#));
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    post.delete(&mut tx).await.expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
+    let mut tx = state.db.begin().await?;
+    post.delete(&mut tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests pagination for the index page.
 #[tokio::test]
-async fn index_with_page() {
+async fn index_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
 
     // Create test posts
     let user = test_user(None);
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let post1 = create_test_post(&mut tx, &user, None, Approved).await;
     let post2 = create_test_post(&mut tx, &user, None, Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, Approved).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
 
     // Request a specific page
     let uri = format!("/page/{}", &post2.key);
     let request = Request::builder()
         .uri(&uri)
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::empty())
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::empty())?;
+    let response = router.oneshot(request).await?;
 
     // Verify pagination behavior
     assert!(response.status().is_success());
@@ -133,24 +132,24 @@ async fn index_with_page() {
     assert!(post2_index < post1_index);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    post1.delete(&mut tx).await.expect("Execute query");
-    post2.delete(&mut tx).await.expect("Execute query");
-    post3.delete(&mut tx).await.expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
+    let mut tx = state.db.begin().await?;
+    post1.delete(&mut tx).await?;
+    post2.delete(&mut tx).await?;
+    post3.delete(&mut tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests submitting a text-only post.
 #[tokio::test]
-async fn submit_post_without_media() {
+async fn submit_post_without_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let user = test_user(None);
 
     // Create form data
     let mut form = FormData::new(Vec::new());
-    form.write_field("session_token", &user.session_token.to_string())
-        .unwrap();
-    form.write_field("body", "<&test body").unwrap();
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "<&test body")?;
 
     // Submit the post
     let request = Request::builder()
@@ -162,12 +161,11 @@ async fn submit_post_without_media() {
         )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::from(form.finish().unwrap()))
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::from(form.finish()?))?;
+    let response = router.oneshot(request).await?;
 
     // Verify post was created correctly
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
@@ -182,24 +180,23 @@ async fn submit_post_without_media() {
     assert_eq!(post.status, Pending);
 
     // Clean up
-    post.delete(&mut tx).await.expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
+    post.delete(&mut tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests submitting a post with an image attachment.
 #[tokio::test]
-async fn submit_post_with_media() {
+async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let user = test_user(None);
 
     // Create form data with image
     let mut form = FormData::new(Vec::new());
     let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
-    form.write_field("session_token", &user.session_token.to_string())
-        .unwrap();
-    form.write_field("body", "").unwrap();
-    form.write_path("media", test_image_path, "image/jpeg")
-        .unwrap();
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "")?;
+    form.write_path("media", test_image_path, "image/jpeg")?;
 
     // Submit the post
     let request = Request::builder()
@@ -211,12 +208,11 @@ async fn submit_post_with_media() {
         )
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::from(form.finish().unwrap()))
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::from(form.finish()?))?;
+    let response = router.oneshot(request).await?;
 
     // Verify post was created with media
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
         .await
         .unwrap();
@@ -228,29 +224,27 @@ async fn submit_post_with_media() {
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
 
     // Clean up
-    post.delete(&mut tx).await.expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
-    PostReview::delete_upload_key_dir(&post.key)
-        .await
-        .expect("Delete directory");
+    post.delete(&mut tx).await?;
+    tx.commit().await?;
+    PostReview::delete_upload_key_dir(&post.key).await?;
+    Ok(())
 }
 
 /// Tests submitting a post while logged in with an account.
 #[tokio::test]
-async fn submit_post_with_account() {
+async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
 
     // Create test account
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let user = create_test_account(&mut tx, AccountRole::Novice).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
     let account = user.account.as_ref().unwrap();
 
     // Create form data
     let mut form = FormData::new(Vec::new());
-    form.write_field("session_token", &user.session_token.to_string())
-        .unwrap();
-    form.write_field("body", "<&test body").unwrap();
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "<&test body")?;
 
     // Submit the post
     let request = Request::builder()
@@ -260,12 +254,11 @@ async fn submit_post_with_account() {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::from(form.finish().unwrap()))
-        .unwrap();
-    let response = router.oneshot(request).await.unwrap();
+        .body(Body::from(form.finish()?))?;
+    let response = router.oneshot(request).await?;
 
     // Verify post was created with account association
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let account_post = select_latest_post_by_account_id(&mut tx, account.id)
         .await
         .unwrap();
@@ -277,33 +270,32 @@ async fn submit_post_with_account() {
     assert_eq!(account_post.session_token, None);
 
     // Clean up
-    account_post.delete(&mut tx).await.expect("Execute query");
+    account_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests hiding a post from the user interface.
 #[tokio::test]
-async fn hide_post() {
+async fn hide_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let user = test_user(None);
 
     // Create a post and admin user
     let post = create_test_post(&mut tx, &user, None, Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await;
     let account = admin_user.account.as_ref().unwrap();
-    post.update_status(&mut tx, Rejected)
-        .await
-        .expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
+    post.update_status(&mut tx, Rejected).await?;
+    tx.commit().await?;
 
     // Submit hide post request
     let post_hiding = PostHiding {
         session_token: user.session_token,
         key: post.key.clone(),
     };
-    let post_hiding_str = serde_urlencoded::to_string(&post_hiding).expect("serializes");
+    let post_hiding_str = serde_urlencoded::to_string(&post_hiding)?;
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hide-post")
@@ -313,39 +305,38 @@ async fn hide_post() {
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::from(post_hiding_str))
-        .expect("Build request");
+        .body(Body::from(post_hiding_str))?;
 
-    let response = router.oneshot(request).await.expect("request succeeds");
+    let response = router.oneshot(request).await?;
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    post.delete(&mut tx).await.expect("Execute query");
+    let mut tx = state.db.begin().await?;
+    post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests interim post visibility (posts not yet approved).
 #[tokio::test]
-async fn interim() {
+async fn interim() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let user = test_user(None);
 
     // Create approved and pending posts
     let post1 = create_test_post(&mut tx, &user, None, Approved).await;
     let post2 = create_test_post(&mut tx, &user, None, Approved).await;
     let post3 = create_test_post(&mut tx, &user, None, Approved).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
 
     // Request the interim page
     let request = Request::builder()
         .uri(format!("/interim/{}", &post1.key))
         .header(X_REAL_IP, LOCAL_IP)
-        .body(Body::empty())
-        .expect("Build request");
-    let response = router.oneshot(request).await.expect("Execute request");
+        .body(Body::empty())?;
+    let response = router.oneshot(request).await?;
 
     // Verify response
     assert!(response.status().is_success());
@@ -360,16 +351,17 @@ async fn interim() {
     assert!(post2_index < post3_index);
 
     // Clean up
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    post1.delete(&mut tx).await.expect("Execute query");
-    post2.delete(&mut tx).await.expect("Execute query");
-    post3.delete(&mut tx).await.expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
+    let mut tx = state.db.begin().await?;
+    post1.delete(&mut tx).await?;
+    post2.delete(&mut tx).await?;
+    post3.delete(&mut tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests establishing a WebSocket connection and receiving real-time updates.
 #[tokio::test]
-async fn websocket_connection() {
+async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
     use axum::http::Uri;
     use futures::StreamExt;
     use tokio_tungstenite::tungstenite;
@@ -377,48 +369,39 @@ async fn websocket_connection() {
     let (router, state) = init_test().await;
 
     // Create a test post to trigger notifications
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await?;
     let user = test_user(None);
     let test_post = create_test_post(&mut tx, &user, None, Approved).await;
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await?;
 
     // Start a server for testing
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
     let server_handle = tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     });
 
     // Create WebSocket client
-    let ws_uri: Uri = format!("ws://{addr}/web-socket")
-        .parse()
-        .expect("Parse URI");
+    let ws_uri: Uri = format!("ws://{addr}/web-socket").parse()?;
     let req = tungstenite::ClientRequestBuilder::new(ws_uri).with_header(X_REAL_IP, LOCAL_IP);
-    let (mut ws_client, _) = tokio_tungstenite::connect_async(req)
-        .await
-        .expect("Connect WebSocket");
+    let (mut ws_client, _) = tokio_tungstenite::connect_async(req).await?;
 
     // Send a post update through the broadcast channel
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    let post = Post::select_by_key(&mut tx, &test_post.key)
-        .await
-        .expect("Execute query")
-        .unwrap();
-    tx.commit().await.expect("Commit transaction");
-    state.sender.send(post.clone()).expect("Send post");
+    let mut tx = state.db.begin().await?;
+    let post = Post::select_by_key(&mut tx, &test_post.key).await?.unwrap();
+    tx.commit().await?;
+    state.sender.send(post.clone())?;
 
     // Wait for and verify message reception
     let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
-        .await
-        .expect("Wait for message")
-        .expect("Receive message")
-        .unwrap();
+        .await?
+        .unwrap()?;
 
     // Check content
     match message {
         tungstenite::Message::Text(text) => {
-            let json: serde_json::Value = serde_json::from_str(&text).expect("Parse JSON");
+            let json: serde_json::Value = serde_json::from_str(&text)?;
             assert_eq!(json["key"], post.key);
             assert!(json["html"].as_str().unwrap().contains(&post.key));
         }
@@ -426,17 +409,18 @@ async fn websocket_connection() {
     }
 
     // Clean up
-    ws_client.close(None).await.unwrap();
+    ws_client.close(None).await?;
     server_handle.abort(); // Stop the server
 
-    let mut tx = state.db.begin().await.expect("Begin transaction");
-    test_post.delete(&mut tx).await.expect("Execute query");
-    tx.commit().await.expect("Commit transaction");
+    let mut tx = state.db.begin().await?;
+    test_post.delete(&mut tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Tests the conversion of post body text to HTML with YouTube embed generation.
 #[tokio::test]
-pub async fn body_to_html() {
+pub async fn body_to_html() -> Result<(), Box<dyn Error + Send + Sync>> {
     use apabbs::post::submission::{PostSubmission, YOUTUBE_DIR};
     apabbs::init_tracing_for_test();
     // Setup test with various types of content:
@@ -566,4 +550,5 @@ pub async fn body_to_html() {
                 .ok(); // Use ok() to ignore errors if directory doesn't exist
         }
     }
+    Ok(())
 }
