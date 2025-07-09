@@ -80,9 +80,7 @@ pub async fn settings(
 
     // Verify user is logged in
     if user.account.is_none() {
-        return Err(Unauthorized(
-            "You must be logged in to access settings".to_string(),
-        ));
+        return Err(Unauthorized("Not logged in".to_string()));
     }
 
     // Get time zones for selection
@@ -134,9 +132,7 @@ pub async fn update_time_zone(
     // Verify user is logged in
     let account = match user.account {
         None => {
-            return Err(Unauthorized(
-                "You must be logged in to update your time zone".to_string(),
-            ));
+            return Err(Unauthorized("Not logged in".to_string()));
         }
         Some(account) => account,
     };
@@ -181,15 +177,11 @@ pub async fn update_password(
     // Verify user is logged in as the correct user
     match user.account {
         None => {
-            return Err(Unauthorized(
-                "You must be logged in to update your password".to_string(),
-            ));
+            return Err(Unauthorized("Not logged in".to_string()));
         }
         Some(account) => {
             if account.username != credentials.username {
-                return Err(Unauthorized(
-                    "You are not logged in as this user".to_string(),
-                ));
+                return Err(Unauthorized("Not logged in as this user".to_string()));
             }
         }
     };

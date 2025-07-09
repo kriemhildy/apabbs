@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     AppState, ban,
-    post::{Post, review::PostReview},
+    post::{Post, PostStatus::*, review::PostReview},
     router::ROOT,
     utils::{begin_transaction, commit_transaction, send_to_websocket},
 };
@@ -34,10 +34,7 @@ pub async fn review_post(
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
 ) -> Result<Response, ResponseError> {
-    use crate::{
-        post::{PostStatus::*, review::ReviewError::*},
-        user::AccountRole::*,
-    };
+    use crate::{post::review::ReviewError::*, user::AccountRole::*};
 
     let mut tx = begin_transaction(&state.db).await?;
 
@@ -54,17 +51,13 @@ pub async fn review_post(
     // Verify user has moderator privileges
     let account = match user.account {
         None => {
-            return Err(Unauthorized(
-                "You must be logged in to moderate posts".to_string(),
-            ));
+            return Err(Unauthorized("Not logged in".to_string()));
         }
         Some(account) => account,
     };
 
     if ![Admin, Mod].contains(&account.role) {
-        return Err(Unauthorized(
-            "You must be an admin or moderator to perform this action".to_string(),
-        ));
+        return Err(Unauthorized("Must be admin or moderator".to_string()));
     };
 
     // Get the post to review
@@ -154,9 +147,7 @@ pub async fn decrypt_media(
 
     // Verify user has required privileges
     if !user.mod_or_admin() {
-        return Err(Unauthorized(
-            "You must be a moderator or admin to access this media".to_string(),
-        ));
+        return Err(Unauthorized("Must be moderator or admin".to_string()));
     }
 
     // Get the post
@@ -164,25 +155,20 @@ pub async fn decrypt_media(
         .await?
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
+    // Ensure post is pending
+    if post.status != Pending {
+        return Err(BadRequest("Post must be pending".to_string()));
+    }
+
     // Verify media exists
-    if !post.encrypted_media_path().exists() {
-        return Err(NotFound("Encrypted media file does not exist".to_string()));
+    if post.media_filename.is_none() {
+        return Err(NotFound("Post has no media".to_string()));
     }
 
     // Get media details
-    let media_filename = post
-        .media_filename
-        .as_ref()
-        .ok_or_else(|| InternalServerError("Missing filename".to_string()))?;
+    let media_filename = post.media_filename.as_ref().unwrap();
     let media_bytes = post.gpg_decrypt().await?;
-    if media_bytes.is_empty() {
-        return Err(InternalServerError(
-            "Decrypted media bytes are empty".to_string(),
-        ));
-    }
-    let content_type = post
-        .media_mime_type
-        .ok_or_else(|| InternalServerError("Missing MIME type".to_string()))?;
+    let content_type = post.media_mime_type.unwrap();
 
     // Set response headers for download
     let headers = [
