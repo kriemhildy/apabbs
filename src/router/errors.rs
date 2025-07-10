@@ -61,11 +61,11 @@ mod tests {
 
     #[test]
     fn test_response_error_variants() {
-        let bad_request = ResponseError::BadRequest("bad request".into());
-        let unauthorized = ResponseError::Unauthorized("unauthorized".into());
-        let forbidden = ResponseError::Forbidden("forbidden".into());
-        let not_found = ResponseError::NotFound("not found".into());
-        let internal = ResponseError::InternalServerError("internal error".into());
+        let bad_request = BadRequest("bad request".into());
+        let unauthorized = Unauthorized("unauthorized".into());
+        let forbidden = Forbidden("forbidden".into());
+        let not_found = NotFound("not found".into());
+        let internal = InternalServerError("internal error".into());
 
         let cases = vec![
             (bad_request, StatusCode::BAD_REQUEST, "Bad request"),
@@ -99,7 +99,7 @@ mod tests {
         let boxed: Box<dyn Error + Send + Sync> = "some error".to_string().into();
         let err: ResponseError = boxed.into();
         match err {
-            ResponseError::InternalServerError(msg) => assert!(msg.contains("some error")),
+            InternalServerError(msg) => assert!(msg.contains("some error")),
             _ => panic!("Expected InternalServerError"),
         }
     }
