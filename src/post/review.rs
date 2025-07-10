@@ -4,11 +4,7 @@
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
 use super::{Post, PostStatus};
-use crate::{
-    AppState,
-    user::AccountRole,
-    utils::{begin_transaction, commit_transaction, send_to_websocket},
-};
+use crate::{AppState, user::AccountRole, utils::send_to_websocket};
 use ReviewAction::*;
 use ReviewError::*;
 use futures::future::BoxFuture;
@@ -222,7 +218,7 @@ impl PostReview {
     pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus) {
         let result: Result<(), Box<dyn Error + Send + Sync>> = async {
             tracing::info!("Publishing media for post {}", post.id,);
-            let mut tx = begin_transaction(&state.db).await?;
+            let mut tx = state.db.begin().await?;
 
             // Attempt media publication
             PostReview::publish_media(&mut tx, &post).await?;
@@ -235,7 +231,7 @@ impl PostReview {
                 .await
                 .map_err(|e| format!("delete upload directory: {e}"))?;
 
-            commit_transaction(tx).await?;
+            tx.commit().await?;
 
             // Notify clients
             send_to_websocket(&state.sender, post.clone());
@@ -258,7 +254,7 @@ impl PostReview {
                 post.id,
                 status
             );
-            let mut tx = begin_transaction(&state.db).await?;
+            let mut tx = state.db.begin().await?;
 
             // Attempt media re-encryption
             post.reencrypt_media_file()
@@ -268,7 +264,7 @@ impl PostReview {
             // Update post status
             let post = post.update_status(&mut tx, status).await?;
 
-            commit_transaction(tx).await?;
+            tx.commit().await?;
 
             // Notify clients
             send_to_websocket(&state.sender, post.clone());

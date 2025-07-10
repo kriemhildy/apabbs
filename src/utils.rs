@@ -4,7 +4,7 @@
 //! template rendering, and time/date formatting used throughout the application.
 
 use crate::{AppState, post::Post};
-use sqlx::{PgConnection, PgPool, Postgres, Transaction};
+use sqlx::PgConnection;
 use std::error::Error;
 use tokio::sync::broadcast::Sender;
 
@@ -22,35 +22,13 @@ pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM"#
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
 
 //==================================================================================================
-// Database transactions
-//==================================================================================================
-
-/// Begin a new database transaction.
-pub async fn begin_transaction(
-    db: &PgPool,
-) -> Result<Transaction<'_, Postgres>, Box<dyn Error + Send + Sync>> {
-    db.begin()
-        .await
-        .map_err(|e| format!("begin database transaction: {e}").into())
-}
-
-/// Commit a database transaction.
-pub async fn commit_transaction(
-    tx: Transaction<'_, Postgres>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    tx.commit()
-        .await
-        .map_err(|e| format!("commit transaction: {e}").into())
-}
-
-//==================================================================================================
 // WebSocket utilities
 //==================================================================================================
 
 /// Send a message to a WebSocket connection.
 pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
     if let Err(e) = sender.send(post) {
-        tracing::warn!("No active WebSocket receivers to send to: {e}");
+        tracing::debug!("No active WebSocket receivers to send to: {e}");
     }
 }
 

@@ -15,7 +15,7 @@ use crate::{
     AppState, ban,
     post::{Post, PostStatus::*, review::PostReview},
     router::ROOT,
-    utils::{begin_transaction, commit_transaction, send_to_websocket},
+    utils::send_to_websocket,
 };
 use axum::{
     Form,
@@ -36,7 +36,7 @@ pub async fn review_post(
 ) -> Result<Response, ResponseError> {
     use crate::{post::review::ReviewError::*, user::AccountRole::*};
 
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(
@@ -106,7 +106,7 @@ pub async fn review_post(
         post.delete(&mut tx).await?;
     }
 
-    commit_transaction(tx).await?;
+    tx.commit().await?;
 
     // Notify clients of the update
     send_to_websocket(&state.sender, post.clone());
@@ -140,7 +140,7 @@ pub async fn decrypt_media(
 ) -> Result<Response, ResponseError> {
     use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;

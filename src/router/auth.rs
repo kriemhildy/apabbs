@@ -8,11 +8,7 @@ use super::{
     errors::ResponseError::{self, *},
     helpers::{add_account_cookie, init_user, remove_account_cookie},
 };
-use crate::{
-    AppState,
-    user::Credentials,
-    utils::{begin_transaction, commit_transaction, render},
-};
+use crate::{AppState, user::Credentials, utils::render};
 use axum::{
     Form,
     extract::State,
@@ -34,7 +30,7 @@ pub async fn login_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -60,7 +56,7 @@ pub async fn registration_form(
     jar: CookieJar,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -91,7 +87,7 @@ pub async fn authenticate(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (_user, jar) = init_user(
@@ -128,7 +124,7 @@ pub async fn create_account(
 ) -> Result<Response, ResponseError> {
     use super::helpers::ban_if_flooding;
 
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(
@@ -163,7 +159,7 @@ pub async fn create_account(
     if let Some(expires_at) =
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
-        commit_transaction(tx).await?;
+        tx.commit().await?;
         return Err(Forbidden(format!(
             "You have been banned for flooding until {expires_at}."
         )));
@@ -173,7 +169,7 @@ pub async fn create_account(
     let account = credentials.register(&mut tx, &user.ip_hash).await?;
     let jar = add_account_cookie(jar, &account, &credentials);
 
-    commit_transaction(tx).await?;
+    tx.commit().await?;
 
     let redirect = Redirect::to(ROOT);
     Ok((jar, redirect).into_response())
@@ -198,7 +194,7 @@ pub async fn logout(
     headers: HeaderMap,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token)).await?;
@@ -223,7 +219,7 @@ pub async fn reset_account_token(
     headers: HeaderMap,
     Form(logout): Form<Logout>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(logout.session_token)).await?;
@@ -241,7 +237,7 @@ pub async fn reset_account_token(
         }
     };
 
-    commit_transaction(tx).await?;
+    tx.commit().await?;
 
     let redirect = Redirect::to(ROOT);
     Ok((jar, redirect).into_response())

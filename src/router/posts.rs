@@ -15,7 +15,7 @@ use crate::{
         submission::{PostHiding, PostSubmission},
     },
     user::User,
-    utils::{begin_transaction, commit_transaction, render, send_to_websocket, utc_hour_timestamp},
+    utils::{render, send_to_websocket, utc_hour_timestamp},
 };
 use axum::{
     Form,
@@ -42,7 +42,7 @@ pub async fn index(
     Path(path): Path<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -94,7 +94,7 @@ pub async fn solo_post(
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -129,7 +129,7 @@ pub async fn submit_post(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Parse multipart form data
     let mut post_submission = PostSubmission::default();
@@ -207,7 +207,7 @@ pub async fn submit_post(
     if let Some(expires_at) =
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
-        commit_transaction(tx).await?;
+        tx.commit().await?;
         return Err(Forbidden(format!(
             "You have been banned for flooding until {expires_at}."
         )));
@@ -229,7 +229,7 @@ pub async fn submit_post(
         post_submission.encrypt_uploaded_file(&post).await?;
     }
 
-    commit_transaction(tx).await?;
+    tx.commit().await?;
 
     // Notify clients of new post
     send_to_websocket(&state.sender, post);
@@ -254,7 +254,7 @@ pub async fn hide_post(
 ) -> Result<Response, ResponseError> {
     use crate::post::PostStatus::*;
 
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(
@@ -276,7 +276,7 @@ pub async fn hide_post(
         match post.status {
             Rejected => {
                 post_hiding.hide_post(&mut tx).await?;
-                commit_transaction(tx).await?;
+                tx.commit().await?;
             }
             Reported | Banned => (),
             _ => {
@@ -353,7 +353,7 @@ pub async fn web_socket(
         }
     }
 
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, _jar) = init_user(jar, &mut tx, method, &headers, None).await?;
@@ -375,7 +375,7 @@ pub async fn interim(
     headers: HeaderMap,
     Path(key): Path<String>,
 ) -> Result<Response, ResponseError> {
-    let mut tx = begin_transaction(&state.db).await?;
+    let mut tx = state.db.begin().await?;
 
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;

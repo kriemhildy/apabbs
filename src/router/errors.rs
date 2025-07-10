@@ -22,6 +22,13 @@ impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     }
 }
 
+/// Convert an sqlx::Error into a ResponseError.
+impl From<sqlx::Error> for ResponseError {
+    fn from(error: sqlx::Error) -> Self {
+        ResponseError::InternalServerError(error.to_string())
+    }
+}
+
 /// Convert a ResponseError into an HTTP response.
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
