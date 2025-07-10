@@ -35,19 +35,13 @@ impl IntoResponse for ResponseError {
             InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
-        // Capitalize the first character of the message
-        let capitalized_msg = match msg.chars().next() {
-            None => String::new(),
-            Some(f) => f.to_uppercase().collect::<String>() + &msg[f.len_utf8()..],
-        };
-
         if status == StatusCode::INTERNAL_SERVER_ERROR {
-            tracing::error!("{capitalized_msg}");
+            tracing::error!("{msg}");
         } else {
-            tracing::warn!("{capitalized_msg}");
+            tracing::warn!("{msg}");
         }
 
-        let body = format!("{status}\n\n{capitalized_msg}");
+        let body = format!("{status}\n\n{msg}");
 
         (status, body).into_response()
     }
@@ -68,14 +62,14 @@ mod tests {
         let internal = InternalServerError("internal error".into());
 
         let cases = vec![
-            (bad_request, StatusCode::BAD_REQUEST, "Bad request"),
-            (unauthorized, StatusCode::UNAUTHORIZED, "Unauthorized"),
-            (forbidden, StatusCode::FORBIDDEN, "Forbidden"),
-            (not_found, StatusCode::NOT_FOUND, "Not found"),
+            (bad_request, StatusCode::BAD_REQUEST, "bad request"),
+            (unauthorized, StatusCode::UNAUTHORIZED, "unauthorized"),
+            (forbidden, StatusCode::FORBIDDEN, "forbidden"),
+            (not_found, StatusCode::NOT_FOUND, "not found"),
             (
                 internal,
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal error",
+                "internal error",
             ),
         ];
 
