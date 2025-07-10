@@ -3,7 +3,7 @@
 mod helpers;
 
 use apabbs::{
-    post::{MediaCategory, Post, PostStatus::*, review::PostReview, submission::PostHiding},
+    post::{MediaCategory, Post, PostStatus::*, media, submission::PostHiding},
     router::{
         ROOT,
         helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
@@ -226,7 +226,7 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clean up
     post.delete(&mut tx).await?;
     tx.commit().await?;
-    PostReview::delete_upload_key_dir(&post.key).await?;
+    media::delete_upload_key_dir(&post.key).await?;
     Ok(())
 }
 

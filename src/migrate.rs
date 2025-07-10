@@ -281,7 +281,7 @@ pub async fn uuid_to_key(state: AppState) {
 ///
 /// Creates smaller versions of images for faster loading and updates the database with the thumbnail paths and dimensions.
 pub async fn generate_image_thumbnails(state: AppState) {
-    use apabbs::post::{Post, review::PostReview};
+    use apabbs::post::{Post, media::images};
     let mut tx = state.db.begin().await.expect("begin");
 
     // Get all image posts
@@ -301,7 +301,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
         );
 
         // Generate thumbnail
-        let thumbnail_path = PostReview::generate_image_thumbnail(&published_media_path)
+        let thumbnail_path = images::generate_image_thumbnail(&published_media_path)
             .await
             .expect("Generate image thumbnail");
         if !thumbnail_path.exists() {
@@ -310,7 +310,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
         }
 
         // Skip if thumbnail is larger than original (defeats the purpose)
-        if PostReview::thumbnail_is_larger(&thumbnail_path, &published_media_path)
+        if images::thumbnail_is_larger(&thumbnail_path, &published_media_path)
             .expect("Check if thumbnail is larger")
         {
             tracing::info!("Thumbnail is larger than original, deleting");
@@ -322,7 +322,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
 
         // Update database with thumbnail information
         tracing::info!("Setting thumb_filename, thumb_width, thumb_height");
-        let (width, height) = PostReview::image_dimensions(&thumbnail_path)
+        let (width, height) = images::image_dimensions(&thumbnail_path)
             .await
             .expect("Determine image dimensions");
         post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
@@ -338,7 +338,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
 /// Updates the database with dimension information for both original images
 /// and their thumbnails.
 pub async fn add_image_dimensions(state: AppState) {
-    use apabbs::post::{Post, review::PostReview};
+    use apabbs::post::{Post, media::images};
     let mut tx = state.db.begin().await.expect("begin");
 
     // Get all image posts
@@ -358,7 +358,7 @@ pub async fn add_image_dimensions(state: AppState) {
         );
 
         // Update original image dimensions
-        let (width, height) = PostReview::image_dimensions(&published_media_path)
+        let (width, height) = images::image_dimensions(&published_media_path)
             .await
             .expect("Determine image dimensions");
         tracing::info!("Setting media image dimensions: {width}x{height}");
@@ -369,7 +369,7 @@ pub async fn add_image_dimensions(state: AppState) {
         // Update thumbnail dimensions if present
         if post.thumb_filename.is_some() {
             let thumbnail_path = post.thumbnail_path();
-            let (width, height) = PostReview::image_dimensions(&thumbnail_path)
+            let (width, height) = images::image_dimensions(&thumbnail_path)
                 .await
                 .expect("Determine image dimensions");
             tracing::info!("Setting thumbnail image dimensions: {width}x{height}");
@@ -384,7 +384,10 @@ pub async fn add_image_dimensions(state: AppState) {
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
 pub async fn process_videos(state: AppState) {
-    use apabbs::post::{Post, media::MEDIA_DIR, review::PostReview};
+    use apabbs::post::{
+        Post,
+        media::{MEDIA_DIR, videos},
+    };
     let mut tx = state.db.begin().await.expect("begin");
 
     // Get all video posts
@@ -416,7 +419,7 @@ pub async fn process_videos(state: AppState) {
                 }
             }
         }
-        PostReview::process_video(&mut tx, &post)
+        videos::process_video(&mut tx, &post)
             .await
             .expect("Process video");
         tracing::info!(post_id = post.id, "Completed processing post");

@@ -4,7 +4,7 @@ mod helpers;
 
 use apabbs::{
     ban,
-    post::{Post, PostStatus::*, review::PostReview, submission::PostSubmission},
+    post::{Post, PostStatus::*, media, review::PostReview, submission::PostSubmission},
     router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
     user::{AccountRole, User},
 };
@@ -60,7 +60,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
-    PostReview::delete_upload_key_dir(&post.key).await?;
+    media::delete_upload_key_dir(&post.key).await?;
     Ok(())
 }
 
@@ -212,7 +212,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     // Clean up
     let mut tx = state.db.begin().await?;
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
-    PostReview::delete_media_key_dir(&post.key).await?;
+    media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
@@ -276,7 +276,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
 
             // Small images shouldn't have thumbnails
             assert!(updated_post.thumb_filename.is_none());
-            let thumbnail_path = PostReview::alternate_path(&published_media_path, "tn_", ".webp");
+            let thumbnail_path = media::alternate_path(&published_media_path, "tn_", ".webp");
             assert!(!thumbnail_path.exists());
 
             break;
@@ -291,7 +291,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     // Clean up
     let mut tx = state.db.begin().await?;
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
-    PostReview::delete_media_key_dir(&post.key).await?;
+    media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
@@ -368,7 +368,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     // Clean up
     let mut tx = state.db.begin().await?;
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
-    PostReview::delete_media_key_dir(&post.key).await?;
+    media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
@@ -445,7 +445,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     // Clean up
     let mut tx = state.db.begin().await?;
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
-    PostReview::delete_media_key_dir(&post.key).await?;
+    media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
@@ -520,7 +520,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     // Clean up
     let mut tx = state.db.begin().await?;
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
-    PostReview::delete_upload_key_dir(&post.key).await?;
+    media::delete_upload_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, mod_account).await;
     tx.commit().await?;

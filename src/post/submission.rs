@@ -3,7 +3,10 @@
 //! This module provides the `PostSubmission` struct and related logic for handling new post creation,
 //! media uploads, YouTube embed processing, and intro preview truncation.
 
-use crate::{post::Post, user::User};
+use crate::{
+    post::{Post, media},
+    user::User,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
@@ -77,7 +80,7 @@ impl PostSubmission {
         key: &str,
     ) -> Result<Post, Box<dyn Error + Send + Sync>> {
         let (media_category, media_mime_type) =
-            Self::determine_media_type(self.media_filename.as_deref());
+            media::determine_media_type(self.media_filename.as_deref());
         let (session_token, account_id) = match user.account {
             Some(ref account) => (None, Some(account.id)),
             None => (Some(self.session_token), None),

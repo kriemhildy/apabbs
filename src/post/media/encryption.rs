@@ -8,7 +8,7 @@
 //! - Post::decrypt_media_file
 //! - PostSubmission::encrypt_uploaded_file
 
-use super::super::{Post, review::PostReview, submission::PostSubmission};
+use super::super::{Post, submission::PostSubmission};
 use std::error::Error;
 
 impl Post {
@@ -85,7 +85,7 @@ impl Post {
         let media_bytes = tokio::fs::read(&media_file_path).await?;
         let result = self.gpg_encrypt(media_bytes).await;
         match result {
-            Ok(()) => PostReview::delete_media_key_dir(&self.key).await?,
+            Ok(()) => super::delete_media_key_dir(&self.key).await?,
             Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
         }
         result

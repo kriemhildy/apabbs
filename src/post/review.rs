@@ -3,7 +3,7 @@
 //! This module defines the review workflow for posts, including allowed status transitions,
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
-use super::{Post, PostStatus};
+use super::{Post, PostStatus, media};
 use crate::{AppState, user::AccountRole};
 use ReviewAction::*;
 use ReviewError::*;
@@ -187,13 +187,13 @@ impl PostReview {
 
             DeleteEncryptedMedia => {
                 // Delete the encrypted media file
-                PostReview::delete_upload_key_dir(&post.key).await?;
+                media::delete_upload_key_dir(&post.key).await?;
                 None
             }
 
             // Handle media deletion
             DeletePublishedMedia => {
-                PostReview::delete_media_key_dir(&post.key).await?;
+                media::delete_media_key_dir(&post.key).await?;
                 None
             }
 
@@ -221,13 +221,13 @@ impl PostReview {
             let mut tx = state.db.begin().await?;
 
             // Attempt media publication
-            PostReview::publish_media(&mut tx, &post).await?;
+            media::publish_media(&mut tx, &post).await?;
 
             // Update post status
             let post = post.update_status(&mut tx, status).await?;
 
             // Delete the upload key directory after publishing
-            PostReview::delete_upload_key_dir(&post.key)
+            media::delete_upload_key_dir(&post.key)
                 .await
                 .map_err(|e| format!("delete upload directory: {e}"))?;
 

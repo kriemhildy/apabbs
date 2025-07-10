@@ -3,7 +3,7 @@
 
 use apabbs::{
     AppState,
-    post::{Post, PostStatus, review::PostReview, submission::PostSubmission},
+    post::{Post, PostStatus, media, submission::PostSubmission},
     user::{Account, AccountRole, Credentials, User},
 };
 use axum::{Router, body::Body, http::Response};
@@ -142,7 +142,7 @@ pub async fn create_test_post(
             }
             Approved | Delisted => {
                 let published_media_path = post.published_media_path();
-                if let Err(msg) = PostReview::write_media_file(
+                if let Err(msg) = media::write_media_file(
                     &published_media_path,
                     post_submission.media_bytes.unwrap(),
                 )
