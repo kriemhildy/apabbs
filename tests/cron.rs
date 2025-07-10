@@ -22,7 +22,7 @@ async fn test_screenshot_task() -> Result<(), Box<dyn Error + Send + Sync>> {
         "Screenshot file should exist"
     );
     // Clean up
-    fs::remove_file(TEST_SCREENSHOT_PATH).expect("Remove test screenshot");
+    fs::remove_file(TEST_SCREENSHOT_PATH)?;
     Ok(())
 }
 

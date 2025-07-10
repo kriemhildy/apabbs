@@ -29,15 +29,15 @@ const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
 /// Initializes and starts the scheduled job system in the background for the application's lifetime.
 pub async fn init() {
     use tokio_cron_scheduler::JobScheduler;
-    let sched = JobScheduler::new().await.expect("Create job scheduler");
+    let sched = JobScheduler::new().await.expect("create job scheduler");
 
     // Add all scheduled jobs to the scheduler
     for job in [create_scrub_job(), create_screenshot_job()] {
-        sched.add(job).await.expect("Add job to scheduler");
+        sched.add(job).await.expect("add job to scheduler");
     }
 
     // Start the scheduler running
-    sched.start().await.expect("Start job scheduler");
+    sched.start().await.expect("start job scheduler");
 }
 
 /// The function executed by the scrub job.

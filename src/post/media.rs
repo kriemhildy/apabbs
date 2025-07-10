@@ -139,7 +139,7 @@ impl PostReview {
     pub fn alternate_path(media_path: &Path, prefix: &str, extension: &str) -> PathBuf {
         let media_filename = media_path.file_name().unwrap().to_str().unwrap();
         let key_dir = media_path.parent().unwrap();
-        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("Build regular expression");
+        let extension_pattern = Regex::new(r"\.[^\.]+$").expect("build regex");
         let alternate_filename =
             prefix.to_string() + &extension_pattern.replace(media_filename, extension);
         key_dir.join(&alternate_filename)

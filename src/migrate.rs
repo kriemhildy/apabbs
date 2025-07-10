@@ -73,7 +73,7 @@ pub async fn main() {
                 .bind(name)
                 .fetch_one(&state.db)
                 .await
-                .expect("Execute query");
+                .expect("check migration existence");
 
         if exists {
             continue;
@@ -87,7 +87,7 @@ pub async fn main() {
             .bind(name)
             .execute(&state.db)
             .await
-            .expect("Execute query");
+            .expect("insert migration");
     }
 }
 
@@ -97,11 +97,11 @@ pub async fn main() {
 pub async fn update_intro_limit(state: AppState) {
     use apabbs::post::{Post, submission::PostSubmission};
 
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
         .fetch_all(&mut *tx)
         .await
-        .expect("Execute query");
+        .expect("select posts with intro_limit");
 
     for post in posts {
         let intro_limit = PostSubmission::intro_limit(&post.body);
@@ -110,9 +110,9 @@ pub async fn update_intro_limit(state: AppState) {
             .bind(post.id)
             .execute(&mut *tx)
             .await
-            .expect("Execute query");
+            .expect("update intro_limit");
     }
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await.expect("commit");
 }
 
 /// Downloads YouTube thumbnails for posts containing YouTube links.
@@ -123,7 +123,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
     use apabbs::post::submission::PostSubmission;
     use tokio::time::Duration;
 
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
 
     // Extract all YouTube video IDs from posts with YouTube embeds
     let video_ids: Vec<String> = sqlx::query_scalar(concat!(
@@ -136,7 +136,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("select YouTube video IDs");
 
     for video_id in video_ids {
         tracing::info!(video_id, "Downloading thumbnail for video");
@@ -152,7 +152,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
             ])
             .arg(format!("https://www.youtube.com/shorts/{video_id}"))
             .output()
-            .expect("Execute command")
+            .expect("execute curl")
             .stdout;
         let short = response_code == b"'200'";
 
@@ -170,21 +170,21 @@ pub async fn download_youtube_thumbnails(state: AppState) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("Execute query");
+            .expect("update YouTube links");
         }
 
         // Download thumbnail and get dimensions
         if let Some((local_thumbnail_path, width, height)) =
             PostSubmission::download_youtube_thumbnail(&video_id, short)
                 .await
-                .expect("Download YouTube thumbnail")
+                .expect("download YouTube thumbnail")
         {
             // Remove pub prefix from path for URL
             let thumbnail_url = local_thumbnail_path
                 .to_str()
                 .unwrap()
                 .strip_prefix("pub")
-                .expect("Strip prefix");
+                .expect("strip prefix");
 
             tracing::info!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
 
@@ -207,14 +207,14 @@ pub async fn download_youtube_thumbnails(state: AppState) {
             ))
             .execute(&mut *tx)
             .await
-            .expect("Execute query");
+            .expect("update post body with thumbnail");
         }
 
         // Avoid rate limiting
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await.expect("commit");
 }
 
 /// Migrates from UUID-based media paths to key-based paths.
@@ -222,7 +222,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
 /// Renames media directories from UUID format to the new key format and removes the now unused UUID column.
 pub async fn uuid_to_key(state: AppState) {
     use uuid::Uuid;
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
 
     // Check if the UUID column exists before proceeding
     let exists: bool = sqlx::query_scalar(concat!(
@@ -231,7 +231,7 @@ pub async fn uuid_to_key(state: AppState) {
     ))
     .fetch_one(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("check if uuid column exists");
 
     if !exists {
         tracing::info!("uuid column does not exist, skipping migration");
@@ -251,7 +251,7 @@ pub async fn uuid_to_key(state: AppState) {
     )
     .fetch_all(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("select uuid/key pairs for posts with media");
 
     // Rename media directories
     for pair in pairs {
@@ -272,9 +272,9 @@ pub async fn uuid_to_key(state: AppState) {
     sqlx::query("ALTER TABLE posts DROP COLUMN uuid")
         .execute(&mut *tx)
         .await
-        .expect("Execute query");
+        .expect("drop uuid column from posts");
 
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await.expect("commit");
 }
 
 /// Generates thumbnails for image posts.
@@ -282,7 +282,7 @@ pub async fn uuid_to_key(state: AppState) {
 /// Creates smaller versions of images for faster loading and updates the database with the thumbnail paths and dimensions.
 pub async fn generate_image_thumbnails(state: AppState) {
     use apabbs::post::{Post, review::PostReview};
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -291,7 +291,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("select image posts");
 
     for post in posts {
         let published_media_path = post.published_media_path();
@@ -327,10 +327,10 @@ pub async fn generate_image_thumbnails(state: AppState) {
             .expect("Determine image dimensions");
         post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
             .await
-            .expect("Execute query");
+            .expect("update thumbnail info in posts");
     }
 
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await.expect("commit");
 }
 
 /// Adds width and height information to image posts.
@@ -339,7 +339,7 @@ pub async fn generate_image_thumbnails(state: AppState) {
 /// and their thumbnails.
 pub async fn add_image_dimensions(state: AppState) {
     use apabbs::post::{Post, review::PostReview};
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
 
     // Get all image posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -348,7 +348,7 @@ pub async fn add_image_dimensions(state: AppState) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("select image posts");
 
     for post in posts {
         let published_media_path = post.published_media_path();
@@ -364,7 +364,7 @@ pub async fn add_image_dimensions(state: AppState) {
         tracing::info!("Setting media image dimensions: {width}x{height}");
         post.update_media_dimensions(&mut tx, width, height)
             .await
-            .expect("Execute query");
+            .expect("update media dimensions in posts");
 
         // Update thumbnail dimensions if present
         if post.thumb_filename.is_some() {
@@ -375,17 +375,17 @@ pub async fn add_image_dimensions(state: AppState) {
             tracing::info!("Setting thumbnail image dimensions: {width}x{height}");
             post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
                 .await
-                .expect("Execute query");
+                .expect("update thumbnail dimensions in posts");
         }
     }
 
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await.expect("commit");
 }
 
 /// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
 pub async fn process_videos(state: AppState) {
     use apabbs::post::{Post, media::MEDIA_DIR, review::PostReview};
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
 
     // Get all video posts
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -394,7 +394,7 @@ pub async fn process_videos(state: AppState) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("select video posts");
 
     for post in posts {
         tracing::info!(post_key = post.key, "Processing video for post");
@@ -403,16 +403,16 @@ pub async fn process_videos(state: AppState) {
         if media_key_dir.exists() {
             let mut read_dir = tokio::fs::read_dir(&media_key_dir)
                 .await
-                .expect("Read directory");
+                .expect("read directory");
 
-            while let Some(entry) = read_dir.next_entry().await.expect("Read directory entry") {
+            while let Some(entry) = read_dir.next_entry().await.expect("read directory entry") {
                 let path = entry.path();
                 // Skip the source video file
                 if path.file_name().unwrap().to_string_lossy()
                     != post.media_filename.as_ref().unwrap().as_str()
                 {
                     tracing::info!(file = %path.display(), "Deleting old media file");
-                    tokio::fs::remove_file(&path).await.expect("Remove file");
+                    tokio::fs::remove_file(&path).await.expect("remove file");
                 }
             }
         }
@@ -422,7 +422,7 @@ pub async fn process_videos(state: AppState) {
         tracing::info!(post_id = post.id, "Completed processing post");
     }
 
-    tx.commit().await.expect("Commit transaction");
+    tx.commit().await.expect("commit");
     tracing::info!("All video processing complete");
 }
 
@@ -430,7 +430,7 @@ pub async fn process_videos(state: AppState) {
 pub async fn retry_failed_tasks(state: AppState) {
     use apabbs::post::{Post, PostStatus, PostStatus::*, review::PostReview};
 
-    let mut tx = state.db.begin().await.expect("Begin transaction");
+    let mut tx = state.db.begin().await.expect("begin");
 
     // Get all posts that are in Processing state
     let posts: Vec<Post> = sqlx::query_as(concat!(
@@ -438,7 +438,7 @@ pub async fn retry_failed_tasks(state: AppState) {
     ))
     .fetch_all(&mut *tx)
     .await
-    .expect("Execute query");
+    .expect("select posts in processing state");
 
     for post in posts {
         // Select the latest two review statuses for the post
@@ -448,7 +448,7 @@ pub async fn retry_failed_tasks(state: AppState) {
         .bind(post.id)
         .fetch_all(&mut *tx)
         .await
-        .expect("Execute query");
+        .expect("select last two review statuses for post");
 
         // If the second status does not exist, set the post to Pending.
         // Otherwise, update the post to the second status.
@@ -478,13 +478,13 @@ pub async fn retry_failed_tasks(state: AppState) {
 
         // Determine the action to take based on the prior post status and next status
         let action = PostReview::determine_action(&prior_post, next_status, AccountRole::Admin)
-            .expect("Determine review action");
+            .expect("determine review action");
         tracing::info!(post_id = post.id, "Determined action: {:?}", action);
 
         // Process the action
         if let Some(task) = PostReview::process_action(&state, &prior_post, next_status, action)
             .await
-            .expect("Process review action")
+            .expect("process review action")
         {
             // This is normally a background task, but here we run it in the foreground
             task.await;

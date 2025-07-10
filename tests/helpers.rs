@@ -129,13 +129,8 @@ pub async fn create_test_post(
         media_bytes,
     };
 
-    let key = PostSubmission::generate_key(tx)
-        .await
-        .expect("Execute query");
-    let post = post_submission
-        .insert(tx, user, &key)
-        .await
-        .expect("Execute query");
+    let key = PostSubmission::generate_key(tx).await.unwrap();
+    let post = post_submission.insert(tx, user, &key).await.unwrap();
 
     if media_filename.is_some() {
         match status {
@@ -168,11 +163,8 @@ pub async fn create_test_post(
         return post;
     }
 
-    post.update_status(tx, status).await.expect("Execute query");
-    Post::select_by_key(tx, &post.key)
-        .await
-        .expect("Execute query")
-        .unwrap()
+    post.update_status(tx, status).await.unwrap();
+    Post::select_by_key(tx, &post.key).await.unwrap().unwrap()
 }
 
 /// Check if a response adds or removes a cookie.
@@ -216,7 +208,7 @@ pub async fn select_latest_post_by_session_token(
         .bind(session_token)
         .fetch_optional(tx)
         .await
-        .expect("Execute query")
+        .expect("select latest post by session token")
 }
 
 /// Select the latest post by account id.
@@ -229,7 +221,7 @@ pub async fn select_latest_post_by_account_id(
         .bind(account_id)
         .fetch_optional(tx)
         .await
-        .expect("Execute query")
+        .expect("select latest post by account id")
 }
 
 /// Delete a test ban from the database by IP hash.
@@ -239,5 +231,5 @@ pub async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
         .bind(ip_hash)
         .execute(tx)
         .await
-        .expect("Execute query");
+        .expect("delete test ban");
 }

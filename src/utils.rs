@@ -56,7 +56,7 @@ pub fn unlink_youtube_thumbnails(body: &str) -> String {
         r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
         r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
     ))
-    .expect("Build regular expression");
+    .expect("build regex");
 
     re.replace_all(
         body,

@@ -183,8 +183,7 @@ impl PostSubmission {
             .replace("\r\n", "\n")
             .replace("\r", "\n")
             .replace("\n", "<br>\n");
-        let url_pattern =
-            Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("Build regular expression");
+        let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("build regex");
         let anchor_tag = r#"<a href="$1" rel="noopener" target="_blank">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
         Self::embed_youtube(html, key)
@@ -206,7 +205,7 @@ impl PostSubmission {
             r#"(watch\S*(?:\?|&amp;)v=|shorts/))"#,
             r#"([^&\s\?]+)\S*)" rel="noopener" target="_blank">\S+</a> *(?:<br>)?$"#,
         );
-        let link_regex = Regex::new(LINK_PATTERN).expect("Build regular expression");
+        let link_regex = Regex::new(LINK_PATTERN).expect("build regex");
         for _ in 0..MAX_YOUTUBE_EMBEDS {
             let captures = match link_regex.captures(&html) {
                 None => break,
@@ -293,8 +292,8 @@ impl PostSubmission {
             html
         };
         // Stop before a second YouTube video
-        let youtube_pattern = Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#)
-            .expect("Build regular expression");
+        let youtube_pattern =
+            Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("build regex");
         let mut youtube_iter = youtube_pattern.find_iter(slice);
         let first_youtube_match = youtube_iter.next();
         if let Some(mat) = first_youtube_match {
@@ -308,14 +307,13 @@ impl PostSubmission {
                 tracing::debug!("Second YouTube match start: {}", mat.start());
                 let before_second_youtube = &slice[..mat.start()];
                 // Strip any breaks or whitespace that might be present at the end
-                let strip_breaks_pattern =
-                    Regex::new("(?:<br>\n)+$").expect("Build regular expression");
+                let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("build regex");
                 let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
                 Some(stripped.trim_end().len() as i32)
             }
         };
         // Check for the maximum breaks
-        let single_break_pattern = Regex::new("<br>\n").expect("Build regular expression");
+        let single_break_pattern = Regex::new("<br>\n").expect("build regex");
         let break_limit = single_break_pattern
             .find_iter(slice)
             .nth(MAX_INTRO_BREAKS)
@@ -338,7 +336,7 @@ impl PostSubmission {
             return None;
         }
         // Truncate to the last break(s) before the limit
-        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("Build regular expression");
+        let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("build regex");
         if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
             tracing::info!(
                 "Intro limit found via last break(s) at byte: {}",
@@ -353,7 +351,7 @@ impl PostSubmission {
         // If no space found, use the last valid utf8 character index
         // Need to strip incomplete html entities
         // Check for & which is not terminated by a ;
-        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("Build regular expression");
+        let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("build regex");
         if let Some(mat) = incomplete_entity_pattern.find(slice) {
             tracing::info!(
                 "Intro limit found via incomplete entity at byte: {}",
