@@ -37,6 +37,26 @@ pub async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(7878);
 
+    // Initialize Sentry for error tracking if enabled
+    #[cfg(feature = "sentry")]
+    {
+        if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
+            let _guard = sentry::init((
+                sentry_dsn,
+                sentry::ClientOptions {
+                    release: sentry::release_name!(),
+                    // Capture user IPs and potentially sensitive headers when using HTTP server integrations
+                    // see https://docs.sentry.io/platforms/rust/data-management/data-collected for more info
+                    send_default_pii: true,
+                    ..Default::default()
+                },
+            ));
+            tracing::info!("Sentry error tracking initialized");
+        } else {
+            tracing::warn!("SENTRY_DSN not set, Sentry error tracking disabled");
+        }
+    }
+
     // Bind to network address
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await

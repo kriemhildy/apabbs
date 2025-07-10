@@ -44,6 +44,8 @@ impl IntoResponse for ResponseError {
 
         let body = if status == StatusCode::INTERNAL_SERVER_ERROR {
             tracing::error!("{msg}");
+            #[cfg(feature = "sentry")]
+            sentry::capture_message(&msg, sentry::Level::Error);
             if crate::dev() {
                 msg.to_string()
             } else {
