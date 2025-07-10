@@ -31,21 +31,12 @@ pub fn render(
     ctx: minijinja::value::Value,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
     if crate::dev() {
-        let mut env = state
-            .jinja
-            .write()
-            .map_err(|e| format!("acquire write lock for template \"{name}\": {e}"))?;
+        let mut env = state.jinja.write().expect("write lock");
         env.clear_templates();
     }
-    let env = state
-        .jinja
-        .read()
-        .map_err(|e| format!("acquire read lock for template \"{name}\": {e}"))?;
-    let tmpl = env.get_template(name).map_err(|e| {
-        Box::<dyn Error + Send + Sync>::from(format!("get template \"{name}\": {e}"))
-    })?;
-    tmpl.render(ctx)
-        .map_err(|e| format!("render template \"{name}\": {e}").into())
+    let env = state.jinja.read().expect("read lock");
+    let tmpl = env.get_template(name)?;
+    Ok(tmpl.render(ctx)?)
 }
 
 /// Removes anchor link wrappers from YouTube thumbnail images in post bodies.

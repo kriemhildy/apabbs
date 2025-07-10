@@ -186,9 +186,7 @@ impl PostSubmission {
         let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("build regex");
         let anchor_tag = r#"<a href="$1" rel="noopener" target="_blank">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
-        Self::embed_youtube(html, key)
-            .await
-            .map_err(|e| format!("embed YouTube videos: {e}").into())
+        Self::embed_youtube(html, key).await
     }
 
     /// Embeds YouTube video thumbnails in the post HTML, replacing links with embed markup.
@@ -226,9 +224,7 @@ impl PostSubmission {
                     .map(|(_, v)| v.to_string())
             };
             tracing::debug!(video_id, timestamp, "Parsed YouTube URL");
-            let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short)
-                .await
-                .map_err(|e| format!("download YouTube thumbnail: {e}"))?;
+            let thumbnail_tuple = Self::download_youtube_thumbnail(video_id, short).await?;
             let (local_thumbnail_url, width, height) = match thumbnail_tuple {
                 None => break,
                 Some((path, width, height)) => (

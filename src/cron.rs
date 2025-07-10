@@ -90,7 +90,7 @@ pub async fn screenshot_task(screenshot_path: &str) {
             .stderr(std::process::Stdio::null())
             .status()
             .await
-            .map_err(|e| format!("Failed to execute chromium: {e}"))?;
+            .map_err(|e| format!("execute chromium: {e}"))?;
 
         if status.success() {
             Ok(())

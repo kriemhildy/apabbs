@@ -88,7 +88,7 @@ impl Post {
             Ok(()) => PostReview::delete_media_key_dir(&self.key).await?,
             Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
         }
-        result.map_err(|e| format!("re-encrypt media: {e}").into())
+        result
     }
 }
 
@@ -105,6 +105,6 @@ impl PostSubmission {
         if result.is_err() {
             tokio::fs::remove_dir(uploads_key_dir).await?;
         }
-        result.map_err(|e| format!("encrypt uploaded file: {e}").into())
+        result
     }
 }

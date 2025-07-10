@@ -84,7 +84,7 @@ impl PostReview {
                 ])
                 .output()
                 .await
-                .map_err(|e| format!("run ffprobe: {e}"))?;
+                .map_err(|e| format!("execute ffprobe: {e}"))?;
             if !output.status.success() {
                 return Err(format!(
                     "ffprobe failed, status: {}. stderr: {}",
@@ -254,7 +254,7 @@ impl PostReview {
             ])
             .output()
             .await
-            .map_err(|e| format!("complete ffmpeg: {e}"))?;
+            .map_err(|e| format!("execute ffmpeg: {e}"))?;
 
         if !ffmpeg_output.status.success() {
             return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
