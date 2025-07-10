@@ -3,10 +3,9 @@
 //! This module provides helpers for database transactions, WebSocket messaging,
 //! template rendering, and time/date formatting used throughout the application.
 
-use crate::{AppState, post::Post};
+use crate::AppState;
 use sqlx::PgConnection;
 use std::error::Error;
-use tokio::sync::broadcast::Sender;
 
 // ==============================================================================
 // Constants
@@ -20,17 +19,6 @@ pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM"#
 
 /// Format string for UTC hour granularity in PostgreSQL queries.
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
-
-//==================================================================================================
-// WebSocket utilities
-//==================================================================================================
-
-/// Send a message to a WebSocket connection.
-pub fn send_to_websocket(sender: &Sender<Post>, post: Post) {
-    if let Err(e) = sender.send(post) {
-        tracing::debug!("No active WebSocket receivers to send to: {e}");
-    }
-}
 
 //==================================================================================================
 // Templating and Rendering

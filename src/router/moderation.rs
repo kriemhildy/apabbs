@@ -15,7 +15,6 @@ use crate::{
     AppState, ban,
     post::{Post, PostStatus::*, review::PostReview},
     router::ROOT,
-    utils::send_to_websocket,
 };
 use axum::{
     Form,
@@ -109,7 +108,7 @@ pub async fn review_post(
     tx.commit().await?;
 
     // Notify clients of the update
-    send_to_websocket(&state.sender, post.clone());
+    state.sender.send(post).ok();
 
     // If we have a background task, spawn it
     if let Some(task) = background_task {

@@ -15,7 +15,7 @@ use crate::{
         submission::{PostHiding, PostSubmission},
     },
     user::User,
-    utils::{render, send_to_websocket, utc_hour_timestamp},
+    utils::{render, utc_hour_timestamp},
 };
 use axum::{
     Form,
@@ -232,7 +232,7 @@ pub async fn submit_post(
     tx.commit().await?;
 
     // Notify clients of new post
-    send_to_websocket(&state.sender, post);
+    state.sender.send(post).ok();
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {

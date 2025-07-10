@@ -4,7 +4,7 @@
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
 use super::{Post, PostStatus};
-use crate::{AppState, user::AccountRole, utils::send_to_websocket};
+use crate::{AppState, user::AccountRole};
 use ReviewAction::*;
 use ReviewError::*;
 use futures::future::BoxFuture;
@@ -234,7 +234,7 @@ impl PostReview {
             tx.commit().await?;
 
             // Notify clients
-            send_to_websocket(&state.sender, post.clone());
+            state.sender.send(post.clone()).ok();
 
             tracing::info!("Media publication task completed for post {}", post.id);
             Ok(())
@@ -267,7 +267,7 @@ impl PostReview {
             tx.commit().await?;
 
             // Notify clients
-            send_to_websocket(&state.sender, post.clone());
+            state.sender.send(post.clone()).ok();
 
             tracing::info!("Re-encryption task completed for post {}", post.id);
             Ok(())

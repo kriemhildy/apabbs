@@ -391,7 +391,7 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
     let post = Post::select_by_key(&mut tx, &test_post.key).await?.unwrap();
     tx.commit().await?;
-    state.sender.send(post.clone())?;
+    state.sender.send(post.clone()).ok();
 
     // Wait for and verify message reception
     let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
