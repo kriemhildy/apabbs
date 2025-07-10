@@ -545,7 +545,7 @@ pub async fn body_to_html() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clean up test data but preserve any existing directories
     for id in test_ids {
         if !existing_ids.contains(&id) {
-            tokio::fs::remove_dir_all(std::path::Path::new(YOUTUBE_DIR).join(id))
+            tokio::fs::remove_dir_all(Path::new(YOUTUBE_DIR).join(id))
                 .await
                 .ok(); // Use ok() to ignore errors if directory doesn't exist
         }

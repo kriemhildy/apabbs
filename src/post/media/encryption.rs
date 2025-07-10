@@ -100,7 +100,7 @@ impl PostSubmission {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let encrypted_file_path = post.encrypted_media_path();
         let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        tokio::fs::create_dir(uploads_key_dir).await.unwrap();
+        tokio::fs::create_dir(uploads_key_dir).await?;
         let result = post.gpg_encrypt(self.media_bytes.unwrap()).await;
         if result.is_err() {
             tokio::fs::remove_dir(uploads_key_dir).await?;
