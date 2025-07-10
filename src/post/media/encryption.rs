@@ -2,7 +2,7 @@
 //!
 //! Provides GPG-based encryption and decryption utilities for post media files.
 
-use super::super::{Post, submission::PostSubmission};
+use super::super::Post;
 use std::{error::Error, path::Path};
 
 /// Encrypts the provided bytes using GPG with the application's key.
@@ -70,20 +70,26 @@ pub async fn gpg_decrypt(
     Ok(output.stdout)
 }
 
-
-impl PostSubmission {
-    /// Encrypts the uploaded file data for a post.
-    pub async fn encrypt_uploaded_file(
-        self,
-        post: &Post,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let encrypted_file_path = post.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        tokio::fs::create_dir(uploads_key_dir).await?;
-        let result = gpg_encrypt(&encrypted_file_path, self.media_bytes.unwrap()).await;
-        if result.is_err() {
-            tokio::fs::remove_dir(uploads_key_dir).await?;
-        }
-        result
+/// Encrypts the uploaded file data for a post.
+pub async fn encrypt_uploaded_file(
+    post: &Post,
+    bytes: Vec<u8>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let encrypted_file_path = post.encrypted_media_path();
+    let uploads_key_dir = encrypted_file_path.parent().unwrap();
+    tokio::fs::create_dir(uploads_key_dir).await?;
+    if let Err(e) = gpg_encrypt(&encrypted_file_path, bytes).await {
+        tokio::fs::remove_dir(uploads_key_dir).await?;
+        return Err(e);
     }
+    Ok(())
+}
+
+/// Decrypts an uploaded file and writes it to the published media path.
+pub async fn decrypt_uploaded_file(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let encrypted_file_path = post.encrypted_media_path();
+    let bytes = gpg_decrypt(&encrypted_file_path).await?;
+    let published_media_path = post.published_media_path();
+    super::write_media_file(&published_media_path, bytes).await?;
+    Ok(())
 }

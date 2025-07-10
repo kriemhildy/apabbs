@@ -149,16 +149,12 @@ pub async fn publish_media(
     tx: &mut PgConnection,
     post: &Post,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let encrypted_media_path = post.encrypted_media_path();
-    let media_bytes = encryption::gpg_decrypt(&encrypted_media_path).await?;
-    let published_media_path = post.published_media_path();
-    write_media_file(&published_media_path, media_bytes).await?;
+    encryption::decrypt_uploaded_file(post).await?;
     match post.media_category {
         Some(MediaCategory::Image) => images::process_image(tx, post).await?,
         Some(MediaCategory::Video) => videos::process_video(tx, post).await?,
         Some(MediaCategory::Audio) | None => (),
     }
-
     Ok(())
 }
 
@@ -166,17 +162,11 @@ pub async fn publish_media(
 ///
 /// Used when media needs to be moved back from published to reported state.
 pub async fn unpublish_media(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let encrypted_file_path = post.encrypted_media_path();
-    let uploads_key_dir = encrypted_file_path.parent().unwrap();
-    tokio::fs::create_dir(uploads_key_dir).await?;
-    let media_file_path = post.published_media_path();
-    let media_bytes = tokio::fs::read(&media_file_path).await?;
-    let result = encryption::gpg_encrypt(&media_file_path, media_bytes).await;
-    match result {
-        Ok(()) => delete_media_key_dir(&post.key).await?,
-        Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
-    }
-    result
+    let published_media_path = post.published_media_path();
+    let bytes = tokio::fs::read(&published_media_path).await?;
+    encryption::encrypt_uploaded_file(post, bytes).await?;
+    delete_media_key_dir(&post.key).await?;
+    Ok(())
 }
 
 #[cfg(test)]

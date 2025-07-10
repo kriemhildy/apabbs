@@ -135,22 +135,17 @@ pub async fn create_test_post(
     let key = submission::generate_key(tx).await.unwrap();
     let post = post_submission.insert(tx, user, &key).await.unwrap();
 
-    if media_filename.is_some() {
+    if let Some(bytes) = post_submission.media_bytes {
         match status {
             Pending => {
-                if let Err(msg) = post_submission.encrypt_uploaded_file(&post).await {
+                if let Err(msg) = media::encryption::encrypt_uploaded_file(&post, bytes).await {
                     tracing::error!("{msg}");
                     std::process::exit(1);
                 }
             }
             Approved | Delisted => {
                 let published_media_path = post.published_media_path();
-                if let Err(msg) = media::write_media_file(
-                    &published_media_path,
-                    post_submission.media_bytes.unwrap(),
-                )
-                .await
-                {
+                if let Err(msg) = media::write_media_file(&published_media_path, bytes).await {
                     tracing::error!("{msg}");
                     std::process::exit(1);
                 }

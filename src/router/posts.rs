@@ -11,7 +11,7 @@ use super::{
 use crate::{
     AppState,
     post::{
-        Post,
+        Post, media,
         submission::{self, PostHiding, PostSubmission},
     },
     user::User,
@@ -225,8 +225,8 @@ pub async fn submit_post(
     let post = post_submission.insert(&mut tx, &user, &key).await?;
 
     // Handle media file encryption if present
-    if post_submission.media_filename.is_some() {
-        post_submission.encrypt_uploaded_file(&post).await?;
+    if let Some(bytes) = post_submission.media_bytes {
+        media::encryption::encrypt_uploaded_file(&post, bytes).await?;
     }
 
     tx.commit().await?;
