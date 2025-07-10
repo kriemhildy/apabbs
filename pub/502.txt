@@ -1,3 +1,1 @@
-Sorry, the site is currently down.
-This is most likely for a deployment.
-Please try again soon.
+The site is currently down. Please try again later.
