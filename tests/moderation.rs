@@ -458,7 +458,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     Ok(())
 }
 
-/// Tests a mod reporting an approved post, which should re-encrypt the media file.
+/// Tests a mod reporting an approved post, which should unpublish the media file.
 #[tokio::test]
 async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
@@ -502,17 +502,14 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
         let mut tx = state.db.begin().await?;
         let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
-        // The post should now be in Reported status
         if post.status == Reported {
-            // The published media file should have been re-encrypted (i.e., removed from published location)
             assert!(
                 !post.published_media_path().exists(),
                 "Published media should be removed"
             );
-            // The encrypted media file should exist again
             assert!(
                 post.encrypted_media_path().exists(),
-                "Encrypted media should exist after re-encryption"
+                "Encrypted media should exist after unpublishing"
             );
             processed = true;
             break;

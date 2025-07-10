@@ -1,6 +1,6 @@
 //! Media encryption and decryption helpers for posts.
 //!
-//! Provides GPG-based encryption, decryption, and re-encryption utilities for post media files.
+//! Provides GPG-based encryption and decryption utilities for post media files.
 
 use super::super::{Post, submission::PostSubmission};
 use std::{error::Error, path::Path};
@@ -70,22 +70,6 @@ pub async fn gpg_decrypt(
     Ok(output.stdout)
 }
 
-/// Re-encrypts a media file that has already been published.
-///
-/// Used when media needs to be moved back from published to reported state.
-pub async fn reencrypt_media_file(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let encrypted_file_path = post.encrypted_media_path();
-    let uploads_key_dir = encrypted_file_path.parent().unwrap();
-    tokio::fs::create_dir(uploads_key_dir).await?;
-    let media_file_path = post.published_media_path();
-    let media_bytes = tokio::fs::read(&media_file_path).await?;
-    let result = gpg_encrypt(&media_file_path, media_bytes).await;
-    match result {
-        Ok(()) => super::delete_media_key_dir(&post.key).await?,
-        Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
-    }
-    result
-}
 
 impl PostSubmission {
     /// Encrypts the uploaded file data for a post.

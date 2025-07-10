@@ -162,6 +162,23 @@ pub async fn publish_media(
     Ok(())
 }
 
+/// Unpublish a media file that has been published.
+///
+/// Used when media needs to be moved back from published to reported state.
+pub async fn unpublish_media(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let encrypted_file_path = post.encrypted_media_path();
+    let uploads_key_dir = encrypted_file_path.parent().unwrap();
+    tokio::fs::create_dir(uploads_key_dir).await?;
+    let media_file_path = post.published_media_path();
+    let media_bytes = tokio::fs::read(&media_file_path).await?;
+    let result = encryption::gpg_encrypt(&media_file_path, media_bytes).await;
+    match result {
+        Ok(()) => delete_media_key_dir(&post.key).await?,
+        Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

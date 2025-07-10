@@ -26,7 +26,7 @@ pub enum ReviewAction {
     /// Delete media files from the public directory
     DeletePublishedMedia,
     /// Move published media back to encrypted pending state
-    ReencryptMedia,
+    UnpublishMedia,
     /// Update post status without modifying media files
     NoAction,
 }
@@ -138,7 +138,7 @@ pub fn determine_action(
                 Approved | Delisted => Ok(NoAction), // Just status change, no media action
                 Reported => {
                     // Usually only mods report for admin review, but admins are not unable
-                    Ok(ReencryptMedia)
+                    Ok(UnpublishMedia)
                 }
                 Rejected | Banned => Ok(DeletePublishedMedia), // Delete the published media
             }
@@ -198,8 +198,8 @@ pub async fn process_action(
             None
         }
 
-        // Handle media re-encryption
-        ReencryptMedia => Some(Box::pin(reencrypt_media_task(
+        // Handle media unpublishing
+        UnpublishMedia => Some(Box::pin(unpublish_media_task(
             state.clone(),
             post.clone(),
             status,
@@ -247,20 +247,20 @@ pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus)
     }
 }
 
-/// Background task for re-encrypting media and updating post status.
-pub async fn reencrypt_media_task(state: AppState, post: Post, status: PostStatus) {
+/// Background task for unpublishing media and updating post status.
+pub async fn unpublish_media_task(state: AppState, post: Post, status: PostStatus) {
     let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         tracing::info!(
-            "Re-encrypting media for post {} with status {:?}",
+            "Unpublishing media for post {} with status {:?}",
             post.id,
             status
         );
         let mut tx = state.db.begin().await?;
 
-        // Attempt media re-encryption
-        media::encryption::reencrypt_media_file(&post)
+        // Attempt media unpublishing
+        media::unpublish_media(&post)
             .await
-            .map_err(|e| format!("re-encrypt media: {e}"))?;
+            .map_err(|e| format!("unpublish media: {e}"))?;
 
         // Update post status
         let post = post.update_status(&mut tx, status).await?;
@@ -270,13 +270,13 @@ pub async fn reencrypt_media_task(state: AppState, post: Post, status: PostStatu
         // Notify clients
         state.sender.send(post.clone()).ok();
 
-        tracing::info!("Re-encryption task completed for post {}", post.id);
+        tracing::info!("Unpublish task completed for post {}", post.id);
         Ok(())
     }
     .await;
 
     if let Err(e) = result {
-        tracing::error!("Error in reencrypt_media_task: {e}");
+        tracing::error!("Error in unpublish_media_task: {e}");
     }
 }
 
@@ -328,7 +328,7 @@ mod tests {
         };
         assert_eq!(
             determine_action(&approved_post, PostStatus::Reported, AccountRole::Mod),
-            Ok(ReviewAction::ReencryptMedia)
+            Ok(ReviewAction::UnpublishMedia)
         );
 
         // Case 5: Mod trying to modify a non-recent approved post (should fail)
