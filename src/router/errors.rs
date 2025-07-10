@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_from_boxed_error() {
-        let boxed: Box<dyn std::error::Error + Send + Sync> = "some error".to_string().into();
+        let boxed: Box<dyn Error + Send + Sync> = "some error".to_string().into();
         let err: ResponseError = boxed.into();
         match err {
             ResponseError::InternalServerError(msg) => assert!(msg.contains("some error")),

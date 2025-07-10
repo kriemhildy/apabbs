@@ -14,7 +14,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
-use std::path::Path;
+use std::{error::Error, path::Path};
 use uuid::Uuid;
 
 /// Post status indicates the moderation/approval state of a post
@@ -106,7 +106,7 @@ impl Post {
         user: &User,
         post_id: Option<i32>,
         invert: bool,
-    ) -> Result<Vec<Self>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Self>, Box<dyn Error + Send + Sync>> {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT * FROM posts WHERE (");
 
         // Filter by status based on user role
@@ -160,7 +160,7 @@ impl Post {
     pub async fn select_by_author(
         tx: &mut PgConnection,
         account_id: i32,
-    ) -> Result<Vec<Self>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Self>, Box<dyn Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "SELECT * FROM posts WHERE account_id = $1 ",
             "AND status = 'approved' ORDER BY id DESC LIMIT $2",
@@ -187,7 +187,7 @@ impl Post {
     pub async fn select_by_key(
         tx: &mut PgConnection,
         key: &str,
-    ) -> Result<Option<Self>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Option<Self>, Box<dyn Error + Send + Sync>> {
         sqlx::query_as(concat!(
             "SELECT *, to_char(created_at, $1) AS created_at_rfc5322, ",
             "to_char(created_at, $2) AS created_at_html, ",
@@ -202,10 +202,7 @@ impl Post {
     }
 
     /// Permanently deletes a post from the database.
-    pub async fn delete(
-        &self,
-        tx: &mut PgConnection,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn delete(&self, tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("DELETE FROM posts WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
@@ -219,7 +216,7 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         new_status: PostStatus,
-    ) -> Result<Post, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Post, Box<dyn Error + Send + Sync>> {
         sqlx::query_as("UPDATE posts SET status = $1 WHERE id = $2 RETURNING *")
             .bind(new_status)
             .bind(self.id)
@@ -235,7 +232,7 @@ impl Post {
         thumbnail_path: &Path,
         width: i32,
         height: i32,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let thumbnail_filename = thumbnail_path.file_name().unwrap().to_str().unwrap();
 
         sqlx::query(concat!(
@@ -257,7 +254,7 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         compat_path: &Path,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let compat_filename = compat_path.file_name().unwrap().to_str().unwrap();
 
         sqlx::query("UPDATE posts SET compat_video = $1 WHERE id = $2")
@@ -275,7 +272,7 @@ impl Post {
         tx: &mut PgConnection,
         width: i32,
         height: i32,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("UPDATE posts SET media_width = $1, media_height = $2 WHERE id = $3")
             .bind(width)
             .bind(height)
@@ -291,7 +288,7 @@ impl Post {
         &self,
         tx: &mut PgConnection,
         video_poster_path: &Path,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let media_poster_filename = video_poster_path.file_name().unwrap().to_str().unwrap();
 
         sqlx::query("UPDATE posts SET video_poster = $1 WHERE id = $2")
