@@ -70,23 +70,21 @@ pub async fn gpg_decrypt(
     Ok(output.stdout)
 }
 
-impl Post {
-    /// Re-encrypts a media file that has already been published.
-    ///
-    /// Used when media needs to be moved back from published to reported state.
-    pub async fn reencrypt_media_file(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let encrypted_file_path = self.encrypted_media_path();
-        let uploads_key_dir = encrypted_file_path.parent().unwrap();
-        tokio::fs::create_dir(uploads_key_dir).await?;
-        let media_file_path = self.published_media_path();
-        let media_bytes = tokio::fs::read(&media_file_path).await?;
-        let result = gpg_encrypt(&media_file_path, media_bytes).await;
-        match result {
-            Ok(()) => super::delete_media_key_dir(&self.key).await?,
-            Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
-        }
-        result
+/// Re-encrypts a media file that has already been published.
+///
+/// Used when media needs to be moved back from published to reported state.
+pub async fn reencrypt_media_file(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let encrypted_file_path = post.encrypted_media_path();
+    let uploads_key_dir = encrypted_file_path.parent().unwrap();
+    tokio::fs::create_dir(uploads_key_dir).await?;
+    let media_file_path = post.published_media_path();
+    let media_bytes = tokio::fs::read(&media_file_path).await?;
+    let result = gpg_encrypt(&media_file_path, media_bytes).await;
+    match result {
+        Ok(()) => super::delete_media_key_dir(&post.key).await?,
+        Err(_) => tokio::fs::remove_dir(uploads_key_dir).await?,
     }
+    result
 }
 
 impl PostSubmission {

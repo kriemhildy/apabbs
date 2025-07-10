@@ -258,7 +258,7 @@ pub async fn reencrypt_media_task(state: AppState, post: Post, status: PostStatu
         let mut tx = state.db.begin().await?;
 
         // Attempt media re-encryption
-        post.reencrypt_media_file()
+        media::encryption::reencrypt_media_file(&post)
             .await
             .map_err(|e| format!("re-encrypt media: {e}"))?;
 
