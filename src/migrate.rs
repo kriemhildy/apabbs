@@ -431,7 +431,7 @@ pub async fn process_videos(state: AppState) {
 
 /// Attempts to continue processing of any post that was interrupted.
 pub async fn retry_failed_tasks(state: AppState) {
-    use apabbs::post::{Post, PostStatus, PostStatus::*, review::PostReview};
+    use apabbs::post::{Post, PostStatus::{self, *}, review};
 
     let mut tx = state.db.begin().await.expect("begin");
 
@@ -480,12 +480,12 @@ pub async fn retry_failed_tasks(state: AppState) {
         };
 
         // Determine the action to take based on the prior post status and next status
-        let action = PostReview::determine_action(&prior_post, next_status, AccountRole::Admin)
+        let action = review::determine_action(&prior_post, next_status, AccountRole::Admin)
             .expect("determine review action");
         tracing::info!(post_id = post.id, "Determined action: {:?}", action);
 
         // Process the action
-        if let Some(task) = PostReview::process_action(&state, &prior_post, next_status, action)
+        if let Some(task) = review::process_action(&state, &prior_post, next_status, action)
             .await
             .expect("process review action")
         {

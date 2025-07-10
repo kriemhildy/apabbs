@@ -33,7 +33,10 @@ pub async fn review_post(
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
 ) -> Result<Response, ResponseError> {
-    use crate::{post::review::ReviewError::*, user::AccountRole::*};
+    use crate::{
+        post::review::{self, ReviewError::*},
+        user::AccountRole::*,
+    };
 
     let mut tx = state.db.begin().await?;
 
@@ -65,7 +68,7 @@ pub async fn review_post(
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Determine appropriate review action
-    let review_action = PostReview::determine_action(&post, post_review.status, account.role);
+    let review_action = review::determine_action(&post, post_review.status, account.role);
 
     use futures::future::BoxFuture;
     // Handle various review actions
@@ -83,7 +86,7 @@ pub async fn review_post(
         }
 
         // Handle media operations
-        Ok(action) => PostReview::process_action(&state, &post, post_review.status, action).await?,
+        Ok(action) => review::process_action(&state, &post, post_review.status, action).await?,
     };
 
     // Set appropriate status based on background processing
