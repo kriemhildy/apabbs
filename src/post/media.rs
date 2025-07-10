@@ -17,7 +17,7 @@
 
 pub mod encryption;
 pub mod images;
-pub mod video;
+pub mod videos;
 
 use super::{MediaCategory, Post, review::PostReview, submission::PostSubmission};
 use regex::Regex;
