@@ -45,16 +45,16 @@ impl IntoResponse for ResponseError {
         let body = if status == StatusCode::INTERNAL_SERVER_ERROR {
             tracing::error!("{msg}");
             if crate::dev() {
-                format!("{msg}")
+                msg.to_string()
             } else {
-                format!("An internal server error occurred. Please try again later.")
+                "An internal server error occurred. Please try again later.".to_string()
             }
         } else {
             tracing::debug!("{msg}");
-            format!("{msg}")
+            msg.to_string()
         };
 
-        (status, body).into_response()
+        (status, body.to_string()).into_response()
     }
 }
 
