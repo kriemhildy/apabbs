@@ -149,7 +149,8 @@ pub async fn publish_media(
     tx: &mut PgConnection,
     post: &Post,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let media_bytes = post.gpg_decrypt().await?;
+    let encrypted_media_path = post.encrypted_media_path();
+    let media_bytes = encryption::gpg_decrypt(&encrypted_media_path).await?;
     let published_media_path = post.published_media_path();
     write_media_file(&published_media_path, media_bytes).await?;
     match post.media_category {

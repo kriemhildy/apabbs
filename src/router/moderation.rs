@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     AppState, ban,
-    post::{Post, PostStatus::*, review::PostReview},
+    post::{Post, PostStatus::*, media::encryption, review::PostReview},
     router::ROOT,
 };
 use axum::{
@@ -169,7 +169,8 @@ pub async fn decrypt_media(
 
     // Get media details
     let media_filename = post.media_filename.as_ref().unwrap();
-    let media_bytes = post.gpg_decrypt().await?;
+    let encrypted_media_path = post.encrypted_media_path();
+    let media_bytes = encryption::gpg_decrypt(&encrypted_media_path).await?;
     let content_type = post.media_mime_type.unwrap();
 
     // Set response headers for download
