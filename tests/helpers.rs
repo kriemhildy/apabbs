@@ -3,7 +3,10 @@
 
 use apabbs::{
     AppState,
-    post::{Post, PostStatus, media, submission::PostSubmission},
+    post::{
+        Post, PostStatus, media,
+        submission::{self, PostSubmission},
+    },
     user::{Account, AccountRole, Credentials, User},
 };
 use axum::{Router, body::Body, http::Response};
@@ -129,7 +132,7 @@ pub async fn create_test_post(
         media_bytes,
     };
 
-    let key = PostSubmission::generate_key(tx).await.unwrap();
+    let key = submission::generate_key(tx).await.unwrap();
     let post = post_submission.insert(tx, user, &key).await.unwrap();
 
     if media_filename.is_some() {

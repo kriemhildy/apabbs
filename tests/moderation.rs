@@ -4,7 +4,13 @@ mod helpers;
 
 use apabbs::{
     ban,
-    post::{Post, PostStatus::*, media, review::PostReview, submission::PostSubmission},
+    post::{
+        Post,
+        PostStatus::*,
+        media,
+        review::PostReview,
+        submission::{self, PostSubmission},
+    },
     router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
     user::{AccountRole, User},
 };
@@ -90,7 +96,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
     for _ in 0..5 {
         post_submission.session_token = Uuid::new_v4();
-        let key = PostSubmission::generate_key(&mut tx).await?;
+        let key = submission::generate_key(&mut tx).await?;
         post_submission.insert(&mut tx, &user, &key).await?;
     }
 
@@ -102,7 +108,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
-    let key = PostSubmission::generate_key(&mut tx).await?;
+    let key = submission::generate_key(&mut tx).await?;
     post_submission.insert(&mut tx, &user, &key).await?;
 
     // Verify flooding is detected but ban not yet applied

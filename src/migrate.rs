@@ -95,7 +95,7 @@ pub async fn main() {
 ///
 /// Recalculates the intro_limit field for all posts that have it set.
 pub async fn update_intro_limit(state: AppState) {
-    use apabbs::post::{Post, submission::PostSubmission};
+    use apabbs::post::{Post, submission};
 
     let mut tx = state.db.begin().await.expect("begin");
     let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
@@ -104,7 +104,7 @@ pub async fn update_intro_limit(state: AppState) {
         .expect("select posts with intro_limit");
 
     for post in posts {
-        let intro_limit = PostSubmission::intro_limit(&post.body);
+        let intro_limit = submission::intro_limit(&post.body);
         sqlx::query("UPDATE posts SET intro_limit = $1 WHERE id = $2")
             .bind(intro_limit)
             .bind(post.id)
@@ -120,7 +120,7 @@ pub async fn update_intro_limit(state: AppState) {
 /// Finds YouTube links in posts, determines if they're shorts or regular videos,
 /// downloads appropriate thumbnails, and updates post content with the new thumbnail URLs.
 pub async fn download_youtube_thumbnails(state: AppState) {
-    use apabbs::post::submission::PostSubmission;
+    use apabbs::post::submission;
     use tokio::time::Duration;
 
     let mut tx = state.db.begin().await.expect("begin");
@@ -175,7 +175,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
 
         // Download thumbnail and get dimensions
         if let Some((local_thumbnail_path, width, height)) =
-            PostSubmission::download_youtube_thumbnail(&video_id, short)
+            submission::download_youtube_thumbnail(&video_id, short)
                 .await
                 .expect("download YouTube thumbnail")
         {
@@ -431,7 +431,11 @@ pub async fn process_videos(state: AppState) {
 
 /// Attempts to continue processing of any post that was interrupted.
 pub async fn retry_failed_tasks(state: AppState) {
-    use apabbs::post::{Post, PostStatus::{self, *}, review};
+    use apabbs::post::{
+        Post,
+        PostStatus::{self, *},
+        review,
+    };
 
     let mut tx = state.db.begin().await.expect("begin");
 

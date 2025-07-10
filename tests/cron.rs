@@ -2,7 +2,7 @@ mod helpers;
 
 use apabbs::{
     cron::{screenshot_task, scrub_task},
-    post::{Post, submission::PostSubmission},
+    post::{Post, submission},
 };
 use helpers::{BAN_IP, init_test};
 use std::{error::Error, fs};
@@ -32,7 +32,7 @@ async fn test_scrub_task() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (_router, state) = init_test().await;
     let ip_hash = sha256::digest(apabbs::secret_key() + BAN_IP);
     let mut tx = state.db.begin().await?;
-    let key = PostSubmission::generate_key(&mut tx).await?;
+    let key = submission::generate_key(&mut tx).await?;
 
     // Insert the post directly using SQL to set created_at in the past
     sqlx::query(concat!(

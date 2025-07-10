@@ -12,7 +12,7 @@ use crate::{
     AppState,
     post::{
         Post,
-        submission::{PostHiding, PostSubmission},
+        submission::{self, PostHiding, PostSubmission},
     },
     user::User,
     utils::{render, utc_hour_timestamp},
@@ -221,7 +221,7 @@ pub async fn submit_post(
     }
 
     // Generate unique key and insert post
-    let key = PostSubmission::generate_key(&mut tx).await?;
+    let key = submission::generate_key(&mut tx).await?;
     let post = post_submission.insert(&mut tx, &user, &key).await?;
 
     // Handle media file encryption if present
