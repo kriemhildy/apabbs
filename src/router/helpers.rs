@@ -174,7 +174,7 @@ pub async fn init_user(
     };
     if ![Method::GET, Method::HEAD].contains(&method) && csrf_token.is_none() {
         return Err(Unauthorized(
-            "CSRF token required for non-GET requests".to_string(),
+            "CSRF token required for state-changing requests".to_string(),
         ));
     }
     if let Some(csrf_token) = csrf_token {
