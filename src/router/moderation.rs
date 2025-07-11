@@ -37,6 +37,7 @@ pub async fn review_post(
         post::review::{self, ReviewError::*},
         user::AccountRole::*,
     };
+    use futures::future::BoxFuture;
 
     let mut tx = state.db.begin().await?;
 
@@ -57,7 +58,6 @@ pub async fn review_post(
         }
         Some(account) => account,
     };
-
     if ![Admin, Mod].contains(&account.role) {
         return Err(Unauthorized("Must be admin or moderator".to_string()));
     };
@@ -70,7 +70,6 @@ pub async fn review_post(
     // Determine appropriate review action
     let review_action = review::determine_action(&post, post_review.status, account.role);
 
-    use futures::future::BoxFuture;
     // Handle various review actions
     let background_task: Option<BoxFuture<'static, ()>> = match review_action {
         // Handle errors
@@ -84,7 +83,6 @@ pub async fn review_post(
         Err(e @ AdminOnly) | Err(e @ RecentOnly) => {
             return Err(Unauthorized(e.to_string()));
         }
-
         // Handle media operations
         Ok(action) => review::process_action(&state, &post, post_review.status, action).await?,
     };
