@@ -5,7 +5,7 @@
 use super::super::Post;
 use std::{error::Error, path::Path};
 
-/// Encrypts the provided bytes using GPG with the application's key.
+/// Use GPG to encrypt the provided bytes and write the output to the specified file path.
 pub async fn gpg_encrypt(
     encrypted_file_path: &Path,
     bytes: Vec<u8>,
@@ -47,10 +47,8 @@ pub async fn gpg_encrypt(
     Ok(())
 }
 
-/// Decrypts the post's media file using GPG.
-pub async fn gpg_decrypt(
-    encrypted_file_path: &Path,
-) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+/// Use GPG to decrypt the provided file and return its bytes.
+pub async fn gpg_decrypt(encrypted_file_path: &Path) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
     let encrypted_file_path_str = encrypted_file_path.to_str().unwrap();
     let output = tokio::process::Command::new("gpg")
         .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])
@@ -70,7 +68,7 @@ pub async fn gpg_decrypt(
     Ok(output.stdout)
 }
 
-/// Encrypts the uploaded file data for a post.
+/// Encrypts an uploaded file and stores it in the uploads directory.
 pub async fn encrypt_uploaded_file(
     post: &Post,
     bytes: Vec<u8>,
@@ -85,8 +83,8 @@ pub async fn encrypt_uploaded_file(
     Ok(())
 }
 
-/// Decrypts an uploaded file and writes it to the published media path.
-pub async fn decrypt_uploaded_file(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
+/// Decrypts a media file and writes it to the public directory.
+pub async fn decrypt_media_file(post: &Post) -> Result<(), Box<dyn Error + Send + Sync>> {
     let encrypted_file_path = post.encrypted_media_path();
     let bytes = gpg_decrypt(&encrypted_file_path).await?;
     let published_media_path = post.published_media_path();

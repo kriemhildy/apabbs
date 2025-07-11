@@ -149,7 +149,7 @@ pub async fn publish_media(
     tx: &mut PgConnection,
     post: &Post,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    encryption::decrypt_uploaded_file(post).await?;
+    encryption::decrypt_media_file(post).await?;
     match post.media_category {
         Some(MediaCategory::Image) => images::process_image(tx, post).await?,
         Some(MediaCategory::Video) => videos::process_video(tx, post).await?,
