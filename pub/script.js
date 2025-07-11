@@ -279,6 +279,9 @@ function handleFormSubmit(event) {
         } else if (response.status === 413) {
             alert("File must be under 25MB");
             console.warn("Form submission failed: file too large (413)");
+        } else if (response.status === 502) {
+            alert("Server is currently unavailable. Please try again later.");
+            console.error("Form submission failed: server unavailable (502)");
         } else {
             alert(`Unexpected error: ${response.status} ${response.statusText}`);
             console.error(`Unexpected error during form submission: ${response.status} ${response.statusText}`);
