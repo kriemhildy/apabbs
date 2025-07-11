@@ -5,7 +5,7 @@
 /* Color variables for dark and light modes. All colors are referenced via these variables. */
 :root {
     /* Dark mode color scheme (default) */
-    --back: rgb(13, 13, 13);
+    --back: black;
     --fore: #e3e3e3;
     --border: #777;
     --system: #9cdcda;
@@ -239,15 +239,20 @@ div.youtube-thumbnail img {
     margin: 0 -8px;
     height: auto;
     width: auto;
+}
+
+main.list div.media img,
+main.list div.media video,
+main.list div.youtube-thumbnail img {
     /* Reduce brightness in dark mode to avoid discomfort. */
     filter: brightness(0.87);
 }
 
 /* Restore standard brightness in light mode. */
 @media (prefers-color-scheme: light) {
-    div.media img,
-    div.media video,
-    div.youtube-thumbnail img {
+    main.list div.media img,
+    main.list div.media video,
+    main.list div.youtube-thumbnail img {
         filter: unset;
     }
 }
