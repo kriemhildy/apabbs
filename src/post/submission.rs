@@ -218,7 +218,7 @@ pub fn intro_limit(html: &str) -> Option<i32> {
 /// Represents a request to hide a post from personal view
 ///
 /// This structure contains the session token of the user requesting to hide the post
-/// and the unique key of the post to be hidden. Used primarily for users to hide the own posts
+/// and the unique key of the post to be hidden. Used primarily for users to hide their own posts
 /// after they have been rejected.
 #[derive(Serialize, Deserialize)]
 pub struct PostHiding {
