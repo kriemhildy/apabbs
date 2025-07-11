@@ -48,7 +48,9 @@ pub async fn gpg_encrypt(
 }
 
 /// Use GPG to decrypt the provided file and return its bytes.
-pub async fn gpg_decrypt(encrypted_file_path: &Path) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+pub async fn gpg_decrypt(
+    encrypted_file_path: &Path,
+) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
     let encrypted_file_path_str = encrypted_file_path.to_str().unwrap();
     let output = tokio::process::Command::new("gpg")
         .args(["--batch", "--decrypt", "--passphrase-file", "gpg.key"])

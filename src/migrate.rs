@@ -175,7 +175,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
 
         // Download thumbnail and get dimensions
         if let Some((local_thumbnail_path, width, height)) =
-            submission::download_youtube_thumbnail(&video_id, short)
+            submission::youtube::download_youtube_thumbnail(&video_id, short)
                 .await
                 .expect("download YouTube thumbnail")
         {

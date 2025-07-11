@@ -421,7 +421,7 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
 /// Tests the conversion of post body text to HTML with YouTube embed generation.
 #[tokio::test]
 pub async fn body_to_html() -> Result<(), Box<dyn Error + Send + Sync>> {
-    use apabbs::post::submission::{PostSubmission, YOUTUBE_DIR};
+    use apabbs::post::submission::{PostSubmission, youtube::YOUTUBE_DIR};
     apabbs::init_tracing_for_test();
     // Setup test with various types of content:
     // - HTML special characters

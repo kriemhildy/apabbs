@@ -24,7 +24,7 @@ use std::error::Error;
 use tokio_cron_scheduler::Job;
 
 /// The path where screenshots will be saved
-const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
+pub const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
 
 /// Initializes and starts the scheduled job system in the background for the application's lifetime.
 pub async fn init() {
