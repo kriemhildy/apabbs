@@ -14,9 +14,6 @@ use std::{error::Error, fmt};
 use uuid::Uuid;
 
 /// Defines possible actions resulting from post review decisions.
-///
-/// Each action represents a specific operation to perform on a post's media
-/// or status during the moderation workflow.
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum ReviewAction {
     /// Decrypt and process encrypted media for public viewing
@@ -31,10 +28,7 @@ pub enum ReviewAction {
     NoAction,
 }
 
-/// Represents errors that can occur during post review
-///
-/// These errors correspond to business rules that restrict
-/// which status transitions are allowed and by which roles.
+/// Represents errors that can occur during post review.
 #[derive(PartialEq, Debug)]
 pub enum ReviewError {
     /// Attempted to change post to its current status
@@ -67,23 +61,17 @@ impl fmt::Display for ReviewError {
     }
 }
 
-/// Represents a post review action submitted by a moderator or admin
-///
-/// Contains the reviewer's session token and the proposed new status for the post.
-/// Used to process moderation decisions through the review workflow.
+/// Represents a post review action submitted by a moderator or admin.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PostReview {
     /// Session token of the user performing the review
     pub session_token: Uuid,
-
     /// New status to apply to the post
     pub status: PostStatus,
 }
 
 impl PostReview {
-    /// Records a review action in the database.
-    ///
-    /// Creates an entry in the reviews table to track moderation activity.
+    /// Records a review action in the database to track moderation activity.
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
@@ -102,8 +90,6 @@ impl PostReview {
 }
 
 /// Determines the moderation action for a post review based on post state and user role.
-///
-/// Returns an error if the action is not allowed by business rules.
 pub fn determine_action(
     post: &Post,
     new_status: PostStatus,
@@ -113,59 +99,47 @@ pub fn determine_action(
     use PostStatus::*;
 
     match post.status {
-        // Rules for posts in Pending status
         Pending => match new_status {
-            Pending => Err(SameStatus),                    // No change needed
-            Processing => Err(ManualProcessing),           // Processing is set automatically
-            Approved | Delisted => Ok(PublishMedia),       // Approve: decrypt media for public view
-            Reported => Ok(NoAction),                      // Just change status, no media action
-            Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete encrypted media
+            Pending => Err(SameStatus),
+            Processing => Err(ManualProcessing),
+            Approved | Delisted => Ok(PublishMedia),
+            Reported => Ok(NoAction),
+            Rejected | Banned => Ok(DeleteEncryptedMedia),
         },
 
-        // Posts being processed can't be changed until processing completes
         Processing => Err(CurrentlyProcessing),
 
-        // Rules for already approved or delisted posts
         Approved | Delisted => {
-            // Mods can only change recent posts
             if post.status == Approved && reviewer_role == Mod && !post.recent.unwrap() {
                 return Err(RecentOnly);
             }
-
             match new_status {
-                Pending => Err(ReturnToPending),     // Can't go backwards to pending
-                Processing => Err(ManualProcessing), // Processing is set automatically
-                Approved | Delisted => Ok(NoAction), // Just status change, no media action
-                Reported => {
-                    // Usually only mods report for admin review, but admins are not unable
-                    Ok(UnpublishMedia)
-                }
-                Rejected | Banned => Ok(DeletePublishedMedia), // Delete the published media
+                Pending => Err(ReturnToPending),
+                Processing => Err(ManualProcessing),
+                Approved | Delisted => Ok(NoAction),
+                Reported => Ok(UnpublishMedia),
+                Rejected | Banned => Ok(DeletePublishedMedia),
             }
         }
 
-        // Rules for reported posts
         Reported => {
-            // Only admins can review reported posts
             if reviewer_role != Admin {
                 return Err(AdminOnly);
             }
-
             match new_status {
-                Pending => Err(ReturnToPending),     // Can't go backwards to pending
-                Processing => Err(ManualProcessing), // Processing is set automatically
-                Approved | Delisted => Ok(PublishMedia), // Approve: decrypt for public view
-                Rejected | Banned => Ok(DeleteEncryptedMedia), // Delete the encrypted media
-                Reported => Err(SameStatus),         // No change needed
+                Pending => Err(ReturnToPending),
+                Processing => Err(ManualProcessing),
+                Approved | Delisted => Ok(PublishMedia),
+                Rejected | Banned => Ok(DeleteEncryptedMedia),
+                Reported => Err(SameStatus),
             }
         }
 
-        // Rejected or banned posts are final and can't be changed
         Rejected | Banned => Err(RejectedOrBanned),
     }
 }
 
-/// Process a review action and optionally return a background task future.
+/// Processes a review action and optionally returns a background task.
 pub async fn process_action(
     state: &AppState,
     post: &Post,
@@ -173,38 +147,28 @@ pub async fn process_action(
     action: ReviewAction,
 ) -> Result<Option<BoxFuture<'static, ()>>, Box<dyn Error + Send + Sync>> {
     if post.media_category.is_none() {
-        return Ok(None); // No media to process
+        return Ok(None);
     }
 
     let background_task: Option<BoxFuture<'static, ()>> = match action {
-        PublishMedia => {
-            // Create background task for media publication
-            Some(Box::pin(publish_media_task(
-                state.clone(),
-                post.clone(),
-                status,
-            )))
-        }
-
+        PublishMedia => Some(Box::pin(publish_media_task(
+            state.clone(),
+            post.clone(),
+            status,
+        ))),
         DeleteEncryptedMedia => {
-            // Delete the encrypted media file
             media::delete_upload_key_dir(&post.key).await?;
             None
         }
-
-        // Handle media deletion
         DeletePublishedMedia => {
             media::delete_media_key_dir(&post.key).await?;
             None
         }
-
-        // Handle media unpublishing
         UnpublishMedia => Some(Box::pin(unpublish_media_task(
             state.clone(),
             post.clone(),
             status,
         ))),
-
         NoAction => None,
     };
 
@@ -220,23 +184,13 @@ pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus)
     let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         tracing::info!("Publishing media for post {}", post.id,);
         let mut tx = state.db.begin().await?;
-
-        // Attempt media publication
         media::publish_media(&mut tx, &post).await?;
-
-        // Update post status
         let post = post.update_status(&mut tx, status).await?;
-
-        // Delete the upload key directory after publishing
         media::delete_upload_key_dir(&post.key)
             .await
             .map_err(|e| format!("delete upload directory: {e}"))?;
-
         tx.commit().await?;
-
-        // Notify clients
         state.sender.send(post.clone()).ok();
-
         tracing::info!("Media publication task completed for post {}", post.id);
         Ok(())
     }
@@ -256,20 +210,12 @@ pub async fn unpublish_media_task(state: AppState, post: Post, status: PostStatu
             status
         );
         let mut tx = state.db.begin().await?;
-
-        // Attempt media unpublishing
         media::unpublish_media(&post)
             .await
             .map_err(|e| format!("unpublish media: {e}"))?;
-
-        // Update post status
         let post = post.update_status(&mut tx, status).await?;
-
         tx.commit().await?;
-
-        // Notify clients
         state.sender.send(post.clone()).ok();
-
         tracing::info!("Unpublish task completed for post {}", post.id);
         Ok(())
     }
@@ -284,7 +230,7 @@ pub async fn unpublish_media_task(state: AppState, post: Post, status: PostStatu
 mod tests {
     use super::*;
 
-    /// Tests post status transitions and review actions for different user roles.
+    // Tests post status transitions and review actions for different user roles.
     #[tokio::test]
     async fn review_action_permissions() {
         // Create a post with defaults, only setting what we need for this test
