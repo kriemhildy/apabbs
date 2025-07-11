@@ -15,18 +15,15 @@ pub async fn generate_image_thumbnail(
 ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
     let media_path_str = published_media_path.to_str().unwrap();
     let extension = media_path_str.split('.').next_back().unwrap();
-    // For animated images (GIF, WebP), extract the last frame as the thumbnail
     let vips_input_file_path = media_path_str.to_string()
         + match extension.to_lowercase().as_str() {
-            "gif" | "webp" => "[n=-1]", // animated image support
+            "gif" | "webp" => "[n=-1]",
             _ => "",
         };
-    // Run vipsthumbnail to generate the thumbnail
     let command_output = tokio::process::Command::new("vipsthumbnail")
         .args([
-            // Max dimensions with aspect ratio preserved
             &format!("--size={MAX_THUMB_WIDTH}x{MAX_THUMB_HEIGHT}>"),
-            "--output=tn_%s.webp", // Output format with prefix
+            "--output=tn_%s.webp",
         ])
         .arg(&vips_input_file_path)
         .output()
@@ -58,24 +55,16 @@ pub async fn process_image(
     post: &Post,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let published_media_path = post.published_media_path();
-
-    // Generate a thumbnail for the image
     let thumbnail_path = generate_image_thumbnail(&published_media_path).await?;
-
-    // If thumbnail is larger than original, don't use it
     if thumbnail_is_larger(&thumbnail_path, &published_media_path)? {
         tokio::fs::remove_file(&thumbnail_path).await?;
     } else {
-        // Update the database with thumbnail information
         let (width, height) = image_dimensions(&thumbnail_path).await?;
         post.update_thumbnail(tx, &thumbnail_path, width, height)
             .await?;
     }
-
-    // Update the media dimensions in the database
     let (width, height) = image_dimensions(&published_media_path).await?;
     post.update_media_dimensions(tx, width, height).await?;
-
     Ok(())
 }
 
@@ -83,9 +72,6 @@ pub async fn process_image(
 pub async fn image_dimensions(
     image_path: &Path,
 ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
-    tracing::debug!(image_path = ?image_path, "Getting image dimensions");
-    let image_path_str = image_path.to_str().unwrap();
-
     async fn vipsheader(
         field: &str,
         image_path_str: &str,
@@ -95,14 +81,14 @@ pub async fn image_dimensions(
             .output()
             .await
             .map_err(|e| format!("execute vipsheader: {e}"))?;
-
         let value = String::from_utf8_lossy(&output.stdout)
             .trim()
             .parse::<i32>()
             .map_err(|e| format!("parse vipsheader output as i32: {e}"))?;
         Ok(value)
     }
-
+    tracing::debug!(image_path = ?image_path, "Getting image dimensions");
+    let image_path_str = image_path.to_str().unwrap();
     let width = vipsheader("width", image_path_str).await?;
     let height = vipsheader("height", image_path_str).await?;
     tracing::info!(
