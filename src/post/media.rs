@@ -63,11 +63,11 @@ impl Post {
 pub fn determine_media_type(
     media_filename: Option<&str>,
 ) -> (Option<MediaCategory>, Option<String>) {
+    use MediaCategory::*;
     let media_filename = match media_filename {
         None => return (None, None),
         Some(media_filename) => media_filename,
     };
-    use MediaCategory::*;
     let extension = media_filename.split('.').next_back();
     let (media_category, media_mime_type_str) = match extension {
         Some(extension) => match extension.to_lowercase().as_str() {
@@ -173,36 +173,31 @@ pub async fn unpublish_media(post: &Post) -> Result<(), Box<dyn Error + Send + S
 mod tests {
     use super::*;
 
-    /// Tests MIME type and media category detection for different file extensions.
+    // Tests MIME type and media category detection for different file extensions.
     #[tokio::test]
     async fn media_type_detection() {
-        // Test image file types
         let (category, mime) = determine_media_type(Some("test.jpg"));
         assert_eq!(category, Some(MediaCategory::Image));
         assert_eq!(mime, Some("image/jpeg".to_string()));
 
-        // Test video file types
         let (category, mime) = determine_media_type(Some("video.mp4"));
         assert_eq!(category, Some(MediaCategory::Video));
         assert_eq!(mime, Some("video/mp4".to_string()));
 
-        // Test audio file types
         let (category, mime) = determine_media_type(Some("audio.mp3"));
         assert_eq!(category, Some(MediaCategory::Audio));
         assert_eq!(mime, Some("audio/mpeg".to_string()));
 
-        // Test unknown file type
         let (category, mime) = determine_media_type(Some("document.pdf"));
         assert_eq!(category, None);
         assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
 
-        // Test no file
         let (category, mime) = determine_media_type(None);
         assert_eq!(category, None);
         assert_eq!(mime, None);
     }
 
-    /// Tests path construction for media files.
+    // Tests path construction for media files.
     #[tokio::test]
     async fn media_paths() {
         let post = Post {
@@ -212,7 +207,6 @@ mod tests {
             ..Post::default()
         };
 
-        // Test path construction
         assert_eq!(
             post.encrypted_media_path().to_str().unwrap(),
             format!("{UPLOADS_DIR}/abcd1234/test.jpg.gpg")

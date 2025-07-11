@@ -25,7 +25,7 @@ pub enum ReviewAction {
     DeleteEncryptedMedia,
     /// Delete media files from the public directory
     DeletePublishedMedia,
-    /// Move published media back to encrypted pending state
+    /// Move published media back to encrypted state
     UnpublishMedia,
     /// Update post status without modifying media files
     NoAction,
