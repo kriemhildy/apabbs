@@ -310,7 +310,7 @@ impl Credentials {
 
     /// Returns true if the user checked to be remembered for a year.
     pub fn year_checked(&self) -> bool {
-        matches!(self.year.as_deref(), Some("on"))
+        self.year.as_deref() == Some("on")
     }
 }
 
