@@ -277,7 +277,7 @@ function handleFormSubmit(event) {
                 console.warn(`Form submission to ${this.action} failed with status ${response.status}: ${text}`);
             });
         } else if (response.status === 413) {
-            alert("File must be under 20MB");
+            alert("File must be under 25MB");
             console.warn("Form submission failed: file too large (413)");
         } else {
             alert(`Unexpected error: ${response.status} ${response.statusText}`);
