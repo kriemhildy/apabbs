@@ -3,7 +3,12 @@
 mod helpers;
 
 use apabbs::{
-    post::{MediaCategory, Post, PostStatus::*, media, submission::PostHiding},
+    post::{
+        MediaCategory, Post,
+        PostStatus::*,
+        media,
+        submission::{PostHiding, PostSubmission},
+    },
     router::{
         ROOT,
         helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
@@ -551,4 +556,26 @@ pub async fn body_to_html() -> Result<(), Box<dyn Error + Send + Sync>> {
         }
     }
     Ok(())
+}
+
+// Tests YouTube timestamp extraction from various URL formats.
+#[tokio::test]
+async fn youtube_timestamp_extraction() {
+    let submission = PostSubmission {
+        body: concat!(
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s\n",
+            "https://www.youtube.com/watch?t=25s&v=dQw4w9WgXcQ\n",
+            "https://youtu.be/dQw4w9WgXcQ?t=42\n"
+        )
+        .to_string(),
+        ..PostSubmission::default()
+    };
+
+    // Generate HTML with embeds containing timestamps
+    let html = submission.body_to_html("testkey").await.unwrap();
+
+    // Verify timestamps were properly extracted and included
+    assert!(html.contains("&amp;t=1m30s"));
+    assert!(html.contains("&amp;t=25s"));
+    assert!(html.contains("&amp;t=42"));
 }

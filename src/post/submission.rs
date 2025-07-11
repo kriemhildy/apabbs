@@ -309,27 +309,4 @@ mod tests {
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
         assert_eq!(intro_limit(&html), Some(1598));
     }
-
-    // Tests YouTube timestamp extraction from various URL formats.
-    // This needs to be moved to an integration test or else localized to avoid I/O.
-    #[tokio::test]
-    async fn youtube_timestamp_extraction() {
-        let submission = PostSubmission {
-            body: concat!(
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s\n",
-                "https://www.youtube.com/watch?t=25s&v=dQw4w9WgXcQ\n",
-                "https://youtu.be/dQw4w9WgXcQ?t=42\n"
-            )
-            .to_string(),
-            ..PostSubmission::default()
-        };
-
-        // Generate HTML with embeds containing timestamps
-        let html = submission.body_to_html("testkey").await.unwrap();
-
-        // Verify timestamps were properly extracted and included
-        assert!(html.contains("&amp;t=1m30s"));
-        assert!(html.contains("&amp;t=25s"));
-        assert!(html.contains("&amp;t=42"));
-    }
 }
