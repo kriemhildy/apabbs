@@ -1,3 +1,10 @@
+0.44.0
+
+Significantly reorganize code for improved clarity and documentation.
+Improve WebSocket reconnection.
+Open external links in new tabs.
+Add Sentry support.
+
 0.43.2
 
 Fix HTML datetime format.

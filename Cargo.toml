@@ -1,6 +1,6 @@
 [package]
 name = "apabbs"
-version = "0.43.2"
+version = "0.44.0"
 edition = "2024"
 default-run = "apabbs"
 
