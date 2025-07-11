@@ -17,13 +17,13 @@ pub async fn generate_image_thumbnail(
     let extension = media_path_str.split('.').next_back().unwrap();
     let vips_input_file_path = media_path_str.to_string()
         + match extension.to_lowercase().as_str() {
-            "gif" | "webp" => "[n=-1]",
+            "gif" | "webp" => "[n=-1]", // animated image support
             _ => "",
         };
     let command_output = tokio::process::Command::new("vipsthumbnail")
         .args([
             &format!("--size={MAX_THUMB_WIDTH}x{MAX_THUMB_HEIGHT}>"),
-            "--output=tn_%s.webp",
+            "--output=tn_%s.webp", // %s is filename without extension
         ])
         .arg(&vips_input_file_path)
         .output()
@@ -68,29 +68,35 @@ pub async fn process_image(
     Ok(())
 }
 
-/// Returns the dimensions (width, height) of an image using vipsheader.
+/// Return an image header field value using vipsheader.
+pub async fn vipsheader_field(
+    field: &str,
+    image_path_str: &str,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let output = tokio::process::Command::new("vipsheader")
+        .args(["-f", field, image_path_str])
+        .output()
+        .await
+        .map_err(|e| format!("execute vipsheader: {e}"))?;
+    let value = String::from_utf8_lossy(&output.stdout);
+    let value = value.trim().to_string();
+    Ok(value)
+}
+
+/// Returns the dimensions (width, height) of an image.
 pub async fn image_dimensions(
     image_path: &Path,
 ) -> Result<(i32, i32), Box<dyn Error + Send + Sync>> {
-    async fn vipsheader(
-        field: &str,
-        image_path_str: &str,
-    ) -> Result<i32, Box<dyn Error + Send + Sync>> {
-        let output = tokio::process::Command::new("vipsheader")
-            .args(["-f", field, image_path_str])
-            .output()
-            .await
-            .map_err(|e| format!("execute vipsheader: {e}"))?;
-        let value = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .parse::<i32>()
-            .map_err(|e| format!("parse vipsheader output as i32: {e}"))?;
-        Ok(value)
-    }
     tracing::debug!(image_path = ?image_path, "Getting image dimensions");
     let image_path_str = image_path.to_str().unwrap();
-    let width = vipsheader("width", image_path_str).await?;
-    let height = vipsheader("height", image_path_str).await?;
+    let width: i32 = vipsheader_field("width", image_path_str)
+        .await?
+        .parse()
+        .map_err(|e| format!("parse vipsheader width: {e}"))?;
+    let height: i32 = vipsheader_field("height", image_path_str)
+        .await?
+        .parse()
+        .map_err(|e| format!("parse vipsheader height: {e}"))?;
     tracing::info!(
         image_path = ?image_path,
         width = width,

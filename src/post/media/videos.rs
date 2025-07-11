@@ -19,11 +19,14 @@ pub async fn process_video(
         let compatibility_path = generate_compatibility_video(&published_media_path).await?;
         post.update_compat_video(tx, &compatibility_path).await?
     }
+
     let video_poster_path = generate_video_poster(&published_media_path).await?;
     post.update_poster(tx, &video_poster_path).await?;
+
     let (media_width, media_height) = images::image_dimensions(&video_poster_path).await?;
     post.update_media_dimensions(tx, media_width, media_height)
         .await?;
+
     if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
         let thumbnail_path = images::generate_image_thumbnail(&video_poster_path).await?;
         let (thumb_width, thumb_height) = images::image_dimensions(&thumbnail_path).await?;
