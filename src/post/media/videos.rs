@@ -16,8 +16,8 @@ pub async fn process_video(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let published_media_path = post.published_media_path();
     if !video_is_compatible(&published_media_path).await? {
-        let compatibility_path = generate_compatibility_video(&published_media_path).await?;
-        post.update_compat_video(tx, &compatibility_path).await?
+        let compat_video_path = generate_compatibility_video(&published_media_path).await?;
+        post.update_compat_video(tx, &compat_video_path).await?
     }
 
     let video_poster_path = generate_video_poster(&published_media_path).await?;
@@ -142,8 +142,8 @@ pub async fn generate_compatibility_video(
 ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
     tracing::debug!(video_path = ?video_path, "Generating compatibility video");
     let video_path_str = video_path.to_str().unwrap();
-    let compatibility_path = super::alternate_path(video_path, "cm_", ".mp4");
-    let compatibility_path_str = compatibility_path.to_str().unwrap();
+    let compat_video_path = super::alternate_path(video_path, "cm_", ".mp4");
+    let compat_video_path_str = compat_video_path.to_str().unwrap();
     let ffmpeg_output = tokio::process::Command::new("ffmpeg")
         .args([
             "-nostdin", // No stdin interaction
@@ -166,8 +166,8 @@ pub async fn generate_compatibility_video(
             "-c:a",
             "aac", // AAC audio codec
             "-b:a",
-            "128k",                 // Audio bitrate
-            compatibility_path_str, // Output file
+            "128k",                // Audio bitrate
+            compat_video_path_str, // Output file
         ])
         .output()
         .await
@@ -175,14 +175,14 @@ pub async fn generate_compatibility_video(
     if !ffmpeg_output.status.success() {
         return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
     }
-    if !compatibility_path.exists() {
+    if !compat_video_path.exists() {
         return Err("compatibility video was not created successfully".into());
     }
     tracing::info!(
-        compatibility_path = ?compatibility_path,
+        compat_video_path = ?compat_video_path,
         "Compatibility video generated successfully"
     );
-    Ok(compatibility_path)
+    Ok(compat_video_path)
 }
 
 /// Generates a poster image (still frame) from a video file.
