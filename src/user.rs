@@ -229,7 +229,7 @@ impl Credentials {
 
         // Check for reserved username
         if lowercase_username == "anon" {
-            errors.push("username cannot be \"anon\"");
+            errors.push(r#"username cannot be "anon""#);
         }
 
         // Check password doesn't contain username
