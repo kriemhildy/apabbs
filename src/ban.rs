@@ -13,7 +13,7 @@ use std::error::Error;
 pub const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
 
 /// Represents a ban record for an IP address or account.
-#[derive(sqlx::FromRow, Default, Debug)]
+#[derive(sqlx::FromRow, Default)]
 pub struct Ban {
     /// The hash of the banned IP address.
     pub ip_hash: String,
@@ -21,8 +21,6 @@ pub struct Ban {
     pub banned_account_id: Option<i32>,
     /// The ID of the admin account that issued the ban, if applicable.
     pub admin_account_id: Option<i32>,
-    /// The expiration time of the ban, formatted as RFC 5322 string, if set.
-    pub expires_at_rfc5322: Option<String>,
 }
 
 impl Ban {

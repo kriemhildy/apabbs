@@ -12,7 +12,8 @@ use super::{
     helpers::{init_user, is_fetch_request},
 };
 use crate::{
-    AppState, ban,
+    AppState,
+    ban::Ban,
     post::{Post, PostStatus::*, media::encryption, review::PostReview},
     router::ROOT,
 };
@@ -101,11 +102,10 @@ pub async fn review_post(
     // Handle banned post cleanup
     if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
-            let ban = ban::Ban {
+            let ban = Ban {
                 ip_hash: ip_hash.to_string(),
                 banned_account_id: Some(account.id),
                 admin_account_id: Some(account.id),
-                ..ban::Ban::default()
             };
             ban.insert(&mut tx).await?;
         }
