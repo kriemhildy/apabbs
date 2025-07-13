@@ -101,7 +101,13 @@ pub async fn review_post(
     // Handle banned post cleanup
     if post.status == Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
-            ban::insert(&mut tx, ip_hash, post.account_id, Some(account.id)).await?;
+            let ban = ban::Ban {
+                ip_hash: ip_hash.to_string(),
+                banned_account_id: Some(account.id),
+                admin_account_id: Some(account.id),
+                ..ban::Ban::default()
+            };
+            ban.insert(&mut tx).await?;
         }
         post.delete(&mut tx).await?;
     }

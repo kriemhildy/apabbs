@@ -12,42 +12,55 @@ use std::error::Error;
 /// within a 24-hour period before considering it to be flooding.
 pub const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
 
-/// Inserts a new ban record into the database.
-pub async fn insert(
-    tx: &mut PgConnection,
-    ip_hash: &str,
-    banned_account_id: Option<i32>,
-    admin_account_id: Option<i32>,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    sqlx::query_scalar(concat!(
-        "INSERT INTO bans (ip_hash, banned_account_id, admin_account_id) ",
-        "VALUES ($1, $2, $3) RETURNING to_char(expires_at, $4)",
-    ))
-    .bind(ip_hash)
-    .bind(banned_account_id)
-    .bind(admin_account_id)
-    .bind(POSTGRES_RFC5322_DATETIME)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|e| format!("insert ban: {e}").into())
+/// Represents a ban record for an IP address or account.
+#[derive(sqlx::FromRow, Default, Debug)]
+pub struct Ban {
+    /// The hash of the banned IP address.
+    pub ip_hash: String,
+    /// The ID of the banned user account, if applicable.
+    pub banned_account_id: Option<i32>,
+    /// The ID of the admin account that issued the ban, if applicable.
+    pub admin_account_id: Option<i32>,
+    /// The expiration time of the ban, formatted as RFC 5322 string, if set.
+    pub expires_at_rfc5322: Option<String>,
 }
 
-/// Checks if an active ban exists for an IP hash or account ID.
-pub async fn exists(
-    tx: &mut PgConnection,
-    ip_hash: &str,
-    banned_account_id: Option<i32>,
-) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
-    sqlx::query_scalar(concat!(
-        "SELECT to_char(expires_at, $1) FROM bans ",
-        "WHERE expires_at > now() AND (ip_hash = $2 OR banned_account_id = $3)",
-    ))
-    .bind(POSTGRES_RFC5322_DATETIME)
-    .bind(ip_hash)
-    .bind(banned_account_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|e| format!("check for existing ban: {e}").into())
+impl Ban {
+    /// Inserts a new ban record into the database.
+    pub async fn insert(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
+        sqlx::query_scalar(concat!(
+            "INSERT INTO bans (ip_hash, banned_account_id, admin_account_id) ",
+            "VALUES ($1, $2, $3) RETURNING to_char(expires_at, $4)",
+        ))
+        .bind(&self.ip_hash)
+        .bind(self.banned_account_id)
+        .bind(self.admin_account_id)
+        .bind(POSTGRES_RFC5322_DATETIME)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| format!("insert ban: {e}").into())
+    }
+
+    /// Checks if an active ban exists for an IP hash or account ID.
+    pub async fn exists(
+        tx: &mut PgConnection,
+        ip_hash: &str,
+        banned_account_id: Option<i32>,
+    ) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
+        sqlx::query_scalar(concat!(
+            "SELECT to_char(expires_at, $1) FROM bans ",
+            "WHERE expires_at > now() AND (ip_hash = $2 OR banned_account_id = $3)",
+        ))
+        .bind(POSTGRES_RFC5322_DATETIME)
+        .bind(ip_hash)
+        .bind(banned_account_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| format!("check for existing ban: {e}").into())
+    }
 }
 
 /// Counts new accounts created from an IP address within the past day.

@@ -3,7 +3,7 @@
 mod helpers;
 
 use apabbs::{
-    ban,
+    ban::{self, Ban},
     post::{
         Post,
         PostStatus::*,
@@ -103,7 +103,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Verify state before flooding threshold is reached
     assert_eq!(ban::new_accounts_count(&mut tx, &user.ip_hash).await?, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 5);
-    assert!(ban::exists(&mut tx, &user.ip_hash, None).await?.is_none());
+    assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_none());
     assert!(!ban::flooding(&mut tx, &user.ip_hash).await?);
 
     // Create one more post to trigger flooding detection
@@ -114,7 +114,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Verify flooding is detected but ban not yet applied
     assert_eq!(ban::new_accounts_count(&mut tx, &user.ip_hash).await?, 3);
     assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 6);
-    assert!(ban::exists(&mut tx, &user.ip_hash, None).await?.is_none());
+    assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_none());
     assert!(ban::flooding(&mut tx, &user.ip_hash).await?);
     tx.commit().await?;
 
@@ -138,7 +138,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Verify ban state after ban
     let mut tx = state.db.begin().await?;
-    assert!(ban::exists(&mut tx, &user.ip_hash, None).await?.is_some());
+    assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_some());
     assert!(!ban::flooding(&mut tx, &user.ip_hash).await?);
     assert_eq!(ban::new_accounts_count(&mut tx, &user.ip_hash).await?, 0);
     assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 0);

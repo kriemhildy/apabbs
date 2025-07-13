@@ -9,7 +9,7 @@ use super::{
     errors::ResponseError::{self, *},
 };
 use crate::{
-    ban,
+    ban::{self, Ban},
     post::Post,
     user::{Account, Credentials, User, UserAgent},
     utils::set_session_time_zone,
@@ -59,7 +59,12 @@ pub async fn ban_if_flooding(
     account_id: Option<i32>,
 ) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
     if ban::flooding(tx, ip_hash).await? {
-        let expires_at = ban::insert(tx, ip_hash, account_id, None).await?;
+        let ban = Ban {
+            ip_hash: ip_hash.to_string(),
+            banned_account_id: account_id,
+            ..Ban::default()
+        };
+        let expires_at = ban.insert(tx).await?;
         ban::prune(tx, ip_hash).await?;
         return Ok(Some(expires_at));
     }
@@ -186,7 +191,7 @@ pub async fn init_user(
     }
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);
-    let ban_expires_at = ban::exists(tx, &ip_hash, account.as_ref().map(|a| a.id)).await?;
+    let ban_expires_at = Ban::exists(tx, &ip_hash, account.as_ref().map(|a| a.id)).await?;
     let user = User {
         account,
         session_token,
