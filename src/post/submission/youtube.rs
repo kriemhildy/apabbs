@@ -95,7 +95,7 @@ pub async fn download_youtube_thumbnail(
     video_id: &str,
     short: bool,
 ) -> Result<Option<(PathBuf, i32, i32)>, Box<dyn Error + Send + Sync>> {
-    tracing::debug!(video_id, "Downloading YouTube thumbnail");
+    tracing::debug!(video_id, "Downloading YouTube thumbnail...");
     let video_id_dir = std::path::Path::new(YOUTUBE_DIR).join(video_id);
 
     // Compact array of size tuples (name, width, height)

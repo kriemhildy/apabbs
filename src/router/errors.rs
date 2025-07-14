@@ -1,6 +1,10 @@
 //! Router-specific error types and conversions.
 
-use axum::response::{IntoResponse, Response};
+use ResponseError::*;
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use std::error::Error;
 
 /// HTTP error responses.
@@ -13,27 +17,23 @@ pub enum ResponseError {
     InternalServerError(String),
 }
 
-use ResponseError::*;
-
 /// Convert a boxed error that is Send + Sync into a ResponseError.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
-        ResponseError::InternalServerError(error.to_string())
+        InternalServerError(error.to_string())
     }
 }
 
 /// Convert an sqlx::Error into a ResponseError.
 impl From<sqlx::Error> for ResponseError {
     fn from(error: sqlx::Error) -> Self {
-        ResponseError::InternalServerError(error.to_string())
+        InternalServerError(error.to_string())
     }
 }
 
 /// Convert a ResponseError into an HTTP response.
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
-        use axum::http::StatusCode;
-
         let (status, msg) = match self {
             BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
@@ -63,11 +63,9 @@ impl IntoResponse for ResponseError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::StatusCode;
-    use axum::response::IntoResponse;
 
-    #[test]
-    fn test_response_error_variants() {
+    #[tokio::test]
+    async fn test_response_error_variants() {
         let bad_request = BadRequest("bad request".into());
         let unauthorized = Unauthorized("unauthorized".into());
         let forbidden = Forbidden("forbidden".into());
@@ -89,13 +87,10 @@ mod tests {
         for (err, status, msg) in cases {
             let response = err.into_response();
             assert_eq!(response.status(), status);
-            // Extract body as string (axum 0.7+)
             let body = response.into_body();
-            // Use axum's body::to_bytes if available, otherwise use http_body_util
-            // Use http_body_util::BodyExt for to_bytes
-            use http_body_util::BodyExt;
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let body_bytes = rt.block_on(async { body.collect().await.unwrap().to_bytes() });
+            let body_bytes = axum::body::to_bytes(body, usize::MAX)
+                .await
+                .expect("convert body to bytes");
             let body_str = String::from_utf8_lossy(&body_bytes);
             assert!(body_str.contains(msg));
         }
