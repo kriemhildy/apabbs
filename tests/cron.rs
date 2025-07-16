@@ -4,7 +4,7 @@ use apabbs::{
     cron::{screenshot_task, scrub_task},
     post::{Post, submission},
 };
-use helpers::{BAN_IP, init_test};
+use helpers::{SCRUB_IP, init_test};
 use std::{error::Error, fs};
 
 /// Tests the screenshot task to ensure it creates a screenshot file.
@@ -30,7 +30,7 @@ async fn test_screenshot_task() -> Result<(), Box<dyn Error + Send + Sync>> {
 #[tokio::test]
 async fn test_scrub_task() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (_router, state) = init_test().await;
-    let ip_hash = sha256::digest(apabbs::secret_key() + BAN_IP);
+    let ip_hash = sha256::digest(apabbs::secret_key() + SCRUB_IP);
     let mut tx = state.db.begin().await?;
     let key = submission::generate_key(&mut tx).await?;
 

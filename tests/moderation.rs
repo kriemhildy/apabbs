@@ -30,7 +30,7 @@ use std::error::Error;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use crate::helpers::{BAN_IP, create_test_post, delete_test_ban};
+use crate::helpers::{AUTOBAN_IP, MANUAL_BAN_IP, create_test_post, delete_test_ban};
 
 /// Tests decrypting and serving media files.
 #[tokio::test]
@@ -76,7 +76,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let user = User {
-        ip_hash: sha256::digest(apabbs::secret_key() + BAN_IP),
+        ip_hash: sha256::digest(apabbs::secret_key() + AUTOBAN_IP),
         ..User::default()
     };
 
@@ -129,7 +129,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
         .uri("/submit-post")
         .header(COOKIE, format!("{SESSION_COOKIE}={bogus_session_token}"))
         .header(CONTENT_TYPE, form.content_type_header())
-        .header(X_REAL_IP, BAN_IP)
+        .header(X_REAL_IP, AUTOBAN_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
 
@@ -454,6 +454,60 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Admin bans a post
+#[tokio::test]
+async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let post_user = User {
+        ip_hash: sha256::digest(apabbs::secret_key() + MANUAL_BAN_IP),
+        ..User::default()
+    };
+    let ban_expires_at = Ban::exists(&mut tx, &post_user.ip_hash, None).await?;
+    assert!(ban_expires_at.is_none(), "Ban should not exist before test");
+    // Create a post with status Pending
+    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), Pending).await;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    tx.commit().await?;
+    // Admin bans the post
+    let post_review = PostReview {
+        session_token: admin_user.session_token,
+        status: Banned,
+    };
+    let post_review_str = serde_urlencoded::to_string(&post_review)?;
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/review/{}", &post.key))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, admin_account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, admin_user.session_token))
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(post_review_str))?;
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    // Verify the post is banned
+    let mut tx = state.db.begin().await?;
+    let deleted_post = Post::select_by_key(&mut tx, &post.key).await?;
+    let ban_expires_at = Ban::exists(&mut tx, &post_user.ip_hash, None).await?;
+    assert!(ban_expires_at.is_some(), "Ban should be created");
+    tx.commit().await?;
+    assert!(
+        deleted_post.is_none(),
+        "Post should be deleted after banning"
+    );
+    assert!(
+        !post.encrypted_media_path().exists(),
+        "Encrypted media should be deleted"
+    );
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    delete_test_ban(&mut tx, &post_user.ip_hash).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }

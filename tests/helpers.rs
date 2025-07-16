@@ -16,17 +16,21 @@ use sqlx::PgConnection;
 use std::{error::Error, path::Path};
 use uuid::Uuid;
 
-/// A sample local IP address (IPv6 loopback).
+/// The local IP address (IPv6 loopback).
 #[allow(dead_code)]
 pub const LOCAL_IP: &str = "::1";
+/// Test IP addresses used. These are listed here to avoid conflicts between tests.
+#[allow(dead_code)]
+pub const AUTOBAN_IP: &str = "192.0.2.0";
+#[allow(dead_code)]
+pub const SCRUB_IP: &str = "192.0.2.1";
+#[allow(dead_code)]
+pub const MANUAL_BAN_IP: &str = "192.0.2.2";
 /// The content type for form submissions.
 #[allow(dead_code)]
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
 /// Directory containing test media files.
 pub const TEST_MEDIA_DIR: &str = "tests/media";
-/// A sample IP address used for testing bans.
-#[allow(dead_code)]
-pub const BAN_IP: &str = "192.0.2.0";
 
 /// Initialize tracing, app state, and router for integration tests.
 pub async fn init_test() -> (Router, AppState) {
