@@ -154,23 +154,29 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
 async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Pending).await;
+    let post_user = test_user(None);
+    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
-    let account = user.account.as_ref().unwrap();
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
     tx.commit().await?;
 
     let post_review = PostReview {
-        session_token: user.session_token,
+        session_token: admin_user.session_token,
         status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))?;
@@ -220,7 +226,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
-    delete_test_account(&mut tx, account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }
@@ -230,23 +236,29 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
 async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("small.png"), Pending).await;
+    let post_user = test_user(None);
+    let post = create_test_post(&mut tx, &post_user, Some("small.png"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
-    let account = user.account.as_ref().unwrap();
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
     tx.commit().await?;
 
     let post_review = PostReview {
-        session_token: user.session_token,
+        session_token: admin_user.session_token,
         status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))?;
@@ -299,7 +311,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
-    delete_test_account(&mut tx, account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }
@@ -309,23 +321,29 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
 async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("video.mp4"), Pending).await;
+    let post_user = test_user(None);
+    let post = create_test_post(&mut tx, &post_user, Some("video.mp4"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
-    let account = user.account.as_ref().unwrap();
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
     tx.commit().await?;
 
     let post_review = PostReview {
-        session_token: user.session_token,
+        session_token: admin_user.session_token,
         status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))?;
@@ -376,7 +394,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
-    delete_test_account(&mut tx, account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }
@@ -385,23 +403,29 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
 async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    let user = test_user(None);
-    let post = create_test_post(&mut tx, &user, Some("video.webm"), Pending).await;
+    let post_user = test_user(None);
+    let post = create_test_post(&mut tx, &post_user, Some("video.webm"), Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
-    let user = create_test_account(&mut tx, AccountRole::Admin).await?;
-    let account = user.account.as_ref().unwrap();
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
     tx.commit().await?;
 
     let post_review = PostReview {
-        session_token: user.session_token,
+        session_token: admin_user.session_token,
         status: Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))?;
@@ -453,7 +477,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     media::delete_media_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
-    delete_test_account(&mut tx, account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }
@@ -483,8 +507,14 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .method(Method::POST)
         .uri(format!("/review/{}", &post.key))
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, admin_account.token))
-        .header(COOKIE, format!("{}={}", SESSION_COOKIE, admin_user.session_token))
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(post_review_str))?;
@@ -517,9 +547,9 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
 async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    let user = test_user(None);
+    let post_user = test_user(None);
     // Create a post with status Approved and a media file
-    let post = create_test_post(&mut tx, &user, Some("image.jpeg"), Approved).await;
+    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), Approved).await;
 
     // Create a mod account
     let mod_user = create_test_account(&mut tx, AccountRole::Mod).await?;
