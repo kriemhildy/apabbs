@@ -191,15 +191,16 @@ pub async fn init_user(
     }
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);
-    let ban_expires_at = Ban::exists(tx, &ip_hash, account.as_ref().map(|a| a.id)).await?;
-    let user = User {
+    let mut user = User {
         account,
         session_token,
         ip_hash,
         agent,
-        ban_expires_at,
+        ..User::default()
     };
     set_session_time_zone(tx, user.time_zone()).await?;
+    user.ban_expires_at =
+        Ban::exists(tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?;
     Ok((user, jar))
 }
 
