@@ -104,7 +104,7 @@ pub async fn review_post(
         if let Some(ip_hash) = post.ip_hash.as_ref() {
             let ban = Ban {
                 ip_hash: ip_hash.to_string(),
-                banned_account_id: Some(account.id),
+                banned_account_id: post.account_id,
                 admin_account_id: Some(account.id),
             };
             ban.insert(&mut tx).await?;
