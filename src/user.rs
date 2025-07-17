@@ -19,8 +19,10 @@ pub const BLOWFISH_ITERATIONS: i32 = 10;
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "account_role", rename_all = "snake_case")]
 pub enum AccountRole {
-    /// Basic user with limited privileges
+    /// Account which has not yet been approved
     #[default]
+    Pending,
+    /// New user with limited privileges
     Novice,
     /// Regular user with standard privileges
     Member,
