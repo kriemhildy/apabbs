@@ -333,17 +333,26 @@ pub async fn web_socket(
         mut receiver: Receiver<Post>,
         user: User,
     ) {
-        use crate::{post::PostStatus::*, user::AccountRole::*};
+        use crate::{post::PostStatus, user::AccountRole};
 
         while let Ok(post) = receiver.recv().await {
             // Determine if this post should be sent to the user
             let should_send = post.author(&user)
                 || match user.account {
-                    None => post.status == Approved,
+                    None => post.status == PostStatus::Approved,
                     Some(ref account) => match account.role {
-                        Admin => true,
-                        Mod => [Pending, Approved, Delisted, Reported].contains(&post.status),
-                        Member | Novice => post.status == Approved,
+                        AccountRole::Admin => true,
+                        AccountRole::Mod => [
+                            PostStatus::Pending,
+                            PostStatus::Approved,
+                            PostStatus::Delisted,
+                            PostStatus::Reported,
+                        ]
+                        .contains(&post.status),
+                        AccountRole::Member | AccountRole::Novice => {
+                            post.status == PostStatus::Approved
+                        }
+                        AccountRole::Pending => false,
                     },
                 };
 

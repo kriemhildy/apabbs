@@ -95,7 +95,6 @@ pub fn determine_action(
     new_status: PostStatus,
     reviewer_role: AccountRole,
 ) -> Result<ReviewAction, ReviewError> {
-    use AccountRole::*;
     use PostStatus::*;
 
     match post.status {
@@ -110,7 +109,8 @@ pub fn determine_action(
         Processing => Err(CurrentlyProcessing),
 
         Approved | Delisted => {
-            if post.status == Approved && reviewer_role == Mod && !post.recent.unwrap() {
+            if post.status == Approved && reviewer_role == AccountRole::Mod && !post.recent.unwrap()
+            {
                 return Err(RecentOnly);
             }
             match new_status {
@@ -123,7 +123,7 @@ pub fn determine_action(
         }
 
         Reported => {
-            if reviewer_role != Admin {
+            if reviewer_role != AccountRole::Admin {
                 return Err(AdminOnly);
             }
             match new_status {
