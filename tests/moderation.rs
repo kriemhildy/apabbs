@@ -148,7 +148,7 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-/// Tests automatic banning for creating a post containing a spam words.
+/// Tests automatic banning when creating a post containing a spam word.
 #[tokio::test]
 async fn spam_word_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
