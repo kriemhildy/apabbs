@@ -147,3 +147,14 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
 
     Ok(())
 }
+
+pub async fn contains_spam_word(
+    tx: &mut PgConnection,
+    text: &str,
+) -> Result<bool, Box<dyn Error + Send + Sync>> {
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM spam_words WHERE $1 ~ word)")
+        .bind(text)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| format!("check for spam words: {e}").into())
+}

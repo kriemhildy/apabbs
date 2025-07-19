@@ -19,13 +19,18 @@ use uuid::Uuid;
 /// The local IP address (IPv6 loopback).
 #[allow(dead_code)]
 pub const LOCAL_IP: &str = "::1";
-/// Test IP addresses used. These are listed here to avoid conflicts between tests.
+/// Test IP address for scrubbing.
 #[allow(dead_code)]
-pub const AUTOBAN_IP: &str = "192.0.2.0";
+pub const SCRUB_IP: &str = "192.0.2.0";
+/// Test IP address for flooding bans.
 #[allow(dead_code)]
-pub const SCRUB_IP: &str = "192.0.2.1";
+pub const FLOOD_BAN_IP: &str = "192.0.2.1";
+/// Test IP address for manual bans.
 #[allow(dead_code)]
 pub const MANUAL_BAN_IP: &str = "192.0.2.2";
+/// Test IP address for spam bans.
+#[allow(dead_code)]
+pub const SPAM_BAN_IP: &str = "192.0.2.3";
 /// The content type for form submissions.
 #[allow(dead_code)]
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
@@ -234,4 +239,24 @@ pub async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
         .execute(tx)
         .await
         .expect("delete test ban");
+}
+
+/// Create a test spam word.
+#[allow(dead_code)]
+pub async fn create_test_spam_word(tx: &mut PgConnection, word: &str) {
+    sqlx::query("INSERT INTO spam_words (word) VALUES ($1)")
+        .bind(word)
+        .execute(tx)
+        .await
+        .expect("insert test spam word");
+}
+
+/// Delete a test spam word.
+#[allow(dead_code)]
+pub async fn delete_test_spam_word(tx: &mut PgConnection, word: &str) {
+    sqlx::query("DELETE FROM spam_words WHERE word = $1")
+        .bind(word)
+        .execute(tx)
+        .await
+        .expect("delete test spam word");
 }

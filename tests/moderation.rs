@@ -23,14 +23,13 @@ use axum::{
 };
 use form_data_builder::FormData;
 use helpers::{
-    APPLICATION_WWW_FORM_URLENCODED, LOCAL_IP, create_test_account, delete_test_account, init_test,
-    test_credentials, test_user,
+    APPLICATION_WWW_FORM_URLENCODED, FLOOD_BAN_IP, LOCAL_IP, MANUAL_BAN_IP, SPAM_BAN_IP,
+    create_test_account, create_test_post, create_test_spam_word, delete_test_account,
+    delete_test_ban, delete_test_spam_word, init_test, test_credentials, test_user,
 };
 use std::error::Error;
 use tower::ServiceExt;
 use uuid::Uuid;
-
-use crate::helpers::{AUTOBAN_IP, MANUAL_BAN_IP, create_test_post, delete_test_ban};
 
 /// Tests decrypting and serving media files.
 #[tokio::test]
@@ -70,13 +69,13 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-/// Tests automatic banning functionality for suspicious activity.
+/// Tests automatic banning for content flooding.
 #[tokio::test]
-async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let user = User {
-        ip_hash: sha256::digest(apabbs::secret_key() + AUTOBAN_IP),
+        ip_hash: sha256::digest(apabbs::secret_key() + FLOOD_BAN_IP),
         ..User::default()
     };
 
@@ -129,7 +128,7 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
         .uri("/submit-post")
         .header(COOKIE, format!("{SESSION_COOKIE}={bogus_session_token}"))
         .header(CONTENT_TYPE, form.content_type_header())
-        .header(X_REAL_IP, AUTOBAN_IP)
+        .header(X_REAL_IP, FLOOD_BAN_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
 
@@ -146,6 +145,47 @@ async fn autoban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clean up
     delete_test_ban(&mut tx, &user.ip_hash).await;
     tx.commit().await?;
+    Ok(())
+}
+
+/// Tests automatic banning for creating a post containing a spam words.
+#[tokio::test]
+async fn spam_word_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    create_test_spam_word(&mut tx, "SpamCompanyName").await;
+    tx.commit().await?;
+    let user = User {
+        ip_hash: sha256::digest(apabbs::secret_key() + SPAM_BAN_IP),
+        session_token: Uuid::new_v4(),
+        ..User::default()
+    };
+
+    // Create form data
+    let mut form = FormData::new(Vec::new());
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "buy from SpamCompanyName")?;
+
+    // Submit post with spam word
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{SESSION_COOKIE}={}", user.session_token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, SPAM_BAN_IP)
+        .body(Body::from(form.finish()?))?;
+
+    let response = router.oneshot(request).await?;
+    // Verify response is forbidden
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    // Verify ban was applied
+    let mut tx = state.db.begin().await?;
+    assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_some());
+    // Clean up
+    delete_test_ban(&mut tx, &user.ip_hash).await;
+    delete_test_spam_word(&mut tx, "SpamCompanyName").await;
+    tx.commit().await?;
+
     Ok(())
 }
 

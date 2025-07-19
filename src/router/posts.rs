@@ -10,6 +10,7 @@ use super::{
 };
 use crate::{
     AppState,
+    ban::{self, Ban},
     post::{
         Post, media,
         submission::{self, PostHiding, PostSubmission},
@@ -218,6 +219,20 @@ pub async fn submit_post(
         return Err(BadRequest(
             "Post cannot be empty unless there is a media file.".to_string(),
         ));
+    }
+
+    // Ensure post does not contain a spam word
+    if ban::contains_spam_word(&mut tx, &post_submission.body).await? {
+        let ban = Ban {
+            ip_hash: user.ip_hash.clone(),
+            banned_account_id: user.account.as_ref().map(|a| a.id),
+            ..Ban::default()
+        };
+        let expires_at = ban.insert(&mut tx).await?;
+        tx.commit().await?;
+        return Err(Forbidden(format!(
+            "You have been banned for spam until {expires_at}."
+        )));
     }
 
     // Generate unique key and insert post
