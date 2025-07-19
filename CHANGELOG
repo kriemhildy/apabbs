@@ -1,3 +1,8 @@
+0.45.0
+
+Add automatic banning system when posts contain forbidden spam words.
+Add 502 error handling to JavaScript fetch requests.
+
 0.44.0
 
 Significantly reorganize code for improved clarity and documentation.
