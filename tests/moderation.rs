@@ -176,16 +176,18 @@ async fn spam_word_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
         .body(Body::from(form.finish()?))?;
 
     let response = router.oneshot(request).await?;
+
     // Verify response is forbidden
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
     // Verify ban was applied
     let mut tx = state.db.begin().await?;
     assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_some());
+
     // Clean up
     delete_test_ban(&mut tx, &user.ip_hash).await;
     delete_test_spam_word(&mut tx, "SpamCompanyName").await;
     tx.commit().await?;
-
     Ok(())
 }
 
