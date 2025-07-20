@@ -85,7 +85,7 @@ pub async fn create_test_account(
     let credentials = test_credentials(&user);
     let account = credentials.register(tx, &local_ip_hash()).await?;
 
-    let account = if role != AccountRole::Novice {
+    let account = if role != AccountRole::Pending {
         sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
             .bind(role)
             .bind(account.id)
