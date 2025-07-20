@@ -15,7 +15,7 @@ use crate::user::TimeZoneUpdate;
 use crate::{
     AppState,
     post::Post,
-    user::{Account, Credentials},
+    user::{Account, Credentials, AccountRole},
     utils::render,
 };
 use axum::{
@@ -42,6 +42,11 @@ pub async fn user_profile(
         None => return Err(NotFound("User account does not exist".to_string())),
         Some(account) => account,
     };
+
+    // Do not allow profiles for pending accounts
+    if account.role == AccountRole::Pending {
+        return Err(Unauthorized("Account is pending approval".to_string()));
+    }
 
     // Get user's public posts
     let posts = Post::select_by_author(&mut tx, account.id).await?;

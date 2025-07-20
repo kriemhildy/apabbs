@@ -33,7 +33,11 @@
     <nav>
         {# Show username link for logged-in users #}
         {% if user.account %}
+        {% if user.account.role == "pending" %}
+        <a href="/settings">[account pending approval]</a>
+        {% else %}
         <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
+        {% endif %}
         {# Show login link for anonymous users #}
         {% else %}
         <a href="/login">log in</a>
