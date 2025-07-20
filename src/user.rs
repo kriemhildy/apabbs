@@ -142,6 +142,17 @@ impl Account {
             .map(|_| ())
             .map_err(|e| format!("reset account token: {e}").into())
     }
+
+    /// Select all accounts that are pending approval.
+    pub async fn select_pending(
+        tx: &mut PgConnection,
+    ) -> Result<Vec<Self>, Box<dyn Error + Send + Sync>> {
+        sqlx::query_as("SELECT * FROM accounts WHERE role = $1 ORDER BY id DESC")
+            .bind(AccountRole::Pending)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(|e| format!("select pending accounts: {e}").into())
+    }
 }
 
 /// Represents a request to update a user's time zone preference.

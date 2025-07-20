@@ -15,7 +15,7 @@ use crate::{
         Post, media,
         submission::{self, PostHiding, PostSubmission},
     },
-    user::User,
+    user::{Account, User},
     utils::{render, utc_hour_timestamp},
 };
 use axum::{
@@ -68,6 +68,13 @@ pub async fn index(
     // Get a timestamp of the current UTC hour for cache-busting the screenshot file
     let utc_hour_timestamp = utc_hour_timestamp(&mut tx).await?;
 
+    // Check for pending accounts so that admins can review them
+    let pending_accounts = if user.admin() {
+        Account::select_pending(&mut tx).await?
+    } else {
+        Vec::new()
+    };
+
     // Render the page
     let html = Html(render(
         &state,
@@ -81,6 +88,7 @@ pub async fn index(
             page_post,
             next_page_post,
             utc_hour_timestamp,
+            pending_accounts,
         ),
     )?);
 

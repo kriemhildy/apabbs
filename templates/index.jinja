@@ -9,6 +9,27 @@
 {% endblock %}
 {% block main %}
 <main class="list">
+    {% if user.account and user.account.role == "admin" and pending_accounts %}
+    <div class="pending-accounts">
+        <h2>Pending Accounts</h2>
+        <ul>
+            {% for account in pending_accounts %}
+            <li>
+                Approve username "{{ account.username }}"?
+                <form action="/approve-account/{{ account.id }}" method="post">
+                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                    <span>{{ account.username }}</span>
+                    <button type="submit">Approve</button>
+                </form>
+                <form action="/reject-account/{{ account.id }}" method="post">
+                    <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                    <button type="submit">Reject</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     {# If viewing a paginated result set, show the page marker #}
     {% if page_post %}
     <p class="system">Page beginning "{{ page_post.key }}"</p>
