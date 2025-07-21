@@ -96,7 +96,7 @@ select {
     margin: 7px 0;
 }
 
-input#post-button {
+button#post-button {
     font-weight: bold;
 }
 
