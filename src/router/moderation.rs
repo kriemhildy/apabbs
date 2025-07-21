@@ -21,10 +21,11 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use uuid::Uuid;
 
-// =========================
-// Moderation Endpoints
-// =========================
+// ===========================
+// Moderation Review Endpoints
+// ===========================
 
 /// Processes post moderation actions, enforcing business rules and managing background media processing.
 pub async fn review_post(
@@ -130,15 +131,69 @@ pub async fn review_post(
     Ok((jar, response).into_response())
 }
 
+/// Form struct for account review submission.
+#[derive(Debug, serde::Deserialize)]
+pub struct AccountReviewForm {
+    pub session_token: Uuid,
+    pub username: String,
+    pub action: String, // "approve" or "reject"
+}
+
 /// Handles the admin review a new user account.
 pub async fn review_account(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-    Path(id): Path<i32>,
+    Form(form): Form<AccountReviewForm>,
 ) -> Result<Response, ResponseError> {
-    Ok("placeholder".into_response()) // Placeholder for future implementation
+    let mut tx = state.db.begin().await?;
+
+    // Initialize user from session
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(form.session_token)).await?;
+
+    // Verify user has admin privileges
+    if !user.admin() {
+        return Err(ResponseError::Unauthorized(
+            "Must be admin to review accounts".to_string(),
+        ));
+    }
+
+    // Get the account to review
+    let account = Account::select_by_username(&mut tx, &form.username)
+        .await?
+        .ok_or_else(|| ResponseError::NotFound("Account does not exist".to_string()))?;
+
+    // Ensure account is pending
+    if account.role != AccountRole::Pending {
+        return Err(ResponseError::BadRequest(
+            "Account must be pending".to_string(),
+        ));
+    }
+
+    // Handle the review action
+    match form.action.as_str() {
+        "approve" => {
+            // Approve the account
+            account.update_role(&mut tx, AccountRole::Novice).await?;
+            // Notify the user of approval
+            state.sender.send(account.clone()).ok();
+        }
+        "reject" => {
+            // Reject the account
+            account.update_role(&mut tx, AccountRole::Rejected).await?;
+            // Optionally delete the account or notify the user
+            account.delete(&mut tx).await?;
+        }
+        _ => {
+            return Err(ResponseError::BadRequest(
+                "Invalid action, must be 'approve' or 'reject'".to_string(),
+            ));
+        }
+    }
+
+    let response = "ok";
+    Ok((jar, response).into_response())
 }
 
 // =========================
