@@ -4,9 +4,7 @@ mod helpers;
 
 use apabbs::{
     post::{
-        MediaCategory, Post,
-        PostStatus::*,
-        media,
+        MediaCategory, Post, PostStatus, media,
         submission::{PostHiding, PostSubmission},
     },
     router::{
@@ -76,7 +74,7 @@ async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create a test post
     let user = test_user(None);
     let mut tx = state.db.begin().await?;
-    let post = create_test_post(&mut tx, &user, None, Approved).await;
+    let post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Request the post page
@@ -109,9 +107,9 @@ async fn index_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create test posts
     let user = test_user(None);
     let mut tx = state.db.begin().await?;
-    let post1 = create_test_post(&mut tx, &user, None, Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Request a specific page
@@ -182,7 +180,7 @@ async fn submit_post_without_media() -> Result<(), Box<dyn Error + Send + Sync>>
     assert_eq!(post.media_mime_type, None);
     assert_eq!(post.session_token, Some(user.session_token));
     assert_eq!(post.account_id, None);
-    assert_eq!(post.status, Pending);
+    assert_eq!(post.status, PostStatus::Pending);
 
     // Clean up
     post.delete(&mut tx).await?;
@@ -289,10 +287,10 @@ async fn hide_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = test_user(None);
 
     // Create a post and admin user
-    let post = create_test_post(&mut tx, &user, None, Pending).await;
+    let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = admin_user.account.as_ref().unwrap();
-    post.update_status(&mut tx, Rejected).await?;
+    post.update_status(&mut tx, PostStatus::Rejected).await?;
     tx.commit().await?;
 
     // Submit hide post request
@@ -331,9 +329,9 @@ async fn interim() -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = test_user(None);
 
     // Create approved and pending posts
-    let post1 = create_test_post(&mut tx, &user, None, Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Request the interim page
@@ -376,7 +374,7 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create a test post to trigger notifications
     let mut tx = state.db.begin().await?;
     let user = test_user(None);
-    let test_post = create_test_post(&mut tx, &user, None, Approved).await;
+    let test_post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Start a server for testing

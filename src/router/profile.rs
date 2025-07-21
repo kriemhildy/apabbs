@@ -15,7 +15,7 @@ use crate::user::TimeZoneUpdate;
 use crate::{
     AppState,
     post::Post,
-    user::{Account, Credentials, AccountRole},
+    user::{Account, AccountRole, Credentials},
     utils::render,
 };
 use axum::{

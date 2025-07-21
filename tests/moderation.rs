@@ -5,9 +5,7 @@ mod helpers;
 use apabbs::{
     ban::{self, Ban},
     post::{
-        Post,
-        PostStatus::*,
-        media,
+        Post, PostStatus, media,
         review::PostReview,
         submission::{self, PostSubmission},
     },
@@ -39,7 +37,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let anon_user = test_user(None);
-    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), Pending).await;
+    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
     let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
@@ -197,7 +195,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), Pending).await;
+    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -205,7 +203,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
 
     let post_review = PostReview {
         session_token: admin_user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
@@ -230,7 +228,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     let mut tx = state.db.begin().await?;
     let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     tx.commit().await?;
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -243,7 +241,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
         let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if post.status != Processing {
+        if post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
@@ -279,7 +277,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("small.png"), Pending).await;
+    let post = create_test_post(&mut tx, &post_user, Some("small.png"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -287,7 +285,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
 
     let post_review = PostReview {
         session_token: admin_user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
@@ -312,7 +310,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     let mut tx = state.db.begin().await?;
     let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     tx.commit().await?;
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -325,7 +323,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
         let updated_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if updated_post.status != Processing {
+        if updated_post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify assets
@@ -364,7 +362,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("video.mp4"), Pending).await;
+    let post = create_test_post(&mut tx, &post_user, Some("video.mp4"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -372,7 +370,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
 
     let post_review = PostReview {
         session_token: admin_user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
@@ -397,7 +395,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     let mut tx = state.db.begin().await?;
     let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     tx.commit().await?;
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -410,7 +408,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
         let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if post.status != Processing {
+        if post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
@@ -446,7 +444,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("video.webm"), Pending).await;
+    let post = create_test_post(&mut tx, &post_user, Some("video.webm"), PostStatus::Pending).await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -454,7 +452,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
 
     let post_review = PostReview {
         session_token: admin_user.session_token,
-        status: Approved,
+        status: PostStatus::Approved,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
@@ -479,7 +477,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     let mut tx = state.db.begin().await?;
     let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
     tx.commit().await?;
-    assert_eq!(post.status, Processing);
+    assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
     let max_attempts = 10;
@@ -492,7 +490,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
         let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if post.status != Processing {
+        if post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
@@ -535,15 +533,15 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
     let ban_expires_at = Ban::exists(&mut tx, &post_user.ip_hash, None).await?;
     assert!(ban_expires_at.is_none(), "Ban should not exist before test");
-    // Create a post with status Pending
-    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), Pending).await;
+    // Create a post with status PostStatus::Pending
+    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), PostStatus::Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
     tx.commit().await?;
     // Admin bans the post
     let post_review = PostReview {
         session_token: admin_user.session_token,
-        status: Banned,
+        status: PostStatus::Banned,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
@@ -590,8 +588,14 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    // Create a post with status Approved and a media file
-    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), Approved).await;
+    // Create a post with status PostStatus::Approved and a media file
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        Some("image.jpeg"),
+        PostStatus::Approved,
+    )
+    .await;
 
     // Create a mod account
     let mod_user = create_test_account(&mut tx, AccountRole::Mod).await?;
@@ -601,7 +605,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     // Mod reports the approved post
     let post_review = PostReview {
         session_token: mod_user.session_token,
-        status: Reported,
+        status: PostStatus::Reported,
     };
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
@@ -628,7 +632,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
         let mut tx = state.db.begin().await?;
         let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
-        if post.status == Reported {
+        if post.status == PostStatus::Reported {
             assert!(
                 !post.published_media_path().exists(),
                 "Published media should be removed"

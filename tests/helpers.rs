@@ -124,8 +124,6 @@ pub async fn create_test_post(
     media_filename: Option<&str>,
     status: PostStatus,
 ) -> Post {
-    use PostStatus::*;
-
     let media_bytes = match media_filename {
         Some(media_filename) => {
             let path = Path::new(TEST_MEDIA_DIR).join(media_filename);
@@ -146,13 +144,13 @@ pub async fn create_test_post(
 
     if let Some(bytes) = post_submission.media_bytes {
         match status {
-            Pending => {
+            PostStatus::Pending => {
                 if let Err(msg) = media::encryption::encrypt_uploaded_file(&post, bytes).await {
                     tracing::error!("{msg}");
                     std::process::exit(1);
                 }
             }
-            Approved | Delisted => {
+            PostStatus::Approved | PostStatus::Delisted => {
                 let published_media_path = post.published_media_path();
                 if let Err(msg) = media::write_media_file(&published_media_path, bytes).await {
                     tracing::error!("{msg}");
@@ -166,7 +164,7 @@ pub async fn create_test_post(
         }
     }
 
-    if status == Pending {
+    if status == PostStatus::Pending {
         return post;
     }
 

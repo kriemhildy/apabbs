@@ -12,7 +12,7 @@ use crate::{
     AppState,
     ban::{self, Ban},
     post::{
-        Post, media,
+        Post, PostStatus, media,
         submission::{self, PostHiding, PostSubmission},
     },
     user::{Account, User},
@@ -275,8 +275,6 @@ pub async fn hide_post(
     headers: HeaderMap,
     Form(post_hiding): Form<PostHiding>,
 ) -> Result<Response, ResponseError> {
-    use crate::post::PostStatus::*;
-
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -297,11 +295,11 @@ pub async fn hide_post(
             ));
         }
         match post.status {
-            Rejected => {
+            PostStatus::Rejected => {
                 post_hiding.hide_post(&mut tx).await?;
                 tx.commit().await?;
             }
-            Reported | Banned => (),
+            PostStatus::Reported | PostStatus::Banned => (),
             _ => {
                 return Err(BadRequest(
                     "Post is not rejected, reported, or banned.".to_string(),
