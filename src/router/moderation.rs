@@ -10,8 +10,9 @@ use super::{
 use crate::{
     AppState,
     ban::Ban,
-    post::{Post, PostStatus::*, media::encryption, review::PostReview},
+    post::{Post, PostStatus, media::encryption, review::PostReview},
     router::ROOT,
+    user::{Account, AccountRole},
 };
 use axum::{
     Form,
@@ -34,10 +35,7 @@ pub async fn review_post(
     Path(key): Path<String>,
     Form(post_review): Form<PostReview>,
 ) -> Result<Response, ResponseError> {
-    use crate::{
-        post::review::{self, ReviewError::*},
-        user::AccountRole::*,
-    };
+    use crate::post::review::{self, ReviewError};
     use futures::future::BoxFuture;
 
     let mut tx = state.db.begin().await?;
@@ -54,12 +52,10 @@ pub async fn review_post(
 
     // Verify user has moderator privileges
     let account = match user.account {
-        None => {
-            return Err(Unauthorized("Not logged in".to_string()));
-        }
+        None => return Err(Unauthorized("Not logged in".to_string())),
         Some(account) => account,
     };
-    if ![Admin, Mod].contains(&account.role) {
+    if ![AccountRole::Admin, AccountRole::Mod].contains(&account.role) {
         return Err(Unauthorized("Must be admin or moderator".to_string()));
     };
 
@@ -74,14 +70,14 @@ pub async fn review_post(
     // Handle various review actions
     let background_task: Option<BoxFuture<'static, ()>> = match review_action {
         // Handle errors
-        Err(e @ SameStatus)
-        | Err(e @ ReturnToPending)
-        | Err(e @ RejectedOrBanned)
-        | Err(e @ CurrentlyProcessing)
-        | Err(e @ ManualProcessing) => {
+        Err(e @ ReviewError::SameStatus)
+        | Err(e @ ReviewError::ReturnToPending)
+        | Err(e @ ReviewError::RejectedOrBanned)
+        | Err(e @ ReviewError::CurrentlyProcessing)
+        | Err(e @ ReviewError::ManualProcessing) => {
             return Err(BadRequest(e.to_string()));
         }
-        Err(e @ AdminOnly) | Err(e @ RecentOnly) => {
+        Err(e @ ReviewError::AdminOnly) | Err(e @ ReviewError::RecentOnly) => {
             return Err(Unauthorized(e.to_string()));
         }
         // Handle media operations
@@ -90,7 +86,7 @@ pub async fn review_post(
 
     // Set appropriate status based on background processing
     let status = if background_task.is_some() {
-        Processing
+        PostStatus::Processing
     } else {
         post_review.status
     };
@@ -100,7 +96,7 @@ pub async fn review_post(
     post_review.insert(&mut tx, account.id, post.id).await?;
 
     // Handle banned post cleanup
-    if post.status == Banned {
+    if post.status == PostStatus::Banned {
         if let Some(ip_hash) = post.ip_hash.as_ref() {
             let ban = Ban {
                 ip_hash: ip_hash.to_string(),
@@ -130,6 +126,17 @@ pub async fn review_post(
     };
 
     Ok((jar, response).into_response())
+}
+
+/// Handles the admin review a new user account.
+pub async fn review_account(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+) -> Result<Response, ResponseError> {
+    Ok("placeholder".into_response()) // Placeholder for future implementation
 }
 
 // =========================
@@ -162,7 +169,7 @@ pub async fn decrypt_media(
         .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
 
     // Ensure post is pending
-    if post.status != Pending {
+    if post.status != PostStatus::Pending {
         return Err(BadRequest("Post must be pending".to_string()));
     }
 
