@@ -4,13 +4,10 @@
 //! user authentication, security checks, template rendering, session management, and browser
 //! detection. It also includes functions for managing posts and validating access permissions.
 
-use super::{
-    ROOT,
-    errors::ResponseError::{self, *},
-};
+use super::{ROOT, errors::ResponseError};
 use crate::{
     ban::{self, Ban},
-    post::Post,
+    post::{Post, PostStatus},
     user::{Account, Credentials, User, UserAgent},
     utils::set_session_time_zone,
 };
@@ -46,9 +43,9 @@ pub const NOTICE_COOKIE: &str = "notice";
 pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
     let ip = headers
         .get(X_REAL_IP)
-        .ok_or_else(|| BadRequest("Missing X-Real-IP header".to_string()))?
+        .ok_or_else(|| ResponseError::BadRequest("Missing X-Real-IP header".to_string()))?
         .to_str()
-        .map_err(|_| BadRequest("X-Real-IP is not UTF-8".to_string()))?;
+        .map_err(|_| ResponseError::BadRequest("X-Real-IP is not UTF-8".to_string()))?;
     Ok(sha256::digest(crate::secret_key() + ip))
 }
 
@@ -178,13 +175,13 @@ pub async fn init_user(
         Some(token) => token,
     };
     if ![Method::GET, Method::HEAD].contains(&method) && csrf_token.is_none() {
-        return Err(Unauthorized(
+        return Err(ResponseError::Unauthorized(
             "CSRF token required for state-changing requests".to_string(),
         ));
     }
     if let Some(csrf_token) = csrf_token {
         if session_token != csrf_token {
-            return Err(Unauthorized(
+            return Err(ResponseError::Unauthorized(
                 "CSRF token mismatch: possible forgery attempt".to_string(),
             ));
         }
@@ -214,18 +211,25 @@ pub async fn init_post(
     key: &str,
     user: &User,
 ) -> Result<Post, ResponseError> {
-    use crate::post::PostStatus::*;
-
     match Post::select_by_key(tx, key).await? {
-        None => Err(NotFound("Post does not exist".to_string())),
+        None => Err(ResponseError::NotFound("Post does not exist".to_string())),
         Some(post) => {
-            if [Reported, Rejected, Banned].contains(&post.status) && !user.admin() {
-                return Err(Unauthorized(
+            if [
+                PostStatus::Reported,
+                PostStatus::Rejected,
+                PostStatus::Banned,
+            ]
+            .contains(&post.status)
+                && !user.admin()
+            {
+                return Err(ResponseError::Unauthorized(
                     "Post is reported, rejected, or banned".to_string(),
                 ));
             }
-            if post.status == Pending && !(post.author(user) || user.mod_or_admin()) {
-                return Err(Unauthorized("Post is pending approval".to_string()));
+            if post.status == PostStatus::Pending && !(post.author(user) || user.mod_or_admin()) {
+                return Err(ResponseError::Unauthorized(
+                    "Post is pending approval".to_string(),
+                ));
             }
             Ok(post)
         }

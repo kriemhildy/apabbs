@@ -5,7 +5,7 @@
 
 use super::{
     ROOT,
-    errors::ResponseError::{self, *},
+    errors::ResponseError,
     helpers::{add_account_cookie, init_user, remove_account_cookie},
 };
 use crate::{AppState, user::Credentials, utils::render};
@@ -101,12 +101,14 @@ pub async fn authenticate(
 
     // Check if username exists
     if !credentials.username_exists(&mut tx).await? {
-        return Err(NotFound("Username does not exist".to_string()));
+        return Err(ResponseError::NotFound(
+            "Username does not exist".to_string(),
+        ));
     }
 
     // Validate credentials
     let jar = match credentials.authenticate(&mut tx).await? {
-        None => return Err(BadRequest("Incorrect password".to_string())),
+        None => return Err(ResponseError::BadRequest("Incorrect password".to_string())),
         Some(account) => add_account_cookie(jar, &account, &credentials),
     };
 
@@ -138,13 +140,15 @@ pub async fn create_account(
 
     // Check if username is already taken
     if credentials.username_exists(&mut tx).await? {
-        return Err(BadRequest("Username is already taken".to_string()));
+        return Err(ResponseError::BadRequest(
+            "Username is already taken".to_string(),
+        ));
     }
 
     // Validate credentials
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return Err(BadRequest(format!(
+        return Err(ResponseError::BadRequest(format!(
             "Invalid registration data: {}",
             errors.join(", ")
         )));
@@ -152,7 +156,9 @@ pub async fn create_account(
 
     // Check for existing IP ban
     if let Some(ban_expires_at) = user.ban_expires_at {
-        return Err(Forbidden(format!("You are banned until {ban_expires_at}.")));
+        return Err(ResponseError::Forbidden(format!(
+            "You are banned until {ban_expires_at}."
+        )));
     }
 
     // Ban user if they are flooding
@@ -160,7 +166,7 @@ pub async fn create_account(
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
         tx.commit().await?;
-        return Err(Forbidden(format!(
+        return Err(ResponseError::Forbidden(format!(
             "You have been banned for flooding until {expires_at}."
         )));
     }
@@ -201,7 +207,9 @@ pub async fn logout(
 
     // Verify user is logged in
     if user.account.is_none() {
-        return Err(BadRequest("You must be logged in to log out".to_string()));
+        return Err(ResponseError::BadRequest(
+            "You must be logged in to log out".to_string(),
+        ));
     }
 
     // Clear account cookie and redirect
@@ -227,7 +235,7 @@ pub async fn reset_account_token(
     // Verify user is logged in and reset token
     let jar = match user.account {
         None => {
-            return Err(BadRequest(
+            return Err(ResponseError::BadRequest(
                 "You must be logged in to reset your token".to_string(),
             ));
         }

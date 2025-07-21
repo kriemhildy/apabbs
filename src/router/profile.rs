@@ -8,7 +8,7 @@
 // =========================
 
 use super::{
-    errors::ResponseError::{self, *},
+    errors::ResponseError,
     helpers::{add_notice_cookie, init_user, remove_notice_cookie},
 };
 use crate::user::TimeZoneUpdate;
@@ -39,13 +39,19 @@ pub async fn user_profile(
 
     // Find account by username (returns NotFound if user does not exist)
     let account = match Account::select_by_username(&mut tx, &username).await? {
-        None => return Err(NotFound("User account does not exist".to_string())),
+        None => {
+            return Err(ResponseError::NotFound(
+                "User account does not exist".to_string(),
+            ));
+        }
         Some(account) => account,
     };
 
     // Do not allow profiles for pending accounts
     if account.role == AccountRole::Pending {
-        return Err(Unauthorized("Account is pending approval".to_string()));
+        return Err(ResponseError::Unauthorized(
+            "Account is pending approval".to_string(),
+        ));
     }
 
     // Get user's public posts
@@ -85,7 +91,7 @@ pub async fn settings(
 
     // Verify user is logged in
     if user.account.is_none() {
-        return Err(Unauthorized("Not logged in".to_string()));
+        return Err(ResponseError::Unauthorized("Not logged in".to_string()));
     }
 
     // Get time zones for selection
@@ -137,7 +143,7 @@ pub async fn update_time_zone(
     // Verify user is logged in
     let account = match user.account {
         None => {
-            return Err(Unauthorized("Not logged in".to_string()));
+            return Err(ResponseError::Unauthorized("Not logged in".to_string()));
         }
         Some(account) => account,
     };
@@ -145,7 +151,9 @@ pub async fn update_time_zone(
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
     if !time_zones.contains(&time_zone_update.time_zone) {
-        return Err(BadRequest("Invalid time zone selection".to_string()));
+        return Err(ResponseError::BadRequest(
+            "Invalid time zone selection".to_string(),
+        ));
     }
 
     // Update time zone preference
@@ -182,11 +190,13 @@ pub async fn update_password(
     // Verify user is logged in as the correct user
     match user.account {
         None => {
-            return Err(Unauthorized("Not logged in".to_string()));
+            return Err(ResponseError::Unauthorized("Not logged in".to_string()));
         }
         Some(account) => {
             if account.username != credentials.username {
-                return Err(Unauthorized("Not logged in as this user".to_string()));
+                return Err(ResponseError::Unauthorized(
+                    "Not logged in as this user".to_string(),
+                ));
             }
         }
     };
@@ -194,7 +204,7 @@ pub async fn update_password(
     // Validate new password
     let errors = credentials.validate();
     if !errors.is_empty() {
-        return Err(BadRequest(format!(
+        return Err(ResponseError::BadRequest(format!(
             "Password update failed:\n{}",
             errors.join("\n")
         )));

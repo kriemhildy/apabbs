@@ -1,6 +1,5 @@
 //! Router-specific error types and conversions.
 
-use ResponseError::*;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -20,14 +19,14 @@ pub enum ResponseError {
 /// Convert a boxed error that is Send + Sync into a ResponseError.
 impl From<Box<dyn Error + Send + Sync>> for ResponseError {
     fn from(error: Box<dyn Error + Send + Sync>) -> Self {
-        InternalServerError(error.to_string())
+        ResponseError::InternalServerError(error.to_string())
     }
 }
 
 /// Convert an sqlx::Error into a ResponseError.
 impl From<sqlx::Error> for ResponseError {
     fn from(error: sqlx::Error) -> Self {
-        InternalServerError(error.to_string())
+        ResponseError::InternalServerError(error.to_string())
     }
 }
 
@@ -35,11 +34,11 @@ impl From<sqlx::Error> for ResponseError {
 impl IntoResponse for ResponseError {
     fn into_response(self) -> Response {
         let (status, msg) = match self {
-            BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-            Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
-            Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
-            NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            ResponseError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            ResponseError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            ResponseError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+            ResponseError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            ResponseError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
         let body = if status == StatusCode::INTERNAL_SERVER_ERROR {
@@ -66,11 +65,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_response_error_variants() {
-        let bad_request = BadRequest("bad request".into());
-        let unauthorized = Unauthorized("unauthorized".into());
-        let forbidden = Forbidden("forbidden".into());
-        let not_found = NotFound("not found".into());
-        let internal = InternalServerError("internal error".into());
+        let bad_request = ResponseError::BadRequest("bad request".into());
+        let unauthorized = ResponseError::Unauthorized("unauthorized".into());
+        let forbidden = ResponseError::Forbidden("forbidden".into());
+        let not_found = ResponseError::NotFound("not found".into());
+        let internal = ResponseError::InternalServerError("internal error".into());
 
         let cases = vec![
             (bad_request, StatusCode::BAD_REQUEST, "bad request"),
@@ -101,7 +100,7 @@ mod tests {
         let boxed: Box<dyn Error + Send + Sync> = "some error".to_string().into();
         let err: ResponseError = boxed.into();
         match err {
-            InternalServerError(msg) => assert!(msg.contains("some error")),
+            ResponseError::InternalServerError(msg) => assert!(msg.contains("some error")),
             _ => panic!("Expected InternalServerError"),
         }
     }

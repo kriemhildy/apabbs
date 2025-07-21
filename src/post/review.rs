@@ -5,8 +5,6 @@
 
 use super::{Post, PostStatus, media};
 use crate::{AppState, user::AccountRole};
-use ReviewAction::*;
-use ReviewError::*;
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
@@ -50,13 +48,19 @@ pub enum ReviewError {
 impl fmt::Display for ReviewError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SameStatus => write!(f, "Attempted to change post to its current status."),
-            ReturnToPending => write!(f, "Cannot revert a post back to pending status."),
-            AdminOnly => write!(f, "Operation restricted to administrator role."),
-            RejectedOrBanned => write!(f, "Cannot modify rejected or banned posts."),
-            RecentOnly => write!(f, "Moderators can only modify recent posts."),
-            CurrentlyProcessing => write!(f, "Cannot modify a post that's being processed."),
-            ManualProcessing => write!(f, "Cannot manually set a post to processing status."),
+            ReviewError::SameStatus => write!(f, "Attempted to change post to its current status."),
+            ReviewError::ReturnToPending => {
+                write!(f, "Cannot revert a post back to pending status.")
+            }
+            ReviewError::AdminOnly => write!(f, "Operation restricted to administrator role."),
+            ReviewError::RejectedOrBanned => write!(f, "Cannot modify rejected or banned posts."),
+            ReviewError::RecentOnly => write!(f, "Moderators can only modify recent posts."),
+            ReviewError::CurrentlyProcessing => {
+                write!(f, "Cannot modify a post that's being processed.")
+            }
+            ReviewError::ManualProcessing => {
+                write!(f, "Cannot manually set a post to processing status.")
+            }
         }
     }
 }
@@ -95,47 +99,47 @@ pub fn determine_action(
     new_status: PostStatus,
     reviewer_role: AccountRole,
 ) -> Result<ReviewAction, ReviewError> {
-    use PostStatus::*;
-
     match post.status {
-        Pending => match new_status {
-            Pending => Err(SameStatus),
-            Processing => Err(ManualProcessing),
-            Approved | Delisted => Ok(PublishMedia),
-            Reported => Ok(NoAction),
-            Rejected | Banned => Ok(DeleteEncryptedMedia),
+        PostStatus::Pending => match new_status {
+            PostStatus::Pending => Err(ReviewError::SameStatus),
+            PostStatus::Processing => Err(ReviewError::ManualProcessing),
+            PostStatus::Approved | PostStatus::Delisted => Ok(ReviewAction::PublishMedia),
+            PostStatus::Reported => Ok(ReviewAction::NoAction),
+            PostStatus::Rejected | PostStatus::Banned => Ok(ReviewAction::DeleteEncryptedMedia),
         },
 
-        Processing => Err(CurrentlyProcessing),
+        PostStatus::Processing => Err(ReviewError::CurrentlyProcessing),
 
-        Approved | Delisted => {
-            if post.status == Approved && reviewer_role == AccountRole::Mod && !post.recent.unwrap()
+        PostStatus::Approved | PostStatus::Delisted => {
+            if post.status == PostStatus::Approved
+                && reviewer_role == AccountRole::Mod
+                && !post.recent.unwrap()
             {
-                return Err(RecentOnly);
+                return Err(ReviewError::RecentOnly);
             }
             match new_status {
-                Pending => Err(ReturnToPending),
-                Processing => Err(ManualProcessing),
-                Approved | Delisted => Ok(NoAction),
-                Reported => Ok(UnpublishMedia),
-                Rejected | Banned => Ok(DeletePublishedMedia),
+                PostStatus::Pending => Err(ReviewError::ReturnToPending),
+                PostStatus::Processing => Err(ReviewError::ManualProcessing),
+                PostStatus::Approved | PostStatus::Delisted => Ok(ReviewAction::NoAction),
+                PostStatus::Reported => Ok(ReviewAction::UnpublishMedia),
+                PostStatus::Rejected | PostStatus::Banned => Ok(ReviewAction::DeletePublishedMedia),
             }
         }
 
-        Reported => {
+        PostStatus::Reported => {
             if reviewer_role != AccountRole::Admin {
-                return Err(AdminOnly);
+                return Err(ReviewError::AdminOnly);
             }
             match new_status {
-                Pending => Err(ReturnToPending),
-                Processing => Err(ManualProcessing),
-                Approved | Delisted => Ok(PublishMedia),
-                Rejected | Banned => Ok(DeleteEncryptedMedia),
-                Reported => Err(SameStatus),
+                PostStatus::Pending => Err(ReviewError::ReturnToPending),
+                PostStatus::Processing => Err(ReviewError::ManualProcessing),
+                PostStatus::Approved | PostStatus::Delisted => Ok(ReviewAction::PublishMedia),
+                PostStatus::Rejected | PostStatus::Banned => Ok(ReviewAction::DeleteEncryptedMedia),
+                PostStatus::Reported => Err(ReviewError::SameStatus),
             }
         }
 
-        Rejected | Banned => Err(RejectedOrBanned),
+        PostStatus::Rejected | PostStatus::Banned => Err(ReviewError::RejectedOrBanned),
     }
 }
 
@@ -151,25 +155,25 @@ pub async fn process_action(
     }
 
     let background_task: Option<BoxFuture<'static, ()>> = match action {
-        PublishMedia => Some(Box::pin(publish_media_task(
+        ReviewAction::PublishMedia => Some(Box::pin(publish_media_task(
             state.clone(),
             post.clone(),
             status,
         ))),
-        DeleteEncryptedMedia => {
+        ReviewAction::DeleteEncryptedMedia => {
             media::delete_upload_key_dir(&post.key).await?;
             None
         }
-        DeletePublishedMedia => {
+        ReviewAction::DeletePublishedMedia => {
             media::delete_media_key_dir(&post.key).await?;
             None
         }
-        UnpublishMedia => Some(Box::pin(unpublish_media_task(
+        ReviewAction::UnpublishMedia => Some(Box::pin(unpublish_media_task(
             state.clone(),
             post.clone(),
             status,
         ))),
-        NoAction => None,
+        ReviewAction::NoAction => None,
     };
 
     Ok(background_task)

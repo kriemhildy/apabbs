@@ -5,7 +5,7 @@
 
 use super::{
     ROOT,
-    errors::ResponseError::{self, *},
+    errors::ResponseError,
     helpers::{ban_if_flooding, init_post, init_user, is_fetch_request},
 };
 use crate::{
@@ -145,41 +145,42 @@ pub async fn submit_post(
     while let Some(field) = multipart
         .next_field()
         .await
-        .map_err(|e| BadRequest(format!("Failed to read field: {e}")))?
+        .map_err(|e| ResponseError::BadRequest(format!("Failed to read field: {e}")))?
     {
         let name = field
             .name()
-            .ok_or_else(|| BadRequest("Missing field name.".to_string()))?
+            .ok_or_else(|| ResponseError::BadRequest("Missing field name.".to_string()))?
             .to_string();
         match name.as_str() {
             "session_token" => {
-                post_submission.session_token = match Uuid::try_parse(
-                    &field
-                        .text()
-                        .await
-                        .map_err(|e| BadRequest(format!("Failed to read session token: {e}")))?,
-                ) {
-                    Err(e) => {
-                        return Err(BadRequest(format!("Invalid session token: {e}")));
-                    }
-                    Ok(uuid) => uuid,
-                };
+                post_submission.session_token =
+                    match Uuid::try_parse(&field.text().await.map_err(|e| {
+                        ResponseError::BadRequest(format!("Failed to read session token: {e}"))
+                    })?) {
+                        Err(e) => {
+                            return Err(ResponseError::BadRequest(format!(
+                                "Invalid session token: {e}"
+                            )));
+                        }
+                        Ok(uuid) => uuid,
+                    };
             }
             "body" => {
-                post_submission.body = field
-                    .text()
-                    .await
-                    .map_err(|e| BadRequest(format!("Failed to read post body: {e}")))?
+                post_submission.body = field.text().await.map_err(|e| {
+                    ResponseError::BadRequest(format!("Failed to read post body: {e}"))
+                })?
             }
             "media" => {
                 if post_submission.media_filename.is_some() {
-                    return Err(BadRequest(
+                    return Err(ResponseError::BadRequest(
                         "Only one media file can be uploaded.".to_string(),
                     ));
                 }
                 let filename = field
                     .file_name()
-                    .ok_or_else(|| BadRequest("Media file has no filename.".to_string()))?
+                    .ok_or_else(|| {
+                        ResponseError::BadRequest("Media file has no filename.".to_string())
+                    })?
                     .to_string();
                 if filename.is_empty() {
                     continue;
@@ -189,11 +190,17 @@ pub async fn submit_post(
                     field
                         .bytes()
                         .await
-                        .map_err(|e| BadRequest(format!("Failed to read media file: {e}")))?
+                        .map_err(|e| {
+                            ResponseError::BadRequest(format!("Failed to read media file: {e}"))
+                        })?
                         .to_vec(),
                 );
             }
-            _ => return Err(BadRequest(format!("Unexpected field: {name}"))),
+            _ => {
+                return Err(ResponseError::BadRequest(format!(
+                    "Unexpected field: {name}"
+                )));
+            }
         };
     }
 
@@ -209,7 +216,9 @@ pub async fn submit_post(
 
     // Check for existing IP ban
     if let Some(expires_at) = user.ban_expires_at {
-        return Err(Forbidden(format!("You are banned until {expires_at}.")));
+        return Err(ResponseError::Forbidden(format!(
+            "You are banned until {expires_at}."
+        )));
     }
 
     // Ban user if they are flooding
@@ -217,14 +226,14 @@ pub async fn submit_post(
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
         tx.commit().await?;
-        return Err(Forbidden(format!(
+        return Err(ResponseError::Forbidden(format!(
             "You have been banned for flooding until {expires_at}."
         )));
     }
 
     // Validate post content
     if post_submission.body.is_empty() && post_submission.media_filename.is_none() {
-        return Err(BadRequest(
+        return Err(ResponseError::BadRequest(
             "Post cannot be empty unless there is a media file.".to_string(),
         ));
     }
@@ -238,7 +247,7 @@ pub async fn submit_post(
         };
         let expires_at = ban.insert(&mut tx).await?;
         tx.commit().await?;
-        return Err(Forbidden(format!(
+        return Err(ResponseError::Forbidden(format!(
             "You have been banned for spam until {expires_at}."
         )));
     }
@@ -290,7 +299,7 @@ pub async fn hide_post(
     // Process post hiding if authorized and eligible
     if let Some(post) = Post::select_by_key(&mut tx, &post_hiding.key).await? {
         if !post.author(&user) {
-            return Err(Unauthorized(
+            return Err(ResponseError::Unauthorized(
                 "You are not the author of this post.".to_string(),
             ));
         }
@@ -301,7 +310,7 @@ pub async fn hide_post(
             }
             PostStatus::Reported | PostStatus::Banned => (),
             _ => {
-                return Err(BadRequest(
+                return Err(ResponseError::BadRequest(
                     "Post is not rejected, reported, or banned.".to_string(),
                 ));
             }

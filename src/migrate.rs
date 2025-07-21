@@ -431,11 +431,7 @@ pub async fn process_videos(state: AppState) {
 
 /// Attempts to continue processing of any post that was interrupted.
 pub async fn retry_failed_tasks(state: AppState) {
-    use apabbs::post::{
-        Post,
-        PostStatus::{self, *},
-        review,
-    };
+    use apabbs::post::{Post, PostStatus, review};
 
     let mut tx = state.db.begin().await.expect("begin");
 
@@ -461,7 +457,7 @@ pub async fn retry_failed_tasks(state: AppState) {
         // Otherwise, update the post to the second status.
         let next_status = statuses[0];
         let prior_status = if statuses.len() == 1 {
-            Pending
+            PostStatus::Pending
         } else {
             statuses[1]
         };

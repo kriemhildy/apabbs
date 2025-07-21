@@ -4,7 +4,7 @@
 //! It enforces moderator/admin permissions and manages background media processing.
 
 use super::{
-    errors::ResponseError::{self, *},
+    errors::ResponseError,
     helpers::{init_user, is_fetch_request},
 };
 use crate::{
@@ -52,17 +52,19 @@ pub async fn review_post(
 
     // Verify user has moderator privileges
     let account = match user.account {
-        None => return Err(Unauthorized("Not logged in".to_string())),
+        None => return Err(ResponseError::Unauthorized("Not logged in".to_string())),
         Some(account) => account,
     };
     if ![AccountRole::Admin, AccountRole::Mod].contains(&account.role) {
-        return Err(Unauthorized("Must be admin or moderator".to_string()));
+        return Err(ResponseError::Unauthorized(
+            "Must be admin or moderator".to_string(),
+        ));
     };
 
     // Get the post to review
     let post = Post::select_by_key(&mut tx, &key)
         .await?
-        .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
+        .ok_or_else(|| ResponseError::NotFound("Post does not exist".to_string()))?;
 
     // Determine appropriate review action
     let review_action = review::determine_action(&post, post_review.status, account.role);
@@ -75,10 +77,10 @@ pub async fn review_post(
         | Err(e @ ReviewError::RejectedOrBanned)
         | Err(e @ ReviewError::CurrentlyProcessing)
         | Err(e @ ReviewError::ManualProcessing) => {
-            return Err(BadRequest(e.to_string()));
+            return Err(ResponseError::BadRequest(e.to_string()));
         }
         Err(e @ ReviewError::AdminOnly) | Err(e @ ReviewError::RecentOnly) => {
-            return Err(Unauthorized(e.to_string()));
+            return Err(ResponseError::Unauthorized(e.to_string()));
         }
         // Handle media operations
         Ok(action) => review::process_action(&state, &post, post_review.status, action).await?,
@@ -160,22 +162,26 @@ pub async fn decrypt_media(
 
     // Verify user has required privileges
     if !user.mod_or_admin() {
-        return Err(Unauthorized("Must be moderator or admin".to_string()));
+        return Err(ResponseError::Unauthorized(
+            "Must be moderator or admin".to_string(),
+        ));
     }
 
     // Get the post
     let post = Post::select_by_key(&mut tx, &key)
         .await?
-        .ok_or_else(|| NotFound("Post does not exist".to_string()))?;
+        .ok_or_else(|| ResponseError::NotFound("Post does not exist".to_string()))?;
 
     // Ensure post is pending
     if post.status != PostStatus::Pending {
-        return Err(BadRequest("Post must be pending".to_string()));
+        return Err(ResponseError::BadRequest(
+            "Post must be pending".to_string(),
+        ));
     }
 
     // Verify media exists
     if post.media_filename.is_none() {
-        return Err(NotFound("Post has no media".to_string()));
+        return Err(ResponseError::NotFound("Post has no media".to_string()));
     }
 
     // Get media details
