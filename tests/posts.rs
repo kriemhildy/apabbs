@@ -470,7 +470,7 @@ pub async fn body_to_html() -> Result<(), Box<dyn Error + Send + Sync>> {
     assert_eq!(
         submission.body_to_html(key).await.unwrap(),
         concat!(
-            "&lt;&amp;test body&quot;&apos; コンピューター<br>\n",
+            "&lt;&amp;test body\"' コンピューター<br>\n",
             "<br>\n",
             "<a href=\"https://example.com\" rel=\"noopener\" target=\"_blank\">",
             "https://example.com</a><br>\n",

@@ -92,8 +92,6 @@ impl PostSubmission {
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&apos;")
             .replace("  ", " &nbsp;")
             .replace("\r\n", "\n")
             .replace("\r", "\n")
