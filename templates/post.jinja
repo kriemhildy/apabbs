@@ -121,7 +121,7 @@
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="key" value="{{ post.key }}">
-        <input type="submit" value="Hide">
+        <button type="submit">Hide</button>
     </form>
     {# Allow client-side hiding of reported/rejected/banned posts #}
     {% elif post.status in ["rejected", "banned"]

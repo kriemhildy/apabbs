@@ -91,7 +91,6 @@ fieldset {
     appearance: none;
 }
 
-input[type="submit"],
 button,
 select {
     margin: 7px 0;
@@ -319,7 +318,7 @@ div.row {
     align-items: center;
 }
 
-div.row input[type="submit"] {
+div.row button[type="submit"] {
     margin: unset;
 }
 
@@ -361,7 +360,7 @@ fieldset.grid label {
 }
 
 fieldset.grid div.checkbox-container,
-fieldset.grid input[type="submit"] {
+fieldset.grid button[type="submit"] {
     grid-column: 2;
     justify-self: start;
 }

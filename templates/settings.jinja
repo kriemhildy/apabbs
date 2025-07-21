@@ -16,13 +16,13 @@
     <form action="/settings/logout" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         Delete account cookie:
-        <input type="submit" value="Log out">
+        <button type="submit">Log out</button>
     </form>
     {# Reset token form to invalidate all sessions across devices #}
     <form action="/settings/reset-account-token" method="post" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         Reset account token:
-        <input type="submit" value="Log out all devices">
+        <button type="submit">Log out all devices</button>
     </form>
     {# Time zone preferences section #}
     <h3>Time zone</h3>
@@ -34,7 +34,7 @@
             <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
             {% endfor %}
         </select>
-        <input type="submit" value="Update">
+        <button type="submit">Update</button>
     </form>
     {# Password management section #}
     <h3>Password</h3>
@@ -47,7 +47,7 @@
             <input id="new-password" type="password" name="password" maxlength="64" autocomplete="new-password">
             <label for="confirm-password">Confirm new password:</label>
             <input id="confirm-password" type="password" name="confirm_password" maxlength="64" autocomplete="new-password">
-            <input type="submit" value="Update password">
+            <button type="submit">Update password</button>
         </fieldset>
     </form>
 </main>
