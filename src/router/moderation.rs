@@ -3,10 +3,6 @@
 //! This module provides handlers for approving, rejecting, banning, and decrypting posts.
 //! It enforces moderator/admin permissions and manages background media processing.
 
-// =========================
-// Moderation Endpoints
-// =========================
-
 use super::{
     errors::ResponseError::{self, *},
     helpers::{init_user, is_fetch_request},
@@ -24,6 +20,10 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+
+// =========================
+// Moderation Endpoints
+// =========================
 
 /// Processes post moderation actions, enforcing business rules and managing background media processing.
 pub async fn review_post(
