@@ -59,8 +59,9 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         // Real-time updates
         .route("/web-socket", get(posts::web_socket))
         // Moderation features
-        .route("/review/{key}", post(moderation::review_post))
+        .route("/review-post/{key}", post(moderation::review_post))
         .route("/decrypt-media/{key}", get(moderation::decrypt_media))
+        //.route("/review-account/{id}", post(moderation::review_account))
         // File size limit for uploads
         .layer(DefaultBodyLimit::max(26_214_400)); // 25 MiB
 

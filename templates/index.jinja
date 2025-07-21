@@ -16,13 +16,14 @@
             {% for account in pending_accounts %}
             <li>
                 Approve username "{{ account.username }}"?
-                <form action="/approve-account/{{ account.id }}" method="post">
+                <form action="/review-account/{{ account.id }}" method="post">
                     <input type="hidden" name="session_token" value="{{ user.session_token }}">
-                    <span>{{ account.username }}</span>
+                    <input type="hidden" name="action" value="approve">
                     <button type="submit">Approve</button>
                 </form>
-                <form action="/reject-account/{{ account.id }}" method="post">
+                <form action="/review-account/{{ account.id }}" method="post">
                     <input type="hidden" name="session_token" value="{{ user.session_token }}">
+                    <input type="hidden" name="action" value="reject">
                     <button type="submit">Reject</button>
                 </form>
             </li>

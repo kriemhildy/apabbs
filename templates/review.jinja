@@ -2,33 +2,33 @@
 <details class="review">
     <summary>Review</summary>
     {# Approve post form - available to both mods and admins #}
-    <form action="/review/{{ post.key }}" method="post" class="approve">
+    <form action="/review-post/{{ post.key }}" method="post" class="approve">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="approved">
         <button type="submit"{{ " disabled" if post.status == "approved" }}>Approve</button>
     </form>
     {# Delist post form - hides from public view but remains accessible by direct link #}
-    <form action="/review/{{ post.key }}" method="post" class="delist">
+    <form action="/review-post/{{ post.key }}" method="post" class="delist">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="delisted">
         <button type="submit"{{ " disabled" if post.status == "delisted" }}>Delist</button>
     </form>
 {% if user.account.role == "mod" %}
     {# Report form - moderators can escalate posts to admin review #}
-    <form action="/review/{{ post.key }}" method="post" class="reported" data-confirm>
+    <form action="/review-post/{{ post.key }}" method="post" class="reported" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="reported">
         <button type="submit"{{ " disabled" if post.status == "reported" }}>Report</button>
     </form>
 {% elif user.account.role == "admin" %}
     {# Reject form - admin-only action to mark content as rejected #}
-    <form action="/review/{{ post.key }}" method="post" class="reject" data-confirm>
+    <form action="/review-post/{{ post.key }}" method="post" class="reject" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="rejected">
         <button type="submit"{{ " disabled" if post.status == "rejected" }}>Reject</button>
     </form>
     {# Ban form - admin-only action to ban content and potentially the poster #}
-    <form action="/review/{{ post.key }}" method="post" class="ban" data-confirm>
+    <form action="/review-post/{{ post.key }}" method="post" class="ban" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="banned">
         <button type="submit"{{ " disabled" if post.status == "banned" }}>Ban</button>
