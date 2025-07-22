@@ -187,7 +187,7 @@ pub async fn review_account(
         }
         _ => {
             return Err(ResponseError::BadRequest(
-                "Invalid action, must be 'approve' or 'reject'".to_string(),
+                r#"Invalid action, must be "approve" or "reject""#.to_string(),
             ));
         }
     }
