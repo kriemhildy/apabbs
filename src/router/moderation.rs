@@ -136,7 +136,7 @@ pub async fn review_post(
 pub struct AccountReviewForm {
     pub session_token: Uuid,
     pub username: String,
-    pub action: String, // "approve" or "reject"
+    pub intent: String, // "approve" or "delete"
 }
 
 /// Handles the admin review a new user account.
@@ -171,8 +171,8 @@ pub async fn review_account(
         ));
     }
 
-    // Handle the review action
-    match form.action.as_str() {
+    // Handle the review intent
+    match form.intent.as_str() {
         "approve" => {
             // Approve the account
             account.update_role(&mut tx, AccountRole::Novice).await?;
@@ -180,20 +180,25 @@ pub async fn review_account(
             //state.sender.send(account.clone()).ok();
         }
         "delete" => {
-            // Delete the account or notify the user
+            // Delete the account
             account.delete(&mut tx).await?;
             // Update WebSocket clients
             //state.sender.send(account.clone()).ok();
         }
         _ => {
             return Err(ResponseError::BadRequest(
-                r#"Invalid action, must be "approve" or "delete""#.to_string(),
+                r#"Invalid intent, must be "approve" or "delete""#.to_string(),
             ));
         }
     }
 
-    let response = "ok";
-    Ok((jar, response).into_response())
+    tx.commit().await?;
+
+    if is_fetch_request(&headers) {
+        Ok((jar, StatusCode::NO_CONTENT).into_response())
+    } else {
+        Ok((jar, Redirect::to(ROOT)).into_response())
+    }
 }
 
 // =========================

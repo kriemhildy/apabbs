@@ -271,7 +271,7 @@ function handleFormSubmit(event) {
         if (response.ok) {
             console.log(`Form submission to ${this.action} succeeded.`);
             afterSuccessfulFetch(this);
-        } else if ([400, 401, 403, 500].includes(response.status)) {
+        } else if ([400, 401, 403, 404, 500].includes(response.status)) {
             response.text().then((text) => {
                 alert(text);
                 console.warn(`Form submission to ${this.action} failed with status ${response.status}: ${text}`);
@@ -296,6 +296,18 @@ function handleFormSubmit(event) {
 }
 
 /**
+ * Remove an account reviewal list item from the DOM after fetch.
+ */
+function removeAccountReviewItem(element) {
+    const li = element.parentElement;
+    const ul = li.parentElement;
+    li.remove();
+    if (ul.children.length === 0) {
+        ul.remove();
+    }
+}
+
+/**
  * Performs post-submission actions based on the form's action URL.
  */
 function afterSuccessfulFetch(form) {
@@ -306,6 +318,9 @@ function afterSuccessfulFetch(form) {
             break;
         case "/hide-post":
             removeHiddenPost(form);
+            break;
+        case "/review-account":
+            removeAccountReviewItem(form);
             break;
     }
 }
