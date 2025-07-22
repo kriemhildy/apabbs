@@ -10,7 +10,7 @@ use apabbs::{
         submission::{self, PostSubmission},
     },
     router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
-    user::{AccountRole, User, Account},
+    user::{Account, AccountRole, User},
 };
 use axum::{
     body::Body,
@@ -685,11 +685,11 @@ async fn approve_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/review-account")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, admin_account.token))
         .header(
             COOKIE,
-            format!("{}={}", SESSION_COOKIE, session_token),
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
         )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form_str))?;
@@ -700,9 +700,16 @@ async fn approve_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Verify the account was approved
     let mut tx = state.db.begin().await?;
     let updated_account = Account::select_by_username(&mut tx, &new_account.username).await?;
-    assert!(updated_account.is_some(), "Account should exist after review");
+    assert!(
+        updated_account.is_some(),
+        "Account should exist after review"
+    );
     let updated_account = updated_account.unwrap();
-    assert_eq!(updated_account.role, AccountRole::Novice, "Account should be approved");
+    assert_eq!(
+        updated_account.role,
+        AccountRole::Novice,
+        "Account should be approved"
+    );
     tx.commit().await?;
 
     // Clean up
@@ -737,11 +744,11 @@ async fn delete_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/review-account")
-        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, admin_account.token))
         .header(
             COOKIE,
-            format!("{}={}", SESSION_COOKIE, session_token),
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
         )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, LOCAL_IP)
         .body(Body::from(form_str))?;
@@ -752,7 +759,10 @@ async fn delete_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Verify the account was deleted
     let mut tx = state.db.begin().await?;
     let deleted_account = Account::select_by_username(&mut tx, &new_account.username).await?;
-    assert!(deleted_account.is_none(), "Account should be deleted after review");
+    assert!(
+        deleted_account.is_none(),
+        "Account should be deleted after review"
+    );
     tx.commit().await?;
 
     // Clean up

@@ -170,10 +170,7 @@ impl Account {
     }
 
     /// Deletes the account from the database.
-    pub async fn delete(
-        &self,
-        tx: &mut PgConnection,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn delete(&self, tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("DELETE FROM accounts WHERE id = $1")
             .bind(self.id)
             .execute(&mut *tx)
