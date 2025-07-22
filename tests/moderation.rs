@@ -10,7 +10,7 @@ use apabbs::{
         submission::{self, PostSubmission},
     },
     router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
-    user::{AccountRole, User},
+    user::{AccountRole, User, Account},
 };
 use axum::{
     body::Body,
@@ -439,6 +439,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     Ok(())
 }
 
+/// Tests approving a post with an incompatible video format.
 #[tokio::test]
 async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
@@ -656,6 +657,107 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     media::delete_upload_key_dir(&post.key).await?;
     final_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, mod_account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests an admin approving a new account.
+#[tokio::test]
+async fn approve_account() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    let session_token = admin_user.session_token;
+    let new_user = create_test_account(&mut tx, AccountRole::Pending).await?;
+    let new_account = new_user.account.as_ref().unwrap();
+    tx.commit().await?;
+
+    // Create the review form
+    let form = apabbs::router::moderation::AccountReviewForm {
+        session_token,
+        username: new_account.username.clone(),
+        intent: "approve".to_string(), // "approve" or "delete"
+    };
+    let form_str = serde_urlencoded::to_string(&form)?;
+
+    // Submit the review form
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/review-account")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, admin_account.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, session_token),
+        )
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(form_str))?;
+
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Verify the account was approved
+    let mut tx = state.db.begin().await?;
+    let updated_account = Account::select_by_username(&mut tx, &new_account.username).await?;
+    assert!(updated_account.is_some(), "Account should exist after review");
+    let updated_account = updated_account.unwrap();
+    assert_eq!(updated_account.role, AccountRole::Novice, "Account should be approved");
+    tx.commit().await?;
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    updated_account.delete(&mut tx).await?;
+    delete_test_account(&mut tx, admin_account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests an admin deleting a new account.
+#[tokio::test]
+async fn delete_account() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    let session_token = admin_user.session_token;
+    let new_user = create_test_account(&mut tx, AccountRole::Pending).await?;
+    let new_account = new_user.account.as_ref().unwrap();
+    tx.commit().await?;
+
+    // Create the review form
+    let form = apabbs::router::moderation::AccountReviewForm {
+        session_token,
+        username: new_account.username.clone(),
+        intent: "delete".to_string(), // "approve" or "delete"
+    };
+    let form_str = serde_urlencoded::to_string(&form)?;
+
+    // Submit the review form
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/review-account")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, admin_account.token))
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, session_token),
+        )
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, LOCAL_IP)
+        .body(Body::from(form_str))?;
+
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Verify the account was deleted
+    let mut tx = state.db.begin().await?;
+    let deleted_account = Account::select_by_username(&mut tx, &new_account.username).await?;
+    assert!(deleted_account.is_none(), "Account should be deleted after review");
+    tx.commit().await?;
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }

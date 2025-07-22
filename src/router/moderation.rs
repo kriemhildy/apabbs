@@ -132,7 +132,7 @@ pub async fn review_post(
 }
 
 /// Form struct for account review submission.
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct AccountReviewForm {
     pub session_token: Uuid,
     pub username: String,
