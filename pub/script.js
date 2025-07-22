@@ -166,13 +166,22 @@ let reconnectDuration;
 let reconnectTimeout = null;
 
 /**
- * Processes incoming WebSocket messages containing post updates.
+ * Processes incoming WebSocket messages containing post and account updates.
  */
 function handleWebSocketMessage(event) {
     try {
         const json = JSON.parse(event.data);
-        updatePost(json.key, json.html);
-        console.log(`WebSocket: Received update for post ${json.key}.`);
+        switch (json.type) {
+            case "post":
+                console.log(`WebSocket: Received post update for ${json.key}.`);
+                updatePost(json.key, json.html);
+                break;
+            case "account":
+                console.log(`WebSocket: Received account update for ${json.username}.`);
+                break;
+            default:
+                throw(`unknown message type: ${json.type}`);
+        }
     } catch (err) {
         console.error("Failed to process WebSocket message:", err);
     }

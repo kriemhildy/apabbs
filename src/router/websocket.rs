@@ -46,7 +46,7 @@ fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde
             return None;
         }
     };
-    Some(serde_json::json!({"key": post.key, "html": html}))
+    Some(serde_json::json!({"type": "post", "key": post.key, "html": html}))
 }
 
 /// Return account message JSON
@@ -58,7 +58,7 @@ fn account_message_json(
     // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
     let user_account = user.account.as_ref()?;
     if msg_account.id == user_account.id {
-        Some(serde_json::json!({"username": msg_account.username}))
+        Some(serde_json::json!({"type": "account", "username": msg_account.username}))
     } else if user_account.role == AccountRole::Admin {
         let html = match render(
             state,
@@ -71,7 +71,7 @@ fn account_message_json(
                 return None;
             }
         };
-        Some(serde_json::json!({"username": msg_account.username, "html": html}))
+        Some(serde_json::json!({"type": "account", "username": msg_account.username, "html": html}))
     } else {
         None // Non-admins should not receive updates about other accounts
     }
