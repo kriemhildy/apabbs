@@ -332,6 +332,58 @@ pub async fn hide_post(
 // Real-Time & Interim Updates
 // =========================
 
+/// Returns post message JSON
+pub fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde_json::Value> {
+    // Determine if this post should be sent to the user
+    if !post.should_send(&user) {
+        return None;
+    }
+
+    // Render post HTML and send as JSON
+    let html = match render(&state, "post.jinja", minijinja::context!(post, user)) {
+        Ok(html) => html,
+        Err(e) => {
+            tracing::error!("Failed to render post for websocket: {:?}", e);
+            return None;
+        }
+    };
+    Some(serde_json::json!({"key": post.key, "html": html}))
+}
+
+/// Return account message JSON
+pub fn account_message_json(
+    state: &AppState,
+    msg_account: &Account,
+    user: &User,
+) -> Option<serde_json::Value> {
+    // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
+    // This should not take that long to implement, really.
+    if user.account.is_none() {
+        return None; // No account, no updates
+    }
+
+    let user_account = user.account.as_ref().unwrap();
+
+    if msg_account.id == user_account.id {
+        Some(serde_json::json!({"username": msg_account.username}))
+    } else if user_account.role == AccountRole::Admin {
+        let html = match render(
+            &state,
+            "pending_account.jinja",
+            minijinja::context!(account => msg_account, user),
+        ) {
+            Ok(html) => html,
+            Err(e) => {
+                tracing::error!("Failed to render pending account for websocket: {:?}", e);
+                return None;
+            }
+        };
+        Some(serde_json::json!({"username": msg_account.username, "html": html}))
+    } else {
+        None // Non-admins should not receive updates about other accounts
+    }
+}
+
 /// Inner function to process the WebSocket connection
 pub async fn watch_receiver(
     State(state): State<AppState>,
@@ -341,54 +393,13 @@ pub async fn watch_receiver(
 ) {
     while let Ok(msg) = receiver.recv().await {
         let json = match msg {
-            AppMessage::Post(post) => {
-                // Determine if this post should be sent to the user
-                if !post.should_send(&user) {
-                    continue;
-                }
-
-                // Render post HTML and send as JSON
-                let html = match render(&state, "post.jinja", minijinja::context!(post, user)) {
-                    Ok(html) => html,
-                    Err(e) => {
-                        tracing::error!("Failed to render post for websocket: {:?}", e);
-                        continue;
-                    }
-                };
-                serde_json::json!({"key": post.key, "html": html})
-            }
-            AppMessage::Account(msg_account) => {
-                // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
-                // This should not take that long to implement, really.
-                if user.account.is_none() {
-                    continue; // Only send updates to users with accounts
-                }
-                let user_account = user.account.as_ref().unwrap();
-
-                if msg_account.id == user_account.id {
-                    serde_json::json!({"username": msg_account.username})
-                } else if user_account.role == AccountRole::Admin {
-                    let html = match render(
-                        &state,
-                        "pending_account.jinja",
-                        minijinja::context!(account => msg_account, user),
-                    ) {
-                        Ok(html) => html,
-                        Err(e) => {
-                            tracing::error!(
-                                "Failed to render pending account for websocket: {:?}",
-                                e
-                            );
-                            continue;
-                        }
-                    };
-                    serde_json::json!({"username": msg_account.username, "html": html})
-                } else {
-                    continue; // Non-admins should not receive updates about other accounts
-                }
-            }
+            AppMessage::Post(post) => post_message_json(&state, &post, &user),
+            AppMessage::Account(account) => account_message_json(&state, &account, &user),
         };
-        let json_utf8 = Utf8Bytes::from(json.to_string());
+        if json.is_none() {
+            continue; // Skip if no JSON to send
+        }
+        let json_utf8 = Utf8Bytes::from(json.unwrap().to_string());
 
         if socket.send(Message::Text(json_utf8)).await.is_err() {
             break; // client disconnect
