@@ -11,6 +11,7 @@ pub mod helpers;
 pub mod moderation;
 pub mod posts;
 pub mod profile;
+pub mod submission;
 pub mod websocket;
 
 use crate::AppState;
@@ -28,6 +29,7 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
     use moderation;
     use posts;
     use profile;
+    use submission;
     use websocket;
 
     let router = axum::Router::new()
@@ -37,7 +39,7 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         .route("/post/{key}", get(posts::solo_post))
         .route("/p/{key}", get(posts::solo_post))
         // Content creation and interaction
-        .route("/submit-post", post(posts::submit_post))
+        .route("/submit-post", post(submission::submit_post))
         .route("/hide-post", post(posts::hide_post))
         .route("/interim/{key}", get(posts::interim))
         // Authentication and account management
