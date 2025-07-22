@@ -15,7 +15,7 @@ use crate::{
         Post, PostStatus, media,
         submission::{self, PostHiding, PostSubmission},
     },
-    user::{Account, User},
+    user::{Account, AccountRole, User},
     utils::{render, utc_hour_timestamp},
 };
 use axum::{
@@ -362,16 +362,34 @@ pub async fn watch_receiver(
                     break; // client disconnect
                 }
             }
-            AppMessage::Account(account) => {
-                // Add similar "should_send" method to Account (send to account owner and admins)
+            AppMessage::Account(msg_account) => {
                 // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
                 // This should not take that long to implement, really.
-                if !account.should_send(&user) {
-                    continue;
+                if user.account.is_none() {
+                    continue; // Only send updates to users with accounts
                 }
+                let user_account = user.account.as_ref().unwrap();
 
-                let json_utf8 =
-                    Utf8Bytes::from(serde_json::json!({"username": account.username}).to_string());
+                let json = if msg_account.id == user_account.id {
+                    serde_json::json!({"username": msg_account.username})
+                } else if user_account.role == AccountRole::Admin {
+                    let html = match render(
+                        &state,
+                        "pending_account.jinja",
+                        minijinja::context!(account => msg_account, user),
+                    ) {
+                        Ok(html) => html,
+                        Err(e) => {
+                            tracing::error!("Failed to render pending account for websocket: {:?}", e);
+                            continue;
+                        }
+                    };
+                    serde_json::json!({"username": msg_account.username, "html": html})
+                } else {
+                    continue; // Only send updates for the user's own account or if they are an admin
+                };
+
+                let json_utf8 = Utf8Bytes::from(json.to_string());
 
                 if socket.send(Message::Text(json_utf8)).await.is_err() {
                     break; // client disconnect
