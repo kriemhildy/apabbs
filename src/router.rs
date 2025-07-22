@@ -11,6 +11,7 @@ pub mod helpers;
 pub mod moderation;
 pub mod posts;
 pub mod profile;
+pub mod websocket;
 
 use crate::AppState;
 
@@ -27,6 +28,7 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
     use moderation;
     use posts;
     use profile;
+    use websocket;
 
     let router = axum::Router::new()
         // Public content routes
@@ -57,7 +59,7 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         )
         .route("/settings/update-password", post(profile::update_password))
         // Real-time updates
-        .route("/web-socket", get(posts::web_socket))
+        .route("/web-socket", get(websocket::web_socket))
         // Moderation features
         .route("/review-post/{key}", post(moderation::review_post))
         .route("/decrypt-media/{key}", get(moderation::decrypt_media))
