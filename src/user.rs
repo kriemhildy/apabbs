@@ -153,6 +153,34 @@ impl Account {
             .await
             .map_err(|e| format!("select pending accounts: {e}").into())
     }
+
+    /// Updates the account's role in the database.
+    pub async fn update_role(
+        &self,
+        tx: &mut PgConnection,
+        role: AccountRole,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
+            .bind(role)
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("update account role: {e}").into())
+    }
+
+    /// Deletes the account from the database.
+    pub async fn delete(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        sqlx::query("DELETE FROM accounts WHERE id = $1")
+            .bind(self.id)
+            .execute(&mut *tx)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("delete account: {e}").into())
+    }
 }
 
 /// Represents a request to update a user's time zone preference.

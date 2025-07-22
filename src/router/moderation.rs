@@ -176,18 +176,18 @@ pub async fn review_account(
         "approve" => {
             // Approve the account
             account.update_role(&mut tx, AccountRole::Novice).await?;
-            // Notify the user of approval
-            state.sender.send(account.clone()).ok();
+            // Update WebSocket clients
+            //state.sender.send(account.clone()).ok();
         }
-        "reject" => {
-            // Reject the account
-            account.update_role(&mut tx, AccountRole::Rejected).await?;
-            // Optionally delete the account or notify the user
+        "delete" => {
+            // Delete the account or notify the user
             account.delete(&mut tx).await?;
+            // Update WebSocket clients
+            //state.sender.send(account.clone()).ok();
         }
         _ => {
             return Err(ResponseError::BadRequest(
-                r#"Invalid action, must be "approve" or "reject""#.to_string(),
+                r#"Invalid action, must be "approve" or "delete""#.to_string(),
             ));
         }
     }
