@@ -1,0 +1,17 @@
+<li id="account-{{ account.username }}">
+    <div class="row">
+        Approve username "{{ account.username }}"?
+        <form action="/review-account" method="post">
+            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="username" value="{{ account.username }}">
+            <input type="hidden" name="intent" value="approve">
+            <button type="submit">Approve</button>
+        </form>
+        <form action="/review-account" method="post" data-confirm>
+            <input type="hidden" name="session_token" value="{{ user.session_token }}">
+            <input type="hidden" name="username" value="{{ account.username }}">
+            <input type="hidden" name="intent" value="delete">
+            <button type="submit">Delete</button>
+        </form>
+    </div>
+</li>

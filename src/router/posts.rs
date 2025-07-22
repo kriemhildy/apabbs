@@ -362,9 +362,20 @@ pub async fn watch_receiver(
                     break; // client disconnect
                 }
             }
-            AppMessage::Account(_) => {
-                // Handle account updates if needed
-                // Currently not implemented
+            AppMessage::Account(account) => {
+                // Add similar "should_send" method to Account (send to account owner and admins)
+                // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
+                // This should not take that long to implement, really.
+                if !account.should_send(&user) {
+                    continue;
+                }
+
+                let json_utf8 =
+                    Utf8Bytes::from(serde_json::json!({"username": account.username}).to_string());
+
+                if socket.send(Message::Text(json_utf8)).await.is_err() {
+                    break; // client disconnect
+                }
             }
         }
     }

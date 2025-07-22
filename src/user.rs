@@ -178,6 +178,14 @@ impl Account {
             .map(|_| ())
             .map_err(|e| format!("delete account: {e}").into())
     }
+
+    /// Determine if a user should receive WebSocket updates about this account.
+    pub fn should_send(&self, user: &User) -> bool {
+        // Send updates to the account owner or any admin
+        user.account
+            .as_ref()
+            .map_or(false, |a| a.id == self.id || user.admin())
+    }
 }
 
 /// Represents a request to update a user's time zone preference.
