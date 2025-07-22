@@ -340,7 +340,7 @@ pub async fn watch_receiver(
     user: User,
 ) {
     while let Ok(msg) = receiver.recv().await {
-        match msg {
+        let json = match msg {
             AppMessage::Post(post) => {
                 // Determine if this post should be sent to the user
                 if !post.should_send(&user) {
@@ -355,12 +355,7 @@ pub async fn watch_receiver(
                         continue;
                     }
                 };
-                let json_utf8 =
-                    Utf8Bytes::from(serde_json::json!({"key": post.key, "html": html}).to_string());
-
-                if socket.send(Message::Text(json_utf8)).await.is_err() {
-                    break; // client disconnect
-                }
+                serde_json::json!({"key": post.key, "html": html})
             }
             AppMessage::Account(msg_account) => {
                 // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
@@ -370,7 +365,7 @@ pub async fn watch_receiver(
                 }
                 let user_account = user.account.as_ref().unwrap();
 
-                let json = if msg_account.id == user_account.id {
+                if msg_account.id == user_account.id {
                     serde_json::json!({"username": msg_account.username})
                 } else if user_account.role == AccountRole::Admin {
                     let html = match render(
@@ -380,21 +375,23 @@ pub async fn watch_receiver(
                     ) {
                         Ok(html) => html,
                         Err(e) => {
-                            tracing::error!("Failed to render pending account for websocket: {:?}", e);
+                            tracing::error!(
+                                "Failed to render pending account for websocket: {:?}",
+                                e
+                            );
                             continue;
                         }
                     };
                     serde_json::json!({"username": msg_account.username, "html": html})
                 } else {
-                    continue; // Only send updates for the user's own account or if they are an admin
-                };
-
-                let json_utf8 = Utf8Bytes::from(json.to_string());
-
-                if socket.send(Message::Text(json_utf8)).await.is_err() {
-                    break; // client disconnect
+                    continue; // Non-admins should not receive updates about other accounts
                 }
             }
+        };
+        let json_utf8 = Utf8Bytes::from(json.to_string());
+
+        if socket.send(Message::Text(json_utf8)).await.is_err() {
+            break; // client disconnect
         }
     }
 }
