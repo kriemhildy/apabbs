@@ -339,32 +339,11 @@ pub async fn watch_receiver(
     mut receiver: Receiver<AppMessage>,
     user: User,
 ) {
-    use crate::{post::PostStatus, user::AccountRole};
-
     while let Ok(msg) = receiver.recv().await {
         match msg {
             AppMessage::Post(post) => {
                 // Determine if this post should be sent to the user
-                let should_send = post.author(&user)
-                    || match user.account {
-                        None => post.status == PostStatus::Approved,
-                        Some(ref account) => match account.role {
-                            AccountRole::Admin => true,
-                            AccountRole::Mod => [
-                                PostStatus::Pending,
-                                PostStatus::Approved,
-                                PostStatus::Delisted,
-                                PostStatus::Reported,
-                            ]
-                            .contains(&post.status),
-                            AccountRole::Member | AccountRole::Novice => {
-                                post.status == PostStatus::Approved
-                            }
-                            AccountRole::Pending => false,
-                        },
-                    };
-
-                if !should_send {
+                if !post.should_send(&user) {
                     continue;
                 }
 

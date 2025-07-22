@@ -299,6 +299,24 @@ impl Post {
             .map(|_| ())
             .map_err(|e| format!("update video poster: {e}").into())
     }
+
+    // Determine if a post should be sent to the user over WebSocket.
+    pub fn should_send(&self, user: &User) -> bool {
+        if self.author(user) {
+            return true;
+        }
+
+        match user.account {
+            Some(ref account) => match account.role {
+                AccountRole::Admin => true,
+                AccountRole::Mod => {
+                    !matches!(self.status, PostStatus::Rejected | PostStatus::Reported)
+                }
+                _ => self.status == PostStatus::Approved,
+            },
+            None => self.status == PostStatus::Approved,
+        }
+    }
 }
 
 #[cfg(test)]
