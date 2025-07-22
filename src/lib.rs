@@ -24,7 +24,7 @@ pub mod utils;
 // Imports
 // ==============================================================================
 
-use crate::post::Post;
+use crate::{post::Post, user::Account};
 use minijinja::Environment;
 use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
@@ -65,6 +65,15 @@ pub fn secret_key() -> String {
 // Application State
 // ==============================================================================
 
+/// Represents a message in the application, which can be either a post or an account message.
+#[derive(Clone)]
+pub enum AppMessage {
+    /// Represents a post message in the application.
+    Post(Post),
+    /// Represents an account message in the application.
+    Account(Account),
+}
+
 /// Shared application state accessible to all request handlers.
 #[derive(Clone)]
 pub struct AppState {
@@ -73,7 +82,7 @@ pub struct AppState {
     /// Template rendering environment with filters and loaders
     pub jinja: Arc<RwLock<Environment<'static>>>,
     /// Broadcast channel for real-time updates
-    pub sender: Arc<Sender<Post>>,
+    pub sender: Arc<Sender<AppMessage>>,
 }
 
 /// Initializes the application state.
@@ -109,7 +118,7 @@ pub fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
 }
 
 /// Initializes the broadcast channel for real-time updates.
-pub fn init_sender() -> Arc<Sender<Post>> {
+pub fn init_sender() -> Arc<Sender<AppMessage>> {
     Arc::new(tokio::sync::broadcast::channel(100).0)
 }
 

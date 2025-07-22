@@ -8,7 +8,7 @@ use super::{
     helpers::{init_user, is_fetch_request},
 };
 use crate::{
-    AppState,
+    AppMessage, AppState,
     ban::Ban,
     post::{Post, PostStatus, media::encryption, review::PostReview},
     router::ROOT,
@@ -114,7 +114,7 @@ pub async fn review_post(
     tx.commit().await?;
 
     // Notify clients of the update
-    state.sender.send(post).ok();
+    state.sender.send(AppMessage::Post(post)).ok();
 
     // If we have a background task, spawn it
     if let Some(task) = background_task {

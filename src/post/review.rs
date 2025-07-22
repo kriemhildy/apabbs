@@ -4,7 +4,7 @@
 //! moderator/admin permissions, and the actions to take on post media during moderation.
 
 use super::{Post, PostStatus, media};
-use crate::{AppState, user::AccountRole};
+use crate::{AppMessage, AppState, user::AccountRole};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
@@ -194,7 +194,7 @@ pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus)
             .await
             .map_err(|e| format!("delete upload directory: {e}"))?;
         tx.commit().await?;
-        state.sender.send(post.clone()).ok();
+        state.sender.send(AppMessage::Post(post.clone())).ok();
         tracing::info!("Media publication task completed for post {}", post.id);
         Ok(())
     }
@@ -219,7 +219,7 @@ pub async fn unpublish_media_task(state: AppState, post: Post, status: PostStatu
             .map_err(|e| format!("unpublish media: {e}"))?;
         let post = post.update_status(&mut tx, status).await?;
         tx.commit().await?;
-        state.sender.send(post.clone()).ok();
+        state.sender.send(AppMessage::Post(post.clone())).ok();
         tracing::info!("Unpublish task completed for post {}", post.id);
         Ok(())
     }

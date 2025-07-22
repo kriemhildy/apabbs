@@ -9,7 +9,7 @@ use super::{
     helpers::{ban_if_flooding, init_post, init_user, is_fetch_request},
 };
 use crate::{
-    AppState,
+    AppMessage, AppState,
     ban::{self, Ban},
     post::{
         Post, PostStatus, media,
@@ -29,6 +29,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use std::collections::HashMap;
+use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 // =========================
@@ -264,7 +265,7 @@ pub async fn submit_post(
     tx.commit().await?;
 
     // Notify clients of new post
-    state.sender.send(post).ok();
+    state.sender.send(AppMessage::Post(post)).ok();
 
     // Return appropriate response based on request type
     let response = if is_fetch_request(&headers) {
@@ -331,6 +332,65 @@ pub async fn hide_post(
 // Real-Time & Interim Updates
 // =========================
 
+/// Inner function to process the WebSocket connection
+pub async fn watch_receiver(
+    State(state): State<AppState>,
+    mut socket: WebSocket,
+    mut receiver: Receiver<AppMessage>,
+    user: User,
+) {
+    use crate::{post::PostStatus, user::AccountRole};
+
+    while let Ok(msg) = receiver.recv().await {
+        match msg {
+            AppMessage::Post(post) => {
+                // Determine if this post should be sent to the user
+                let should_send = post.author(&user)
+                    || match user.account {
+                        None => post.status == PostStatus::Approved,
+                        Some(ref account) => match account.role {
+                            AccountRole::Admin => true,
+                            AccountRole::Mod => [
+                                PostStatus::Pending,
+                                PostStatus::Approved,
+                                PostStatus::Delisted,
+                                PostStatus::Reported,
+                            ]
+                            .contains(&post.status),
+                            AccountRole::Member | AccountRole::Novice => {
+                                post.status == PostStatus::Approved
+                            }
+                            AccountRole::Pending => false,
+                        },
+                    };
+
+                if !should_send {
+                    continue;
+                }
+
+                // Render post HTML and send as JSON
+                let html = match render(&state, "post.jinja", minijinja::context!(post, user)) {
+                    Ok(html) => html,
+                    Err(e) => {
+                        tracing::error!("Failed to render post for websocket: {:?}", e);
+                        continue;
+                    }
+                };
+                let json_utf8 =
+                    Utf8Bytes::from(serde_json::json!({"key": post.key, "html": html}).to_string());
+
+                if socket.send(Message::Text(json_utf8)).await.is_err() {
+                    break; // client disconnect
+                }
+            }
+            AppMessage::Account(_) => {
+                // Handle account updates if needed
+                // Currently not implemented
+            }
+        }
+    }
+}
+
 /// Handles WebSocket connections for real-time post updates.
 pub async fn web_socket(
     method: Method,
@@ -339,59 +399,6 @@ pub async fn web_socket(
     headers: HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Result<Response, ResponseError> {
-    use tokio::sync::broadcast::Receiver;
-
-    /// Inner function to process the WebSocket connection
-    async fn watch_receiver(
-        State(state): State<AppState>,
-        mut socket: WebSocket,
-        mut receiver: Receiver<Post>,
-        user: User,
-    ) {
-        use crate::{post::PostStatus, user::AccountRole};
-
-        while let Ok(post) = receiver.recv().await {
-            // Determine if this post should be sent to the user
-            let should_send = post.author(&user)
-                || match user.account {
-                    None => post.status == PostStatus::Approved,
-                    Some(ref account) => match account.role {
-                        AccountRole::Admin => true,
-                        AccountRole::Mod => [
-                            PostStatus::Pending,
-                            PostStatus::Approved,
-                            PostStatus::Delisted,
-                            PostStatus::Reported,
-                        ]
-                        .contains(&post.status),
-                        AccountRole::Member | AccountRole::Novice => {
-                            post.status == PostStatus::Approved
-                        }
-                        AccountRole::Pending => false,
-                    },
-                };
-
-            if !should_send {
-                continue;
-            }
-
-            // Render post HTML and send as JSON
-            let html = match render(&state, "post.jinja", minijinja::context!(post, user)) {
-                Ok(html) => html,
-                Err(e) => {
-                    tracing::error!("Failed to render post for websocket: {:?}", e);
-                    continue;
-                }
-            };
-            let json_utf8 =
-                Utf8Bytes::from(serde_json::json!({"key": post.key, "html": html}).to_string());
-
-            if socket.send(Message::Text(json_utf8)).await.is_err() {
-                break; // client disconnect
-            }
-        }
-    }
-
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
