@@ -9,8 +9,8 @@
 {% endblock %}
 {% block main %}
 <main class="list">
-    {% if user.account and user.account.role == "admin" and pending_accounts %}
-    <ul class="pending-accounts">
+    {% if user.account and user.account.role == "admin" %}
+    <ul id="pending-accounts"{{ ' style="display: none;"' if not pending_accounts }}>
         {% for account in pending_accounts %}
         {%+ filter indent(8) %}
         {% include "pending_account.jinja" %}
