@@ -26,7 +26,6 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 // =========================
 // Post Display Endpoints
@@ -127,47 +126,17 @@ pub async fn solo_post(
 // Post Submission & Hiding
 // =========================
 
-/// Handles post submission with optional media attachments.
-pub async fn submit_post(
-    method: Method,
-    State(state): State<AppState>,
-    jar: CookieJar,
-    headers: HeaderMap,
-    mut multipart: Multipart,
-) -> Result<Response, ResponseError> {
-    let mut tx = state.db.begin().await?;
-
-    // Parse multipart form data
+// Parse multipart form data for post submission
+async fn parse_post_submission(mut multipart: Multipart) -> Result<PostSubmission, ResponseError> {
     let mut post_submission = PostSubmission::default();
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| ResponseError::BadRequest(format!("Failed to read field: {e}")))?
-    {
-        let name = field
-            .name()
-            .ok_or_else(|| ResponseError::BadRequest("Missing field name.".to_string()))?
-            .to_string();
-        match name.as_str() {
-            "session_token" => {
-                post_submission.session_token =
-                    match Uuid::try_parse(&field.text().await.map_err(|e| {
-                        ResponseError::BadRequest(format!("Failed to read session token: {e}"))
-                    })?) {
-                        Err(e) => {
-                            return Err(ResponseError::BadRequest(format!(
-                                "Invalid session token: {e}"
-                            )));
-                        }
-                        Ok(uuid) => uuid,
-                    };
-            }
-            "body" => {
+    while let Ok(Some(field)) = multipart.next_field().await {
+        match field.name() {
+            Some("body") => {
                 post_submission.body = field.text().await.map_err(|e| {
                     ResponseError::BadRequest(format!("Failed to read post body: {e}"))
-                })?
+                })?;
             }
-            "media" => {
+            Some("media") => {
                 if post_submission.media_filename.is_some() {
                     return Err(ResponseError::BadRequest(
                         "Only one media file can be uploaded.".to_string(),
@@ -195,11 +164,27 @@ pub async fn submit_post(
             }
             _ => {
                 return Err(ResponseError::BadRequest(format!(
-                    "Unexpected field: {name}"
+                    "Unexpected field: {}",
+                    field.name().unwrap_or_default()
                 )));
             }
-        };
+        }
     }
+    Ok(post_submission)
+}
+
+/// Handles post submission with optional media attachments.
+pub async fn submit_post(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    multipart: Multipart,
+) -> Result<Response, ResponseError> {
+    let mut tx = state.db.begin().await?;
+
+    // Parse multipart form data
+    let post_submission = parse_post_submission(multipart).await?;
 
     // Initialize user from session
     let (user, jar) = init_user(

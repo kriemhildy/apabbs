@@ -22,7 +22,7 @@ use axum_extra::extract::CookieJar;
 use tokio::sync::broadcast::Receiver;
 
 /// Returns post message JSON
-pub fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde_json::Value> {
+fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde_json::Value> {
     // Determine if this post should be sent to the user
     let should_send = post.author(user)
         || match user.account {
@@ -50,7 +50,7 @@ pub fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<s
 }
 
 /// Return account message JSON
-pub fn account_message_json(
+fn account_message_json(
     state: &AppState,
     msg_account: &Account,
     user: &User,
@@ -78,7 +78,7 @@ pub fn account_message_json(
 }
 
 /// Inner function to process the WebSocket connection
-pub async fn watch_receiver(
+async fn watch_receiver(
     State(state): State<AppState>,
     mut socket: WebSocket,
     mut receiver: Receiver<AppMessage>,
