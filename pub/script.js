@@ -31,34 +31,34 @@ function addSubmitConfirmations(event) {
 document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 
 // -----------------------------------------------------------------------------
-// Notification system for new posts when tab is not active
+// Notification system for new items when tab is not active
 // -----------------------------------------------------------------------------
 
 let originalTitle;
-let unseenPosts = 0;
+let unseenItems = 0;
 
 /**
- * Increments the unseen posts counter in the page title if the document is not focused.
+ * Increments the unseen items counter in the page title if the document is not focused.
  */
-function incrementUnseenPosts() {
+function incrementUnseenItems() {
     if (!document.hasFocus()) {
-        unseenPosts++;
-        document.title = `(${unseenPosts}) ${originalTitle}`;
+        unseenItems++;
+        document.title = `(${unseenItems}) ${originalTitle}`;
     }
 }
 
 /**
- * Resets the unseen posts counter and restores the original title when the window regains focus.
+ * Resets the unseen items counter and restores the original title when the window regains focus.
  */
 function restoreTitle() {
-    unseenPosts = 0;
+    unseenItems = 0;
     document.title = originalTitle;
 }
 
 /**
- * Initializes the unseen posts notification system and sets up the focus event listener.
+ * Initializes the unseen items notification system and sets up the focus event listener.
  */
-function initUnseenPosts() {
+function initUnseenItems() {
     originalTitle = document.title;
     window.addEventListener("focus", restoreTitle);
 }
@@ -98,7 +98,7 @@ function updatePost(key, html) {
         post.replaceWith(template.content);
     } else {
         postsDiv.prepend(template.content);
-        incrementUnseenPosts();
+        incrementUnseenItems();
     }
     fixChromiumVideoPosters(key);
 }
@@ -150,6 +150,7 @@ function updatePendingUsernames(username, html) {
         if (pendingList.style.display === "none") {
             pendingList.style.display = "block";
         }
+        incrementUnseenItems();
     }
 }
 
@@ -396,7 +397,7 @@ const url = new URL(window.location.href);
 
 // Only initialize WebSocket and dynamic content features on the homepage
 if (url.pathname === "/") {
-    for (const fn of [initDomElements, initUnseenPosts, initWebSocket, addFetchToForms]) {
+    for (const fn of [initDomElements, initUnseenItems, initWebSocket, addFetchToForms]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
