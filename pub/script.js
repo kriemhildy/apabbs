@@ -41,7 +41,7 @@ let unseenItems = 0;
  * Increments the unseen items counter in the page title if the document is not focused.
  */
 function incrementUnseenItems() {
-    if (!document.hasFocus()) {
+    if (!document.hasFocus() || document.visibilityState !== "visible") {
         unseenItems++;
         document.title = `(${unseenItems}) ${originalTitle}`;
     }
@@ -61,6 +61,11 @@ function restoreTitle() {
 function initUnseenItems() {
     originalTitle = document.title;
     window.addEventListener("focus", restoreTitle);
+    document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === "visible") {
+            restoreTitle();
+        }
+    });
 }
 
 // -----------------------------------------------------------------------------
