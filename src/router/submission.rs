@@ -9,6 +9,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use uuid::Uuid;
 
 use super::{
     ROOT,
@@ -29,6 +30,19 @@ async fn parse_post_submission(mut multipart: Multipart) -> Result<PostSubmissio
     let mut post_submission = PostSubmission::default();
     while let Ok(Some(field)) = multipart.next_field().await {
         match field.name() {
+            Some("session_token") => {
+                post_submission.session_token =
+                    match Uuid::try_parse(&field.text().await.map_err(|e| {
+                        ResponseError::BadRequest(format!("Failed to read session token: {e}"))
+                    })?) {
+                        Err(e) => {
+                            return Err(ResponseError::BadRequest(format!(
+                                "Invalid session token: {e}"
+                            )));
+                        }
+                        Ok(uuid) => uuid,
+                    };
+            }
             Some("body") => {
                 post_submission.body = field.text().await.map_err(|e| {
                     ResponseError::BadRequest(format!("Failed to read post body: {e}"))

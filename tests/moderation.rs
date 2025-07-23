@@ -677,7 +677,7 @@ async fn approve_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let form = apabbs::router::moderation::AccountReviewForm {
         session_token,
         username: new_account.username.clone(),
-        intent: "approve".to_string(), // "approve" or "delete"
+        intent: "approve".to_string(), // "approve" or "reject"
     };
     let form_str = serde_urlencoded::to_string(&form)?;
 
@@ -736,7 +736,7 @@ async fn delete_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let form = apabbs::router::moderation::AccountReviewForm {
         session_token,
         username: new_account.username.clone(),
-        intent: "delete".to_string(), // "approve" or "delete"
+        intent: "reject".to_string(), // "approve" or "reject"
     };
     let form_str = serde_urlencoded::to_string(&form)?;
 
