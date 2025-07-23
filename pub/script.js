@@ -64,22 +64,26 @@ function initUnseenPosts() {
 }
 
 // -----------------------------------------------------------------------------
-// Dynamic post updates via templates
+// Dynamic DOM updates
 // -----------------------------------------------------------------------------
 
 let template;
 let postsDiv;
 let spinner;
+let nav;
+let pendingList;
 
 /**
  * Initializes DOM element references and event listeners for dynamic post updates.
  */
 function initDomElements() {
-    template = document.createElement("template");
     postsDiv = document.querySelector("div#posts");
     spinner = document.querySelector("div#spinner");
+    template = document.createElement("template");
     template.content.addEventListener("templateUpdated", addSubmitConfirmations);
     template.content.addEventListener("templateUpdated", addFetchToForms);
+    navElement = document.querySelector("nav");
+    pendingList = document.querySelector("ul#pending-usernames");
 }
 
 /**
@@ -155,6 +159,36 @@ function checkInterim() {
 }
 
 // -----------------------------------------------------------------------------
+// Pending usernames
+// -----------------------------------------------------------------------------
+
+/**
+ * Update the active username in the nav.
+ */
+function updateActiveUsername(username) {
+    navElement.innerHTML = `<a href="/user/${username}">${username}</a>`;
+}
+
+/**
+ * Update admin pending usernames list.
+ */
+function updatePendingUsernames(username, html) {
+    const accountItem = document.querySelector(`li#account-${username}`);
+    if (accountItem) {
+        accountItem.remove();
+        if (pendingList.children.length === 0) {
+            pendingList.style.display = "none";
+        }
+    } else {
+        template.innerHTML = html;
+        pendingList.appendChild(template.content);
+        if (pendingList.style.display === "none") {
+            pendingList.style.display = "block";
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
 // WebSocket connection management
 // -----------------------------------------------------------------------------
 
@@ -178,9 +212,18 @@ function handleWebSocketMessage(event) {
                 break;
             case "account":
                 console.log(`WebSocket: Received account update for ${json.username}.`);
-                break;
+                switch (json.reason) {
+                    case "owner":
+                        updateActiveUsername(json.username);
+                        break;
+                    case "admin":
+                        updatePendingUsernames(json.username, json.html);
+                        break;
+                    default:
+                        throw (`unknown account update reason: ${json.reason}`);
+                }
             default:
-                throw(`unknown message type: ${json.type}`);
+                throw (`unknown message type: ${json.type}`);
         }
     } catch (err) {
         console.error("Failed to process WebSocket message:", err);
