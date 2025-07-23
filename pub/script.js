@@ -61,8 +61,8 @@ function restoreTitle() {
 function initUnseenItems() {
     originalTitle = document.title;
     window.addEventListener("focus", restoreTitle);
-    document.addEventListener("visibilitychange", (_event) => {
-        if (document.visibilityState === "visible") {
+    document.addEventListener("visibilitychange", (event) => {
+        if (event.target.visibilityState === "visible") {
             restoreTitle();
         }
     });
