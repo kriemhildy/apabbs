@@ -8,7 +8,7 @@ use super::{
     errors::ResponseError,
     helpers::{add_account_cookie, init_user, remove_account_cookie},
 };
-use crate::{AppState, user::Credentials, utils::render};
+use crate::{AppMessage, AppState, user::Credentials, utils::render};
 use axum::{
     Form,
     extract::State,
@@ -174,6 +174,10 @@ pub async fn create_account(
     // Create the account
     let account = credentials.register(&mut tx, &user.ip_hash).await?;
     let jar = add_account_cookie(jar, &account, &credentials);
+
+    // Update WebSocket clients
+    tracing::debug!("New account created: {}", &account.username);
+    state.sender.send(AppMessage::Account(account)).ok();
 
     tx.commit().await?;
 

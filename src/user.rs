@@ -19,12 +19,14 @@ pub const BLOWFISH_ITERATIONS: i32 = 10;
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "account_role", rename_all = "snake_case")]
 pub enum AccountRole {
-    /// Account which has not yet been approved
+    /// New account which has not yet been approved
     #[default]
     Pending,
-    /// New user with limited privileges
+    /// New account which has been rejected and will be deleted
+    Rejected,
+    /// Approved new account with limited privileges
     Novice,
-    /// Regular user with standard privileges
+    /// Regular account with standard privileges
     Member,
     /// Moderator with elevated access for content management
     Mod,
@@ -159,13 +161,12 @@ impl Account {
         &self,
         tx: &mut PgConnection,
         role: AccountRole,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")
+    ) -> Result<Account, Box<dyn Error + Send + Sync>> {
+        sqlx::query_as("UPDATE accounts SET role = $1 WHERE id = $2 RETURNING *")
             .bind(role)
             .bind(self.id)
-            .execute(&mut *tx)
+            .fetch_one(&mut *tx)
             .await
-            .map(|_| ())
             .map_err(|e| format!("update account role: {e}").into())
     }
 

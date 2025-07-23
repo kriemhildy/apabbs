@@ -136,7 +136,7 @@ pub async fn review_post(
 pub struct AccountReviewForm {
     pub session_token: Uuid,
     pub username: String,
-    pub intent: String, // "approve" or "delete"
+    pub intent: String, // "approve" or "reject"
 }
 
 /// Handles the admin review a new user account.
@@ -171,25 +171,25 @@ pub async fn review_account(
         ));
     }
 
-    // Handle the review intent
-    match form.intent.as_str() {
-        "approve" => {
-            // Approve the account
-            account.update_role(&mut tx, AccountRole::Novice).await?;
-            // Update WebSocket clients
-            //state.sender.send(account.clone()).ok();
-        }
-        "delete" => {
-            // Delete the account
-            account.delete(&mut tx).await?;
-            // Update WebSocket clients
-            //state.sender.send(account.clone()).ok();
-        }
+    // Find the new role corresponding to the intent
+    let role = match form.intent.as_str() {
+        "approve" => AccountRole::Novice,
+        "reject" => AccountRole::Rejected,
         _ => {
             return Err(ResponseError::BadRequest(
-                r#"Invalid intent, must be "approve" or "delete""#.to_string(),
+                r#"Invalid intent, must be "approve" or "reject""#.to_string(),
             ));
         }
+    };
+
+    // Update the account role
+    let account = account.update_role(&mut tx, role).await?;
+    // Update WebSocket clients
+    state.sender.send(AppMessage::Account(account.clone())).ok();
+
+    // If the account is rejected, delete it
+    if account.role == AccountRole::Rejected {
+        account.delete(&mut tx).await?;
     }
 
     tx.commit().await?;

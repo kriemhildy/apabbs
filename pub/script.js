@@ -83,7 +83,7 @@ function initDomElements() {
     template.content.addEventListener("templateUpdated", addSubmitConfirmations);
     template.content.addEventListener("templateUpdated", addFetchToForms);
     navElement = document.querySelector("nav");
-    pendingList = document.querySelector("ul#pending-usernames");
+    pendingList = document.querySelector("ul#pending-accounts");
 }
 
 /**
@@ -123,6 +123,36 @@ function removeHiddenPost(element) {
     }
 }
 
+/**
+ * Update the active username in the nav.
+ */
+function updateActiveUsername(username) {
+    if (username === undefined) {
+        navElement.innerHTML = `<a href="/login">[rejected]</a>`;
+    } else {
+        navElement.innerHTML = `<a href="/user/${username}">${username}</a>`;
+    }
+}
+
+/**
+ * Update admin pending usernames list.
+ */
+function updatePendingUsernames(username, html) {
+    const accountItem = document.querySelector(`li#account-${username}`);
+    if (accountItem) {
+        accountItem.remove();
+        if (pendingList.children.length === 0) {
+            pendingList.style.display = "none";
+        }
+    } else {
+        template.innerHTML = html;
+        pendingList.appendChild(template.content);
+        if (pendingList.style.display === "none") {
+            pendingList.style.display = "block";
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Fetch missed posts after tab becomes active or reconnection
 // -----------------------------------------------------------------------------
@@ -159,36 +189,6 @@ function checkInterim() {
 }
 
 // -----------------------------------------------------------------------------
-// Pending usernames
-// -----------------------------------------------------------------------------
-
-/**
- * Update the active username in the nav.
- */
-function updateActiveUsername(username) {
-    navElement.innerHTML = `<a href="/user/${username}">${username}</a>`;
-}
-
-/**
- * Update admin pending usernames list.
- */
-function updatePendingUsernames(username, html) {
-    const accountItem = document.querySelector(`li#account-${username}`);
-    if (accountItem) {
-        accountItem.remove();
-        if (pendingList.children.length === 0) {
-            pendingList.style.display = "none";
-        }
-    } else {
-        template.innerHTML = html;
-        pendingList.appendChild(template.content);
-        if (pendingList.style.display === "none") {
-            pendingList.style.display = "block";
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
 // WebSocket connection management
 // -----------------------------------------------------------------------------
 
@@ -222,6 +222,7 @@ function handleWebSocketMessage(event) {
                     default:
                         throw (`unknown account update reason: ${json.reason}`);
                 }
+                break;
             default:
                 throw (`unknown message type: ${json.type}`);
         }

@@ -58,9 +58,14 @@ fn account_message_json(
     // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
     let user_account = user.account.as_ref()?;
     if msg_account.id == user_account.id {
-        Some(serde_json::json!(
-            {"type": "account", "reason": "owner", "username": msg_account.username}
-        ))
+        if msg_account.role == AccountRole::Rejected {
+            // Leave the username as null to indicate the user has been rejected
+            Some(serde_json::json!({"type": "account", "reason": "owner"}))
+        } else {
+            Some(serde_json::json!(
+                {"type": "account", "reason": "owner", "username": msg_account.username}
+            ))
+        }
     } else if user_account.role == AccountRole::Admin {
         let html = match render(
             state,
