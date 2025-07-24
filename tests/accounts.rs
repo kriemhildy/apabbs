@@ -2,12 +2,13 @@
 
 mod helpers;
 
+use crate::helpers::APPLICATION_WWW_FORM_URLENCODED;
 use apabbs::{
     router::{
         auth::Logout,
         helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
     },
-    user::{Account, AccountRole, Credentials},
+    user::{Account, AccountRole, Credentials, User},
 };
 use axum::{
     body::Body,
@@ -17,13 +18,16 @@ use axum::{
     },
 };
 use helpers::{
-    LOCAL_IP, create_test_account, delete_test_account, init_test, local_ip_hash,
-    response_adds_cookie, response_body_str, response_removes_cookie, test_credentials, test_user,
+    TEST_IP, create_test_account, delete_test_account, init_test, response_adds_cookie,
+    response_body_str, response_removes_cookie, test_credentials, test_user,
 };
 use std::error::Error;
 use tower::ServiceExt;
 
-use crate::helpers::APPLICATION_WWW_FORM_URLENCODED;
+/// Test IP for account creation.
+pub const REGISTER_IP: &str = "192.0.2.1";
+/// Test IP address for pending account restrictions.
+pub const PENDING_ACCOUNT_IP: &str = "192.0.2.2";
 
 /// Tests the login form page rendering.
 #[tokio::test]
@@ -31,7 +35,7 @@ async fn login_form() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/login")
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -50,7 +54,7 @@ async fn authenticate() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
     let user = test_user(None);
     let credentials = test_credentials(&user);
-    let account = credentials.register(&mut tx, &local_ip_hash()).await?;
+    let account = credentials.register(&mut tx, &user.ip_hash).await?;
     tx.commit().await?;
 
     // Attempt login
@@ -63,7 +67,7 @@ async fn authenticate() -> Result<(), Box<dyn Error + Send + Sync>> {
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(creds_str))?;
 
     let response = router.oneshot(request).await?;
@@ -83,7 +87,7 @@ async fn registration_form() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/register")
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
 
     let response = router.oneshot(request).await?;
@@ -98,7 +102,10 @@ async fn registration_form() -> Result<(), Box<dyn Error + Send + Sync>> {
 #[tokio::test]
 async fn create_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
-    let user = test_user(None);
+    let user = User {
+        ip_hash: sha256::digest(apabbs::secret_key() + REGISTER_IP),
+        ..User::default()
+    };
     let credentials = test_credentials(&user);
 
     // Submit registration
@@ -111,7 +118,7 @@ async fn create_account() -> Result<(), Box<dyn Error + Send + Sync>> {
             COOKIE,
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, REGISTER_IP)
         .body(Body::from(creds_str))?;
 
     let response = router.oneshot(request).await?;
@@ -127,6 +134,54 @@ async fn create_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clean up
     delete_test_account(&mut tx, &account).await;
     tx.commit().await?;
+    Ok(())
+}
+
+/// Tests attempting to create an account while a pending account already exists for the IP.
+#[tokio::test]
+async fn register_when_account_is_already_pending() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let user = User {
+        ip_hash: sha256::digest(apabbs::secret_key() + PENDING_ACCOUNT_IP),
+        ..User::default()
+    };
+
+    // Create a pending account
+    let credentials = test_credentials(&user);
+    let pending_account = credentials.register(&mut tx, &user.ip_hash).await?;
+    tx.commit().await?;
+
+    let credentials = test_credentials(&user);
+
+    // Attempt to create another account from the same IP
+    let creds_str = serde_urlencoded::to_string(&credentials)?;
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/register")
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
+        .header(X_REAL_IP, PENDING_ACCOUNT_IP)
+        .body(Body::from(creds_str))?;
+
+    let response = router.oneshot(request).await?;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(!response_adds_cookie(&response, ACCOUNT_COOKIE));
+
+    // Verify account was not created
+    let mut tx = state.db.begin().await?;
+    let failed_account = Account::select_by_username(&mut tx, &credentials.username)
+        .await?;
+    assert!(failed_account.is_none(), "Account should not have been created");
+
+    // Clean up
+    delete_test_account(&mut tx, &pending_account).await;
+    tx.commit().await?;
+
     Ok(())
 }
 
@@ -152,7 +207,7 @@ async fn logout() -> Result<(), Box<dyn Error + Send + Sync>> {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(logout_str))?;
 
     let response = router.oneshot(request).await?;
@@ -188,7 +243,7 @@ async fn reset_account_token() -> Result<(), Box<dyn Error + Send + Sync>> {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(logout_str))?;
 
     let response = router.oneshot(request).await?;
@@ -222,7 +277,7 @@ async fn user_profile() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Request the user profile page
     let request = Request::builder()
         .uri(format!("/user/{}", &account.username))
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -253,7 +308,7 @@ async fn settings() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .uri("/settings")
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -295,7 +350,7 @@ async fn update_time_zone() -> Result<(), Box<dyn Error + Send + Sync>> {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(time_zone_update_str))?;
 
     let response = router.oneshot(request).await?;
@@ -340,7 +395,7 @@ async fn update_password() -> Result<(), Box<dyn Error + Send + Sync>> {
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(credentials_str))?;
 
     let response = router.oneshot(request).await?;

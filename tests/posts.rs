@@ -23,7 +23,7 @@ use axum::{
 };
 use form_data_builder::FormData;
 use helpers::{
-    APPLICATION_WWW_FORM_URLENCODED, LOCAL_IP, create_test_account, create_test_post,
+    APPLICATION_WWW_FORM_URLENCODED, TEST_IP, create_test_account, create_test_post,
     delete_test_account, init_test, response_adds_cookie, response_body_str, test_user,
 };
 use http_body_util::BodyExt;
@@ -40,7 +40,7 @@ async fn not_found() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri("/not-found")
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -53,7 +53,7 @@ async fn index() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, _state) = init_test().await;
     let request = Request::builder()
         .uri(ROOT)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -82,7 +82,7 @@ async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let uri = format!("/p/{}", &post.key);
     let request = Request::builder()
         .uri(&uri)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -117,7 +117,7 @@ async fn index_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
     let uri = format!("/page/{}", &post2.key);
     let request = Request::builder()
         .uri(&uri)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -164,7 +164,7 @@ async fn submit_post_without_media() -> Result<(), Box<dyn Error + Send + Sync>>
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
         .header(CONTENT_TYPE, form.content_type_header())
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
 
@@ -211,7 +211,7 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
         .header(CONTENT_TYPE, form.content_type_header())
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
 
@@ -257,7 +257,7 @@ async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> 
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
         .header(CONTENT_TYPE, form.content_type_header())
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
 
@@ -308,7 +308,7 @@ async fn hide_post() -> Result<(), Box<dyn Error + Send + Sync>> {
             format!("{}={}", SESSION_COOKIE, &user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_hiding_str))?;
 
     let response = router.oneshot(request).await?;
@@ -338,7 +338,7 @@ async fn interim() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Request the interim page
     let request = Request::builder()
         .uri(format!("/interim/{}", &post1.key))
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -387,7 +387,7 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create WebSocket client
     let ws_uri: Uri = format!("ws://{addr}/web-socket").parse()?;
-    let req = tungstenite::ClientRequestBuilder::new(ws_uri).with_header(X_REAL_IP, LOCAL_IP);
+    let req = tungstenite::ClientRequestBuilder::new(ws_uri).with_header(X_REAL_IP, TEST_IP);
     let (mut ws_client, _) = tokio_tungstenite::connect_async(req).await?;
 
     // Send a post update through the broadcast channel

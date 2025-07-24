@@ -16,21 +16,9 @@ use sqlx::PgConnection;
 use std::{error::Error, path::Path};
 use uuid::Uuid;
 
-/// The local IP address (IPv6 loopback).
+/// Standard test IP address
 #[allow(dead_code)]
-pub const LOCAL_IP: &str = "::1";
-/// Test IP address for scrubbing.
-#[allow(dead_code)]
-pub const SCRUB_IP: &str = "192.0.2.0";
-/// Test IP address for flooding bans.
-#[allow(dead_code)]
-pub const FLOOD_BAN_IP: &str = "192.0.2.1";
-/// Test IP address for manual bans.
-#[allow(dead_code)]
-pub const MANUAL_BAN_IP: &str = "192.0.2.2";
-/// Test IP address for spam bans.
-#[allow(dead_code)]
-pub const SPAM_BAN_IP: &str = "192.0.2.3";
+pub const TEST_IP: &str = "192.0.2.0";
 /// The content type for form submissions.
 #[allow(dead_code)]
 pub const APPLICATION_WWW_FORM_URLENCODED: &str = "application/x-www-form-urlencoded";
@@ -65,14 +53,9 @@ pub fn test_user(account: Option<Account>) -> User {
     User {
         account,
         session_token: Uuid::new_v4(),
-        ip_hash: local_ip_hash(),
+        ip_hash: sha256::digest(apabbs::secret_key() + TEST_IP),
         ..User::default()
     }
-}
-
-/// Compute the hash of the local test IP using the app secret key.
-pub fn local_ip_hash() -> String {
-    sha256::digest(apabbs::secret_key() + LOCAL_IP)
 }
 
 /// Create a test user account in the database with the given role.
@@ -83,7 +66,7 @@ pub async fn create_test_account(
 ) -> Result<User, Box<dyn Error + Send + Sync>> {
     let user = test_user(None);
     let credentials = test_credentials(&user);
-    let account = credentials.register(tx, &local_ip_hash()).await?;
+    let account = credentials.register(tx, &user.ip_hash).await?;
 
     let account = if role != AccountRole::Pending {
         sqlx::query("UPDATE accounts SET role = $1 WHERE id = $2")

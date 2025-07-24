@@ -124,8 +124,6 @@ pub async fn create_account(
     headers: HeaderMap,
     Form(credentials): Form<Credentials>,
 ) -> Result<Response, ResponseError> {
-    use super::helpers::ban_if_flooding;
-
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session
@@ -161,13 +159,13 @@ pub async fn create_account(
         )));
     }
 
-    // Ban user if they are flooding
-    if let Some(expires_at) =
-        ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
+    // Check if IP already has a pending account
+    if credentials
+        .pending_account_exists(&mut tx, &user.ip_hash)
+        .await?
     {
-        tx.commit().await?;
-        return Err(ResponseError::Forbidden(format!(
-            "You have been banned for flooding until {expires_at}."
+        return Err(ResponseError::BadRequest(format!(
+            "An account is already pending for this IP"
         )));
     }
 

@@ -351,6 +351,22 @@ impl Credentials {
     pub fn year_checked(&self) -> bool {
         self.year.as_deref() == Some("on")
     }
+
+    /// Checks if there is a pending account for the IP address.
+    pub async fn pending_account_exists(
+        &self,
+        tx: &mut PgConnection,
+        ip_hash: &str,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        sqlx::query_scalar(concat!(
+            "SELECT EXISTS(SELECT 1 FROM accounts WHERE ip_hash = $1 AND role = $2)"
+        ))
+        .bind(ip_hash)
+        .bind(AccountRole::Pending)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| format!("pending account: {e}").into())
+    }
 }
 
 #[cfg(test)]

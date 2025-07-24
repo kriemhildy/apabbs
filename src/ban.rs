@@ -8,9 +8,9 @@ use crate::utils::POSTGRES_RFC5322_DATETIME;
 use sqlx::PgConnection;
 use std::error::Error;
 
-/// Maximum combined count of new accounts and pending posts allowed from a single IP
+/// Maximum allowed count of pending posts from a single IP
 /// within a 24-hour period before considering it to be flooding.
-pub const MAX_CONTENT_PER_IP_DAILY: i64 = 9;
+pub const FLOOD_CUTOFF: i64 = 10;
 
 /// Represents a ban record for an IP address or account.
 #[derive(sqlx::FromRow, Default)]
@@ -61,21 +61,6 @@ impl Ban {
     }
 }
 
-/// Counts new accounts created from an IP address within the past day.
-pub async fn new_accounts_count(
-    tx: &mut PgConnection,
-    ip_hash: &str,
-) -> Result<i64, Box<dyn Error + Send + Sync>> {
-    sqlx::query_scalar(concat!(
-        "SELECT count(*) FROM accounts WHERE ip_hash = $1 ",
-        "AND created_at > now() - interval '1 day'"
-    ))
-    .bind(ip_hash)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|e| format!("count new accounts: {e}").into())
-}
-
 /// Counts pending posts created from an IP address within the past day.
 pub async fn new_posts_count(
     tx: &mut PgConnection,
@@ -92,13 +77,12 @@ pub async fn new_posts_count(
 }
 
 /// Determines if an IP address is creating excessive content (flooding).
-pub async fn flooding(
+pub async fn is_flooding(
     tx: &mut PgConnection,
     ip_hash: &str,
 ) -> Result<bool, Box<dyn Error + Send + Sync>> {
-    let new_accounts = new_accounts_count(tx, ip_hash).await?;
     let new_posts = new_posts_count(tx, ip_hash).await?;
-    Ok(new_accounts + new_posts >= MAX_CONTENT_PER_IP_DAILY)
+    Ok(new_posts >= FLOOD_CUTOFF)
 }
 
 /// Removes content from a banned IP address.
@@ -106,35 +90,16 @@ pub async fn prune(
     tx: &mut PgConnection,
     ip_hash: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    sqlx::query(concat!(
-        "DELETE FROM accounts WHERE ip_hash = $1 AND NOT ",
-        "EXISTS(SELECT 1 FROM posts WHERE account_id = accounts.id AND status <> 'pending')"
-    ))
-    .bind(ip_hash)
-    .execute(&mut *tx)
-    .await
-    .map_err(|e| format!("prune accounts: {e}"))?;
-
     sqlx::query("DELETE FROM posts WHERE ip_hash = $1 AND status = 'pending'")
         .bind(ip_hash)
         .execute(&mut *tx)
         .await
-        .map_err(|e| format!("prune posts: {e}"))?;
-
-    Ok(())
+        .map(|_| ())
+        .map_err(|e| format!("prune posts: {e}").into())
 }
 
 /// Removes IP address data from older content for privacy.
 pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + Sync>> {
-    // Scrub IP data from accounts older than 1 day
-    sqlx::query(concat!(
-        "UPDATE accounts SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
-        "AND created_at < now() - interval '1 day'"
-    ))
-    .execute(&mut *tx)
-    .await
-    .map_err(|e| format!("scrub accounts: {e}"))?;
-
     // Scrub IP data from posts older than 1 day that don't need IP tracking
     sqlx::query(concat!(
         "UPDATE posts SET ip_hash = NULL WHERE ip_hash IS NOT NULL ",
@@ -143,9 +108,8 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     ))
     .execute(&mut *tx)
     .await
-    .map_err(|e| format!("scrub posts: {e}"))?;
-
-    Ok(())
+    .map(|_| ())
+    .map_err(|e| format!("scrub posts: {e}").into())
 }
 
 pub async fn contains_spam_word(

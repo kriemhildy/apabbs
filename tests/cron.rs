@@ -4,8 +4,11 @@ use apabbs::{
     cron::{screenshot_task, scrub_task},
     post::{Post, submission},
 };
-use helpers::{SCRUB_IP, init_test};
+use helpers::{init_test};
 use std::{error::Error, fs};
+
+/// Test IP address for scrubbing.
+pub const SCRUB_IP: &str = "192.0.2.1";
 
 /// Tests the screenshot task to ensure it creates a screenshot file.
 #[tokio::test]

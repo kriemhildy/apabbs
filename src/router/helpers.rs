@@ -55,7 +55,7 @@ pub async fn ban_if_flooding(
     ip_hash: &str,
     account_id: Option<i32>,
 ) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
-    if ban::flooding(tx, ip_hash).await? {
+    if ban::is_flooding(tx, ip_hash).await? {
         let ban = Ban {
             ip_hash: ip_hash.to_string(),
             banned_account_id: account_id,

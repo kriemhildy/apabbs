@@ -21,13 +21,20 @@ use axum::{
 };
 use form_data_builder::FormData;
 use helpers::{
-    APPLICATION_WWW_FORM_URLENCODED, FLOOD_BAN_IP, LOCAL_IP, MANUAL_BAN_IP, SPAM_BAN_IP,
-    create_test_account, create_test_post, create_test_spam_word, delete_test_account,
-    delete_test_ban, delete_test_spam_word, init_test, test_credentials, test_user,
+    APPLICATION_WWW_FORM_URLENCODED, TEST_IP, create_test_account, create_test_post,
+    create_test_spam_word, delete_test_account, delete_test_ban, delete_test_spam_word, init_test,
+    test_user,
 };
 use std::error::Error;
 use tower::ServiceExt;
 use uuid::Uuid;
+
+/// Test IP address for flooding bans.
+pub const FLOOD_BAN_IP: &str = "192.0.2.1";
+/// Test IP address for manual bans.
+pub const MANUAL_BAN_IP: &str = "192.0.2.2";
+/// Test IP address for spam bans.
+pub const SPAM_BAN_IP: &str = "192.0.2.3";
 
 /// Tests decrypting and serving media files.
 #[tokio::test]
@@ -47,7 +54,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .uri(&key)
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
 
@@ -77,31 +84,22 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
         ..User::default()
     };
 
-    // Create several accounts from the same IP
-    let mut credentials = test_credentials(&user);
-    for _ in 0..3 {
-        credentials.session_token = Uuid::new_v4();
-        credentials.username = Uuid::new_v4().simple().to_string()[..16].to_string();
-        credentials.register(&mut tx, &user.ip_hash).await?;
-    }
-
     // Create several posts from the same IP
     let mut post_submission = PostSubmission {
         session_token: user.session_token,
         body: String::from("trololol"),
         ..PostSubmission::default()
     };
-    for _ in 0..5 {
+    for _ in 0..9 {
         post_submission.session_token = Uuid::new_v4();
         let key = submission::generate_key(&mut tx).await?;
         post_submission.insert(&mut tx, &user, &key).await?;
     }
 
     // Verify state before flooding threshold is reached
-    assert_eq!(ban::new_accounts_count(&mut tx, &user.ip_hash).await?, 3);
-    assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 5);
+    assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 9);
     assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_none());
-    assert!(!ban::flooding(&mut tx, &user.ip_hash).await?);
+    assert!(!ban::is_flooding(&mut tx, &user.ip_hash).await?);
 
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
@@ -109,10 +107,9 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     post_submission.insert(&mut tx, &user, &key).await?;
 
     // Verify flooding is detected but ban not yet applied
-    assert_eq!(ban::new_accounts_count(&mut tx, &user.ip_hash).await?, 3);
-    assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 6);
+    assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 10);
     assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_none());
-    assert!(ban::flooding(&mut tx, &user.ip_hash).await?);
+    assert!(ban::is_flooding(&mut tx, &user.ip_hash).await?);
     tx.commit().await?;
 
     // Attempt another post to trigger the ban
@@ -136,8 +133,7 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Verify ban state after ban
     let mut tx = state.db.begin().await?;
     assert!(Ban::exists(&mut tx, &user.ip_hash, None).await?.is_some());
-    assert!(!ban::flooding(&mut tx, &user.ip_hash).await?);
-    assert_eq!(ban::new_accounts_count(&mut tx, &user.ip_hash).await?, 0);
+    assert!(!ban::is_flooding(&mut tx, &user.ip_hash).await?);
     assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 0);
 
     // Clean up
@@ -218,7 +214,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
             format!("{}={}", SESSION_COOKIE, admin_user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_review_str))?;
 
     let response = router.oneshot(request).await?;
@@ -300,7 +296,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
             format!("{}={}", SESSION_COOKIE, admin_user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_review_str))?;
 
     let response = router.oneshot(request).await?;
@@ -385,7 +381,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
             format!("{}={}", SESSION_COOKIE, admin_user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_review_str))?;
 
     let response = router.oneshot(request).await?;
@@ -468,7 +464,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
             format!("{}={}", SESSION_COOKIE, admin_user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_review_str))?;
 
     let response = router.oneshot(request).await?;
@@ -557,7 +553,7 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
             format!("{}={}", SESSION_COOKIE, admin_user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_review_str))?;
     let response = router.oneshot(request).await?;
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
@@ -618,7 +614,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
             format!("{}={}", SESSION_COOKIE, mod_user.session_token),
         )
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_review_str))?;
 
     let response = router.oneshot(request).await?;
@@ -691,7 +687,7 @@ async fn approve_account() -> Result<(), Box<dyn Error + Send + Sync>> {
         )
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form_str))?;
 
     let response = router.oneshot(request).await?;
@@ -750,7 +746,7 @@ async fn delete_account() -> Result<(), Box<dyn Error + Send + Sync>> {
         )
         .header(COOKIE, format!("{}={}", SESSION_COOKIE, session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(X_REAL_IP, LOCAL_IP)
+        .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form_str))?;
 
     let response = router.oneshot(request).await?;
