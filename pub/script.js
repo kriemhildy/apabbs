@@ -147,13 +147,13 @@ function updatePendingUsernames(username, html) {
     if (accountItem) {
         accountItem.remove();
         if (pendingList.children.length === 0) {
-            pendingList.style.display = "none";
+            pendingList.addClass("hidden");
         }
     } else {
         template.innerHTML = html;
         pendingList.appendChild(template.content);
-        if (pendingList.style.display === "none") {
-            pendingList.style.display = "block";
+        if (pendingList.classList.contains("hidden")) {
+            pendingList.classList.remove("hidden");
         }
         incrementUnseenItems();
     }
