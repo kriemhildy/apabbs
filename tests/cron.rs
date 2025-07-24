@@ -4,7 +4,7 @@ use apabbs::{
     cron::{screenshot_task, scrub_task},
     post::{Post, submission},
 };
-use helpers::{init_test};
+use helpers::init_test;
 use std::{error::Error, fs};
 
 /// Test IP address for scrubbing.

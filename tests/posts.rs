@@ -437,7 +437,12 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
         tungstenite::Message::Text(text) => {
             let json: serde_json::Value = serde_json::from_str(&text)?;
             assert_eq!(json["username"], pending_account.username);
-            assert!(json["html"].as_str().unwrap().contains(&pending_account.username));
+            assert!(
+                json["html"]
+                    .as_str()
+                    .unwrap()
+                    .contains(&pending_account.username)
+            );
         }
         other => panic!("Expected text message, got {other:?}"),
     }

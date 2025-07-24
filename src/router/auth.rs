@@ -164,9 +164,9 @@ pub async fn create_account(
         .pending_account_exists(&mut tx, &user.ip_hash)
         .await?
     {
-        return Err(ResponseError::BadRequest(format!(
-            "An account is already pending for this IP"
-        )));
+        return Err(ResponseError::BadRequest(
+            "An account is already pending for this IP".to_string(),
+        ));
     }
 
     // Create the account

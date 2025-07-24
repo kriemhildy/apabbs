@@ -174,9 +174,11 @@ async fn register_when_account_is_already_pending() -> Result<(), Box<dyn Error 
 
     // Verify account was not created
     let mut tx = state.db.begin().await?;
-    let failed_account = Account::select_by_username(&mut tx, &credentials.username)
-        .await?;
-    assert!(failed_account.is_none(), "Account should not have been created");
+    let failed_account = Account::select_by_username(&mut tx, &credentials.username).await?;
+    assert!(
+        failed_account.is_none(),
+        "Account should not have been created"
+    );
 
     // Clean up
     delete_test_account(&mut tx, &pending_account).await;
