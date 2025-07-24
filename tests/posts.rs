@@ -5,7 +5,7 @@ mod helpers;
 use apabbs::{
     AppMessage,
     post::{
-        MediaCategory, Post, PostStatus, media,
+        MediaCategory, PostStatus, media,
         submission::{PostHiding, PostSubmission},
     },
     router::{
@@ -374,8 +374,11 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create a test post to trigger notifications
     let mut tx = state.db.begin().await?;
-    let user = test_user(None);
-    let test_post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let pending_user = create_test_account(&mut tx, AccountRole::Pending).await?;
+    let pending_account = pending_user.account.as_ref().unwrap();
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    let post = create_test_post(&mut tx, &pending_user, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Start a server for testing
@@ -385,16 +388,21 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
         axum::serve(listener, router).await.unwrap();
     });
 
-    // Create WebSocket client
+    // Create WebSocket client (we will have to auth as an admin here to receive pending accounts)
     let ws_uri: Uri = format!("ws://{addr}/web-socket").parse()?;
-    let req = tungstenite::ClientRequestBuilder::new(ws_uri).with_header(X_REAL_IP, TEST_IP);
+    let req = tungstenite::ClientRequestBuilder::new(ws_uri)
+        .with_header(X_REAL_IP.to_string(), TEST_IP)
+        .with_header(
+            COOKIE.to_string(),
+            format!(
+                "{}={}; {}={}",
+                SESSION_COOKIE, admin_user.session_token, ACCOUNT_COOKIE, admin_account.token
+            ),
+        );
     let (mut ws_client, _) = tokio_tungstenite::connect_async(req).await?;
 
     // Send a post update through the broadcast channel
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
-    let mut tx = state.db.begin().await?;
-    let post = Post::select_by_key(&mut tx, &test_post.key).await?.unwrap();
-    tx.commit().await?;
     state.sender.send(AppMessage::Post(post.clone())).ok();
 
     // Wait for and verify message reception
@@ -412,12 +420,34 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
         other => panic!("Expected text message, got {other:?}"),
     }
 
+    // Send test account as a message
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
+    state
+        .sender
+        .send(AppMessage::Account(pending_account.clone()))
+        .ok();
+
+    // Wait for and verify message reception
+    let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
+        .await?
+        .unwrap()?;
+
+    // Check content
+    match message {
+        tungstenite::Message::Text(text) => {
+            let json: serde_json::Value = serde_json::from_str(&text)?;
+            assert_eq!(json["username"], pending_account.username);
+            assert!(json["html"].as_str().unwrap().contains(&pending_account.username));
+        }
+        other => panic!("Expected text message, got {other:?}"),
+    }
+
     // Clean up
     ws_client.close(None).await?;
     server_handle.abort(); // Stop the server
 
     let mut tx = state.db.begin().await?;
-    test_post.delete(&mut tx).await?;
+    post.delete(&mut tx).await?;
     tx.commit().await?;
     Ok(())
 }
