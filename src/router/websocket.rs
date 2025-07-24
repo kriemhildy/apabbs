@@ -19,6 +19,7 @@ use axum::{
     response::Response,
 };
 use axum_extra::extract::CookieJar;
+use serde_json::json;
 use tokio::sync::broadcast::Receiver;
 
 /// Returns post message JSON
@@ -46,7 +47,7 @@ fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde
             return None;
         }
     };
-    Some(serde_json::json!({"type": "post", "key": post.key, "html": html}))
+    Some(json!({"type": "post", "key": post.key, "html": html}))
 }
 
 /// Return account message JSON
@@ -55,17 +56,17 @@ fn account_message_json(
     msg_account: &Account,
     user: &User,
 ) -> Option<serde_json::Value> {
-    // Send JS for adding pending accounts, removing pending accounts, and updating account owner view
+    let mut map = serde_json::Map::new();
     let user_account = user.account.as_ref()?;
+    map.insert("type".to_string(), json!("account"));
+
     if msg_account.id == user_account.id {
-        if msg_account.role == AccountRole::Rejected {
-            // Leave the username as null to indicate the user has been rejected
-            Some(serde_json::json!({"type": "account", "reason": "owner"}))
-        } else {
-            Some(serde_json::json!(
-                {"type": "account", "reason": "owner", "username": msg_account.username}
-            ))
+        map.insert("reason".to_string(), json!("owner"));
+        // Leaving the username unset indicates it has been rejected
+        if msg_account.role != AccountRole::Rejected {
+            map.insert("username".to_string(), json!(msg_account.username));
         }
+        Some(map.into())
     } else if user_account.role == AccountRole::Admin {
         let html = match render(
             state,
@@ -78,11 +79,12 @@ fn account_message_json(
                 return None;
             }
         };
-        Some(serde_json::json!(
-            {"type": "account", "reason": "admin", "username": msg_account.username, "html": html}
-        ))
+        map.insert("reason".to_string(), json!("admin"));
+        map.insert("username".to_string(), json!(msg_account.username));
+        map.insert("html".to_string(), json!(html));
+        Some(map.into())
     } else {
-        None // Non-admins should not receive updates about other accounts
+        None
     }
 }
 
