@@ -74,6 +74,11 @@ button,
     text-size-adjust: none;
 }
 
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 ::selection {
     background: var(--system);
     color: var(--back);
