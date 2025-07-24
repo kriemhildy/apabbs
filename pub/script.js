@@ -284,11 +284,11 @@ function initWebSocket() {
  * Disables all submit buttons during form processing, tracking which were already disabled.
  */
 function disableSubmitButtons() {
-    document.querySelectorAll("input[type=submit]").forEach((input) => {
-        if (input.disabled) {
-            input.dataset.keepDisabled = '';
+    document.querySelectorAll("button[type=submit]").forEach((button) => {
+        if (button.disabled) {
+            button.dataset.keepDisabled = '';
         }
-        input.disabled = true;
+        button.disabled = true;
     });
 }
 
@@ -296,11 +296,11 @@ function disableSubmitButtons() {
  * Restores submit buttons to their previous state after form processing.
  */
 function restoreSubmitButtons() {
-    document.querySelectorAll("input[type=submit]").forEach((input) => {
-        if (input.dataset.keepDisabled === undefined) {
-            input.disabled = false;
+    document.querySelectorAll("button[type=submit]").forEach((button) => {
+        if (button.dataset.keepDisabled === undefined) {
+            button.disabled = false;
         } else {
-            delete input.dataset.keepDisabled;
+            delete button.dataset.keepDisabled;
         }
     });
 }
