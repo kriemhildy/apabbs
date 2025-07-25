@@ -98,15 +98,18 @@ async fn watch_receiver(
     use axum::extract::ws::Message;
     use bytes::Bytes;
     use tokio::time::{Duration, Instant, interval};
-    let mut heartbeat = interval(Duration::from_secs(15)); // Heartbeat every 15s
+    let mut heartbeat = interval(Duration::from_secs(5)); // Heartbeat every 15s
     let mut last_pong = Instant::now();
-    let timeout = Duration::from_secs(30); // 30s timeout for pong
+    let timeout = Duration::from_secs(10); // 30s timeout for pong
 
     loop {
         tokio::select! {
             // Send heartbeat ping
             _ = heartbeat.tick() => {
+                tracing::debug!("WebSocket heartbeat ping");
                 if socket.send(Message::Ping(Bytes::new())).await.is_err() {
+                    tracing::warn!("WebSocket heartbeat failed, closing connection");
+                    let _ = socket.send(Message::Close(None)).await;
                     break; // client disconnect
                 }
                 // If no pong received in timeout, close connection
@@ -138,15 +141,18 @@ async fn watch_receiver(
             msg = socket.recv() => {
                 match msg {
                     Some(Ok(Message::Pong(_))) => {
+                        tracing::debug!("WebSocket received pong");
                         last_pong = Instant::now(); // Reset pong timer
                     }
                     Some(Ok(Message::Close(_))) => {
+                        tracing::debug!("WebSocket client closed connection");
                         break; // client closed connection
                     }
                     Some(Ok(_)) => {
                         // Ignore other messages
                     }
                     Some(Err(_)) | None => {
+                        tracing::warn!("WebSocket error or client disconnected");
                         break; // error or client disconnected
                     }
                 }
