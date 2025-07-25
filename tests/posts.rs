@@ -368,6 +368,7 @@ async fn interim() -> Result<(), Box<dyn Error + Send + Sync>> {
 async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
     use axum::http::Uri;
     use futures::StreamExt;
+    use futures_util::SinkExt;
     use tokio_tungstenite::tungstenite;
 
     let (router, state) = init_test().await;
@@ -405,20 +406,27 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
     state.sender.send(AppMessage::Post(post.clone())).ok();
 
-    // Wait for and verify message reception
-    let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
-        .await?
-        .unwrap()?;
-
-    // Check content
-    match message {
-        tungstenite::Message::Text(text) => {
-            let json: serde_json::Value = serde_json::from_str(&text)?;
-            assert_eq!(json["key"], post.key);
-            assert!(json["html"].as_str().unwrap().contains(&post.key));
+    // Wait for and verify message reception, handling ping frames
+    let text = loop {
+        let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
+            .await?
+            .unwrap()?;
+        match message {
+            tungstenite::Message::Text(text) => break text,
+            tungstenite::Message::Ping(payload) => {
+                ws_client
+                    .send(tungstenite::Message::Pong(payload))
+                    .await
+                    .ok();
+                continue;
+            }
+            tungstenite::Message::Pong(_) => continue,
+            other => panic!("Expected text message, got {other:?}"),
         }
-        other => panic!("Expected text message, got {other:?}"),
-    }
+    };
+    let json: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(json["key"], post.key);
+    assert!(json["html"].as_str().unwrap().contains(&post.key));
 
     // Send test account as a message
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // Give connection time to establish
@@ -427,25 +435,32 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
         .send(AppMessage::Account(pending_account.clone()))
         .ok();
 
-    // Wait for and verify message reception
-    let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
-        .await?
-        .unwrap()?;
-
-    // Check content
-    match message {
-        tungstenite::Message::Text(text) => {
-            let json: serde_json::Value = serde_json::from_str(&text)?;
-            assert_eq!(json["username"], pending_account.username);
-            assert!(
-                json["html"]
-                    .as_str()
-                    .unwrap()
-                    .contains(&pending_account.username)
-            );
+    // Wait for and verify message reception, handling ping frames
+    let text = loop {
+        let message = tokio::time::timeout(tokio::time::Duration::from_secs(2), ws_client.next())
+            .await?
+            .unwrap()?;
+        match message {
+            tungstenite::Message::Text(text) => break text,
+            tungstenite::Message::Ping(payload) => {
+                ws_client
+                    .send(tungstenite::Message::Pong(payload))
+                    .await
+                    .ok();
+                continue;
+            }
+            tungstenite::Message::Pong(_) => continue,
+            other => panic!("Expected text message, got {other:?}"),
         }
-        other => panic!("Expected text message, got {other:?}"),
-    }
+    };
+    let json: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(json["username"], pending_account.username);
+    assert!(
+        json["html"]
+            .as_str()
+            .unwrap()
+            .contains(&pending_account.username)
+    );
 
     // Clean up
     ws_client.close(None).await?;
