@@ -144,6 +144,11 @@ async fn watch_receiver(
                         tracing::debug!("WebSocket received pong");
                         last_pong = Instant::now(); // Reset pong timer
                     }
+                    // Treat empty binary message as client heartbeat
+                    Some(Ok(Message::Binary(ref bytes))) if bytes.is_empty() => {
+                        tracing::debug!("WebSocket received client heartbeat (empty binary message)");
+                        last_pong = Instant::now(); // Reset pong timer
+                    }
                     Some(Ok(Message::Close(_))) => {
                         tracing::debug!("WebSocket client closed connection");
                         break; // client closed connection

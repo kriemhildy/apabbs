@@ -204,25 +204,13 @@ const MAX_RECONNECT_DURATION = 60_000;
 let webSocket;
 let reconnectDuration;
 let reconnectTimeout = null;
+let heartbeatInterval = null;
+const CLIENT_HEARTBEAT_PERIOD = 2_000; // 2 seconds
 
 /**
  * Processes incoming WebSocket messages containing post and account updates.
  */
 function handleWebSocketMessage(event) {
-    // Heartbeat: respond to binary ping (empty payload)
-    if (event.data instanceof Blob) {
-        event.data.arrayBuffer().then((buffer) => {
-            if (buffer.byteLength === 0) {
-                // Respond to empty ping with empty pong
-                if (webSocket && webSocket.readyState === WebSocket.OPEN) {
-                    webSocket.send(buffer); // send empty pong
-                }
-                return;
-            }
-            // If you want to handle non-empty ping payloads, add logic here
-        });
-        return;
-    }
     try {
         const json = JSON.parse(event.data);
         switch (json.type) {
@@ -265,6 +253,11 @@ function handleWebSocketClosed(event) {
         }
         reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
     }
+    // Stop client heartbeat
+    if (heartbeatInterval !== null) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
 }
 
 /**
@@ -275,6 +268,14 @@ function handleWebSocketOpened(_event) {
     reconnectTimeout = null;
     console.log("WebSocket connection established.");
     checkInterim();
+    // Start client heartbeat: send empty binary message every CLIENT_HEARTBEAT_PERIOD
+    if (heartbeatInterval === null) {
+        heartbeatInterval = setInterval(() => {
+            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                webSocket.send(new ArrayBuffer(0));
+            }
+        }, CLIENT_HEARTBEAT_PERIOD);
+    }
 }
 
 /**
