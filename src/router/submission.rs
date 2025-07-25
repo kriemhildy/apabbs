@@ -1,4 +1,4 @@
-//! Post Submission
+//! New post submissions
 //!
 //! This module handles the submission of new posts, including text and media uploads.
 //! It validates content, manages user sessions, and handles media encryption.

@@ -199,9 +199,9 @@ function checkInterim() {
 // -----------------------------------------------------------------------------
 
 const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-let webSocket;
 const MIN_RECONNECT_DURATION = 2_000;
 const MAX_RECONNECT_DURATION = 60_000;
+let webSocket;
 let reconnectDuration;
 let reconnectTimeout = null;
 
@@ -217,12 +217,13 @@ function handleWebSocketMessage(event) {
                 updatePost(json.key, json.html);
                 break;
             case "account":
-                console.log(`WebSocket: Received account update for ${json.username}.`);
                 switch (json.reason) {
                     case "owner":
+                        console.log(`WebSocket: Received update for your account.`);
                         updateActiveUsername(json.username);
                         break;
                     case "admin":
+                        console.log(`WebSocket: Received account update for ${json.username}.`);
                         updatePendingUsernames(json.username, json.html);
                         break;
                     default:
