@@ -453,6 +453,8 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let mut tx = state.db.begin().await?;
     post.delete(&mut tx).await?;
+    delete_test_account(&mut tx, &pending_account).await;
+    delete_test_account(&mut tx, &admin_account).await;
     tx.commit().await?;
     Ok(())
 }
