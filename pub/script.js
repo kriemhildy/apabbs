@@ -147,7 +147,7 @@ function updatePendingUsernames(username, html) {
     if (accountItem) {
         accountItem.remove();
         if (pendingList.children.length === 0) {
-            pendingList.addClass("hidden");
+            pendingList.classList.add("hidden");
         }
     } else {
         template.innerHTML = html;
