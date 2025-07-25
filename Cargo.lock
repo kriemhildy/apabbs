@@ -205,6 +205,7 @@ version = "0.46.0"
 dependencies = [
  "axum",
  "axum-extra",
+ "bytes",
  "ctor",
  "dotenv",
  "form-data-builder",

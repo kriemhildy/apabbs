@@ -13,7 +13,7 @@ use crate::{
 use axum::{
     extract::{
         State, WebSocketUpgrade,
-        ws::{Message, Utf8Bytes, WebSocket},
+        ws::{Utf8Bytes, WebSocket},
     },
     http::{HeaderMap, Method},
     response::Response,
@@ -95,18 +95,62 @@ async fn watch_receiver(
     mut receiver: Receiver<AppMessage>,
     user: User,
 ) {
-    while let Ok(msg) = receiver.recv().await {
-        let json = match msg {
-            AppMessage::Post(post) => post_message_json(&state, &post, &user),
-            AppMessage::Account(account) => account_message_json(&state, &account, &user),
-        };
-        if json.is_none() {
-            continue; // Skip if no JSON to send
-        }
-        let json_utf8 = Utf8Bytes::from(json.unwrap().to_string());
+    use axum::extract::ws::Message;
+    use bytes::Bytes;
+    use tokio::time::{Duration, Instant, interval};
+    let mut heartbeat = interval(Duration::from_secs(15)); // Heartbeat every 15s
+    let mut last_pong = Instant::now();
+    let timeout = Duration::from_secs(30); // 30s timeout for pong
 
-        if socket.send(Message::Text(json_utf8)).await.is_err() {
-            break; // client disconnect
+    loop {
+        tokio::select! {
+            // Send heartbeat ping
+            _ = heartbeat.tick() => {
+                if socket.send(Message::Ping(Bytes::new())).await.is_err() {
+                    break; // client disconnect
+                }
+                // If no pong received in timeout, close connection
+                if last_pong.elapsed() > timeout {
+                    tracing::warn!("WebSocket heartbeat timeout, closing connection");
+                    let _ = socket.send(Message::Close(None)).await;
+                    break;
+                }
+            }
+            // Send broadcast messages
+            msg = receiver.recv() => {
+                match msg {
+                    Ok(msg) => {
+                        let json = match msg {
+                            AppMessage::Post(post) => post_message_json(&state, &post, &user),
+                            AppMessage::Account(account) => account_message_json(&state, &account, &user),
+                        };
+                        if let Some(json) = json {
+                            let json_utf8 = Utf8Bytes::from(json.to_string());
+                            if socket.send(Message::Text(json_utf8)).await.is_err() {
+                                break; // client disconnect
+                            }
+                        }
+                    }
+                    Err(_) => break, // broadcast channel closed
+                }
+            }
+            // Receive messages from client (pong, etc)
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Pong(_))) => {
+                        last_pong = Instant::now(); // Reset pong timer
+                    }
+                    Some(Ok(Message::Close(_))) => {
+                        break; // client closed connection
+                    }
+                    Some(Ok(_)) => {
+                        // Ignore other messages
+                    }
+                    Some(Err(_)) | None => {
+                        break; // error or client disconnected
+                    }
+                }
+            }
         }
     }
 }

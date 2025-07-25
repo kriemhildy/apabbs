@@ -45,6 +45,7 @@ rand = ">=0.9.0"
 ctor = "*"
 sentry = { version = "*", optional = true }
 sentry-tracing = { version = "*", optional = true }
+bytes = "*"
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
