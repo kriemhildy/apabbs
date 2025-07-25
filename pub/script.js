@@ -206,11 +206,25 @@ let reconnectDuration;
 let reconnectTimeout = null;
 let heartbeatInterval = null;
 const CLIENT_HEARTBEAT_PERIOD = 2_000; // 2 seconds
+let lastPongTimestamp = Date.now();
+const PONG_TIMEOUT = 5000; // 5 seconds
 
 /**
  * Processes incoming WebSocket messages containing post and account updates.
  */
 function handleWebSocketMessage(event) {
+    // Detect zero-byte binary pong from server
+    if (event.data instanceof Blob) {
+        event.data.arrayBuffer().then((buffer) => {
+            if (buffer.byteLength === 0) {
+                console.log("WebSocket: Received empty binary message (heartbeat pong).");
+                lastPongTimestamp = Date.now();
+                return;
+            }
+            // ...existing code for non-empty binary...
+        });
+        return;
+    }
     try {
         const json = JSON.parse(event.data);
         switch (json.type) {
@@ -258,6 +272,7 @@ function handleWebSocketClosed(event) {
         clearInterval(heartbeatInterval);
         heartbeatInterval = null;
     }
+    lastPongTimestamp = Date.now();
 }
 
 /**
@@ -273,9 +288,15 @@ function handleWebSocketOpened(_event) {
         heartbeatInterval = setInterval(() => {
             if (webSocket && webSocket.readyState === WebSocket.OPEN) {
                 webSocket.send(new ArrayBuffer(0));
+                // If no pong received in PONG_TIMEOUT, close and reconnect
+                if (Date.now() - lastPongTimestamp > PONG_TIMEOUT) {
+                    console.warn("No pong received from server, reconnecting WebSocket...");
+                    webSocket.close();
+                }
             }
         }, CLIENT_HEARTBEAT_PERIOD);
     }
+    lastPongTimestamp = Date.now();
 }
 
 /**
