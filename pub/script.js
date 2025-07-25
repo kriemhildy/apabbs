@@ -209,6 +209,20 @@ let reconnectTimeout = null;
  * Processes incoming WebSocket messages containing post and account updates.
  */
 function handleWebSocketMessage(event) {
+    // Heartbeat: respond to binary ping (empty payload)
+    if (event.data instanceof Blob) {
+        event.data.arrayBuffer().then((buffer) => {
+            if (buffer.byteLength === 0) {
+                // Respond to empty ping with empty pong
+                if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                    webSocket.send(buffer); // send empty pong
+                }
+                return;
+            }
+            // If you want to handle non-empty ping payloads, add logic here
+        });
+        return;
+    }
     try {
         const json = JSON.parse(event.data);
         switch (json.type) {
