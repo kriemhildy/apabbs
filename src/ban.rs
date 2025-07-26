@@ -112,6 +112,7 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     .map_err(|e| format!("scrub posts: {e}").into())
 }
 
+/// Check if text contains any known spam words.
 pub async fn contains_spam_word(
     tx: &mut PgConnection,
     text: &str,
