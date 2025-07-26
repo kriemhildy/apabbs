@@ -205,23 +205,19 @@ let webSocket;
 let reconnectDuration;
 let reconnectTimeout = null;
 let heartbeatInterval = null;
-const CLIENT_HEARTBEAT_PERIOD = 2_000; // 2 seconds
-let lastPongTimestamp = Date.now();
-const PONG_TIMEOUT = 5000; // 5 seconds
+let lastPingTimestamp;
 
 /**
  * Processes incoming WebSocket messages containing post and account updates.
  */
 function handleWebSocketMessage(event) {
-    // Detect zero-byte binary pong from server
+    // Detect zero-byte binary ping from server for Safari heartbeat.
     if (event.data instanceof Blob) {
         event.data.arrayBuffer().then((buffer) => {
             if (buffer.byteLength === 0) {
-                console.log("WebSocket: Received empty binary message (heartbeat pong).");
-                lastPongTimestamp = Date.now();
+                lastPingTimestamp = Date.now();
                 return;
             }
-            // ...existing code for non-empty binary...
         });
         return;
     }
@@ -267,12 +263,33 @@ function handleWebSocketClosed(event) {
         }
         reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
     }
-    // Stop client heartbeat
-    if (heartbeatInterval !== null) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
+}
+
+/**
+ * Safari fails to disconnect WebSockets upon sleep, so we need to check for pings.
+ */
+function initSafariHeartbeatCheck() {
+    const ua = navigator.userAgent;
+    if (ua.includes("Safari") && !ua.includes("Chrome") && heartbeatInterval === null) {
+        const CHECK_HEARTBEAT_PERIOD = 2_000;
+        const PING_TIMEOUT = 5_000;
+
+        lastPingTimestamp = Date.now();
+
+        heartbeatInterval = setInterval(() => {
+            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                // If no ping received in PING_TIMEOUT, close and reconnect
+                if (Date.now() - lastPingTimestamp > PING_TIMEOUT) {
+                    console.warn("No ping received from server, closing WebSocket...");
+                    webSocket.close();
+                }
+            } else {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+                console.log("WebSocket is not open, stopping heartbeat checks.");
+            }
+        }, CHECK_HEARTBEAT_PERIOD);
     }
-    lastPongTimestamp = Date.now();
 }
 
 /**
@@ -283,20 +300,7 @@ function handleWebSocketOpened(_event) {
     reconnectTimeout = null;
     console.log("WebSocket connection established.");
     checkInterim();
-    // Start client heartbeat: send empty binary message every CLIENT_HEARTBEAT_PERIOD
-    if (heartbeatInterval === null) {
-        heartbeatInterval = setInterval(() => {
-            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
-                webSocket.send(new ArrayBuffer(0));
-                // If no pong received in PONG_TIMEOUT, close and reconnect
-                if (Date.now() - lastPongTimestamp > PONG_TIMEOUT) {
-                    console.warn("No pong received from server, reconnecting WebSocket...");
-                    webSocket.close();
-                }
-            }
-        }, CLIENT_HEARTBEAT_PERIOD);
-    }
-    lastPongTimestamp = Date.now();
+    initSafariHeartbeatCheck();
 }
 
 /**
@@ -307,6 +311,7 @@ function initWebSocket() {
     if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
         return;
     }
+    // send an argument if the client is Safari
     webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
     webSocket.onmessage = handleWebSocketMessage;
     webSocket.onclose = handleWebSocketClosed;

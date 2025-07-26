@@ -34,13 +34,23 @@ pub enum AccountRole {
     Admin,
 }
 
+/// Types of browsers
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Browser {
+    Chromium,
+    Safari,
+    Firefox,
+    Other,
+}
+
 /// Information about the user's browser, used for feature detection.
 #[derive(Serialize)]
 pub struct UserAgent {
     /// True if the browser is running on macOS.
     pub mac: bool,
-    /// True if the browser is based on Chromium (e.g., Chrome, Brave, Edge).
-    pub chromium: bool,
+    /// The user's browser type.
+    pub browser: Browser,
 }
 
 /// Represents a user in the system, either anonymous or authenticated.

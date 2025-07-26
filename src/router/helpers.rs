@@ -8,7 +8,7 @@ use super::{ROOT, errors::ResponseError};
 use crate::{
     ban::{self, Ban},
     post::{Post, PostStatus},
-    user::{Account, Credentials, User, UserAgent},
+    user::{Account, Browser, Credentials, User, UserAgent},
     utils::set_session_time_zone,
 };
 use axum::http::{HeaderMap, Method};
@@ -256,15 +256,18 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
 /// Analyze the User-Agent header to detect platform and browser engine.
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
-    let user_agent_str = match headers.get(USER_AGENT) {
+    let user_agent_str = match headers.get(USER_AGENT).and_then(|h| h.to_str().ok()) {
+        Some(ua) => ua,
         None => return None,
-        Some(header) => match header.to_str() {
-            Err(_) => return None,
-            Ok(ua) => ua,
-        },
+    };
+    let browser = match user_agent_str {
+        ua if ua.contains("Chrome") => Browser::Chromium,
+        ua if ua.contains("Safari") && !ua.contains("Chrome") => Browser::Safari,
+        ua if ua.contains("Firefox") => Browser::Firefox,
+        _ => Browser::Other,
     };
     Some(UserAgent {
         mac: user_agent_str.contains("Macintosh"),
-        chromium: user_agent_str.contains("Chrome"),
+        browser,
     })
 }

@@ -7,20 +7,24 @@ use super::{errors::ResponseError, helpers::init_user};
 use crate::{
     AppMessage, AppState,
     post::{Post, PostStatus},
-    user::{Account, AccountRole, User},
+    user::{Account, AccountRole, Browser, User},
     utils::render,
 };
 use axum::{
     extract::{
         State, WebSocketUpgrade,
-        ws::{Utf8Bytes, WebSocket},
+        ws::{Message, Utf8Bytes, WebSocket},
     },
     http::{HeaderMap, Method},
     response::Response,
 };
 use axum_extra::extract::CookieJar;
+use bytes::Bytes;
 use serde_json::json;
-use tokio::sync::broadcast::Receiver;
+use tokio::{
+    sync::broadcast::Receiver,
+    time::{Duration, interval},
+};
 
 /// Returns post message JSON
 fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde_json::Value> {
@@ -95,31 +99,19 @@ async fn watch_receiver(
     mut receiver: Receiver<AppMessage>,
     user: User,
 ) {
-    use axum::extract::ws::Message;
-    use bytes::Bytes;
-    use tokio::time::{Duration, Instant, interval};
-    let mut heartbeat = interval(Duration::from_secs(2)); // Heartbeat every 2s (matches client)
-    let mut last_pong = Instant::now();
-    let timeout = Duration::from_secs(10); // 30s timeout for pong
+    let mut heartbeat = interval(Duration::from_secs(2)); // Heartbeat every 2s
+    let is_safari = matches!(
+        user.agent.as_ref().map(|a| &a.browser),
+        Some(Browser::Safari)
+    );
 
     loop {
         tokio::select! {
-            // Send heartbeat ping and zero-byte binary pong
-            _ = heartbeat.tick() => {
-                tracing::debug!("WebSocket heartbeat ping and pong");
-                // Send protocol ping (optional, for legacy clients)
-                let _ = socket.send(Message::Ping(Bytes::new())).await;
-                // Send zero-byte binary pong for JS client liveness check
+            _ = heartbeat.tick(), if is_safari => {
+                // Send zero-byte binary ping for JS client liveness check
                 if socket.send(Message::Binary(Bytes::new())).await.is_err() {
-                    tracing::warn!("WebSocket heartbeat pong failed, closing connection");
-                    let _ = socket.send(Message::Close(None)).await;
+                    tracing::debug!("WebSocket heartbeat ping failed, closing connection");
                     break; // client disconnect
-                }
-                // If no pong received in timeout, close connection
-                if last_pong.elapsed() > timeout {
-                    tracing::warn!("WebSocket heartbeat timeout, closing connection");
-                    let _ = socket.send(Message::Close(None)).await;
-                    break;
                 }
             }
             // Send broadcast messages
@@ -138,31 +130,6 @@ async fn watch_receiver(
                         }
                     }
                     Err(_) => break, // broadcast channel closed
-                }
-            }
-            // Receive messages from client (pong, etc)
-            msg = socket.recv() => {
-                match msg {
-                    Some(Ok(Message::Pong(_))) => {
-                        tracing::debug!("WebSocket received pong");
-                        last_pong = Instant::now(); // Reset pong timer
-                    }
-                    // Treat empty binary message as client heartbeat
-                    Some(Ok(Message::Binary(ref bytes))) if bytes.is_empty() => {
-                        tracing::debug!("WebSocket received client heartbeat (empty binary message)");
-                        last_pong = Instant::now(); // Reset pong timer
-                    }
-                    Some(Ok(Message::Close(_))) => {
-                        tracing::debug!("WebSocket client closed connection");
-                        break; // client closed connection
-                    }
-                    Some(Ok(_)) => {
-                        // Ignore other messages
-                    }
-                    Some(Err(_)) | None => {
-                        tracing::warn!("WebSocket error or client disconnected");
-                        break; // error or client disconnected
-                    }
                 }
             }
         }

@@ -3,7 +3,7 @@
 {% set title = "[dev] " + host if dev else host %}
 {# Initialize user agent detection variables #}
 {% set mac = user.agent and user.agent.mac %}
-{% set chromium = user.agent and user.agent.chromium %}
+{% set chromium = user.agent and user.agent.browser == "chromium" %}
 <!DOCTYPE html>
 <html lang="en-US">
 
