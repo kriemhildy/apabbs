@@ -256,10 +256,7 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
 /// Analyze the User-Agent header to detect platform and browser engine.
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
     use axum::http::header::USER_AGENT;
-    let user_agent_str = match headers.get(USER_AGENT).and_then(|h| h.to_str().ok()) {
-        Some(ua) => ua,
-        None => return None,
-    };
+    let user_agent_str = headers.get(USER_AGENT).and_then(|h| h.to_str().ok())?;
     let browser = match user_agent_str {
         ua if ua.contains("Chrome") => Browser::Chromium,
         ua if ua.contains("Safari") && !ua.contains("Chrome") => Browser::Safari,
