@@ -311,7 +311,6 @@ function initWebSocket() {
     if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
         return;
     }
-    // send an argument if the client is Safari
     webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
     webSocket.onmessage = handleWebSocketMessage;
     webSocket.onclose = handleWebSocketClosed;
