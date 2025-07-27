@@ -87,6 +87,7 @@ function initDomElements() {
     template = document.createElement("template");
     template.content.addEventListener("templateUpdated", addSubmitConfirmations);
     template.content.addEventListener("templateUpdated", addFetchToForms);
+    template.content.addEventListener("templateUpdated", addPostHidingButtons);
     navElement = document.querySelector("nav");
     pendingList = document.querySelector("ul#pending-accounts");
 }
@@ -118,6 +119,17 @@ function fixChromiumVideoPosters(key) {
         });
     }
 }
+
+/**
+ * Add post hiding functionality to remove posts.
+ */
+function addPostHidingButtons(event) {
+    event.target.querySelectorAll("button.hide-post").forEach((button) => {
+        button.addEventListener("click", removeHiddenPost);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", addPostHidingButtons);
 
 /**
  * Removes a post from the DOM after it has been hidden.

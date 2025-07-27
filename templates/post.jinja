@@ -126,6 +126,6 @@
     {# Allow client-side hiding of reported/rejected/banned posts #}
     {% elif post.status in ["rejected", "banned"]
         or (post.status == "reported" and user.account.role == "mod") %}
-    <button onclick="removeHiddenPost(this)">Hide</button>
+    <button class="hide-post">Hide</button>
     {% endif %}
 </div>
