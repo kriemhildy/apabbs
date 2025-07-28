@@ -125,20 +125,13 @@ function fixChromiumVideoPosters(key) {
  */
 function addPostHidingButtons(event) {
     event.target.querySelectorAll("button.hide-post").forEach((button) => {
-        button.addEventListener("click", removeHiddenPost);
+        button.addEventListener("click", (event) => {
+            event.target.parentElement.remove();
+        });
     });
 }
 
 document.addEventListener("DOMContentLoaded", addPostHidingButtons);
-
-/**
- * Removes a post from the DOM after it has been hidden.
- */
-function removeHiddenPost(element) {
-    if (element.parentElement) {
-        element.parentElement.remove();
-    }
-}
 
 /**
  * Update the active username in the nav.
@@ -429,7 +422,7 @@ function afterSuccessfulFetch(form) {
             form.reset();
             break;
         case "/hide-post":
-            removeHiddenPost(form);
+            form.parentElement.remove();
             break;
         case "/review-account":
             removeAccountReviewItem(form);
