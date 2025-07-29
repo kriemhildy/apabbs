@@ -1,3 +1,10 @@
+0.47.0
+
+Add a WebSocket heartbeat for Safari so that the connection is re-established after sleep.
+Prevent creating a new account if one is already pending.
+Remove inline CSS and JavaScript in accordance with OWASP ZAP recommendations.
+Fix submit button disabling during fetch requests to work with <button> tags.
+
 0.46.0
 
 Require that admins approve new accounts.
