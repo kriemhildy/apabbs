@@ -59,7 +59,12 @@ pub async fn scrub_task() {
     .await;
 
     match result {
-        Err(e) => tracing::error!("Failed to scrub old IP hashes: {e}"),
+        Err(e) => {
+            let msg = format!("Failed to scrub old IP hashes: {e}");
+            tracing::error!("{msg}");
+            #[cfg(feature = "sentry")]
+            sentry::capture_message(&msg, sentry::Level::Error);
+        }
         Ok(_) => tracing::info!("Scrub task completed successfully"),
     }
 }
@@ -101,7 +106,19 @@ pub async fn screenshot_task(screenshot_path: &str) {
     .await;
 
     match result {
-        Err(e) => tracing::error!(screenshot_path, "Failed to take screenshot: {e}"),
+        Err(e) => {
+            let msg = format!("Failed to take screenshot: {e}");
+            tracing::error!(screenshot_path, "{msg}");
+            #[cfg(feature = "sentry")]
+            sentry::with_scope(
+                |scope| {
+                    scope.set_extra("screenshot_path", screenshot_path.into());
+                },
+                || {
+                    sentry::capture_message(&msg, sentry::Level::Error);
+                },
+            );
+        }
         Ok(_) => tracing::info!(screenshot_path, "Chromium screenshot saved"),
     }
 }

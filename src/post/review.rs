@@ -201,7 +201,17 @@ pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus)
     .await;
 
     if let Err(e) = result {
-        tracing::error!("Error in publish_media_task: {e}");
+        let msg = format!("Error in publish_media_task: {e}");
+        tracing::error!(post_key = post.key, "{msg}");
+        #[cfg(feature = "sentry")]
+        sentry::with_scope(
+            |scope| {
+                scope.set_extra("post_key", post.key.into());
+            },
+            || {
+                sentry::capture_message(&msg, sentry::Level::Error);
+            },
+        );
     }
 }
 
@@ -226,7 +236,17 @@ pub async fn unpublish_media_task(state: AppState, post: Post, status: PostStatu
     .await;
 
     if let Err(e) = result {
-        tracing::error!("Error in unpublish_media_task: {e}");
+        let msg = format!("Error in unpublish_media_task: {e}");
+        tracing::error!(post_key = post.key, "{msg}");
+        #[cfg(feature = "sentry")]
+        sentry::with_scope(
+            |scope| {
+                scope.set_extra("post_key", post.key.into());
+            },
+            || {
+                sentry::capture_message(&msg, sentry::Level::Error);
+            },
+        );
     }
 }
 
