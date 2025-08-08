@@ -179,12 +179,12 @@ pub async fn init_user(
             "CSRF token required for state-changing requests".to_string(),
         ));
     }
-    if let Some(csrf_token) = csrf_token {
-        if session_token != csrf_token {
-            return Err(ResponseError::Unauthorized(
-                "CSRF token mismatch: possible forgery attempt".to_string(),
-            ));
-        }
+    if let Some(csrf_token) = csrf_token
+        && session_token != csrf_token
+    {
+        return Err(ResponseError::Unauthorized(
+            "CSRF token mismatch: possible forgery attempt".to_string(),
+        ));
     }
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);

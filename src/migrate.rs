@@ -436,12 +436,11 @@ pub async fn retry_failed_tasks(state: AppState) {
     let mut tx = state.db.begin().await.expect("begin");
 
     // Get all posts that are in Processing state
-    let posts: Vec<Post> = sqlx::query_as(concat!(
-        "SELECT * FROM posts WHERE status = 'processing' ORDER BY id",
-    ))
-    .fetch_all(&mut *tx)
-    .await
-    .expect("select posts in processing state");
+    let posts: Vec<Post> =
+        sqlx::query_as("SELECT * FROM posts WHERE status = 'processing' ORDER BY id")
+            .fetch_all(&mut *tx)
+            .await
+            .expect("select posts in processing state");
 
     for post in posts {
         // Select the latest two review statuses for the post

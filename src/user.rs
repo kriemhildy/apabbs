@@ -368,14 +368,12 @@ impl Credentials {
         tx: &mut PgConnection,
         ip_hash: &str,
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
-        sqlx::query_scalar(concat!(
-            "SELECT EXISTS(SELECT 1 FROM accounts WHERE ip_hash = $1 AND role = $2)"
-        ))
-        .bind(ip_hash)
-        .bind(AccountRole::Pending)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| format!("pending account: {e}").into())
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE ip_hash = $1 AND role = $2)")
+            .bind(ip_hash)
+            .bind(AccountRole::Pending)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| format!("pending account: {e}").into())
     }
 }
 
