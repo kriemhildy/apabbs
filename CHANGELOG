@@ -1,3 +1,7 @@
+0.47.1
+
+Add Sentry reporting to failed background tasks.
+
 0.47.0
 
 Add a WebSocket heartbeat for Safari so that the connection is re-established after sleep.
