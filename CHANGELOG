@@ -1,3 +1,7 @@
+0.47.2
+
+Fix Tokio Sentry integration and add Sentry support for Axum.
+
 0.47.1
 
 Add Sentry reporting to failed background tasks.
