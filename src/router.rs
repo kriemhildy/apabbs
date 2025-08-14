@@ -23,7 +23,9 @@ pub const ROOT: &str = "/";
 pub fn init_router(state: AppState, trace: bool) -> axum::Router {
     use auth;
     use axum::{
+        body::Body,
         extract::DefaultBodyLimit,
+        http::Request,
         routing::{get, post},
     };
     use moderation;
@@ -79,6 +81,15 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         router.layer(trace_layer)
     } else {
         router
+    };
+
+    #[cfg(feature = "sentry")]
+    let router = {
+        use sentry::integrations::tower::NewSentryLayer;
+        use tower::ServiceBuilder;
+
+        // Bind a new Hub per request, to ensure correct error <> request correlation
+        router.layer(ServiceBuilder::new().layer(NewSentryLayer::<Request<Body>>::new_from_top()))
     };
 
     router.with_state(state)

@@ -43,9 +43,12 @@ tokio-util = { version = "*", features = ["io"] }
 url = "*"
 rand = ">=0.9.0"
 ctor = "*"
-sentry = { version = "*", optional = true }
+sentry = { version = "*", features = [
+    "tower-axum-matched-path",
+], optional = true }
 sentry-tracing = { version = "*", optional = true }
 bytes = "*"
+tower = { version = "*", optional = true }
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
@@ -57,4 +60,4 @@ futures-util = "*"
 
 [features]
 default = ["sentry"]
-sentry = ["dep:sentry", "dep:sentry-tracing"]
+sentry = ["dep:sentry", "dep:sentry-tracing", "dep:tower"]
