@@ -235,9 +235,7 @@ pub struct Credentials {
     pub session_token: Uuid,
     pub username: String,
     pub password: String,
-    #[serde(rename = "confirm_password")]
     pub confirm_password: Option<String>,
-    #[serde(rename = "year")]
     pub year: Option<String>,
 }
 
