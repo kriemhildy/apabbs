@@ -1,3 +1,7 @@
+0.48.0
+
+Rename the HOST env var to PROD_HOST.
+
 0.47.2
 
 Fix Tokio Sentry integration and add Sentry support for Axum.
