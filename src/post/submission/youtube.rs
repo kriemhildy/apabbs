@@ -8,7 +8,7 @@ use url::Url;
 pub const YOUTUBE_DIR: &str = "pub/youtube";
 
 /// Maximum number of YouTube video embeds allowed per post.
-pub const MAX_YOUTUBE_EMBEDS: usize = 16;
+pub const MAX_YOUTUBE_EMBEDS: usize = 10;
 
 /// Embeds YouTube video thumbnails in the post HTML, replacing links with embed markup.
 pub async fn embed_youtube(
