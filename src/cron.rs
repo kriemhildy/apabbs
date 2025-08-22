@@ -80,7 +80,7 @@ pub async fn screenshot_task(screenshot_path: &str) {
         let url = if crate::dev() {
             "http://localhost".to_string()
         } else {
-            format!("https://{}", crate::host())
+            format!("https://{}", crate::prod_host())
         };
         tracing::info!(url, screenshot_path, "Taking screenshot with Chromium...");
         let status = tokio::process::Command::new("chromium")

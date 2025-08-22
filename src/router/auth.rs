@@ -41,7 +41,7 @@ pub async fn login_form(
         "login.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::host(),
+            host => crate::prod_host(),
             user,
         ),
     )?);
@@ -67,7 +67,7 @@ pub async fn registration_form(
         "register.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::host(),
+            host => crate::prod_host(),
             user,
         ),
     )?);

@@ -73,7 +73,7 @@ pub async fn index(
         "index.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::host(),
+            host => crate::prod_host(),
             nav => true,
             user,
             posts,
@@ -109,7 +109,7 @@ pub async fn solo_post(
         "solo.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::host(),
+            host => crate::prod_host(),
             user,
             post,
         ),

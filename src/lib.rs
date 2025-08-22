@@ -49,9 +49,9 @@ pub fn dev() -> bool {
     std::env::var("DEV").is_ok_and(|v| v == "1")
 }
 
-/// Returns the host domain name for the application.
-pub fn host() -> String {
-    std::env::var("HOST").expect("Read HOST environment variable")
+/// Returns the production hostname for the application.
+pub fn prod_host() -> String {
+    std::env::var("PROD_HOST").expect("Read PROD_HOST environment variable")
 }
 
 /// Retrieves the application's secret key for secure operations.

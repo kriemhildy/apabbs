@@ -63,7 +63,7 @@ async fn index() -> Result<(), Box<dyn Error + Send + Sync>> {
     let body = response.into_body().collect().await?.to_bytes();
     let body_str = String::from_utf8(body.to_vec())?;
     assert!(body_str.contains(r#"<div id="posts">"#));
-    assert!(body_str.contains(&apabbs::host()));
+    assert!(body_str.contains(&apabbs::prod_host()));
     Ok(())
 }
 
