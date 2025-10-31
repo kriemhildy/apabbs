@@ -28,8 +28,6 @@ function addSubmitConfirmations(event) {
     });
 }
 
-document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
-
 // -----------------------------------------------------------------------------
 // Notification system for new items when tab is not active
 // -----------------------------------------------------------------------------
@@ -443,6 +441,9 @@ function addFetchToForms(event) {
 // -----------------------------------------------------------------------------
 
 const url = new URL(window.location.href);
+
+// Add submit confirmations on every page
+document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 
 // Only initialize WebSocket and dynamic content features on the homepage
 if (url.pathname === "/") {
