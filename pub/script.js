@@ -20,7 +20,6 @@ function confirmSubmit(event) {
 
 /**
  * Adds confirmation handlers to forms with a data-confirm attribute.
- * Runs when the DOM is loaded or templates are updated.
  */
 function addSubmitConfirmations(event) {
     event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
