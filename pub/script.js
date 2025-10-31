@@ -140,9 +140,9 @@ function updateActiveUsername(username) {
 }
 
 /**
- * Remove a pending username item from the DOM.
+ * Remove a pending account item from the DOM.
  */
-function removePendingUsername(accountItem) {
+function removePendingAccount(accountItem) {
     accountItem.remove();
     if (pendingList.children.length === 0) {
         pendingList.classList.add("hidden");
@@ -150,12 +150,12 @@ function removePendingUsername(accountItem) {
 }
 
 /**
- * Update admin pending usernames list.
+ * Update admin pending account list.
  */
-function updatePendingUsernames(username, html) {
+function updatePendingAccounts(username, html) {
     const accountItem = document.querySelector(`li#account-${username}`);
     if (accountItem) {
-        removePendingUsername(accountItem);
+        removePendingAccount(accountItem);
     } else {
         template.innerHTML = html;
         pendingList.appendChild(template.content);
@@ -243,7 +243,7 @@ function handleWebSocketMessage(event) {
                         break;
                     case "admin":
                         console.log(`WebSocket: Received account update for ${json.username}.`);
-                        updatePendingUsernames(json.username, json.html);
+                        updatePendingAccounts(json.username, json.html);
                         break;
                     default:
                         throw (`unknown account update reason: ${json.reason}`);
@@ -417,7 +417,7 @@ function afterSuccessfulFetch(form) {
             form.parentElement.remove();
             break;
         case "/review-account":
-            removePendingUsername(form.parentElement);
+            removePendingAccount(form.parentElement);
             break;
     }
 }
