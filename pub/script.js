@@ -167,7 +167,7 @@ function updatePendingUsernames(username, html) {
 }
 
 // -----------------------------------------------------------------------------
-// Fetch missed posts after tab becomes active or reconnection
+// Fetch missed posts after connection
 // -----------------------------------------------------------------------------
 
 /**
@@ -179,7 +179,7 @@ function latestPostKey() {
 }
 
 /**
- * Fetches posts created since the most recent visible post, used after reconnecting or resuming.
+ * Fetches posts created since the most recent visible post.
  */
 function checkInterim() {
     const key = latestPostKey();
