@@ -405,7 +405,7 @@ function removeAccountReviewItem(element) {
     const ul = li.parentElement;
     li.remove();
     if (ul.children.length === 0) {
-        ul.remove();
+        ul.classList.add("hidden");
     }
 }
 
