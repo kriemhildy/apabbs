@@ -138,7 +138,7 @@ document.addEventListener("DOMContentLoaded", addPostHidingButtons);
  */
 function updateActiveUsername(username) {
     if (username === undefined) {
-        navElement.innerHTML = `<a href="/login">[rejected]</a>`;
+        navElement.innerHTML = '<a href="/login">[rejected]</a>';
     } else {
         navElement.innerHTML = `<a href="/user/${username}">${username}</a>`;
     }
@@ -236,7 +236,7 @@ function handleWebSocketMessage(event) {
             case "account":
                 switch (json.reason) {
                     case "owner":
-                        console.log(`WebSocket: Received update for your account.`);
+                        console.log("WebSocket: Received update for your account.");
                         updateActiveUsername(json.username);
                         break;
                     case "admin":
