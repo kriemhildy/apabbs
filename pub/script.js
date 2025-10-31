@@ -140,15 +140,22 @@ function updateActiveUsername(username) {
 }
 
 /**
+ * Remove a pending username item from the DOM.
+ */
+function removePendingUsername(accountItem) {
+    accountItem.remove();
+    if (pendingList.children.length === 0) {
+        pendingList.classList.add("hidden");
+    }
+}
+
+/**
  * Update admin pending usernames list.
  */
 function updatePendingUsernames(username, html) {
     const accountItem = document.querySelector(`li#account-${username}`);
     if (accountItem) {
-        accountItem.remove();
-        if (pendingList.children.length === 0) {
-            pendingList.classList.add("hidden");
-        }
+        removePendingUsername(accountItem);
     } else {
         template.innerHTML = html;
         pendingList.appendChild(template.content);
@@ -398,18 +405,6 @@ function handleFormSubmit(event) {
 }
 
 /**
- * Remove an account reviewal list item from the DOM after fetch.
- */
-function removeAccountReviewItem(element) {
-    const li = element.parentElement;
-    const ul = li.parentElement;
-    li.remove();
-    if (ul.children.length === 0) {
-        ul.classList.add("hidden");
-    }
-}
-
-/**
  * Performs post-submission actions based on the form's action URL.
  */
 function afterSuccessfulFetch(form) {
@@ -422,7 +417,7 @@ function afterSuccessfulFetch(form) {
             form.parentElement.remove();
             break;
         case "/review-account":
-            removeAccountReviewItem(form);
+            removePendingUsername(form.parentElement);
             break;
     }
 }
