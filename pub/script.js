@@ -447,8 +447,7 @@ if (url.pathname === "/") {
         initDomElements,
         initUnseenItems,
         initWebSocket,
-        addFetchToForms,
-        addPostHidingButtons
+        addFetchToForms
     ]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
