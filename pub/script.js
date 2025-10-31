@@ -327,7 +327,7 @@ function initWebSocket() {
 function disableSubmitButtons() {
     document.querySelectorAll("button[type=submit]").forEach((button) => {
         if (button.disabled) {
-            button.dataset.keepDisabled = '';
+            button.dataset.keepDisabled = "";
         }
         button.disabled = true;
     });
