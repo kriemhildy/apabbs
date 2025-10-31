@@ -140,6 +140,7 @@ pub async fn init_user(
     headers: &HeaderMap,
     csrf_token: Option<Uuid>,
 ) -> Result<(User, CookieJar), ResponseError> {
+    // Attempt to retrieve and validate the account from the account cookie
     let account = match jar.get(ACCOUNT_COOKIE) {
         None => None,
         Some(cookie) => {
@@ -162,6 +163,7 @@ pub async fn init_user(
             }
         }
     };
+    // Retrieve or generate a session token from the session cookie
     let session_token = match jar.get(SESSION_COOKIE) {
         None => None,
         Some(cookie) => Uuid::try_parse(cookie.value()).ok(),
@@ -174,6 +176,7 @@ pub async fn init_user(
         }
         Some(token) => token,
     };
+    // Enforce CSRF protection for non-GET/HEAD requests
     if ![Method::GET, Method::HEAD].contains(&method) && csrf_token.is_none() {
         return Err(ResponseError::Unauthorized(
             "CSRF token required for state-changing requests".to_string(),
@@ -186,8 +189,10 @@ pub async fn init_user(
             "CSRF token mismatch: possible forgery attempt".to_string(),
         ));
     }
+    // Compute IP hash and analyze user agent for the session
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);
+    // Construct the User struct with gathered information
     let mut user = User {
         account,
         session_token,
@@ -195,7 +200,9 @@ pub async fn init_user(
         agent,
         ..User::default()
     };
+    // Set the session's time zone preference
     set_session_time_zone(tx, user.time_zone()).await?;
+    // Check for any active bans on the user
     user.ban_expires_at =
         Ban::exists(tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?;
     Ok((user, jar))
