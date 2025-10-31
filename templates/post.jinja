@@ -112,20 +112,18 @@
     {# Hide #}
     {###################################################################################}
     {# Allow post author to hide their own rejected posts #}
-    {% set session_token = post.session_token if post.session_token %}
-    {% set post_account_id = post.account_id if post.account_id %}
     {% if post.status == "rejected" and
-        (post.session_token and session_token == user.session_token
+        (post.session_token and post.session_token == user.session_token
             or (post.account_id and user.account
-                and post_account_id == user.account.id)) %}
+                and post.account_id == user.account.id)) %}
     <form action="/hide-post" method="post">
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="key" value="{{ post.key }}">
         <button type="submit">Hide</button>
     </form>
-    {# Allow client-side hiding of reported/rejected/banned posts #}
+    {# Allow client-side hiding of dynamically reported/rejected/banned posts #}
     {% elif post.status in ["rejected", "banned"]
-        or (post.status == "reported" and user.account.role == "mod") %}
+        or (post.status == "reported" and user.account.role != "admin") %}
     <button class="hide-post">Hide</button>
     {% endif %}
 </div>

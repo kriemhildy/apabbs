@@ -131,8 +131,6 @@ function addPostHidingButtons(event) {
     });
 }
 
-document.addEventListener("DOMContentLoaded", addPostHidingButtons);
-
 /**
  * Update the active username in the nav.
  */
@@ -448,7 +446,13 @@ const url = new URL(window.location.href);
 
 // Only initialize WebSocket and dynamic content features on the homepage
 if (url.pathname === "/") {
-    for (const fn of [initDomElements, initUnseenItems, initWebSocket, addFetchToForms]) {
+    for (const fn of [
+        initDomElements,
+        initUnseenItems,
+        initWebSocket,
+        addFetchToForms,
+        addPostHidingButtons
+    ]) {
         document.addEventListener("DOMContentLoaded", fn);
     }
 }
