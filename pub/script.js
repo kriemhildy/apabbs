@@ -280,13 +280,15 @@ function initSafariHeartbeatCheck() {
             if (webSocket && webSocket.readyState === WebSocket.OPEN) {
                 // If no ping received in PING_TIMEOUT, close and reconnect
                 if (Date.now() - lastPingTimestamp > PING_TIMEOUT) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
                     console.warn("No ping received from server, closing WebSocket...");
                     webSocket.close();
                 }
             } else {
                 clearInterval(heartbeatInterval);
                 heartbeatInterval = null;
-                console.log("WebSocket is not open, stopping heartbeat checks.");
+                console.log("WebSocket is not open, heartbeat checks stopped.");
             }
         }, CHECK_HEARTBEAT_PERIOD);
     }
