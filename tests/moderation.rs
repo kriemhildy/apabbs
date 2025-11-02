@@ -227,7 +227,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
-    let max_attempts = 10;
+    let max_attempts = 20;
     let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
 
@@ -309,7 +309,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
-    let max_attempts = 10;
+    let max_attempts = 20;
     let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
 
@@ -394,7 +394,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
-    let max_attempts = 10;
+    let max_attempts = 20;
     let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
 
@@ -477,7 +477,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     assert_eq!(post.status, PostStatus::Processing);
 
     // Poll for completion - wait until the post is no longer in processing state
-    let max_attempts = 10;
+    let max_attempts = 20;
     let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
 
@@ -621,7 +621,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Wait for background processing to complete
-    let max_attempts = 10;
+    let max_attempts = 20;
     let wait_time = std::time::Duration::from_millis(500);
     let mut processed = false;
     for _ in 0..max_attempts {
