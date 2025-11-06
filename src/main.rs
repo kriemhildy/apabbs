@@ -48,6 +48,7 @@ fn main() {
         }
     };
 
+    // Use block_on to prevent the Sentry guard from being dropped
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
