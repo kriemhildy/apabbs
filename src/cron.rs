@@ -75,21 +75,25 @@ pub fn create_scrub_job() -> Job {
 }
 
 /// Takes a screenshot of the homepage.
-pub async fn screenshot_task(screenshot_path: &str) {
+pub async fn screenshot_task(screenshot_path_str: &str) {
     let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         let url = if crate::dev() {
             "http://localhost".to_string()
         } else {
             format!("https://{}", crate::prod_host())
         };
-        tracing::info!(url, screenshot_path, "Taking screenshot with Chromium...");
-        let status = tokio::process::Command::new("chromium")
+        tracing::info!(
+            url,
+            screenshot_path_str,
+            "Taking screenshot with Chromium..."
+        );
+        let chromium_status = tokio::process::Command::new("chromium")
             .args([
                 "--headless",
                 "--hide-scrollbars",
                 "--force-dark-mode",
-                "--window-size=1920,1080",
-                &format!("--screenshot={screenshot_path}"),
+                "--window-size=1920,1180",
+                &format!("--screenshot={screenshot_path_str}"),
                 &url,
             ])
             .stderr(std::process::Stdio::null())
@@ -97,29 +101,64 @@ pub async fn screenshot_task(screenshot_path: &str) {
             .await
             .map_err(|e| format!("execute chromium: {e}"))?;
 
-        if status.success() {
-            Ok(())
-        } else {
-            Err(format!("Chromium exited with code: {:?}", status.code()).into())
+        if !chromium_status.success() {
+            return Err(format!("Chromium exited with code: {:?}", chromium_status.code()).into());
         }
+
+        // Crop the bottom 100 pixels to compensate for Chromium bug
+        let screenshot_path = std::path::Path::new(screenshot_path_str);
+
+        let extension = screenshot_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .ok_or("determine screenshot file extension")?;
+
+        let temp_path_str = screenshot_path
+            .with_extension(format!("tmp.{extension}"))
+            .to_string_lossy()
+            .to_string();
+
+        let vips_status = tokio::process::Command::new("vips")
+            .args([
+                "crop",
+                screenshot_path_str,
+                &temp_path_str,
+                "0",
+                "0",
+                "1920",
+                "1080",
+            ])
+            .status()
+            .await
+            .map_err(|e| format!("execute vips crop: {e}"))?;
+
+        if !vips_status.success() {
+            return Err(format!("vips crop exited with code: {:?}", vips_status.code()).into());
+        }
+
+        tokio::fs::rename(&temp_path_str, screenshot_path_str)
+            .await
+            .map_err(|e| format!("rename temp file: {e}"))?;
+
+        Ok(())
     }
     .await;
 
     match result {
         Err(e) => {
             let msg = format!("Failed to take screenshot: {e}");
-            tracing::error!(screenshot_path, "{msg}");
+            tracing::error!(screenshot_path_str, "{msg}");
             #[cfg(feature = "sentry")]
             sentry::with_scope(
                 |scope| {
-                    scope.set_extra("screenshot_path", screenshot_path.into());
+                    scope.set_extra("screenshot_path_str", screenshot_path_str.into());
                 },
                 || {
                     sentry::capture_message(&msg, sentry::Level::Error);
                 },
             );
         }
-        Ok(_) => tracing::info!(screenshot_path, "Chromium screenshot saved"),
+        Ok(_) => tracing::info!(screenshot_path_str, "Chromium screenshot saved"),
     }
 }
 
