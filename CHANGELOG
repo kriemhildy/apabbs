@@ -1,3 +1,7 @@
+0.48.1
+
+Fix empty space on the bottom of the Chromium screenshot.
+
 0.48.0
 
 Rename the HOST env var to PROD_HOST.
