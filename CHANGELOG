@@ -1,3 +1,7 @@
+0.48.2
+
+Avoid serving incomplete screenshot files.
+
 0.48.1
 
 Fix empty space on the bottom of the Chromium screenshot.
