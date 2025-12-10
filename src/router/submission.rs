@@ -18,7 +18,7 @@ use super::{
 };
 use crate::{
     AppMessage, AppState,
-    ban::{self, Ban},
+    ban::{Ban, SpamTerm},
     post::{
         media::encryption::encrypt_uploaded_file,
         submission::{PostSubmission, generate_key},
@@ -133,7 +133,7 @@ pub async fn submit_post(
     }
 
     // Ensure post does not contain a spam term
-    if ban::contains_spam_term(&mut tx, &post_submission.body).await? {
+    if SpamTerm::matches(&mut tx, &post_submission.body).await? {
         let ban = Ban {
             ip_hash: user.ip_hash.clone(),
             banned_account_id: user.account.as_ref().map(|a| a.id),

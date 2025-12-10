@@ -112,14 +112,45 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     .map_err(|e| format!("scrub posts: {e}").into())
 }
 
-/// Check if text contains any known spam terms.
-pub async fn contains_spam_term(
-    tx: &mut PgConnection,
-    text: &str,
-) -> Result<bool, Box<dyn Error + Send + Sync>> {
-    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM spam_terms WHERE $1 ~ term)")
-        .bind(text)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| format!("check for spam terms: {e}").into())
+/// Represents a spam term used for filtering content.
+#[derive(sqlx::FromRow, Default)]
+pub struct SpamTerm {
+    pub term: String,
+}
+
+impl SpamTerm {
+    /// Retrieves the latest spam terms from the database.
+    pub async fn select(
+        tx: &mut PgConnection,
+    ) -> Result<Vec<SpamTerm>, Box<dyn Error + Send + Sync>> {
+        sqlx::query_as("SELECT term FROM spam_terms ORDER BY id DESC LIMIT 100")
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(|e| format!("select spam terms: {e}").into())
+    }
+
+    /// Inserts a new spam term into the database.
+    pub async fn insert(
+        &self,
+        tx: &mut PgConnection,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        sqlx::query("INSERT INTO spam_terms (term) VALUES ($1)")
+            .bind(&self.term)
+            .execute(&mut *tx)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("insert spam term: {e}").into())
+    }
+
+    /// Check if text contains any known spam terms.
+    pub async fn matches(
+        tx: &mut PgConnection,
+        text: &str,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM spam_terms WHERE $1 ~ term)")
+            .bind(text)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| format!("check for spam terms: {e}").into())
+    }
 }
