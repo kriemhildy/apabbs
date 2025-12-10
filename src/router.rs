@@ -38,7 +38,6 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         // Public content routes
         .route(ROOT, get(posts::index))
         .route("/page/{key}", get(posts::index))
-        .route("/post/{key}", get(posts::solo_post))
         .route("/p/{key}", get(posts::solo_post))
         // Content creation and interaction
         .route("/submit-post", post(submission::submit_post))
