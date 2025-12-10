@@ -224,20 +224,20 @@ pub async fn delete_test_ban(tx: &mut PgConnection, ip_hash: &str) {
 
 /// Create a test spam word.
 #[allow(dead_code)]
-pub async fn create_test_spam_word(tx: &mut PgConnection, word: &str) {
-    sqlx::query("INSERT INTO spam_words (word) VALUES ($1)")
-        .bind(word)
+pub async fn create_test_spam_term(tx: &mut PgConnection, term: &str) {
+    sqlx::query("INSERT INTO spam_terms (term) VALUES ($1)")
+        .bind(term)
         .execute(tx)
         .await
-        .expect("insert test spam word");
+        .expect("insert test spam term");
 }
 
 /// Delete a test spam word.
 #[allow(dead_code)]
-pub async fn delete_test_spam_word(tx: &mut PgConnection, word: &str) {
-    sqlx::query("DELETE FROM spam_words WHERE word = $1")
-        .bind(word)
+pub async fn delete_test_spam_term(tx: &mut PgConnection, term: &str) {
+    sqlx::query("DELETE FROM spam_terms WHERE term = $1")
+        .bind(term)
         .execute(tx)
         .await
-        .expect("delete test spam word");
+        .expect("delete test spam term");
 }

@@ -22,7 +22,7 @@ use axum::{
 use form_data_builder::FormData;
 use helpers::{
     APPLICATION_WWW_FORM_URLENCODED, TEST_IP, create_test_account, create_test_post,
-    create_test_spam_word, delete_test_account, delete_test_ban, delete_test_spam_word, init_test,
+    create_test_spam_term, delete_test_account, delete_test_ban, delete_test_spam_term, init_test,
     test_user,
 };
 use std::error::Error;
@@ -142,12 +142,12 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-/// Tests automatic banning when creating a post containing a spam word.
+/// Tests automatic banning when creating a post containing a spam term.
 #[tokio::test]
-async fn spam_word_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn spam_term_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    create_test_spam_word(&mut tx, "SpamCompanyName").await;
+    create_test_spam_term(&mut tx, "SpamCompanyName").await;
     tx.commit().await?;
     let user = User {
         ip_hash: sha256::digest(apabbs::secret_key() + SPAM_BAN_IP),
@@ -180,7 +180,7 @@ async fn spam_word_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Clean up
     delete_test_ban(&mut tx, &user.ip_hash).await;
-    delete_test_spam_word(&mut tx, "SpamCompanyName").await;
+    delete_test_spam_term(&mut tx, "SpamCompanyName").await;
     tx.commit().await?;
     Ok(())
 }

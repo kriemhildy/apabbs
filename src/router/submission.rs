@@ -132,8 +132,8 @@ pub async fn submit_post(
         ));
     }
 
-    // Ensure post does not contain a spam word
-    if ban::contains_spam_word(&mut tx, &post_submission.body).await? {
+    // Ensure post does not contain a spam term
+    if ban::contains_spam_term(&mut tx, &post_submission.body).await? {
         let ban = Ban {
             ip_hash: user.ip_hash.clone(),
             banned_account_id: user.account.as_ref().map(|a| a.id),

@@ -112,14 +112,14 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     .map_err(|e| format!("scrub posts: {e}").into())
 }
 
-/// Check if text contains any known spam words.
-pub async fn contains_spam_word(
+/// Check if text contains any known spam terms.
+pub async fn contains_spam_term(
     tx: &mut PgConnection,
     text: &str,
 ) -> Result<bool, Box<dyn Error + Send + Sync>> {
-    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM spam_words WHERE $1 ~ word)")
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM spam_terms WHERE $1 ~ term)")
         .bind(text)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| format!("check for spam words: {e}").into())
+        .map_err(|e| format!("check for spam terms: {e}").into())
 }
