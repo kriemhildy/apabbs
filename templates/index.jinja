@@ -4,9 +4,6 @@
     <meta property="twitter:image" content="https://{{ host }}/screenshot.webp?{{ utc_hour_timestamp }}">
     <meta property="twitter:card" content="summary_large_image">
 {% endblock %}
-{% block title %}
-    <title>{{ title }}</title>
-{% endblock %}
 {% block main %}
 <main class="list">
     {% if user.account and user.account.role == "admin" %}

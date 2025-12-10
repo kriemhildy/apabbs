@@ -1,5 +1,8 @@
 {# User settings page template for account management #}
 {% extends "layout.jinja" %}
+{% block title %}
+    <title>{{ title_host }} &raquo; Settings</title>
+{% endblock %}
 {# Get account information from the user object #}
 {% set account = user.account %}
 {% block main %}

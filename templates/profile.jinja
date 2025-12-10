@@ -1,5 +1,8 @@
 {# User profile page template showing account information and posts #}
 {% extends "layout.jinja" %}
+{% block title %}
+    <title>{{ title_host }} &raquo; {{ account.username }}</title>
+{% endblock %}
 {% block main %}
 <main class="list">
     {# Display username as main heading #}

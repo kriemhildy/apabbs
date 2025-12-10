@@ -1,6 +1,6 @@
 {# Base layout template used by all pages in the application #}
 {# Add dev prefix in development mode #}
-{% set title = "[dev] " + host if dev else host %}
+{% set title_host = "[dev] " + host if dev else host %}
 {# Initialize user agent detection variables #}
 {% set mac = user.agent and user.agent.mac %}
 {% set chromium = user.agent and user.agent.browser == "chromium" %}
@@ -10,7 +10,7 @@
 <head>
     {# Title block that can be overridden by child templates #}
     {% block title %}
-    <title>{{ title }}</title>
+    <title>{{ title_host }}</title>
     {% endblock %}
     {# Main stylesheet with cache-busting parameter #}
     <link rel="stylesheet" href="/style.css?222">
@@ -46,7 +46,7 @@
     {% endif %}
     {# Page header with site title/logo #}
     <header>
-        <h1><a href="/">{{ title }}</a></h1>
+        <h1><a href="/">{{ title_host }}</a></h1>
     </header>
     {# Main content area - filled by child templates #}
     {% filter indent(4) %}
