@@ -12,7 +12,8 @@ use crate::{
     ban::{Ban, SpamTerm},
     post::{Post, PostStatus, media::encryption, review::PostReview},
     router::ROOT,
-    user::{Account, AccountRole}, utils::render,
+    user::{Account, AccountRole},
+    utils::render,
 };
 use axum::{
     Form,
@@ -191,7 +192,10 @@ pub async fn review_account(
     // Update the account role
     let review_account = review_account.update_role(&mut tx, role).await?;
     // Update WebSocket clients
-    state.sender.send(AppMessage::Account(review_account.clone())).ok();
+    state
+        .sender
+        .send(AppMessage::Account(review_account.clone()))
+        .ok();
 
     // If the account is rejected, delete it
     if review_account.role == AccountRole::Rejected {
@@ -363,4 +367,3 @@ pub async fn add_spam_term(
     let response = Redirect::to("/spam");
     Ok((jar, response).into_response())
 }
-
