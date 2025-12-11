@@ -5,6 +5,7 @@
 //! restrictions to prevent spam and flooding.
 
 use crate::utils::POSTGRES_RFC5322_DATETIME;
+use serde::Serialize;
 use sqlx::PgConnection;
 use std::error::Error;
 
@@ -113,7 +114,7 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
 }
 
 /// Represents a spam term used for filtering content.
-#[derive(sqlx::FromRow, Default)]
+#[derive(sqlx::FromRow, Default, Serialize)]
 pub struct SpamTerm {
     pub term: String,
 }
@@ -130,10 +131,7 @@ impl SpamTerm {
     }
 
     /// Inserts a new spam term into the database.
-    pub async fn insert(
-        &self,
-        tx: &mut PgConnection,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn insert(&self, tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("INSERT INTO spam_terms (term) VALUES ($1)")
             .bind(&self.term)
             .execute(&mut *tx)

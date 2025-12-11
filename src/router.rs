@@ -67,6 +67,9 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         .route("/review-post/{key}", post(moderation::review_post))
         .route("/decrypt-media/{key}", get(moderation::decrypt_media))
         .route("/review-account", post(moderation::review_account))
+        // Spam terms
+        .route("/spam", get(moderation::list_spam_terms))
+        .route("/spam/add-term", post(moderation::add_spam_term))
         // File size limit for uploads
         .layer(DefaultBodyLimit::max(26_214_400)); // 25 MiB
 

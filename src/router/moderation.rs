@@ -9,18 +9,19 @@ use super::{
 };
 use crate::{
     AppMessage, AppState,
-    ban::Ban,
+    ban::{Ban, SpamTerm},
     post::{Post, PostStatus, media::encryption, review::PostReview},
     router::ROOT,
-    user::{Account, AccountRole},
+    user::{Account, AccountRole}, utils::render,
 };
 use axum::{
     Form,
     extract::{Path, State},
     http::{HeaderMap, Method, StatusCode},
-    response::{IntoResponse, Redirect, Response},
+    response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 // ===========================
@@ -132,7 +133,7 @@ pub async fn review_post(
 }
 
 /// Form struct for account review submission.
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AccountReviewForm {
     pub session_token: Uuid,
     pub username: String,
@@ -261,3 +262,85 @@ pub async fn decrypt_media(
 
     Ok((jar, headers, media_bytes).into_response())
 }
+
+// =========================
+// Spam Term Endpoints
+// =========================
+
+/// Displays the list of spam terms for admin management.
+pub async fn list_spam_terms(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> Result<Response, ResponseError> {
+    let mut tx = state.db.begin().await?;
+
+    // Initialize user from session
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
+
+    // Verify user has admin privileges
+    if !user.admin() {
+        return Err(ResponseError::Unauthorized(
+            "Must be admin to view spam terms".to_string(),
+        ));
+    }
+
+    // Get all spam terms
+    let spam_terms = SpamTerm::select(&mut tx).await?;
+
+    // Render the page
+    let html = Html(render(
+        &state,
+        "spam.jinja",
+        minijinja::context!(
+            dev => crate::dev(),
+            host => crate::prod_host(),
+            nav => false,
+            user,
+            spam_terms,
+        ),
+    )?);
+
+    Ok((jar, html).into_response())
+}
+
+/// Represents a spam term form.
+#[derive(Serialize, Deserialize)]
+pub struct SpamTermForm {
+    /// Session token to invalidate during logout
+    pub session_token: Uuid,
+    /// The spam term to be added
+    pub term: String,
+}
+
+/// Adds a new spam term to the system.
+pub async fn add_spam_term(
+    method: Method,
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Form(form): Form<SpamTermForm>,
+) -> Result<Response, ResponseError> {
+    let mut tx = state.db.begin().await?;
+
+    // Initialize user from session
+    let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(form.session_token)).await?;
+
+    // Verify user has admin privileges
+    if !user.admin() {
+        return Err(ResponseError::Unauthorized(
+            "Must be admin to add spam terms".to_string(),
+        ));
+    }
+
+    // Add the spam term
+    let spam_term = SpamTerm { term: form.term };
+    spam_term.insert(&mut tx).await?;
+    tx.commit().await?;
+
+    // Redirect back to the spam terms page
+    let response = Redirect::to("/spam");
+    Ok((jar, response).into_response())
+}
+
