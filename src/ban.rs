@@ -121,13 +121,25 @@ pub struct SpamTerm {
 
 impl SpamTerm {
     /// Retrieves the latest spam terms from the database.
-    pub async fn select(
+    pub async fn select_latest(
         tx: &mut PgConnection,
     ) -> Result<Vec<SpamTerm>, Box<dyn Error + Send + Sync>> {
         sqlx::query_as("SELECT term FROM spam_terms ORDER BY id DESC LIMIT 100")
             .fetch_all(&mut *tx)
             .await
             .map_err(|e| format!("select spam terms: {e}").into())
+    }
+
+    /// Select a spam term by the term string.
+    pub async fn select_by_term(
+        tx: &mut PgConnection,
+        term: &str,
+    ) -> Result<Option<SpamTerm>, Box<dyn Error + Send + Sync>> {
+        sqlx::query_as("SELECT term FROM spam_terms WHERE term = $1")
+            .bind(term)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| format!("select spam term by term: {e}").into())
     }
 
     /// Inserts a new spam term into the database.

@@ -58,7 +58,7 @@ pub async fn review_post(
         Some(account) => account,
     };
     if ![AccountRole::Admin, AccountRole::Mod].contains(&account.role) {
-        return Err(ResponseError::Unauthorized(
+        return Err(ResponseError::Forbidden(
             "Must be admin or moderator".to_string(),
         ));
     };
@@ -153,20 +153,25 @@ pub async fn review_account(
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(form.session_token)).await?;
 
+    // Verify user is logged in
+    if user.account.is_none() {
+        return Err(ResponseError::Unauthorized("Not logged in".to_string()));
+    }
+
     // Verify user has admin privileges
     if !user.admin() {
-        return Err(ResponseError::Unauthorized(
+        return Err(ResponseError::Forbidden(
             "Must be admin to review accounts".to_string(),
         ));
     }
 
     // Get the account to review
-    let account = Account::select_by_username(&mut tx, &form.username)
+    let review_account = Account::select_by_username(&mut tx, &form.username)
         .await?
         .ok_or_else(|| ResponseError::NotFound("Account does not exist".to_string()))?;
 
     // Ensure account is pending
-    if account.role != AccountRole::Pending {
+    if review_account.role != AccountRole::Pending {
         return Err(ResponseError::BadRequest(
             "Account must be pending".to_string(),
         ));
@@ -184,13 +189,13 @@ pub async fn review_account(
     };
 
     // Update the account role
-    let account = account.update_role(&mut tx, role).await?;
+    let review_account = review_account.update_role(&mut tx, role).await?;
     // Update WebSocket clients
-    state.sender.send(AppMessage::Account(account.clone())).ok();
+    state.sender.send(AppMessage::Account(review_account.clone())).ok();
 
     // If the account is rejected, delete it
-    if account.role == AccountRole::Rejected {
-        account.delete(&mut tx).await?;
+    if review_account.role == AccountRole::Rejected {
+        review_account.delete(&mut tx).await?;
     }
 
     tx.commit().await?;
@@ -221,9 +226,14 @@ pub async fn decrypt_media(
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
+    // Verify user is logged in
+    if user.account.is_none() {
+        return Err(ResponseError::Unauthorized("Not logged in".to_string()));
+    }
+
     // Verify user has required privileges
     if !user.mod_or_admin() {
-        return Err(ResponseError::Unauthorized(
+        return Err(ResponseError::Forbidden(
             "Must be moderator or admin".to_string(),
         ));
     }
@@ -279,15 +289,20 @@ pub async fn list_spam_terms(
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
 
+    // Verify user is logged in
+    if user.account.is_none() {
+        return Err(ResponseError::Unauthorized("Not logged in".to_string()));
+    }
+
     // Verify user has admin privileges
     if !user.admin() {
-        return Err(ResponseError::Unauthorized(
+        return Err(ResponseError::Forbidden(
             "Must be admin to view spam terms".to_string(),
         ));
     }
 
-    // Get all spam terms
-    let spam_terms = SpamTerm::select(&mut tx).await?;
+    // Get latest spam terms
+    let spam_terms = SpamTerm::select_latest(&mut tx).await?;
 
     // Render the page
     let html = Html(render(
@@ -327,9 +342,14 @@ pub async fn add_spam_term(
     // Initialize user from session
     let (user, jar) = init_user(jar, &mut tx, method, &headers, Some(form.session_token)).await?;
 
+    // Verify user is logged in
+    if user.account.is_none() {
+        return Err(ResponseError::Unauthorized("Not logged in".to_string()));
+    }
+
     // Verify user has admin privileges
     if !user.admin() {
-        return Err(ResponseError::Unauthorized(
+        return Err(ResponseError::Forbidden(
             "Must be admin to add spam terms".to_string(),
         ));
     }

@@ -3,13 +3,16 @@
 mod helpers;
 
 use apabbs::{
-    ban::{self, Ban},
+    ban::{self, Ban, SpamTerm},
     post::{
         Post, PostStatus, media,
         review::PostReview,
         submission::{self, PostSubmission},
     },
-    router::helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
+    router::{
+        helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
+        moderation::SpamTermForm,
+    },
     user::{Account, AccountRole, User},
 };
 use axum::{
@@ -23,7 +26,7 @@ use form_data_builder::FormData;
 use helpers::{
     APPLICATION_WWW_FORM_URLENCODED, TEST_IP, create_test_account, create_test_post,
     create_test_spam_term, delete_test_account, delete_test_ban, delete_test_spam_term, init_test,
-    test_user,
+    response_body_str, test_user,
 };
 use std::error::Error;
 use tower::ServiceExt;
@@ -763,6 +766,118 @@ async fn delete_account() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Clean up
     let mut tx = state.db.begin().await?;
+    delete_test_account(&mut tx, admin_account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests visiting the spam terms page as an admin.
+#[tokio::test]
+async fn view_spam_terms_as_admin() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    tx.commit().await?;
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/spam")
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::empty())?;
+
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body_str = response_body_str(response).await;
+    assert!(
+        body_str.contains("<h2>Spam Terms</h2>"),
+        "Response body should contain spam terms header"
+    );
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    delete_test_account(&mut tx, admin_account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests visiting the spam terms page as a non-admin.
+#[tokio::test]
+async fn view_spam_terms_as_non_admin() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let user = create_test_account(&mut tx, AccountRole::Mod).await?;
+    let account = user.account.as_ref().unwrap();
+    tx.commit().await?;
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/spam")
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::empty())?;
+
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Add a spam term as an admin.
+#[tokio::test]
+async fn add_spam_term_as_admin() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    tx.commit().await?;
+
+    let spam_term_form = SpamTermForm {
+        session_token: admin_user.session_token,
+        term: "TestSpamTerm".to_string(),
+    };
+    let spam_term_form_str = serde_urlencoded::to_string(&spam_term_form)?;
+
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/spam/add-term")
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::from(spam_term_form_str))?;
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Verify the spam term was added
+    let mut tx = state.db.begin().await?;
+    let spam_term = SpamTerm::select_by_term(&mut tx, "TestSpamTerm").await?;
+    assert!(spam_term.is_some(), "Spam term should be added");
+    tx.commit().await?;
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    delete_test_spam_term(&mut tx, "TestSpamTerm").await;
     delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())

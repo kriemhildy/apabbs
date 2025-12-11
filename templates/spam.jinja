@@ -10,9 +10,8 @@
         {# Hidden session token for CSRF protection #}
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         {# Input field for new spam term #}
-        <label for="term">Spam Term:</label>
         <input id="term" type="text" name="term" maxlength="256" required>
-        <button type="submit">Add Term</button>
+        <button type="submit">Add term</button>
     </form>
     {% if spam_terms %}
     <ul>
