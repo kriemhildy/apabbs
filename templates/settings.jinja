@@ -50,9 +50,9 @@
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             <input type="hidden" name="username" value="{{ account.username }}">
             <label for="new-password">New password:</label>
-            <input id="new-password" type="password" name="password" maxlength="64" autocomplete="new-password">
+            <input id="new-password" type="password" name="password" maxlength="64" autocomplete="new-password" required>
             <label for="confirm-password">Confirm new password:</label>
-            <input id="confirm-password" type="password" name="confirm_password" maxlength="64" autocomplete="new-password">
+            <input id="confirm-password" type="password" name="confirm_password" maxlength="64" autocomplete="new-password" required>
             <button type="submit">Update password</button>
         </fieldset>
     </form>

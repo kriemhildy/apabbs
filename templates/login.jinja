@@ -13,10 +13,10 @@
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
             {# Username field with autocomplete support #}
             <label for="username">Username:</label>
-            <input id="username" type="text" name="username" maxlength="16" autocomplete="username">
+            <input id="username" type="text" name="username" maxlength="16" autocomplete="username" required>
             {# Password field with security constraints #}
             <label for="password">Password:</label>
-            <input id="password" type="password" name="password" maxlength="64" autocomplete="current-password">
+            <input id="password" type="password" name="password" maxlength="64" autocomplete="current-password" required>
             {# Remember me option (checked by default) #}
             <div class="checkbox-container">
                 <input type="checkbox" checked name="year" id="login-year">
