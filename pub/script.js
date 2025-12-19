@@ -441,13 +441,13 @@ function addFetchToForms(event) {
 // Initialization based on current page
 // -----------------------------------------------------------------------------
 
-const url = new URL(window.location.href);
+const locationUrl = new URL(window.location.href);
 
 // Add submit confirmations on every page
 document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 
 // Only initialize WebSocket and dynamic content features on the homepage
-if (url.pathname === "/") {
+if (locationUrl.pathname === "/") {
     for (const fn of [
         initDomElements,
         initUnseenItems,
