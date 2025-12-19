@@ -274,11 +274,18 @@ function handleWebSocketClosed(event) {
 }
 
 /**
+ * Check if the browser is Safari.
+ */
+function browserIsSafari() {
+    const ua = navigator.userAgent;
+    return ua.includes("Safari") && !ua.includes("Chrome");
+}
+
+/**
  * Safari fails to disconnect WebSockets upon sleep, so we need to check for pings.
  */
 function initSafariHeartbeatCheck() {
-    const ua = navigator.userAgent;
-    if (ua.includes("Safari") && !ua.includes("Chrome") && heartbeatInterval === null) {
+    if (browserIsSafari() && heartbeatInterval === null) {
         const CHECK_HEARTBEAT_PERIOD = 2_000;
         const PING_TIMEOUT = 5_000;
 
