@@ -213,6 +213,7 @@ let reconnectDuration;
 let reconnectTimeout = null;
 let heartbeatInterval = null;
 let lastPingTimestamp;
+let initialConnection = true;
 
 /**
  * Processes incoming WebSocket messages containing post and account updates.
@@ -308,7 +309,11 @@ function handleWebSocketOpened(_event) {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
     console.log("WebSocket connection established.");
-    checkInterim();
+    if (initialConnection) {
+        initialConnection = false;
+    } else {
+        checkInterim();
+    }
     initSafariHeartbeatCheck();
 }
 
