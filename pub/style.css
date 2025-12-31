@@ -17,7 +17,6 @@
     --rejected: rgb(37, 4, 4);
     --banned: rgb(105, 10, 10);
     --disabled: #444;
-    --header: #ebb9ec;
 }
 
 /* Light mode color scheme (activated by system preference) */
@@ -35,7 +34,6 @@
         --rejected: rgb(250, 226, 226);
         --banned: rgb(231, 102, 102);
         --disabled: #ccc;
-        --header: black;
     }
 }
 
@@ -136,7 +134,7 @@ nav a {
 
 h1 a {
     text-decoration: none;
-    color: var(--header);
+    color: var(--fore);
 }
 
 h1 {
