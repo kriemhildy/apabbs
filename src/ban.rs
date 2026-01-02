@@ -116,6 +116,7 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
 /// Represents a spam term used for filtering content.
 #[derive(sqlx::FromRow, Default, Serialize)]
 pub struct SpamTerm {
+    /// The spam term string.
     pub term: String,
 }
 

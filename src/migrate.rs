@@ -241,7 +241,9 @@ pub async fn uuid_to_key(state: AppState) {
     /// Structure to hold UUID-key pairs
     #[derive(sqlx::FromRow, Debug)]
     struct UuidKeyPair {
+        /// The UUID of the post.
         uuid: Uuid,
+        /// The key of the post.
         key: String,
     }
 

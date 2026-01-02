@@ -39,9 +39,13 @@ pub async fn process_video(
 /// Represents information about a video stream extracted by ffprobe.
 #[derive(Debug, Default)]
 pub struct StreamInfo {
+    /// The codec name of the stream.
     codec_name: Option<String>,
+    /// The pixel format of the stream.
     pix_fmt: Option<String>,
+    /// The profile of the stream.
     profile: Option<String>,
+    /// The level of the stream.
     level: Option<i32>,
 }
 

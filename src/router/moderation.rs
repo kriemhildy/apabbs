@@ -136,8 +136,11 @@ pub async fn review_post(
 /// Form struct for account review submission.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountReviewForm {
+    /// Session token of the admin user.
     pub session_token: Uuid,
+    /// Username of the account to be reviewed.
     pub username: String,
+    /// Intent of the review action.
     pub intent: String, // "approve" or "reject"
 }
 

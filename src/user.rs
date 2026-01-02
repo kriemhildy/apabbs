@@ -99,14 +99,22 @@ impl User {
 /// Contains all account details including credentials and preferences.
 #[derive(sqlx::FromRow, Serialize, Default, Clone, PartialEq)]
 pub struct Account {
+    /// The unique identifier for the account.
     pub id: i32,
+    /// The username chosen by the account holder.
     pub username: String,
+    /// The authentication token for the account.
     pub token: Uuid,
+    /// The hashed password for the account.
     pub password_hash: String,
+    /// The privilege level of the account.
     pub role: AccountRole,
+    /// The time zone preference of the account.
     pub time_zone: String,
+    /// The account creation timestamp in RFC 5322 format.
     #[sqlx(default)]
     pub created_at_rfc5322: Option<String>,
+    /// The account creation timestamp in HTML datetime format.
     #[sqlx(default)]
     pub created_at_html: Option<String>,
 }
@@ -194,7 +202,9 @@ impl Account {
 /// Represents a request to update a user's time zone preference.
 #[derive(Serialize, Deserialize)]
 pub struct TimeZoneUpdate {
+    /// The session token of the user making the request.
     pub session_token: Uuid,
+    /// The new time zone to set for the user.
     pub time_zone: String,
 }
 
@@ -232,10 +242,15 @@ impl TimeZoneUpdate {
 /// Represents user credentials for registration or authentication.
 #[derive(Serialize, Deserialize)]
 pub struct Credentials {
+    /// The session token for the user's session.
     pub session_token: Uuid,
+    /// The username provided by the user.
     pub username: String,
+    /// The password provided by the user.
     pub password: String,
+    /// The password confirmation provided by the user.
     pub confirm_password: Option<String>,
+    /// Indicates if the user wants to be remembered for a year.
     pub year: Option<String>,
 }
 
