@@ -104,15 +104,27 @@ function updatePost(key, html) {
         incrementUnseenItems();
     }
     fixChromiumVideoPosters(key);
+    fixSafariVideoLoading(key);
 }
 
 /**
  * Fixes a Chromium bug with dynamically added video poster attributes.
  */
 function fixChromiumVideoPosters(key) {
-    if (navigator.userAgent.includes("Chrome")) {
+    if (browserIsChromium()) {
         document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
             video.poster = video.poster;
+        });
+    }
+}
+
+/**
+ * Fixes a Safari bug with dynamically added video loading.
+ */
+function fixSafariVideoLoading(key) {
+    if (browserIsSafari()) {
+        document.querySelectorAll(`#post-${key} video`).forEach((video) => {
+            video.load();
         });
     }
 }
@@ -271,6 +283,14 @@ function handleWebSocketClosed(event) {
         }
         reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
     }
+}
+
+/**
+ * Check if the browser is Chromium-based.
+ */
+function browserIsChromium() {
+    const ua = navigator.userAgent;
+    return ua.includes("Chrome");
 }
 
 /**
