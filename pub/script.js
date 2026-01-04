@@ -289,8 +289,7 @@ function handleWebSocketClosed(event) {
  * Check if the browser is Chromium-based.
  */
 function browserIsChromium() {
-    const ua = navigator.userAgent;
-    return ua.includes("Chrome");
+    return navigator.userAgent.includes("Chrome");
 }
 
 /**
