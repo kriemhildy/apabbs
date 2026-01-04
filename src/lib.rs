@@ -40,7 +40,7 @@ pub fn per_page() -> usize {
         Ok(per_page) => per_page
             .parse()
             .expect("Parse PER_PAGE environment variable as integer"),
-        Err(_) => 1000,
+        Err(_) => 500,
     }
 }
 
