@@ -108,6 +108,21 @@ function updatePost(key, html) {
 }
 
 /**
+ * Check if the browser is Chromium-based.
+ */
+function browserIsChromium() {
+    return navigator.userAgent.includes("Chrome");
+}
+
+/**
+ * Check if the browser is Safari.
+ */
+function browserIsSafari() {
+    const ua = navigator.userAgent;
+    return ua.includes("Safari") && !ua.includes("Chrome");
+}
+
+/**
  * Fixes a Chromium bug with dynamically added video poster attributes.
  */
 function fixChromiumVideoPosters(key) {
@@ -283,21 +298,6 @@ function handleWebSocketClosed(event) {
         }
         reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
     }
-}
-
-/**
- * Check if the browser is Chromium-based.
- */
-function browserIsChromium() {
-    return navigator.userAgent.includes("Chrome");
-}
-
-/**
- * Check if the browser is Safari.
- */
-function browserIsSafari() {
-    const ua = navigator.userAgent;
-    return ua.includes("Safari") && !ua.includes("Chrome");
 }
 
 /**
