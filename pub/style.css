@@ -268,7 +268,7 @@ main.solo div.youtube-thumbnail img {
 main.list div.media img,
 main.list div.media video,
 main.list div.youtube-thumbnail img {
-    max-height: clamp(300px, 80vh, 1200px);
+    max-height: clamp(300px, 50vh, 1200px);
 }
 
 div.arrow a {
