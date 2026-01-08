@@ -48,6 +48,7 @@ Features
 - Simple Bash-based tools for deployment and syncing development with production.
 - Has both simple SQL migrations and more complicated Rust migrations to ensure earlier versions of
   the code can always be brought up to date.
+- Code is organized into reasonable categories and file lengths.
 
 Installation
 ------------
