@@ -1,13 +1,12 @@
 Anonymous Pre-Approval Bulletin Board System (APABBS)
 -----------------------------------------------------
 
-The general philosophy of this forum system is that moderation of posts after they are published
-is a bad strategy. Trolls are usually content to get their message heard even if it comes at the
-cost of their (temporary) ban.
-
-Thus the only way to really allow anonymous conversation is to review every single post prior to
-its publication. [Only this will ensure that the fullness of the varied experience of the moderator
-will not go to waste.]
+The philosophy of this application is that it is better to moderate posts before they are
+published. Bad actors are usually content to get their message heard even if it comes at the cost
+of their ban. Reactive moderation also causes unnecessary stress for moderators, as they have to be
+concerned about what has been posted at all hours of the day. There is also a time pressure on
+moderators to act quickly and make a judgment on something that has already been published, whereas
+it would be more comfortable to take their time with it in some cases.
 
 Installation
 ------------
