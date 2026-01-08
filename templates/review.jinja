@@ -27,7 +27,7 @@
         <input type="hidden" name="status" value="rejected">
         <button type="submit"{{ " disabled" if post.status == "rejected" }}>Reject</button>
     </form>
-    {# Ban form - admin-only action to ban content and potentially the poster #}
+    {# Ban form - admin-only action to delete content and temp IP ban the poster #}
     <form action="/review-post/{{ post.key }}" method="post" class="ban" data-confirm>
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <input type="hidden" name="status" value="banned">
