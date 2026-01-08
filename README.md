@@ -28,6 +28,7 @@ Features
 - WebSocket integration ensures that new posts show up immediately and update the page title so
   that it can be seen in another tab.
 - Various browser quirks in Chromium, Firefox and Safari have been addressed.
+- The site is designed to display well both on desktop and mobile.
 - Every request aside for uploading files should be handled extremely quickly by the server. All
   time-consuming activities are offloaded to background processes.
 - The site is designed to work perfectly without JavaScript, although JavaScript makes it better.
