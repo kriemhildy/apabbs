@@ -24,7 +24,8 @@ Features
 - Generates highly optimized WebP thumbnail files of images for fast loading on list pages while
   still retaining the original files on individual post pages for fidelity.
 - Supports a simple integration with YouTube that pulls video thumbnails.
-- Uses standard CSS and JavaScript with no external front-end libraries.
+- Uses standard human-readable CSS and JavaScript with no external front-end libraries.
+- HTML markup is clear and neatly indented.
 - WebSocket integration ensures that new posts show up immediately and update the page title so
   that it can be seen in another tab.
 - Various browser quirks in Chromium, Firefox and Safari have been addressed.
