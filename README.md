@@ -52,6 +52,7 @@ Features
 - Code is organized into reasonable categories and file lengths.
 - Has CSRF protection.
 - All uploads are encrypted on the disk until approved by a moderator.
+- Makes intelligent excerpts of posts with long text or multiple YouTube links.
 
 Installation
 ------------
