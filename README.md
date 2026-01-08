@@ -28,12 +28,12 @@ Features
 - WebSocket integration ensures that new posts show up immediately and update the page title so
   that it can be seen in another tab.
 - Various browser quirks in Chromium, Firefox and Safari have been addressed.
-- Every action aside for uploading files should be handled extremely quickly by the server. All
+- Every request aside for uploading files should be handled extremely quickly by the server. All
   time-consuming activities are offloaded to background processes.
 - The site is designed to work perfectly without JavaScript, although JavaScript makes it better.
 - Designed to work in both light and dark modes with dark mode as the default. This preference is
   automatically detected based on a user's operating system configuration.
-- All web actions have integration tests built for them including some error cases. The tests run
+- All web requests have integration tests built for them including some error cases. The tests run
   quickly.
 - Screenshots of the home page are taken every hour by Chromium. These screenshots are included if
   the URL of the home page is posted in any embeddable place (X, Discord). Individual post pages
