@@ -43,6 +43,8 @@ Features
 - Admins can add specific words or phrases as spam terms which similarly temp ban IPs.
 - Full error handling using standard Rust tools.
 - Supports Sentry integration for monitoring errors.
+- Full code commenting for use with rustdoc.
+- Simple Bash-based tools for deployment and syncing development with production.
 
 Installation
 ------------
