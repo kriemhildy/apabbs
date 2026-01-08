@@ -3,8 +3,6 @@
 {% block title %}
     <title>{{ title_host }} &raquo; Settings</title>
 {% endblock %}
-{# Get account information from the user object #}
-{% set account = user.account %}
 {% block main %}
 <main>
     {# Display notification messages if present #}
@@ -12,7 +10,7 @@
     {% set notice = notice %}
     <p id="notice">{{ notice }}</p>
     {% endif %}
-    {% if account.role == "pending" %}
+    {% if user.account.role == "pending" %}
     <p class="system">Your account is pending approval.</p>
     {% endif %}
     <h2>Settings</h2>
@@ -37,7 +35,7 @@
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
         <select name="time_zone">
             {% for tz in time_zones %}
-            <option value="{{ tz }}"{{ " selected" if tz == account.time_zone }}>{{ tz }}</option>
+            <option value="{{ tz }}"{{ " selected" if tz == user.account.time_zone }}>{{ tz }}</option>
             {% endfor %}
         </select>
         <button type="submit">Update</button>
@@ -48,7 +46,7 @@
     <form action="/settings/update-password" method="post" class="grid">
         <fieldset class="grid">
             <input type="hidden" name="session_token" value="{{ user.session_token }}">
-            <input type="hidden" name="username" value="{{ account.username }}">
+            <input type="hidden" name="username" value="{{ user.account.username }}">
             <label for="new-password">New password:</label>
             <input id="new-password" type="password" name="password" maxlength="64" autocomplete="new-password" required>
             <label for="confirm-password">Confirm new password:</label>
