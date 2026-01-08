@@ -41,6 +41,8 @@ Features
 - Users who create accounts can configure a time zone for displaying timestamps in.
 - Automatic flood detection prevents botlike behavior and auto-bans IP addresses for a month.
 - Admins can add specific words or phrases as spam terms which similarly temp ban IPs.
+- Full error handling using standard Rust tools.
+- Supports Sentry integration for monitoring errors.
 
 Installation
 ------------
