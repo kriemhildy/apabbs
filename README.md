@@ -17,11 +17,13 @@ Features
   command-line tools.
 - Asynchronous programming (via Tokio) massively reduces CPU downtime caused by I/O operations and
   background tasks, making the application more responsive for multiple users per CPU core.
+- Built using the Axum web framework, a simple but highly capable library under active development.
 - Supports any media format compatible with FFmpeg (pretty much everything). Less common video
   formats are converted to a web-compatible format that works in all major browsers (H.264 MP4 w/
   AAC).
 - Generates highly optimized WebP thumbnail files of images for fast loading on list pages while
   still retaining the original files on individual post pages for fidelity.
+- Supports a simple integration with YouTube that pulls video thumbnails.
 - Uses standard CSS and JavaScript with no external front-end libraries.
 - WebSocket integration ensures that new posts show up immediately and update the page title so
   that it can be seen in another tab.
