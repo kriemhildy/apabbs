@@ -3,7 +3,7 @@ Anonymous Pre-Approval Bulletin Board System (APABBS)
 
 The philosophy of this application is that it is better to moderate posts before they are
 published. Bad actors are usually content to get their message heard even if it comes at the cost
-of their ban. Reactive moderation also causes unnecessary stress for moderators, as they have to be
+of a ban. Reactive moderation also causes unnecessary stress for moderators, as they have to be
 concerned about what has been posted at all hours of the day. There is also a time pressure on
 moderators to act quickly and make a judgment on something that has already been published, whereas
 it would be more comfortable to take their time with it in some cases.
@@ -29,6 +29,16 @@ Features
 - Every action aside for uploading files should be handled extremely quickly by the server. All
   time-consuming activities are offloaded to background processes.
 - The site is designed to work perfectly without JavaScript, although JavaScript makes it better.
+- Designed to work in both light and dark modes with dark mode as the default. This preference is
+  automatically detected based on a user's operating system configuration.
+- All web actions have integration tests built for them including some error cases. The tests run
+  quickly.
+- Screenshots of the home page are taken every hour by Chromium. These screenshots are included if
+  the URL of the home page is posted in any embeddable place (X, Discord). Individual post pages
+  also have embed support.
+- Users who create accounts can configure a time zone for displaying timestamps in.
+- Automatic flood detection prevents botlike behavior and auto-bans IP addresses for a month.
+- Admins can add specific words or phrases as spam terms which similarly temp ban IPs.
 
 Installation
 ------------
