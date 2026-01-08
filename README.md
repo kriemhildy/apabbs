@@ -46,6 +46,8 @@ Features
 - Supports Sentry integration for monitoring errors.
 - Full code commenting for use with rustdoc.
 - Simple Bash-based tools for deployment and syncing development with production.
+- Has both simple SQL migrations and more complicated Rust migrations to ensure earlier versions of
+  the code can always be brought up to date.
 
 Installation
 ------------
