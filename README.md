@@ -8,6 +8,28 @@ concerned about what has been posted at all hours of the day. There is also a ti
 moderators to act quickly and make a judgment on something that has already been published, whereas
 it would be more comfortable to take their time with it in some cases.
 
+Features
+--------
+- Developed in Rust, so very fast and memory-safe. This highly reduces the risk of memory leaks or
+  buffer overflows (a major cause of security vulnerabilities), as well as generally reducing the
+  likelihood of bugs.
+- Has a small memory footprint and compiles quickly due to performing most CPU-intensive tasks via
+  command-line tools.
+- Asynchronous programming (via Tokio) massively reduces CPU downtime caused by I/O operations and
+  background tasks, making the application more responsive for multiple users per CPU core.
+- Supports any media format compatible with FFmpeg (pretty much everything). Less common video
+  formats are converted to a web-compatible format that works in all major browsers (H.264 MP4 w/
+  AAC).
+- Generates highly optimized WebP thumbnail files of images for fast loading on list pages while
+  still retaining the original files on individual post pages for fidelity.
+- Uses standard CSS and JavaScript with no external front-end libraries.
+- WebSocket integration ensures that new posts show up immediately and update the page title so
+  that it can be seen in another tab.
+- Various browser quirks in Chromium, Firefox and Safari have been addressed.
+- Every action aside for uploading files should be handled extremely quickly by the server. All
+  time-consuming activities are offloaded to background processes.
+- The site is designed to work perfectly without JavaScript, although JavaScript makes it better.
+
 Installation
 ------------
 
