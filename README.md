@@ -50,6 +50,7 @@ Features
 - Has both simple SQL migrations and more complicated Rust migrations to ensure earlier versions of
   the code can always be brought up to date.
 - Code is organized into reasonable categories and file lengths.
+- Has CSRF protection.
 
 Installation
 ------------
