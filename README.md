@@ -12,18 +12,15 @@ of the varied experience of the moderator will not go to waste.]
 Installation
 ------------
 
-1. install rust using rustup.
-2. install postgresql, pkg-config, rsync, gnupg, libvips-tools, ffmpeg and chromium.
-3. create a "gpg.key" file with a random string value.
-4. install sqlx-cli for postgres only:
-   cargo install sqlx-cli --no-default-features --features native-tls,postgres
-5. create a role with CREATEDB, LOGIN and PASSWORD in postgresql.
-6. copy .env.example to .env and set the variables as needed.
-7. install direnv and run "direnv allow".
-8. run "sqlx database setup" to create and migrate the database.
-9. configure a web server (e.g. nginx) to proxy to the app server.
-    this is necessary for serving assets (css, js, media). it is also
-    necessary for SSL encryption via certbot. this server will need to enable
-    web socket upgrades and X-Real-IP forwarding.
-10. run "cargo run" to start the app server in debug mode.
-11. access the app via "localhost" in a browser.
+1. Install Rust using `rustup`.
+2. Install PostgreSQL, pkg-config, rsync, GnuPG, VIPS, FFmpeg and Chromium. On Debian: `apt install postgresql pkg-config rsync gnupg libvips-tools ffmpeg chromium`
+3. Create a `gpg.key` file with a random string value: `gpg --gen-random 2 32 | base64 > gpg.key`
+4. Install sqlx-cli for Postgres only:
+   `cargo install sqlx-cli --no-default-features --features native-tls,postgres`
+5. Create a Postgres role (user account) with CREATEDB, LOGIN and PASSWORD privileges: `CREATE ROLE apabbs WITH CREATEDB LOGIN PASSWORD 'your_password';`
+6. Copy `.env.example` to `.env` and set the variables as appropriate.
+7. Install direnv and run `direnv allow`: `apt install direnv && direnv allow`
+8. Run `sqlx database setup` to create and migrate the database.
+9. Configure a web server (e.g. NGINX) to proxy to the app server. This is necessary for serving assets (CSS, JavaScript, media files). It is also necessary for SSL encryption via Certbot. This server will need to enable WebSocket upgrades and X-Real-IP forwarding.
+10. Run `cargo run` to start the app server in debug mode.
+11. Access the app via `http://localhost` in a browser.
