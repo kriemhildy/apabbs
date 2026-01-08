@@ -51,6 +51,7 @@ Features
   the code can always be brought up to date.
 - Code is organized into reasonable categories and file lengths.
 - Has CSRF protection.
+- All uploads are encrypted on the disk until approved by a moderator.
 
 Installation
 ------------
