@@ -240,6 +240,7 @@ div.media img,
 div.media video,
 div.youtube-thumbnail img {
     max-width: max(300px, calc(100% + 16px));
+    max-height: max(92vh, 800px);
     margin: 0 -8px;
     height: auto;
     width: auto;
