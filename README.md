@@ -10,22 +10,12 @@ it would be more comfortable to take their time with it in some cases.
 
 Features
 --------
-- Developed in Rust, so very fast and memory-safe. This highly reduces the risk of memory leaks or
-  buffer overflows (a major cause of security vulnerabilities), as well as generally reducing the
-  likelihood of bugs.
-- Has a small memory footprint and compiles quickly due to performing most CPU-intensive tasks via
-  command-line tools.
-- Asynchronous programming (via Tokio) massively reduces CPU downtime caused by I/O operations and
-  background tasks, making the application more responsive for multiple users per CPU core.
-- Built using the Axum web framework, a simple but highly capable library under active development.
 - Supports any media format compatible with FFmpeg (pretty much everything). Less common video
   formats are converted to a web-compatible format that works in all major browsers (H.264 MP4 w/
   AAC).
 - Generates highly optimized WebP thumbnail files of images for fast loading on list pages while
   still retaining the original files on individual post pages for fidelity.
 - Supports a simple integration with YouTube that pulls video thumbnails.
-- Uses standard human-readable CSS and JavaScript with no external front-end libraries.
-- HTML markup is clear and neatly indented.
 - WebSocket integration ensures that new posts show up immediately and update the page title so
   that it can be seen in another tab.
 - Various browser quirks in Chromium, Firefox and Safari have been addressed.
@@ -35,8 +25,6 @@ Features
 - Designed to work perfectly without JavaScript, although JavaScript makes it better.
 - Designed to work in both light and dark modes with dark mode as the default. This preference is
   automatically detected based on a user's operating system configuration.
-- All web requests have integration tests built for them including some error cases. The tests run
-  quickly.
 - Screenshots of the home page are taken every hour by Chromium. These screenshots are included if
   the URL of the home page is posted in any embeddable place (X, Discord). Individual post pages
   also have embed support.
@@ -45,14 +33,29 @@ Features
 - Admins can add specific words or phrases as spam terms which temp ban IPs.
 - Full error handling using standard Rust tools.
 - Supports Sentry integration for monitoring errors.
+- Has CSRF protection.
+- All uploads are encrypted on the disk until approved by a moderator.
+- Makes intelligent excerpts of posts with long text or multiple YouTube links.
+
+Technical Details
+-----------------
+- Developed in Rust, so very fast and memory-safe. This highly reduces the risk of memory leaks or
+  buffer overflows (a major cause of security vulnerabilities), as well as generally reducing the
+  likelihood of bugs.
+- Has a small memory footprint and compiles quickly due to performing most CPU-intensive tasks via
+  command-line tools.
+- Asynchronous programming (via Tokio) massively reduces CPU downtime caused by I/O operations and
+  background tasks, making the application more responsive for multiple users per CPU core.
+- Built using the Axum web framework, a simple but highly capable library under active development.
+- Uses standard human-readable CSS and JavaScript with no external front-end libraries.
+- HTML markup is clear and neatly indented.
+- All web requests have integration tests built for them including some error cases. The tests run
+  quickly.
 - Full code commenting for use with rustdoc.
 - Simple Bash-based tools for deployment and syncing development with production.
 - Has both simple SQL migrations and more complicated Rust migrations to ensure earlier versions of
   the code can always be brought up to date.
 - Code is organized into reasonable categories and file lengths.
-- Has CSRF protection.
-- All uploads are encrypted on the disk until approved by a moderator.
-- Makes intelligent excerpts of posts with long text or multiple YouTube links.
 
 Installation
 ------------
