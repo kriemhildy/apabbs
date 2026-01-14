@@ -35,6 +35,7 @@ Features
 - Has CSRF protection.
 - All uploads are encrypted on the disk until approved by a moderator.
 - Makes intelligent excerpts of posts with long text or multiple YouTube links.
+- Automatically scrub old IP data to increase user privacy.
 
 Technical Details
 -----------------
@@ -56,7 +57,6 @@ Technical Details
   the code can always be brought up to date.
 - Code is organized into reasonable categories and file lengths.
 - Full error handling using standard Rust tools.
-
 
 Installation
 ------------
