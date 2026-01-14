@@ -22,16 +22,15 @@ Features
 - Designed to display well both on desktop and mobile.
 - Every request is handled extremely quickly by the server. All time-consuming activities are
   offloaded to background tasks.
-- Designed to work perfectly without JavaScript, although JavaScript makes it better.
-- Designed to work in both light and dark modes with dark mode as the default. This preference is
+- Works perfectly without JavaScript, although JavaScript makes it better.
+- Supports both light and dark modes with dark mode as the default. This preference is
   automatically detected based on a user's operating system configuration.
 - Screenshots of the home page are taken every hour by Chromium. These screenshots are included if
   the URL of the home page is posted in any embeddable place (X, Discord). Individual post pages
   also have embed support.
 - Users who create accounts can configure a time zone for displaying timestamps in.
 - Automatic flood detection prevents botlike behavior and auto-bans IP addresses for a month.
-- Admins can add specific words or phrases as spam terms which temp ban IPs.
-- Full error handling using standard Rust tools.
+- Admins can add specific words or phrases as spam terms which auto-ban IPs.
 - Supports Sentry integration for monitoring errors.
 - Has CSRF protection.
 - All uploads are encrypted on the disk until approved by a moderator.
@@ -56,6 +55,8 @@ Technical Details
 - Has both simple SQL migrations and more complicated Rust migrations to ensure earlier versions of
   the code can always be brought up to date.
 - Code is organized into reasonable categories and file lengths.
+- Full error handling using standard Rust tools.
+
 
 Installation
 ------------
