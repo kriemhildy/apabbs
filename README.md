@@ -20,8 +20,8 @@ Features
   that it can be seen in another tab.
 - Various browser quirks in Chromium, Firefox and Safari have been addressed.
 - Designed to display well both on desktop and mobile.
-- Every request aside for uploading files should be handled extremely quickly by the server. All
-  time-consuming activities are offloaded to background processes.
+- Every request is handled extremely quickly by the server. All time-consuming activities are
+  offloaded to background tasks.
 - Designed to work perfectly without JavaScript, although JavaScript makes it better.
 - Designed to work in both light and dark modes with dark mode as the default. This preference is
   automatically detected based on a user's operating system configuration.
