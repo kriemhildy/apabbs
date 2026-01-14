@@ -67,7 +67,7 @@ Installation
 3. Create a `gpg.key` file with a random string value: `gpg --gen-random 2 32 | base64 > gpg.key`
 4. Install sqlx-cli for Postgres only:
    `cargo install sqlx-cli --no-default-features --features native-tls,postgres`
-5. Create a Postgres role (user account) with CREATEDB, LOGIN and PASSWORD privileges:
+5. Create a Postgres role with CREATEDB, LOGIN and PASSWORD privileges:
    `CREATE ROLE apabbs WITH CREATEDB LOGIN PASSWORD 'your_password';`
 6. Copy `.env.example` to `.env` and set the variables as appropriate.
 7. Run `direnv allow`.
