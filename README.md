@@ -29,6 +29,7 @@ Features
   the URL of the home page is posted in any embeddable place (X, Discord). Individual post pages
   also have embed support.
 - Users who create accounts can configure a time zone for displaying timestamps in.
+- Usernames must be approved by moderators.
 - Automatic flood detection prevents botlike behavior and auto-bans IP addresses for a month.
 - Admins can add specific words or phrases as spam terms which auto-ban IPs.
 - Supports Sentry integration for monitoring errors.
