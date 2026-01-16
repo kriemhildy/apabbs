@@ -13,7 +13,7 @@ Features
 - Supports any media format compatible with FFmpeg (pretty much everything). Less common video
   formats are converted to a web-compatible format that works in all major browsers (H.264 MP4 w/
   AAC).
-- Generates highly optimized WebP thumbnail files of images for fast loading on list pages while
+- Generates highly-optimized WebP thumbnail files of images for fast loading on list pages while
   still retaining the original files on individual post pages for fidelity.
 - Supports a simple integration with YouTube that pulls video thumbnails.
 - WebSocket integration ensures that new posts show up immediately and update the page title so
