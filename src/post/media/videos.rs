@@ -177,7 +177,12 @@ pub async fn generate_compatibility_video(
         .await
         .map_err(|e| format!("execute ffmpeg: {e}"))?;
     if !ffmpeg_output.status.success() {
-        return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
+        return Err(format!(
+            "ffmpeg failed, status: {}. stderr: {}",
+            ffmpeg_output.status,
+            String::from_utf8_lossy(&ffmpeg_output.stderr)
+        )
+        .into());
     }
     if !compat_video_path.exists() {
         return Err("compatibility video was not created successfully".into());
@@ -195,7 +200,7 @@ pub async fn generate_video_poster(
 ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
     tracing::debug!(video_path = ?video_path, "Generating video poster");
     let video_path_str = video_path.to_str().unwrap();
-    let poster_path = video_path.with_extension("webp");
+    let poster_path = video_path.with_extension("jpg");
     let poster_path_str = poster_path.to_str().unwrap();
     let ffmpeg_output = tokio::process::Command::new("ffmpeg")
         .args([
@@ -203,26 +208,25 @@ pub async fn generate_video_poster(
             "-i",
             video_path_str, // Input file
             "-ss",
-            "00:00:01.000", // Seek to 1 second into the video
+            "0", // Seek to start
             "-vframes",
             "1", // Extract a single video frame
             "-c:v",
-            "libwebp", // WebP format
-            "-lossless",
-            "0", // Use lossy compression
-            "-compression_level",
-            "6", // Compression level
-            "-quality",
-            "80", // Image quality
-            "-preset",
-            "picture",       // Optimize for still image
+            "mjpeg", // JPEG format
+            "-q:v",
+            "80",            // Quality
             poster_path_str, // Output file
         ])
         .output()
         .await
         .map_err(|e| format!("execute ffmpeg: {e}"))?;
     if !ffmpeg_output.status.success() {
-        return Err(format!("ffmpeg failed, status: {}", ffmpeg_output.status).into());
+        return Err(format!(
+            "ffmpeg failed, status: {}. stderr: {}",
+            ffmpeg_output.status,
+            String::from_utf8_lossy(&ffmpeg_output.stderr)
+        )
+        .into());
     }
     if !poster_path.exists() {
         return Err("poster image was not created successfully".into());
