@@ -15,10 +15,10 @@ fi
 # Step 1: Create a database snapshot on the production server
 ssh $SSH_APP_USER "cd $SSH_APP_PATH && script/snap.sh"
 
-# Step 2: Download the compressed database backup from the production server
+# Step 2: Download the compressed database snapshot from the production server
 scp $SSH_APP_USER:$SSH_APP_PATH/apabbs.sql.gz .
 
-# Step 3: Clean up the backup file on the production server to save space
+# Step 3: Clean up the snapshot file on the production server
 ssh $SSH_APP_USER "rm $SSH_APP_PATH/apabbs.sql.gz"
 
 # Step 4: Decompress the downloaded database backup

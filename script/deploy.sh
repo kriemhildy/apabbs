@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script deploys the application to the server or prepares it for local development.
+# This script deploys the application to the server.
 
 # Exit immediately if a command fails and print each command before executing
 set -xe
@@ -15,7 +15,7 @@ if ! [ "$DEV" == 1 ]; then
     # Update code repository with latest changes
     git pull
 
-    # Update Rust to the latest version (nice reduces CPU priority)
+    # Update Rust to the latest version
     nice rustup update
 
     # Compile the application in release mode
@@ -57,7 +57,7 @@ else
     # Stop the application service (requires sudo)
     ssh $SSH_SUDO_USER "sudo systemctl stop $SSH_SERVICE"
 
-    # Run database migrations
+    # Run migrations
     ssh $SSH_APP_USER "cd $SSH_APP_PATH && ~/.cargo/bin/sqlx migrate run && target/release/migrate"
 
     # Start the application service (requires sudo)
