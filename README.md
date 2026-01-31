@@ -77,8 +77,9 @@ Installation
 6. Copy `.env.example` to `.env` and set the variables as appropriate.
 7. Run `direnv allow`.
 8. Run `sqlx database setup` to create and migrate the database.
-9. Configure a web server (e.g. NGINX) to proxy to the app server. This is necessary for serving
+9. Run `cargo run --bin migrate` to execute the Rust migrations.
+10. Configure a web server (e.g. NGINX) to proxy to the app server. This is necessary for serving
    assets (CSS, JavaScript, media files). It is also necessary for SSL encryption via Certbot. This
    server will need to enable WebSocket upgrades and X-Real-IP forwarding.
-10. Run `cargo run` to start the app server in debug mode.
-11. Access the app via `http://localhost` in a browser.
+11. Run `cargo run` to start the app server in debug mode.
+12. Access the app via `http://localhost` in a browser.
