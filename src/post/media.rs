@@ -103,9 +103,9 @@ pub fn determine_media_type(
             "weba" => (Some(MediaCategory::Audio), "audio/webm"),
             "3gp" => (Some(MediaCategory::Audio), "audio/3gpp"),
             "3g2" => (Some(MediaCategory::Audio), "audio/3gpp2"),
-            _ => (None, APPLICATION_OCTET_STREAM),
+            _ => (Some(MediaCategory::Other), APPLICATION_OCTET_STREAM),
         },
-        None => (None, APPLICATION_OCTET_STREAM),
+        None => (Some(MediaCategory::Other), APPLICATION_OCTET_STREAM),
     };
     (media_category, Some(media_mime_type_str.to_string()))
 }
@@ -154,7 +154,7 @@ pub async fn publish_media(
     match post.media_category {
         Some(MediaCategory::Image) => images::process_image(tx, post).await?,
         Some(MediaCategory::Video) => videos::process_video(tx, post).await?,
-        Some(MediaCategory::Audio) | None => (),
+        Some(MediaCategory::Audio) | Some(MediaCategory::Other) | None => (),
     }
     Ok(())
 }
@@ -190,7 +190,7 @@ mod tests {
         assert_eq!(mime, Some("audio/mpeg".to_string()));
 
         let (category, mime) = determine_media_type(Some("document.pdf"));
-        assert_eq!(category, None);
+        assert_eq!(category, Some(MediaCategory::Other));
         assert_eq!(mime, Some(APPLICATION_OCTET_STREAM.to_string()));
 
         let (category, mime) = determine_media_type(None);

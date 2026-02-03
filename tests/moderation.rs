@@ -522,6 +522,84 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     Ok(())
 }
 
+/// Tests approving a post with an "other" media type.
+#[tokio::test]
+async fn approve_post_with_other_media_type() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let post_user = test_user(None);
+    let post = create_test_post(&mut tx, &post_user, Some("other.txt"), PostStatus::Pending).await;
+    let encrypted_media_path = post.encrypted_media_path();
+    let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
+    let admin_account = admin_user.account.as_ref().unwrap();
+    tx.commit().await?;
+
+    let post_review = PostReview {
+        session_token: admin_user.session_token,
+        status: PostStatus::Approved,
+    };
+    let post_review_str = serde_urlencoded::to_string(&post_review)?;
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/review-post/{}", &post.key))
+        .header(
+            COOKIE,
+            format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
+        )
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, admin_user.session_token),
+        )
+        .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::from(post_review_str))?;
+    let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Initial check - post should be in processing state
+    let mut tx = state.db.begin().await?;
+    let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+    tx.commit().await?;
+    assert_eq!(post.status, PostStatus::Processing);
+
+    // Poll for completion - wait until the post is no longer in processing state
+    let max_attempts = 20;
+    let wait_time = std::time::Duration::from_millis(500);
+    let mut processed = false;
+
+    for _ in 0..max_attempts {
+        tokio::time::sleep(wait_time).await;
+        let mut tx = state.db.begin().await?;
+        let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+        tx.commit().await?;
+        if post.status != PostStatus::Processing {
+            processed = true;
+            // After processing completes, verify all assets were created
+            let uploads_key_dir = encrypted_media_path.parent().unwrap();
+            assert!(!uploads_key_dir.exists());
+            assert!(post.published_media_path().exists());
+            assert!(post.thumb_filename.is_none());
+            assert!(post.media_width.is_none());
+            assert!(post.media_height.is_none());
+            break;
+        }
+    }
+
+    assert!(
+        processed,
+        "Background processing did not complete in the expected time"
+    );
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    let final_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+    media::delete_media_key_dir(&post.key).await?;
+    final_post.delete(&mut tx).await?;
+    delete_test_account(&mut tx, admin_account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
 /// Admin bans a post
 #[tokio::test]
 async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {

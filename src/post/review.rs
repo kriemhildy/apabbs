@@ -150,7 +150,7 @@ pub async fn process_action(
     status: PostStatus,
     action: ReviewAction,
 ) -> Result<Option<BoxFuture<'static, ()>>, Box<dyn Error + Send + Sync>> {
-    if post.media_category.is_none() {
+    if post.media_filename.is_none() {
         return Ok(None);
     }
 

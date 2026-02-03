@@ -40,6 +40,7 @@ pub enum MediaCategory {
     Image, // Images (jpg, png, webp, etc.)
     Video, // Video formats (mp4, webm, etc.)
     Audio, // Audio formats (mp3, wav, etc.)
+    Other, // Other media types
 }
 
 /// Represents a post in the system including its content, status, and associated media

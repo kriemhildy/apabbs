@@ -27,5 +27,8 @@
         <source src="{{ media_path }}" type="{{ mime_type }}">
         Audio "{{ media_filename }}"
     </audio>
+    {% elif post.media_category == "other" %}
+    {# Generic media handling for 'other' category #}
+    <a href="{{ media_path }}">{{ media_filename }}</a>
     {% endif %}
 </div>

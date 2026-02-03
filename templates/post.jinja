@@ -43,6 +43,7 @@
     {% elif user.account and (
         (user.account.role in ["admin", "mod"] and post.status == "pending")
         or (user.account.role == "admin" and post.status == "reported")) %}
+    {% set media_filename = post.media_filename %}
     {% set media_path = "/decrypt-media/" + post.key %}
     {% endif %}
     {% if media_path %}
