@@ -18,6 +18,12 @@ if ! [ "$DEV" == 1 ]; then
     # Update Rust to the latest version
     nice rustup update
 
+    # Update Cargo executables
+    nice cargo install-update -a
+
+    # Sweep old build artifacts to free up disk space
+    nice cargo sweep --installed
+
     # Compile the application in release mode
     nice cargo build --release
 
@@ -44,6 +50,12 @@ else
 
     # Update Rust to the latest version
     nice rustup update
+
+    # Update Cargo executables
+    nice cargo install-update -a
+
+    # Sweep old build artifacts to free up disk space
+    nice cargo sweep --installed
 
     # Run all tests to verify the code works correctly
     nice cargo test
