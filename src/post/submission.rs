@@ -105,7 +105,7 @@ impl PostSubmission {
 
 /// Generates a unique key for a post.
 pub async fn generate_key(tx: &mut PgConnection) -> Result<String, Box<dyn Error + Send + Sync>> {
-    use rand::{Rng, distr::Alphanumeric};
+    use rand::{RngExt, distr::Alphanumeric};
     loop {
         let key = rand::rng()
             .sample_iter(&Alphanumeric)
