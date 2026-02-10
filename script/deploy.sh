@@ -9,6 +9,9 @@ if ! [ "$DEV" == 1 ]; then
     # Server-side deployment steps
     # ----------------------------
 
+    # Load Cargo environment variables
+    source $HOME/.cargo/env
+
     # Update code repository with latest changes
     git pull
 
@@ -67,7 +70,7 @@ else
     ssh $SSH_SUDO_USER "sudo systemctl stop $SSH_SERVICE"
 
     # Run migrations
-    ssh $SSH_APP_USER "cd $SSH_APP_PATH && sqlx migrate run && cargo run --bin migrate"
+    ssh $SSH_APP_USER "cd $SSH_APP_PATH && ~/.cargo/bin/sqlx migrate run && target/release/migrate"
 
     # Start the application service (requires sudo)
     ssh $SSH_SUDO_USER "sudo systemctl start $SSH_SERVICE"
