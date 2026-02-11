@@ -3,8 +3,11 @@
 {% block title %}
     <title>{{ title_host }} &raquo; {{ account.username }}</title>
 {% endblock %}
+{% block body %}
+<body class="list">
+{% endblock %}
 {% block main %}
-<main class="list">
+<main>
     {# Display username as main heading #}
     <h2>{{ account.username }}</h2>
     {# Show user role (Novice, Member, Mod, Admin) #}

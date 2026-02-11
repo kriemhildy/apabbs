@@ -41,7 +41,7 @@
 body {
     margin: 8px auto;
     width: max-content;
-    max-width: calc(100% - clamp(16px, 3vw, 64px));
+    max-width: calc(100% - 32px);
 }
 
 /* Form element styling for consistent appearance. */
@@ -160,23 +160,27 @@ details.review form {
 }
 
 /* List page post layout and styling. */
-main.list div#posts {
+body.list div#posts {
     display: flex;
     flex-wrap: wrap;
     gap: 32px;
-    margin: 12px 0;
+    margin: 12px 8px;
     align-items: center;
 }
 
-main.list div.post {
+body.list div.post {
     flex: 250px;
 }
 
-main.list {
+body.list {
     margin-bottom: 50px;
 }
 
-main.solo div.post details.review {
+body.solo {
+    max-width: calc(100% - 16px);
+}
+
+body.solo div.post details.review {
     height: 45px;
 }
 
@@ -246,29 +250,29 @@ div.youtube-thumbnail img {
     width: auto;
 }
 
-main.list div.media img,
-main.list div.media video,
-main.list div.youtube-thumbnail img {
+body.list div.media img,
+body.list div.media video,
+body.list div.youtube-thumbnail img {
     /* Reduce brightness in dark mode to avoid discomfort. */
     filter: brightness(0.87);
 }
 
 /* Restore standard brightness in light mode. */
 @media (prefers-color-scheme: light) {
-    main.list div.media img,
-    main.list div.media video,
-    main.list div.youtube-thumbnail img {
+    body.list div.media img,
+    body.list div.media video,
+    body.list div.youtube-thumbnail img {
         filter: unset;
     }
 }
 
-main.solo div.youtube-thumbnail img {
+body.solo div.youtube-thumbnail img {
     max-height: 600px;
 }
 
-main.list div.media img,
-main.list div.media video,
-main.list div.youtube-thumbnail img {
+body.list div.media img,
+body.list div.media video,
+body.list div.youtube-thumbnail img {
     max-height: 350px;
 }
 

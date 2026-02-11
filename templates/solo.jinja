@@ -21,8 +21,11 @@
     {% endif %}
     {% endif %}
 {% endblock %}
+{% block body %}
+<body class="solo">
+{% endblock %}
 {% block main %}
-<main class="solo">
+<main>
     {# Include the post template with solo variable set #}
     {% set solo = true %}
     {% filter indent(4) %}
