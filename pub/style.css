@@ -163,13 +163,13 @@ details.review form {
 main.list div#posts {
     display: flex;
     flex-wrap: wrap;
-    gap: calc(1vh + 1vw + 16px);
+    gap: 32px;
     margin: 12px 0;
     align-items: center;
 }
 
 main.list div.post {
-    flex: clamp(300px, 34vh, 800px);
+    flex: 250px;
 }
 
 main.list {
@@ -231,7 +231,7 @@ div.post-body {
 
 div.media {
     margin: 0 auto;
-    min-width: 300px;
+    min-width: 250px;
     max-width: max-content;
     text-align: center;
 }
@@ -239,8 +239,8 @@ div.media {
 div.media img,
 div.media video,
 div.youtube-thumbnail img {
-    max-width: max(300px, calc(100% + 16px));
-    max-height: max(86vh, 600px);
+    max-width: max(250px, calc(100% + 16px));
+    max-height: max(84vh, 350px);
     margin: 0 -8px;
     height: auto;
     width: auto;
@@ -269,7 +269,7 @@ main.solo div.youtube-thumbnail img {
 main.list div.media img,
 main.list div.media video,
 main.list div.youtube-thumbnail img {
-    max-height: clamp(300px, 50vh, 1200px);
+    max-height: 350px;
 }
 
 div.arrow a {
