@@ -41,7 +41,7 @@
 body {
     margin: 8px auto;
     width: max-content;
-    max-width: calc(100% - max(16px, 3vw));
+    max-width: calc(100% - clamp(16px, 3vw, 64px));
 }
 
 /* Form element styling for consistent appearance. */
