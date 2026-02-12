@@ -1,63 +1,36 @@
 Anonymous Pre-Approval Bulletin Board System (APABBS)
 -----------------------------------------------------
 
-The philosophy of this application is that it is better to moderate posts before they are
+The philosophy of this software is that it is better to moderate posts before they are
 published. Bad actors are usually content to get their message heard even if it comes at the cost
-of a ban. Reactive moderation also causes unnecessary stress for moderators, as they have to be
-concerned about what has been posted at all hours of the day. There is also a time pressure on
+of a ban. Reactive moderation causes unnecessary stress for moderators, as they have to be
+concerned about what has been posted at all hours of the day. There is a time pressure on
 moderators to act quickly and make a judgment on something that has already been published, whereas
-it would be more comfortable to take their time with it in some cases.
+it would be more comfortable to take their time with it.
 
 Features
 --------
-- Supports any media format compatible with FFmpeg (pretty much everything). Less common video
-  formats are converted to a web-compatible format that works in all major browsers (H.264 MP4 w/
-  AAC).
-- Generates highly-optimized WebP thumbnail files of images for fast loading on list pages while
-  still retaining the original files on individual post pages for fidelity.
-- Supports a simple integration with YouTube that pulls video thumbnails.
-- WebSocket integration ensures that new posts show up immediately and update the page title so
-  that it can be seen in another tab.
-- Various browser quirks in Chromium, Firefox and Safari have been addressed.
-- Designed to display well both on desktop and mobile.
-- Every request is handled extremely quickly by the server. All time-consuming activities are
-  offloaded to background tasks.
-- Works perfectly without JavaScript, although JavaScript makes it better.
-- Supports both light and dark modes with dark mode as the default. This preference is
-  automatically detected based on a user's operating system configuration.
-- Screenshots of the home page are taken every hour by Chromium. These screenshots are included if
-  the URL of the home page is posted in any embeddable place (X, Discord). Individual post pages
-  also have embed support.
-- Users who create accounts can configure a time zone for displaying timestamps in.
-- Usernames must be approved by moderators.
-- Automatic flood detection prevents botlike behavior and auto-bans IP addresses for a month.
-- Admins can add specific words or phrases as spam terms which auto-ban IPs.
-- Supports Sentry integration for monitoring errors.
-- Has CSRF protection.
-- All uploads are encrypted on the disk until approved by a moderator.
-- Makes intelligent excerpts of posts with long text or multiple YouTube links.
-- Automatically scrub old IP data to increase user privacy.
-
-Technical Details
------------------
-- Developed in Rust, so very fast and memory-safe. This highly reduces the risk of memory leaks or
-  buffer overflows (a major cause of security vulnerabilities), as well as generally reducing the
-  likelihood of bugs.
-- Has a small memory footprint and compiles quickly due to performing most CPU-intensive tasks via
-  command-line tools.
-- Asynchronous programming (via Tokio) massively reduces CPU downtime caused by I/O operations and
-  background tasks, making the application more responsive for multiple users per CPU core.
-- Built using the Axum web framework, a simple but highly capable library under active development.
-- Uses standard human-readable CSS and JavaScript with no external front-end libraries.
-- HTML markup is clear and neatly indented.
-- All web requests have integration tests built for them including some error cases. The tests run
-  quickly.
-- Full code commenting for use with rustdoc.
-- Simple Bash-based tools for deployment and syncing development with production.
-- Has both simple SQL migrations and more complicated Rust migrations to ensure earlier versions of
-  the code can always be brought up to date.
-- Code is organized into reasonable categories and file lengths.
-- Full error handling using standard Rust tools.
+- Supports images, video, text and Youtube links.
+- Adds new posts to the homepage via WebSocket.
+- Displays well at various browser sizes including mobile.
+- Tuned for Chrome, Firefox and Safari.
+- Extremely fast responses to all requests.
+- File uploads are encrypted until approved.
+- Works without JavaScript.
+- Usernames must be approved by the admins.
+- Spam prevention by auto-banning keywords.
+- Flood protection.
+- Hashes and scrubs IP data to protect user privacy.
+- Light and dark mode determined by OS preference.
+- Embed functionality when linked on Twitter or Discord.
+- Rust memory safety prevents leaks and overflow attacks.
+- Small memory footprint.
+- Optimal CPU core usage due to asynchronous programming with Tokio.
+- CSRF protection.
+- HTML, CSS, and JS are easy to read by users.
+- All code is well-commented and organized.
+- Full integration testing.
+- Full error handling.
 
 Documentation
 -------------
