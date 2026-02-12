@@ -1,12 +1,12 @@
 //! Anonymous Pre-Approval Bulletin Board System (APABBS)
 //! -----------------------------------------------------
 //!
-//! The philosophy of this application is that it is better to moderate posts before they are
+//! The philosophy of this software is that it is better to moderate posts before they are
 //! published. Bad actors are usually content to get their message heard even if it comes at the cost
-//! of a ban. Reactive moderation also causes unnecessary stress for moderators, as they have to be
-//! concerned about what has been posted at all hours of the day. There is also a time pressure on
+//! of a ban. Reactive moderation causes unnecessary stress for moderators, as they have to be
+//! concerned about what has been posted at all hours of the day. There is a time pressure on
 //! moderators to act quickly and make a judgment on something that has already been published, whereas
-//! it would be more comfortable to take their time with it in some cases.
+//! it would be more comfortable to take their time with it.
 
 // ==============================================================================
 // Module Declarations

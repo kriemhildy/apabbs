@@ -44,7 +44,7 @@ Installation
    `apt install postgresql pkg-config rsync gnupg libvips-tools ffmpeg chromium direnv`
 3. Create a `gpg.key` file with a random string value: `gpg --gen-random 2 32 | base64 > gpg.key`
 4. Install Cargo packages: `cargo install sqlx-cli cargo-sweep cargo-update`
-5. Create a Postgres role with CREATEDB, LOGIN and PASSWORD privileges:
+5. Create a Postgres role with CREATEDB and LOGIN privileges:
    `CREATE ROLE apabbs WITH CREATEDB LOGIN PASSWORD 'your_password';`
 6. Copy `.env.example` to `.env` and set the variables as appropriate.
 7. Run `direnv allow`.
