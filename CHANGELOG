@@ -1,3 +1,11 @@
+0.51.0
+
+Simplify CSS, avoiding Chrome resizing lag issues.
+Add a margin on the list pages.
+Reduce thumbnail and gap size.
+Reduce text intro limit size.
+Update deployment script to delete old build artifacts.
+
 0.50.0
 
 Support "other" media types.
