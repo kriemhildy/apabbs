@@ -30,7 +30,7 @@ Features
 - HTML, CSS, and JS are easy to read by users.
 - All code is well-commented and organized.
 - Full integration testing.
-- Full error handling.
+- Full error handling including Sentry integration.
 
 Documentation
 -------------
