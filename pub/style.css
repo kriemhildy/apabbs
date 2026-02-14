@@ -1,10 +1,7 @@
 /* Application stylesheet.
-   Defines layout, color palette, and responsive behavior for the app.
-   Uses CSS variables for theming and supports dark and light modes. */
+   Defines layout, color palette, and responsive behavior for the app. */
 
-/* Color variables for dark and light modes. All colors are referenced via these variables. */
 :root {
-    /* Dark mode color scheme (default) */
     --back: black;
     --fore: #e3e3e3;
     --border: #777;
@@ -17,24 +14,6 @@
     --rejected: rgb(37, 4, 4);
     --banned: rgb(105, 10, 10);
     --disabled: #444;
-}
-
-/* Light mode color scheme (activated by system preference) */
-@media (prefers-color-scheme: light) {
-    :root {
-        --back: white;
-        --fore: black;
-        --border: #ccc;
-        --system: black;
-        --review: rgb(63, 63, 63);
-        --pending: #eeeeee;
-        --processing: #eeeeee;
-        --delisted: rgb(97, 156, 223);
-        --reported: rgb(243, 186, 243);
-        --rejected: rgb(250, 226, 226);
-        --banned: rgb(231, 102, 102);
-        --disabled: #ccc;
-    }
 }
 
 /* Base layout for body and common elements. */
@@ -252,17 +231,8 @@ div.youtube-thumbnail img {
 body.list div.media img,
 body.list div.media video,
 body.list div.youtube-thumbnail img {
-    /* Reduce brightness in dark mode to avoid discomfort. */
+    /* Reduce brightness on list page to avoid discomfort. */
     filter: brightness(0.87);
-}
-
-/* Restore standard brightness in light mode. */
-@media (prefers-color-scheme: light) {
-    body.list div.media img,
-    body.list div.media video,
-    body.list div.youtube-thumbnail img {
-        filter: unset;
-    }
 }
 
 body.solo div.youtube-thumbnail img {
@@ -339,12 +309,6 @@ div.youtube {
 div.youtube-logo img {
     height: 1.7em;
     filter: brightness(0.2) invert(1);
-}
-
-@media (prefers-color-scheme: light) {
-    div.youtube-logo img {
-        filter: saturate(0) brightness(0.2);
-    }
 }
 
 div.checkbox-container {

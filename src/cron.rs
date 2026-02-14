@@ -103,7 +103,6 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
             .args([
                 "--headless",
                 "--hide-scrollbars",
-                "--force-dark-mode",
                 "--window-size=1920,1180",
                 &format!("--screenshot={raw_path_str}"),
                 &url,

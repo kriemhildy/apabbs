@@ -21,7 +21,6 @@ Features
 - Spam prevention by auto-banning keywords.
 - Flood protection.
 - Hashes and scrubs IP data to protect user privacy.
-- Light and dark mode determined by OS preference.
 - Embed functionality when linked on Twitter or Discord.
 - Rust memory safety prevents leaks and overflow attacks.
 - Small memory footprint.

@@ -1,18 +1,10 @@
 /* Custom scrollbar styling.
-   Applies themed scrollbar colors for Chromium browsers on non-Mac systems.
-   Supports dark and light modes. */
+   Applies themed scrollbar colors for Chromium browsers on non-Mac systems. */
 
 :root {
-    --track: #0f0f0f;   /* Scrollbar track color (dark mode) */
-    --thumb: #ccc;      /* Scrollbar thumb color (dark mode) */
+    --track: #0f0f0f;   /* Scrollbar track color */
+    --thumb: #ccc;      /* Scrollbar thumb color */
     scrollbar-color: var(--thumb) var(--track);
-}
-
-@media (prefers-color-scheme: light) {
-    :root {
-        --track: #f2f2f2;   /* Scrollbar track color (light mode) */
-        --thumb: #666;      /* Scrollbar thumb color (light mode) */
-    }
 }
 
 /* Chromium-specific scrollbar styles. */
