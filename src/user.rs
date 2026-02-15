@@ -24,8 +24,8 @@ pub enum AccountRole {
     Pending,
     /// New account which has been rejected and will be deleted
     Rejected,
-    /// Approved new account with limited privileges
-    Novice,
+    /// Approved account with limited privileges
+    Restricted,
     /// Regular account with standard privileges
     Member,
     /// Moderator with elevated access for content management
@@ -481,19 +481,19 @@ mod tests {
         assert!(!anon_user.admin());
         assert_eq!(anon_user.time_zone(), "UTC");
 
-        // Test novice user
-        let novice_user = User {
+        // Test restricted user
+        let restricted_user = User {
             account: Some(Account {
-                role: AccountRole::Novice,
+                role: AccountRole::Restricted,
                 time_zone: NEW_YORK.to_string(),
                 ..Account::default()
             }),
             ..User::default()
         };
 
-        assert!(!novice_user.mod_or_admin());
-        assert!(!novice_user.admin());
-        assert_eq!(novice_user.time_zone(), NEW_YORK);
+        assert!(!restricted_user.mod_or_admin());
+        assert!(!restricted_user.admin());
+        assert_eq!(restricted_user.time_zone(), NEW_YORK);
 
         // Test mod user
         let mod_user = User {
@@ -511,7 +511,7 @@ mod tests {
         let admin_user = User {
             account: Some(Account {
                 role: AccountRole::Admin,
-                ..novice_user.account.as_ref().unwrap().clone()
+                ..restricted_user.account.as_ref().unwrap().clone()
             }),
             ..User::default()
         };

@@ -329,7 +329,7 @@ mod tests {
             account: Some(Account {
                 id: 123,
                 username: String::from("testuser"),
-                role: AccountRole::Novice,
+                role: AccountRole::Restricted,
                 token: Uuid::new_v4(),
                 ..Account::default()
             }),

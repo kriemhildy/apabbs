@@ -784,7 +784,7 @@ async fn approve_account() -> Result<(), Box<dyn Error + Send + Sync>> {
     let updated_account = updated_account.unwrap();
     assert_eq!(
         updated_account.role,
-        AccountRole::Novice,
+        AccountRole::Restricted,
         "Account should be approved"
     );
     tx.commit().await?;

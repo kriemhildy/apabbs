@@ -241,7 +241,7 @@ async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> 
 
     // Create test account
     let mut tx = state.db.begin().await?;
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     tx.commit().await?;
     let account = user.account.as_ref().unwrap();
 

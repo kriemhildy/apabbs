@@ -194,7 +194,7 @@ async fn logout() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create test account
     let mut tx = state.db.begin().await?;
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -230,7 +230,7 @@ async fn reset_account_token() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create test account
     let mut tx = state.db.begin().await?;
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -272,7 +272,7 @@ async fn user_profile() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
 
     // Create a test user account
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -302,7 +302,7 @@ async fn settings() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
 
     // Create a test user account
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -336,7 +336,7 @@ async fn update_time_zone() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
 
     // Create a test user account
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 
@@ -378,7 +378,7 @@ async fn update_password() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut tx = state.db.begin().await?;
 
     // Create a test user account
-    let user = create_test_account(&mut tx, AccountRole::Novice).await?;
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
 

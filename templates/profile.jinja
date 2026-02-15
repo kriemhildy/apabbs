@@ -10,7 +10,7 @@
 <main>
     {# Display username as main heading #}
     <h2>{{ account.username }}</h2>
-    {# Show user role (Novice, Member, Mod, Admin) #}
+    {# Show user role (Restricted, Member, Mod, Admin) #}
     <p>{{ account.role|capitalize }}</p>
     {# Show account creation timestamp #}
     <p>Created <time datetime="{{ account.created_at_html }}">{{ account.created_at_rfc5322 }}</time></p>

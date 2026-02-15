@@ -183,7 +183,7 @@ pub async fn review_account(
 
     // Find the new role corresponding to the intent
     let role = match form.intent.as_str() {
-        "approve" => AccountRole::Novice,
+        "approve" => AccountRole::Restricted,
         "reject" => AccountRole::Rejected,
         _ => {
             return Err(ResponseError::BadRequest(
