@@ -8,9 +8,11 @@
     <h2>Registration</h2>
     {# Benefit list explaining account features #}
     <ul>
-        <li>Registering will give you a username and profile.</li>
-        <li>You will be able to set a time zone.</li>
-        <li>Your username will have to be approved.</li>
+        <li>Usernames must be approved.</li>
+        <li>Registered users have a profile page which displays their posts.</li>
+        <li>Trusted accounts will be granted automatic approval of their posts.</li>
+        <li>Accounts display timestamps in their preferred time zone.</li>
+        <li>Accounts are necessary for moderators and admins.</li>
     </ul>
     {# Registration form with grid layout #}
     {% if user.ban_expires_at %}
