@@ -146,7 +146,7 @@ pub async fn delete_upload_key_dir(key: &str) -> Result<(), Box<dyn Error + Send
 }
 
 /// Decrypts and processes media for publication.
-pub async fn publish_media(
+pub async fn publish_encrypted_media(
     tx: &mut PgConnection,
     post: &Post,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -167,6 +167,16 @@ pub async fn unpublish_media(post: &Post) -> Result<(), Box<dyn Error + Send + S
     let bytes = tokio::fs::read(&published_media_path).await?;
     encryption::encrypt_uploaded_file(post, bytes).await?;
     delete_media_key_dir(&post.key).await?;
+    Ok(())
+}
+
+/// Publishes an uploaded file immediately
+pub async fn publish_uploaded_file(
+    post: &Post,
+    bytes: Vec<u8>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let published_media_path = post.published_media_path();
+    write_media_file(&published_media_path, bytes).await?;
     Ok(())
 }
 

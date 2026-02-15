@@ -188,7 +188,7 @@ pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus)
     let result: Result<(), Box<dyn Error + Send + Sync>> = async {
         tracing::info!("Publishing media for post {}", post.id,);
         let mut tx = state.db.begin().await?;
-        media::publish_media(&mut tx, &post).await?;
+        media::publish_encrypted_media(&mut tx, &post).await?;
         let post = post.update_status(&mut tx, status).await?;
         media::delete_upload_key_dir(&post.key)
             .await

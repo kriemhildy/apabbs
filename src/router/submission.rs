@@ -20,7 +20,8 @@ use crate::{
     AppMessage, AppState,
     ban::{Ban, SpamTerm},
     post::{
-        media::encryption::encrypt_uploaded_file,
+        PostStatus,
+        media::{encryption::encrypt_uploaded_file, publish_uploaded_file},
         submission::{PostSubmission, generate_key},
     },
 };
@@ -150,9 +151,24 @@ pub async fn submit_post(
     let key = generate_key(&mut tx).await?;
     let post = post_submission.insert(&mut tx, &user, &key).await?;
 
-    // Handle media file encryption if present
-    if let Some(bytes) = post_submission.media_bytes {
-        encrypt_uploaded_file(&post, bytes).await?;
+    match post.status {
+        PostStatus::Pending => {
+            // Handle media file encryption if present
+            if let Some(bytes) = post_submission.media_bytes {
+                encrypt_uploaded_file(&post, bytes).await?;
+            }
+        }
+        PostStatus::Approved => {
+            // Publish media file immediately if present
+            if let Some(bytes) = post_submission.media_bytes {
+                publish_uploaded_file(&post, bytes).await?;
+            }
+        }
+        _ => {
+            return Err(ResponseError::InternalServerError(
+                "Unexpected post status".to_string(),
+            ));
+        }
     }
 
     tx.commit().await?;

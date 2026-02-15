@@ -3,7 +3,10 @@
 //! Utilities for user registration, authentication, credentials validation, and account management.
 //! Handles both anonymous and registered users through a session-based system.
 
-use crate::utils::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME};
+use crate::{
+    post::PostStatus,
+    utils::{POSTGRES_HTML_DATETIME, POSTGRES_RFC5322_DATETIME},
+};
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use std::error::Error;
@@ -90,6 +93,18 @@ impl User {
         match self.account {
             Some(ref account) => &account.time_zone,
             None => "UTC",
+        }
+    }
+
+    /// Determines the initial post status based on the user's account role.
+    pub fn initial_post_status(&self) -> PostStatus {
+        if self.account.is_none() {
+            return PostStatus::Pending;
+        }
+        let account = self.account.as_ref().unwrap();
+        match account.role {
+            AccountRole::Admin | AccountRole::Mod | AccountRole::Member => PostStatus::Approved,
+            _ => PostStatus::Pending,
         }
     }
 }

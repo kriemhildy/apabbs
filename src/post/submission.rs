@@ -64,12 +64,12 @@ impl PostSubmission {
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit = intro_limit(&html_body);
         sqlx::query_as(concat!(
-            "INSERT INTO posts (key, session_token, account_id, body, ip_hash, ",
-            "media_filename, media_category, media_mime_type, youtube, ",
-            "intro_limit) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
+            "INSERT INTO posts (key, status, session_token, account_id, body, ip_hash, ",
+            "media_filename, media_category, media_mime_type, youtube, intro_limit) ",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *",
         ))
         .bind(key)
+        .bind(user.initial_post_status())
         .bind(session_token)
         .bind(account_id)
         .bind(&html_body)
