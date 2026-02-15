@@ -226,6 +226,8 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert!(post.encrypted_media_path().exists());
+    assert!(!post.published_media_path().exists());
 
     // Clean up
     post.delete(&mut tx).await?;
@@ -276,6 +278,55 @@ async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> 
     // Clean up
     account_post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests that a trusted user immediately has their post approved
+#[tokio::test]
+async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    let user = create_test_account(&mut tx, AccountRole::Member).await?;
+    tx.commit().await?;
+    let account = user.account.as_ref().unwrap();
+
+    // Create form data
+    let mut form = FormData::new(Vec::new());
+    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "<&test body")?;
+    form.write_path("media", test_image_path, "image/jpeg")?;
+
+    // Submit the post
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
+        .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::from(form.finish()?))?;
+    let response = router.oneshot(request).await?;
+
+    // Verify post was created with approved status
+    let mut tx = state.db.begin().await?;
+    let post = select_latest_post_by_account_id(&mut tx, account.id)
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(post.status, PostStatus::Approved);
+    assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_category, Some(MediaCategory::Image));
+    assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert!(!post.encrypted_media_path().exists());
+    assert!(post.published_media_path().exists());
+
+    // Clean up
+    post.delete(&mut tx).await?;
+    delete_test_account(&mut tx, account).await;
+    media::delete_media_key_dir(&post.key).await?;
     tx.commit().await?;
     Ok(())
 }
