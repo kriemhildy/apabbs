@@ -197,7 +197,7 @@ checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
 name = "apabbs"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "axum",
  "axum-extra",
