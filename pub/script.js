@@ -1,16 +1,9 @@
-/**
+/*
  * Provides interactive features for the application.
- * Includes confirmation dialogs, unread post notifications,
- * dynamic content updates, AJAX form handling, and DOM updates.
+ * Includes unread post notifications, WebSocket connection, and dynamic content updates.
  */
 
-// -----------------------------------------------------------------------------
-// Confirmation for potentially destructive actions
-// -----------------------------------------------------------------------------
-
-/**
- * Shows a confirmation dialog before submitting a form with a data-confirm attribute.
- */
+// Shows a confirmation dialog before submitting a form with a data-confirm attribute.
 function confirmSubmit(event) {
   if (!confirm("Are you sure?")) {
     event.preventDefault();
@@ -18,25 +11,21 @@ function confirmSubmit(event) {
   }
 }
 
-/**
- * Adds confirmation handlers to forms with a data-confirm attribute.
- */
+// Adds confirmation handlers to forms with a data-confirm attribute.
 function addSubmitConfirmations(event) {
   event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
     form.addEventListener("submit", confirmSubmit);
   });
 }
 
-// -----------------------------------------------------------------------------
-// Notification system for new items when tab is not active
-// -----------------------------------------------------------------------------
+/*************************************************************************************************
+ * Notification system for new items when tab is not active
+ *************************************************************************************************/
 
 let originalTitle;
 let unseenItems = 0;
 
-/**
- * Increments the unseen items counter in the page title if the document is not focused.
- */
+// Increments the unseen items counter in the page title if the document is not focused.
 function incrementUnseenItems() {
   if (!document.hasFocus() || document.visibilityState !== "visible") {
     unseenItems++;
@@ -44,17 +33,13 @@ function incrementUnseenItems() {
   }
 }
 
-/**
- * Resets the unseen items counter and restores the original title when the window regains focus.
- */
+// Resets the unseen items counter and restores the original title when the window regains focus.
 function restoreTitle() {
   unseenItems = 0;
   document.title = originalTitle;
 }
 
-/**
- * Initializes the unseen items notification system and sets up the focus event listener.
- */
+// Initializes the unseen items notification system and sets up the focus event listener.
 function initUnseenItems() {
   originalTitle = document.title;
   window.addEventListener("focus", restoreTitle);
@@ -65,9 +50,9 @@ function initUnseenItems() {
   });
 }
 
-// -----------------------------------------------------------------------------
-// Dynamic DOM updates
-// -----------------------------------------------------------------------------
+/*************************************************************************************************
+ * Dynamic DOM updates
+ *************************************************************************************************/
 
 let template;
 let postsDiv;
@@ -75,9 +60,7 @@ let spinner;
 let nav;
 let pendingList;
 
-/**
- * Initializes DOM element references and event listeners for dynamic post updates.
- */
+// Initializes DOM element references and event listeners for dynamic post updates.
 function initDomElements() {
   postsDiv = document.querySelector("div#posts");
   spinner = document.querySelector("div#spinner");
@@ -89,9 +72,7 @@ function initDomElements() {
   pendingList = document.querySelector("ul#pending-accounts");
 }
 
-/**
- * Updates or adds a post in the DOM using server data.
- */
+// Updates or adds a post in the DOM using server data.
 function updatePost(key, html) {
   const post = document.querySelector(`div#post-${key}`);
   template.innerHTML = html;
@@ -107,24 +88,18 @@ function updatePost(key, html) {
   fixSafariVideoLoading(key);
 }
 
-/**
- * Check if the browser is Chromium-based.
- */
+// Check if the browser is Chromium-based.
 function browserIsChromium() {
   return navigator.userAgent.includes("Chrome");
 }
 
-/**
- * Check if the browser is Safari.
- */
+// Check if the browser is Safari.
 function browserIsSafari() {
   const ua = navigator.userAgent;
   return ua.includes("Safari") && !ua.includes("Chrome");
 }
 
-/**
- * Fixes a Chromium bug with dynamically added video poster attributes.
- */
+// Fixes a Chromium bug with dynamically added video poster attributes.
 function fixChromiumVideoPosters(key) {
   if (browserIsChromium()) {
     document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
@@ -133,9 +108,7 @@ function fixChromiumVideoPosters(key) {
   }
 }
 
-/**
- * Fixes a Safari bug with dynamically added video loading.
- */
+// Fixes a Safari bug with dynamically added video loading.
 function fixSafariVideoLoading(key) {
   if (browserIsSafari()) {
     document.querySelectorAll(`#post-${key} video`).forEach((video) => {
@@ -144,9 +117,7 @@ function fixSafariVideoLoading(key) {
   }
 }
 
-/**
- * Add post hiding functionality to remove posts.
- */
+// Add post hiding functionality to remove posts.
 function addPostHidingButtons(event) {
   event.target.querySelectorAll("button.hide-post").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -155,9 +126,7 @@ function addPostHidingButtons(event) {
   });
 }
 
-/**
- * Update the active username in the nav.
- */
+// Update the active username in the nav.
 function updateActiveUsername(username) {
   if (username === undefined) {
     navElement.innerHTML = '<a href="/login">[rejected]</a>';
@@ -166,9 +135,7 @@ function updateActiveUsername(username) {
   }
 }
 
-/**
- * Remove a pending account item from the DOM.
- */
+// Remove a pending account item from the DOM.
 function removePendingAccount(accountItem) {
   accountItem.remove();
   if (pendingList.children.length === 0) {
@@ -176,9 +143,7 @@ function removePendingAccount(accountItem) {
   }
 }
 
-/**
- * Update admin pending account list.
- */
+// Update admin pending account list.
 function updatePendingAccounts(username, html) {
   const accountItem = document.querySelector(`li#account-${username}`);
   if (accountItem) {
@@ -193,21 +158,17 @@ function updatePendingAccounts(username, html) {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Fetch missed posts after connection
-// -----------------------------------------------------------------------------
+/*************************************************************************************************
+ * Fetch missed posts after connection
+ *************************************************************************************************/
 
-/**
- * Returns the key of the most recent visible approved post, or null if none exist.
- */
+// Returns the key of the most recent visible approved post, or null if none exist.
 function latestPostKey() {
   const post = document.querySelector("div.post.approved");
   return post ? post.id.replace("post-", "") : null;
 }
 
-/**
- * Fetches posts created since the most recent visible post.
- */
+// Fetches posts created since the most recent visible post.
 function checkInterim() {
   const key = latestPostKey();
   if (key === null) {
@@ -228,9 +189,9 @@ function checkInterim() {
   });
 }
 
-// -----------------------------------------------------------------------------
-// WebSocket connection management
-// -----------------------------------------------------------------------------
+/*************************************************************************************************
+ * WebSocket connection management
+ *************************************************************************************************/
 
 const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
 const MIN_RECONNECT_DURATION = 2_000;
@@ -242,9 +203,7 @@ let heartbeatInterval = null;
 let lastPingTimestamp;
 let firstConnection = true;
 
-/**
- * Processes incoming WebSocket messages containing post and account updates.
- */
+// Processes incoming WebSocket messages containing post and account updates.
 function handleWebSocketMessage(event) {
   // Detect zero-byte binary ping from server for Safari heartbeat.
   if (event.data instanceof Blob) {
@@ -285,9 +244,7 @@ function handleWebSocketMessage(event) {
   }
 }
 
-/**
- * Handles WebSocket connection closure and attempts to reconnect if needed.
- */
+// Handles WebSocket connection closure and attempts to reconnect if needed.
 function handleWebSocketClosed(event) {
   if (!event.wasClean) {
     if (reconnectTimeout === null) {
@@ -300,9 +257,7 @@ function handleWebSocketClosed(event) {
   }
 }
 
-/**
- * Safari fails to disconnect WebSockets upon sleep, so we need to check for pings.
- */
+// Safari fails to disconnect WebSockets upon sleep, so we need to check for pings.
 function initSafariHeartbeatCheck() {
   if (browserIsSafari() && heartbeatInterval === null) {
     const CHECK_HEARTBEAT_PERIOD = 2_000;
@@ -328,9 +283,7 @@ function initSafariHeartbeatCheck() {
   }
 }
 
-/**
- * Handles successful WebSocket connection and checks for missed posts.
- */
+// Handles successful WebSocket connection and checks for missed posts.
 function handleWebSocketOpened(_event) {
   clearTimeout(reconnectTimeout);
   reconnectTimeout = null;
@@ -343,9 +296,7 @@ function handleWebSocketOpened(_event) {
   initSafariHeartbeatCheck();
 }
 
-/**
- * Establishes a WebSocket connection to the server and sets up event handlers.
- */
+// Establishes a WebSocket connection to the server and sets up event handlers.
 function initWebSocket() {
   // Prevent Firefox from opening multiple connections due to reconnect attempts.
   if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
@@ -357,13 +308,11 @@ function initWebSocket() {
   webSocket.onopen = handleWebSocketOpened;
 }
 
-// -----------------------------------------------------------------------------
-// Form submission button management
-// -----------------------------------------------------------------------------
+/**************************************************************************************************
+ * Dynamic form submission
+ *************************************************************************************************/
 
-/**
- * Disables all submit buttons during form processing, tracking which were already disabled.
- */
+// Disables all submit buttons during form processing, tracking which were already disabled.
 function disableSubmitButtons() {
   document.querySelectorAll("button[type=submit]").forEach((button) => {
     if (button.disabled) {
@@ -373,9 +322,7 @@ function disableSubmitButtons() {
   });
 }
 
-/**
- * Restores submit buttons to their previous state after form processing.
- */
+// Restores submit buttons to their previous state after form processing.
 function restoreSubmitButtons() {
   document.querySelectorAll("button[type=submit]").forEach((button) => {
     if (button.dataset.keepDisabled === undefined) {
@@ -386,13 +333,7 @@ function restoreSubmitButtons() {
   });
 }
 
-// -----------------------------------------------------------------------------
-// Enhanced AJAX form submission handling
-// -----------------------------------------------------------------------------
-
-/**
- * Handles form submission using fetch API, showing a loading indicator and handling the response.
- */
+// Handles form submission using fetch API, showing a loading indicator and handling the response.
 function handleFormSubmit(event) {
   event.preventDefault();
   disableSubmitButtons();
@@ -435,9 +376,7 @@ function handleFormSubmit(event) {
   });
 }
 
-/**
- * Performs post-submission actions based on the form's action URL.
- */
+// Performs post-submission actions based on the form's action URL.
 function afterSuccessfulFetch(form) {
   const actionUrl = new URL(form.action);
   switch (actionUrl.pathname) {
@@ -453,9 +392,7 @@ function afterSuccessfulFetch(form) {
   }
 }
 
-/**
- * Adds fetch API handlers to all forms in a container on page load and after template updates.
- */
+// Adds fetch API handlers to all forms in a container on page load and after template updates.
 function addFetchToForms(event) {
   const forms = event.target.querySelectorAll("form");
   for (const form of forms) {
@@ -463,9 +400,9 @@ function addFetchToForms(event) {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Initialization based on current page
-// -----------------------------------------------------------------------------
+/**************************************************************************************************
+ * Initialization based on current page
+ *************************************************************************************************/
 
 const currentPageUrl = new URL(window.location.href);
 
