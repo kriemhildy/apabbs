@@ -1,19 +1,10 @@
 /* Application stylesheet.
-   Defines layout, color palette, and responsive behavior for the app. */
+   Defines layout, color palette, font, and responsive behavior for the app. */
 
 :root {
-  --back: black;
-  --fore: #e3e3e3;
-  --border: #777;
+  --background: black;
+  --foreground: #e3e3e3;
   --system: #9cdcda;
-  --review: #bebebe;
-  --pending: #111111;
-  --processing: #111111;
-  --delisted: #051d3a;
-  --reported: rgb(75, 10, 75);
-  --rejected: rgb(37, 4, 4);
-  --banned: rgb(105, 10, 10);
-  --disabled: #444;
 }
 
 body {
@@ -30,8 +21,8 @@ button,
 ::file-selector-button {
   font-family: Consolas, monospace;
   font-size: 12px;
-  color: var(--fore);
-  background: var(--back);
+  color: var(--foreground);
+  background: var(--background);
   accent-color: var(--system);
   -webkit-text-size-adjust: none;
   text-size-adjust: none;
@@ -39,7 +30,7 @@ button,
 
 ::selection {
   background: var(--system);
-  color: var(--back);
+  color: var(--background);
 }
 
 a {
@@ -55,7 +46,7 @@ a {
 }
 
 .status {
-  color: var(--review);
+  color: #bebebe;
   overflow-wrap: anywhere;
 
   a {
@@ -78,7 +69,7 @@ h1 {
 
   a {
     text-decoration: none;
-    color: var(--fore);
+    color: var(--foreground);
   }
 }
 
@@ -107,7 +98,7 @@ body.list {
 
   p#next-page {
     text-align: right;
-    margin-right: 5vw;
+    margin-right: 16px;
 
     a {
       text-decoration: none;
@@ -232,7 +223,7 @@ div.row {
 div#spinner {
   width: 10px;
   height: 10px;
-  border: 2px solid var(--fore);
+  border: 2px solid var(--foreground);
   border-top-color: transparent;
   border-radius: 50%;
   animation: spinner 0.85s linear infinite;
@@ -251,7 +242,7 @@ select,
 button,
 ::file-selector-button {
   border-radius: 5px;
-  border-color: var(--border);
+  border-color: #777;
 }
 
 button,
@@ -314,30 +305,29 @@ div.delisted,
 div.reported,
 div.rejected,
 div.banned {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding: 8px 0;
 }
 
 div.pending {
-  background: var(--pending);
+  background: #111;
 }
 
 div.processing {
-  background: var(--processing);
+  background: #111;
 }
 
 div.delisted {
-  background: var(--delisted);
+  background: #051d3a;
 }
 
 div.reported {
-  background: var(--reported);
+  background: #4b0a4b;
 }
 
 div.rejected {
-  background: var(--rejected);
+  background: #250404;
 }
 
 div.banned {
-  background: var(--banned);
+  background: #690a0a;
 }
