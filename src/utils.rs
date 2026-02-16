@@ -120,7 +120,8 @@ mod tests {
 
     /// Test byte_slice panic
     #[test]
-    #[should_panic(expected = "byte index 2 is not a char boundary; it is inside 'é' (bytes 1..3)")]
+    #[should_panic(expected = "byte index 2 is not a char boundary; \
+                               it is inside 'é' (bytes 1..3)")]
     fn test_byte_slice_panic() {
         let s = "héllo"; // 'é' is two bytes
         // Attempting to slice at 2 bytes should panic

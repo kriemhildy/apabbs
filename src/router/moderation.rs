@@ -27,7 +27,7 @@ use uuid::Uuid;
 
 // --- Moderation review endpoints --------------------------------------------
 
-/// Processes post moderation actions, enforcing business rules and managing background media processing.
+/// Processes post moderation actions, enforces rules, and manages background media processing.
 pub async fn review_post(
     method: Method,
     State(state): State<AppState>,

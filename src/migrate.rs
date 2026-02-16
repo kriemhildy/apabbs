@@ -1,6 +1,7 @@
 //! Database migration utilities for the application.
 //!
-//! Provides sequential database migrations, tracking applied migrations in the `_rust_migrations` table.
+//! Provides sequential database migrations, tracking applied migrations
+//! in the `_rust_migrations` table.
 
 use apabbs::AppState;
 use apabbs::user::AccountRole;
@@ -219,7 +220,7 @@ pub async fn download_youtube_thumbnails(state: AppState) {
 
 /// Migrates from UUID-based media paths to key-based paths.
 ///
-/// Renames media directories from UUID format to the new key format and removes the now unused UUID column.
+/// Renames media directories from UUID to key format and removes the unused UUID column.
 pub async fn uuid_to_key(state: AppState) {
     use uuid::Uuid;
     let mut tx = state.db.begin().await.expect("begin");
@@ -281,7 +282,7 @@ pub async fn uuid_to_key(state: AppState) {
 
 /// Generates thumbnails for image posts.
 ///
-/// Creates smaller versions of images for faster loading and updates the database with the thumbnail paths and dimensions.
+/// Creates smaller images for faster loading, updates DB with thumbnail paths and dimensions.
 pub async fn generate_image_thumbnails(state: AppState) {
     use apabbs::post::{Post, media::images};
     let mut tx = state.db.begin().await.expect("begin");
@@ -384,7 +385,7 @@ pub async fn add_image_dimensions(state: AppState) {
     tx.commit().await.expect("commit");
 }
 
-/// Processes video posts: cleans up media files, generates posters/thumbnails, and updates dimensions.
+/// Processes video posts: cleans up media files, generates posters/thumbnails, updates dimensions.
 pub async fn process_videos(state: AppState) {
     use apabbs::post::{
         Post,

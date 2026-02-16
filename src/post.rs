@@ -157,7 +157,7 @@ impl Post {
 
     /// Selects approved posts created by the specified account.
     ///
-    /// Returns only posts with status 'approved' and limits the result to the system-defined page size.
+    /// Returns approved posts, limited to the system-defined page size.
     pub async fn select_by_author(
         tx: &mut PgConnection,
         account_id: i32,

@@ -1,7 +1,7 @@
 //! Post submission logic and helpers.
 //!
-//! This module provides the `PostSubmission` struct and related logic for handling new post creation,
-//! media uploads, YouTube embed processing, and intro preview truncation.
+//! This module provides the `PostSubmission` struct and related logic for handling new post
+//! creation, media uploads, YouTube embed processing, and intro preview truncation.
 
 pub mod youtube;
 
@@ -44,7 +44,7 @@ pub struct PostSubmission {
 impl PostSubmission {
     /// Inserts a new post into the database.
     ///
-    /// Handles determining the media type, generating the post key, and extracting the intro limit from the body content.
+    /// Handles media type determination, post key generation, and intro limit extraction.
     pub async fn insert(
         &self,
         tx: &mut PgConnection,
@@ -84,7 +84,7 @@ impl PostSubmission {
         .map_err(|e| format!("insert post: {e}").into())
     }
 
-    /// Converts the post body from plain text to HTML, escaping and linking URLs, and embedding YouTube thumbnails.
+    /// Converts post body to HTML, escapes and links URLs, embeds YouTube thumbnails.
     pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         let mut html = self
             .body
@@ -123,7 +123,7 @@ pub async fn generate_key(tx: &mut PgConnection) -> Result<String, Box<dyn Error
     }
 }
 
-/// Determines the intro limit for a post preview based on HTML content, line breaks, and YouTube embeds.
+/// Determines intro limit for post preview based on HTML content, line breaks, and YouTube embeds.
 pub fn intro_limit(html: &str) -> Option<i32> {
     tracing::debug!("html.len(): {}", html.len());
     if html.is_empty() {

@@ -1,7 +1,7 @@
 //! Background job scheduling and automated maintenance tasks.
 //!
 //! This module sets up and manages recurring background jobs using cron-like schedules.
-//! It handles automated maintenance such as database cleanup (e.g., scrubbing old IP hashes for privacy)
+//! Handles automated maintenance such as database cleanup (scrubbing old IP hashes for privacy)
 //! and periodic content management (e.g., generating application screenshots for status pages).
 //!
 //! # Scheduling Format
@@ -26,7 +26,7 @@ use tokio_cron_scheduler::Job;
 /// The path where screenshots will be saved
 pub const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
 
-/// Initializes and starts the scheduled job system in the background for the application's lifetime.
+/// Initializes and starts the scheduled job system in the background for the app's lifetime.
 pub async fn init() {
     use tokio_cron_scheduler::JobScheduler;
     let sched = JobScheduler::new().await.expect("create job scheduler");

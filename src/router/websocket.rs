@@ -120,7 +120,8 @@ async fn watch_receiver(
                     Ok(msg) => {
                         let json = match msg {
                             AppMessage::Post(post) => post_message_json(&state, &post, &user),
-                            AppMessage::Account(account) => account_message_json(&state, &account, &user),
+                            AppMessage::Account(account) =>
+                                account_message_json(&state, &account, &user),
                         };
                         if let Some(json) = json {
                             let json_utf8 = Utf8Bytes::from(json.to_string());

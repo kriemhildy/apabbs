@@ -1,6 +1,6 @@
 //! Video media processing helpers for posts.
 //!
-//! Handles video compatibility checks, transcoding, poster generation, and related utilities for video files.
+//! Handles video compatibility checks, transcoding, poster generation, and utilities.
 
 use super::{super::Post, MAX_THUMB_HEIGHT, MAX_THUMB_WIDTH, images};
 use sqlx::PgConnection;

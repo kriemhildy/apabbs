@@ -34,8 +34,8 @@ fn main() {
                     } else {
                         "production".into()
                     }),
-                    // Capture user IPs and potentially sensitive headers when using HTTP server integrations
-                    // see https://docs.sentry.io/platforms/rust/data-management/data-collected for more info
+                    // Capture user IPs and sensitive headers for HTTP server integrations
+                    // See: https://docs.sentry.io/platforms/rust/data-management/data-collected
                     send_default_pii: true,
                     ..Default::default()
                 },

@@ -70,7 +70,8 @@ pub async fn embed_youtube(
                 "  </div>\n",
                 "  <div class=\"youtube-thumbnail\">\n",
                 "    <a href=\"/p/{key}\">",
-                "<img src=\"{thumbnail_url}\" alt=\"Post {key}\" width=\"{width}\" height=\"{height}\">",
+                "<img src=\"{thumbnail_url}\" alt=\"Post {key}\" width=\"{width}\" ",
+                "height=\"{height}\">",
                 "</a>\n",
                 "  </div>\n",
                 "</div>",
@@ -88,7 +89,7 @@ pub async fn embed_youtube(
     Ok(html)
 }
 
-/// Downloads a YouTube thumbnail for the given video ID, returning its path and dimensions if successful.
+/// Downloads a YouTube thumbnail for the given video ID, returning its path and dimensions.
 pub async fn download_youtube_thumbnail(
     video_id: &str,
     short: bool,
