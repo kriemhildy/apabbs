@@ -170,8 +170,8 @@ function restoreTitle() {
 let template;
 let postsDiv;
 let spinner;
-let nav;
-let pendingList;
+let navElement;
+let pendingAccounts;
 
 // Initializes DOM element references and event listeners for dynamic post updates.
 function initDomElements() {
@@ -182,7 +182,7 @@ function initDomElements() {
   template.content.addEventListener("templateUpdated", addFetchToForms);
   template.content.addEventListener("templateUpdated", addPostHidingButtons);
   navElement = document.querySelector("nav");
-  pendingList = document.querySelector("ul#pending-accounts");
+  pendingAccounts = document.querySelector("ul#pending-accounts");
 }
 
 // Updates or adds a post in the DOM using server data.
@@ -251,8 +251,8 @@ function updateActiveUsername(username) {
 // Remove a pending account item from the DOM.
 function removePendingAccount(accountItem) {
   accountItem.remove();
-  if (pendingList.children.length === 0) {
-    pendingList.classList.add("hidden");
+  if (pendingAccounts.children.length === 0) {
+    pendingAccounts.classList.add("hidden");
   }
 }
 
@@ -263,9 +263,9 @@ function updatePendingAccounts(username, html) {
     removePendingAccount(accountItem);
   } else {
     template.innerHTML = html;
-    pendingList.appendChild(template.content);
-    if (pendingList.classList.contains("hidden")) {
-      pendingList.classList.remove("hidden");
+    pendingAccounts.appendChild(template.content);
+    if (pendingAccounts.classList.contains("hidden")) {
+      pendingAccounts.classList.remove("hidden");
     }
     incrementUnseenItems();
   }
