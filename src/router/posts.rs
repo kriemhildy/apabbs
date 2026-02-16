@@ -23,9 +23,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use std::collections::HashMap;
 
-// =========================
-// Post Display Endpoints
-// =========================
+// --- Post display endpoints -------------------------------------------------
 
 /// Handles the main index page and paginated content.
 pub async fn index(
@@ -118,9 +116,7 @@ pub async fn solo_post(
     Ok((jar, html).into_response())
 }
 
-// =========================
-// Post Hiding
-// =========================
+// --- Post hiding endpoints --------------------------------------------------
 
 /// Hides a post from the user's view if authorized.
 pub async fn hide_post(
@@ -173,9 +169,7 @@ pub async fn hide_post(
     Ok((jar, response).into_response())
 }
 
-//=========================
-// Interim Updates
-//=========================
+// --- Interim updates --------------------------------------------------------
 
 /// Fetches posts created after the latest approved post for interim updates.
 pub async fn interim(

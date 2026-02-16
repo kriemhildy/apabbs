@@ -19,9 +19,7 @@ use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// ================================================================================================
-// Login and Registration Forms
-// ================================================================================================
+// --- Login and registration forms -------------------------------------------
 
 /// Displays the login form for user authentication.
 pub async fn login_form(
@@ -75,9 +73,7 @@ pub async fn registration_form(
     Ok((jar, html).into_response())
 }
 
-// ================================================================================================
-// Authentication and Account Actions
-// ================================================================================================
+// --- Authentication and account actions -------------------------------------
 
 /// Processes user login attempts and sets session cookies.
 pub async fn authenticate(
@@ -183,9 +179,7 @@ pub async fn create_account(
     Ok((jar, redirect).into_response())
 }
 
-// ================================================================================================
-// Logout and Token Reset
-// ================================================================================================
+// --- Logout and token reset -------------------------------------------------
 
 /// Represents a logout request.
 #[derive(Serialize, Deserialize)]

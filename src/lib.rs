@@ -8,10 +8,6 @@
 //! moderators to act quickly and make a judgment on something that has already been published, whereas
 //! it would be more comfortable to take their time with it.
 
-// ==============================================================================
-// Module Declarations
-// ==============================================================================
-
 pub mod ban;
 pub mod cron;
 pub mod post;
@@ -19,19 +15,13 @@ pub mod router;
 pub mod user;
 pub mod utils;
 
-// ==============================================================================
-// Imports
-// ==============================================================================
-
 use crate::{post::Post, user::Account};
 use minijinja::Environment;
 use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
-// ==============================================================================
-// Environment/Config Functions
-// ==============================================================================
+// --- Environment variables  -------------------------------------------------
 
 /// Returns the number of items to show per page.
 pub fn per_page() -> usize {
@@ -60,9 +50,7 @@ pub fn secret_key() -> String {
     std::env::var("SECRET_KEY").expect("Read SECRET_KEY environment variable")
 }
 
-// ==============================================================================
-// Application State
-// ==============================================================================
+// --- Application state ------------------------------------------------------
 
 /// Represents a message in the application, which can be either a post or an account message.
 #[derive(Clone)]
@@ -121,9 +109,7 @@ pub fn init_sender() -> Arc<Sender<AppMessage>> {
     Arc::new(tokio::sync::broadcast::channel(100).0)
 }
 
-// ==============================================================================
-// Test Initialization
-// ==============================================================================
+// --- Test initialization ----------------------------------------------------
 
 /// Ensure we are in development mode before running tests.
 #[cfg(test)]

@@ -3,10 +3,6 @@
 //! This module provides endpoints for displaying user profiles, managing account settings,
 //! updating time zones, and changing passwords. It enforces authentication and input validation.
 
-// =========================
-// Profile Display Endpoints
-// =========================
-
 use super::{
     errors::ResponseError,
     helpers::{add_notice_cookie, init_user, remove_notice_cookie},
@@ -24,6 +20,8 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+
+// --- Profile display endpoints ----------------------------------------------
 
 pub async fn user_profile(
     method: Method,
@@ -73,9 +71,7 @@ pub async fn user_profile(
     Ok((jar, html).into_response())
 }
 
-// =========================
-// Settings Display & Update
-// =========================
+// --- Settings display & update endpoints ------------------------------------
 
 /// Displays the user settings page. Requires the user to be logged in.
 pub async fn settings(
@@ -116,9 +112,7 @@ pub async fn settings(
     Ok((jar, html).into_response())
 }
 
-// =========================
-// Settings Update Handlers
-// =========================
+// --- Settings update handlers -----------------------------------------------
 
 /// Updates a user's time zone preference after validation.
 pub async fn update_time_zone(

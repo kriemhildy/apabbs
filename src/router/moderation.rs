@@ -25,9 +25,7 @@ use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// ===========================
-// Moderation Review Endpoints
-// ===========================
+// --- Moderation review endpoints --------------------------------------------
 
 /// Processes post moderation actions, enforcing business rules and managing background media processing.
 pub async fn review_post(
@@ -214,9 +212,7 @@ pub async fn review_account(
     }
 }
 
-// =========================
-// Media Access Endpoints
-// =========================
+// --- Media access endpoints -------------------------------------------------
 
 /// Serves decrypted media files to moderators or admins for review.
 pub async fn decrypt_media(
@@ -280,9 +276,7 @@ pub async fn decrypt_media(
     Ok((jar, headers, media_bytes).into_response())
 }
 
-// =========================
-// Spam Term Endpoints
-// =========================
+// --- Spam term endpoints ----------------------------------------------------
 
 /// Displays the list of spam terms for admin management.
 pub async fn list_spam_terms(

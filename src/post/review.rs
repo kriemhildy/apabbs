@@ -179,9 +179,7 @@ pub async fn process_action(
     Ok(background_task)
 }
 
-// =========================
-// Background Media Tasks
-// =========================
+// --- Background media tasks -------------------------------------------------
 
 /// Background task for publishing media and updating post status.
 pub async fn publish_media_task(state: AppState, post: Post, status: PostStatus) {

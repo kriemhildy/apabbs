@@ -7,9 +7,7 @@ use crate::AppState;
 use sqlx::PgConnection;
 use std::error::Error;
 
-// ==============================================================================
-// Constants
-// ==============================================================================
+// --- Constants --------------------------------------------------------------
 
 /// Format string for RFC 5322-style datetime in PostgreSQL queries.
 pub const POSTGRES_RFC5322_DATETIME: &str = "Dy, DD Mon YYYY HH24:MI:SS TZHTZM";
@@ -20,9 +18,7 @@ pub const POSTGRES_HTML_DATETIME: &str = r#"YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM"#
 /// Format string for UTC hour granularity in PostgreSQL queries.
 pub const POSTGRES_UTC_HOUR: &str = "YYYY-MM-DD-HH24";
 
-//==================================================================================================
-// Templating and Rendering
-//==================================================================================================
+// --- Templating and rendering -----------------------------------------------
 
 /// Render a template with the given context using the application's Jinja environment.
 pub fn render(
@@ -66,9 +62,7 @@ pub fn byte_slice(body: &str, end: usize) -> String {
     body[..end].to_string()
 }
 
-//==================================================================================================
-// Time and Date Utilities
-//==================================================================================================
+// --- Time and date utilities ------------------------------------------------
 
 /// Set the PostgreSQL session time zone for the current connection.
 pub async fn set_session_time_zone(
@@ -93,9 +87,7 @@ pub async fn utc_hour_timestamp(
         .map_err(|e| format!("get UTC hour timestamp: {e}").into())
 }
 
-//==================================================================================================
-// Tests
-//==================================================================================================
+// --- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

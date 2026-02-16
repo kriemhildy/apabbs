@@ -20,9 +20,7 @@ use sqlx::PgConnection;
 use std::error::Error;
 use uuid::Uuid;
 
-//==================================================================================================
-// Constants
-//==================================================================================================
+// --- Constants --------------------------------------------------------------
 
 /// HTTP header name for the client's real IP address, as set by the reverse proxy (e.g., nginx).
 pub const X_REAL_IP: &str = "X-Real-IP";
@@ -35,9 +33,7 @@ pub const SESSION_COOKIE: &str = "session";
 /// Cookie name for flash notice messages, used to display one-time notifications to the user.
 pub const NOTICE_COOKIE: &str = "notice";
 
-//==================================================================================================
-// Security Utilities
-//==================================================================================================
+// --- Security utilities -----------------------------------------------------
 
 /// Generate a hash of the client's IP address for tracking and ban enforcement.
 pub fn ip_hash(headers: &HeaderMap) -> Result<String, ResponseError> {
@@ -68,9 +64,7 @@ pub async fn ban_if_flooding(
     Ok(None)
 }
 
-//==================================================================================================
-// Cookie Management
-//==================================================================================================
+// --- Cookie management ------------------------------------------------------
 
 /// Create a cookie with secure, HTTP-only, and SameSite settings.
 pub fn build_cookie(name: &str, value: &str, permanent: bool) -> Cookie<'static> {
@@ -128,9 +122,7 @@ pub fn remove_account_cookie(jar: CookieJar) -> CookieJar {
     jar.remove(removal_cookie(ACCOUNT_COOKIE))
 }
 
-//==================================================================================================
-// User and Session Management
-//==================================================================================================
+// --- User and session management --------------------------------------------
 
 /// Initialize a user session from cookies or create a new session if none exists.
 pub async fn init_user(
@@ -208,9 +200,7 @@ pub async fn init_user(
     Ok((user, jar))
 }
 
-//==================================================================================================
-// Post and Content Management
-//==================================================================================================
+// --- Post and content management --------------------------------------------
 
 /// Retrieve a post by key and validate access permissions for the current user.
 pub async fn init_post(
@@ -243,9 +233,7 @@ pub async fn init_post(
     }
 }
 
-//===================================================================================================
-// Request and Response Utilities
-//==================================================================================================
+// --- Request and response utilities -----------------------------------------
 
 /// Determine if a request is an AJAX/fetch request (not a navigation).
 pub fn is_fetch_request(headers: &HeaderMap) -> bool {
@@ -256,9 +244,7 @@ pub fn is_fetch_request(headers: &HeaderMap) -> bool {
         .unwrap_or(false)
 }
 
-//==================================================================================================
-// Browser and Client Detection
-//==================================================================================================
+// --- Browser and client detection -------------------------------------------
 
 /// Analyze the User-Agent header to detect platform and browser engine.
 pub fn analyze_user_agent(headers: &HeaderMap) -> Option<UserAgent> {
