@@ -1,5 +1,5 @@
 /* Provides interactive features for the application.
- * Includes WebSocket connection, unread post notifications, and dynamic content updates. */
+   Includes WebSocket connection, unread post notifications, and dynamic content updates. */
 
 const currentPageUrl = new URL(window.location.href);
 
