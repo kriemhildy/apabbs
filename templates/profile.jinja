@@ -1,30 +1,30 @@
 {# User profile page template showing account information and posts #}
 {% extends "layout.jinja" %}
 {% block title %}
-    <title>{{ title_host }} &raquo; {{ account.username }}</title>
+  <title>{{ title_host }} &raquo; {{ account.username }}</title>
 {% endblock %}
 {% block body %}
 <body class="list">
 {% endblock %}
 {% block main %}
 <main>
-    {# Display username as main heading #}
-    <h2>{{ account.username }}</h2>
-    {# Show user role (Restricted, Member, Mod, Admin) #}
-    <p>{{ account.role|capitalize }}</p>
-    {# Show account creation timestamp #}
-    <p>Created <time datetime="{{ account.created_at_html }}">{{ account.created_at_rfc5322 }}</time></p>
-    {# Show settings link if viewing own profile #}
-    {% if user.account.username == account.username %}
-    <p>You are logged in as this user. <a href="/settings">Settings</a></p>
-    {% endif %}
-    {# Display user's posts #}
-    <div id="posts">
-        {% filter indent(8, true) %}
-        {% for post in posts %}
-        {% include "post.jinja" %}
-        {% endfor +%}
-        {% endfilter %}
-    </div>
+  {# Display username as main heading #}
+  <h2>{{ account.username }}</h2>
+  {# Show user role (Restricted, Member, Mod, Admin) #}
+  <p>{{ account.role|capitalize }}</p>
+  {# Show account creation timestamp #}
+  <p>Created <time datetime="{{ account.created_at_html }}">{{ account.created_at_rfc5322 }}</time></p>
+  {# Show settings link if viewing own profile #}
+  {% if user.account.username == account.username %}
+  <p>You are logged in as this user. <a href="/settings">Settings</a></p>
+  {% endif %}
+  {# Display user's posts #}
+  <div id="posts">
+    {% filter indent(4, true) %}
+    {% for post in posts %}
+    {% include "post.jinja" %}
+    {% endfor +%}
+    {% endfilter %}
+  </div>
 </main>
 {% endblock %}

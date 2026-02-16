@@ -2,39 +2,39 @@
    Defines layout, color palette, and responsive behavior for the app. */
 
 :root {
-    --back: black;
-    --fore: #e3e3e3;
-    --border: #777;
-    --system: #9cdcda;
-    --review: #bebebe;
-    --pending: #111111;
-    --processing: #111111;
-    --delisted: #051d3a;
-    --reported: rgb(75, 10, 75);
-    --rejected: rgb(37, 4, 4);
-    --banned: rgb(105, 10, 10);
-    --disabled: #444;
+  --back: black;
+  --fore: #e3e3e3;
+  --border: #777;
+  --system: #9cdcda;
+  --review: #bebebe;
+  --pending: #111111;
+  --processing: #111111;
+  --delisted: #051d3a;
+  --reported: rgb(75, 10, 75);
+  --rejected: rgb(37, 4, 4);
+  --banned: rgb(105, 10, 10);
+  --disabled: #444;
 }
 
 /* Base layout for body and common elements. */
 body {
-    margin: 8px auto;
-    width: max-content;
-    max-width: calc(100% - 32px);
+  margin: 8px auto;
+  width: max-content;
+  max-width: calc(100% - 32px);
 }
 
 /* Form element styling for consistent appearance. */
 textarea {
-    width: min(calc(100% - 12px), 600px);
-    height: 4em;
-    padding: 5px;
+  width: min(calc(100% - 12px), 600px);
+  height: 4em;
+  padding: 5px;
 }
 
 /* Firefox-specific textarea width adjustment. */
 @-moz-document url-prefix() {
-    textarea {
-        width: min(calc(100% - 14px), 600px);
-    }
+  textarea {
+    width: min(calc(100% - 14px), 600px);
+  }
 }
 
 /* Typography and form controls. Consistent font and color. */
@@ -44,49 +44,49 @@ input,
 select,
 button,
 ::file-selector-button {
-    font-family: Consolas, monospace;
-    font-size: 12px;
-    color: var(--fore);
-    background: var(--back);
-    accent-color: var(--system);
-    -webkit-text-size-adjust: none;
-    text-size-adjust: none;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: var(--fore);
+  background: var(--back);
+  accent-color: var(--system);
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 ::selection {
-    background: var(--system);
-    color: var(--back);
+  background: var(--system);
+  color: var(--back);
 }
 
 input:disabled {
-    color: var(--disabled);
+  color: var(--disabled);
 }
 
 fieldset {
-    border: none;
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-    appearance: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  appearance: none;
 }
 
 button,
 select {
-    margin: 7px 0;
+  margin: 7px 0;
 }
 
 button#post-button {
-    font-weight: bold;
+  font-weight: bold;
 }
 
 input[type="text"],
 input[type="password"] {
-    margin: 4px 0;
+  margin: 4px 0;
 }
 
 input,
@@ -94,81 +94,81 @@ textarea,
 select,
 button,
 ::file-selector-button {
-    border-radius: 5px;
-    border-color: var(--border);
+  border-radius: 5px;
+  border-color: var(--border);
 }
 
 /* Link and navigation styles. */
 a {
-    color: var(--system);
+  color: var(--system);
 }
 
 nav {
-    float: right;
+  float: right;
 }
 
 nav a {
-    text-decoration: none;
+  text-decoration: none;
 }
 
 h1 a {
-    text-decoration: none;
-    color: var(--fore);
+  text-decoration: none;
+  color: var(--fore);
 }
 
 h1 {
-    font-size: 1em;
+  font-size: 1em;
 }
 
 /* Status messages and system elements. */
 .system {
-    color: var(--system);
+  color: var(--system);
 }
 
 .status {
-    color: var(--review);
-    overflow-wrap: anywhere;
+  color: var(--review);
+  overflow-wrap: anywhere;
 }
 
 .status a {
-    text-decoration: none;
+  text-decoration: none;
 }
 
 details.review form {
-    display: inline;
+  display: inline;
 }
 
 /* List page post layout and styling. */
 body.list div#posts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 32px;
-    margin: 12px 8px;
-    align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin: 12px 8px;
+  align-items: center;
 }
 
 body.list div.post {
-    flex: 250px;
+  flex: 250px;
 }
 
 body.list {
-    margin-bottom: 50px;
+  margin-bottom: 50px;
 }
 
 body.solo {
-    max-width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
 }
 
 body.solo div.post details.review {
-    height: 45px;
+  height: 45px;
 }
 
 div.post {
-    display: grid;
-    justify-content: center;
-    gap: 8px;
-    margin: 0 -8px;
-    padding: 0 8px;
+  display: grid;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 -8px;
+  padding: 0 8px;
 }
 
 /* Post status backgrounds. */
@@ -177,176 +177,176 @@ div.delisted,
 div.reported,
 div.rejected,
 div.banned {
-    padding-top: 8px;
-    padding-bottom: 8px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 div.pending {
-    background: var(--pending);
+  background: var(--pending);
 }
 
 div.processing {
-    background: var(--processing);
+  background: var(--processing);
 }
 
 div.delisted {
-    background: var(--delisted);
+  background: var(--delisted);
 }
 
 div.reported {
-    background: var(--reported);
+  background: var(--reported);
 }
 
 div.rejected {
-    background: var(--rejected);
+  background: var(--rejected);
 }
 
 div.banned {
-    background: var(--banned);
+  background: var(--banned);
 }
 
 /* Post content elements. */
 div.post-body {
-    overflow-y: clip;
-    overflow-wrap: anywhere;
-    max-width: 600px;
+  overflow-y: clip;
+  overflow-wrap: anywhere;
+  max-width: 600px;
 }
 
 div.media {
-    margin: 0 auto;
-    min-width: 250px;
-    max-width: max-content;
-    text-align: center;
+  margin: 0 auto;
+  min-width: 250px;
+  max-width: max-content;
+  text-align: center;
 }
 
 div.media img,
 div.media video,
 div.youtube-thumbnail img {
-    max-width: max(250px, calc(100% + 16px));
-    margin: 0 -8px;
-    height: auto;
-    width: auto;
+  max-width: max(250px, calc(100% + 16px));
+  margin: 0 -8px;
+  height: auto;
+  width: auto;
 }
 
 body.list div.media img,
 body.list div.media video,
 body.list div.youtube-thumbnail img {
-    /* Reduce brightness on list page to avoid discomfort. */
-    filter: brightness(0.87);
+  /* Reduce brightness on list page to avoid discomfort. */
+  filter: brightness(0.87);
 }
 
 body.solo div.youtube-thumbnail img {
-    max-height: 600px;
+  max-height: 600px;
 }
 
 body.list div.media img,
 body.list div.media video,
 body.list div.youtube-thumbnail img {
-    max-height: 350px;
+  max-height: 350px;
 }
 
 div.arrow a {
-    text-decoration: none;
-    font-size: 1.2em;
+  text-decoration: none;
+  font-size: 1.2em;
 }
 
 div.see-more a {
-    text-decoration: none;
+  text-decoration: none;
 }
 
 div#user a {
-    text-decoration: none;
+  text-decoration: none;
 }
 
 p#notice {
-    color: var(--system);
+  color: var(--system);
 }
 
 p#next-page {
-    text-align: right;
-    margin-right: 5vw;
+  text-align: right;
+  margin-right: 5vw;
 }
 
 p#next-page a {
-    text-decoration: none;
-    color: var(--system);
+  text-decoration: none;
+  color: var(--system);
 }
 
 /* Loading spinner. Hidden by default, shown via JavaScript. */
 div#spinner {
-    width: 10px;
-    height: 10px;
-    border: 2px solid var(--fore);
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spinner 0.85s linear infinite;
-    display: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--fore);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spinner 0.85s linear infinite;
+  display: none;
 }
 
 @keyframes spinner {
-    to {
-        transform: rotate(360deg);
-    }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Layout helpers. */
 div.row {
-    margin-top: 4px;
-    display: flex;
-    gap: 6px;
-    align-items: center;
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 div.row button[type="submit"] {
-    margin: unset;
+  margin: unset;
 }
 
 div.youtube {
-    margin: 0 auto;
-    width: fit-content;
+  margin: 0 auto;
+  width: fit-content;
 }
 
 div.youtube-logo img {
-    height: 1.7em;
-    filter: brightness(0.2) invert(1);
+  height: 1.7em;
+  filter: brightness(0.2) invert(1);
 }
 
 div.checkbox-container {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
 
 div.checkbox-container label {
-    margin-left: 2px;
+  margin-left: 2px;
 }
 
 /* Form layouts using grid for label alignment. */
 fieldset.grid {
-    display: grid;
-    grid-template-columns: max-content max-content;
-    column-gap: 5px;
-    align-items: center;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 5px;
+  align-items: center;
 }
 
 fieldset.grid label {
-    text-align: right;
+  text-align: right;
 }
 
 fieldset.grid div.checkbox-container,
 fieldset.grid button[type="submit"] {
-    grid-column: 2;
-    justify-self: start;
+  grid-column: 2;
+  justify-self: start;
 }
 
 /* Form field sizing. */
 input[type="password"] {
-    width: 31ch;
+  width: 31ch;
 }
 
 input#username {
-    width: 17ch;
+  width: 17ch;
 }
 
 .hidden {
-    display: none;
+  display: none;
 }

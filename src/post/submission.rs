@@ -254,20 +254,20 @@ mod tests {
         // Should truncate at the first YouTube embed
         let two_youtubes = concat!(
             "<div class=\"youtube\">\n",
-            "    <div class=\"youtube-logo\">\n",
-            "        foo\n",
-            "    </div>\n",
-            "    <div class=\"youtube-thumbnail\">\n",
-            "        bar\n",
-            "    </div>\n",
+            "  <div class=\"youtube-logo\">\n",
+            "    foo\n",
+            "  </div>\n",
+            "  <div class=\"youtube-thumbnail\">\n",
+            "    bar\n",
+            "  </div>\n",
             "</div>\n",
             "<div class=\"youtube\">\n",
-            "    <div class=\"youtube-logo\">\n",
-            "        baz\n",
-            "    </div>\n",
-            "    <div class=\"youtube-thumbnail\">\n",
-            "        quux\n",
-            "    </div>\n",
+            "  <div class=\"youtube-logo\">\n",
+            "     baz\n",
+            "  </div>\n",
+            "  <div class=\"youtube-thumbnail\">\n",
+            "    quux\n",
+            "  </div>\n",
             "</div>",
         );
 
@@ -277,7 +277,7 @@ mod tests {
 
         // Case 2: YouTube content first, then line breaks beyond the limit
         let html = two_youtubes.to_string() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
-        assert_eq!(intro_limit(&html), Some(141));
+        assert_eq!(intro_limit(&html), Some(125));
 
         // Case 3: Content shorter than the limit - shouldn't truncate
         let html = str::repeat("foo ", 240);
