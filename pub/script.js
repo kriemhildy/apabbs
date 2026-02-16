@@ -1,27 +1,155 @@
-/*
- * Provides interactive features for the application.
- * Includes unread post notifications, WebSocket connection, and dynamic content updates.
- */
+/* Provides interactive features for the application.
+ * Includes WebSocket connection, unread post notifications, and dynamic content updates. */
 
-// Shows a confirmation dialog before submitting a form with a data-confirm attribute.
-function confirmSubmit(event) {
-  if (!confirm("Are you sure?")) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
+const currentPageUrl = new URL(window.location.href);
+
+// Add submit confirmations on every page
+document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
+
+// Only initialize WebSocket and dynamic content features on the homepage
+if (currentPageUrl.pathname === "/") {
+  for (const fn of [
+    initDomElements,
+    initUnseenItems,
+    initWebSocket,
+    addFetchToForms
+  ]) {
+    document.addEventListener("DOMContentLoaded", fn);
   }
 }
 
-// Adds confirmation handlers to forms with a data-confirm attribute.
-function addSubmitConfirmations(event) {
-  event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
-    form.addEventListener("submit", confirmSubmit);
-  });
+/* --- WebSocket ----------------------------------------------------------- */
+
+const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+const MIN_RECONNECT_DURATION = 2_000;
+const MAX_RECONNECT_DURATION = 60_000;
+let webSocket;
+let reconnectDuration;
+let reconnectTimeout = null;
+let heartbeatInterval = null;
+let lastPingTimestamp;
+let firstConnection = true;
+
+// Establishes a WebSocket connection to the server and sets up event handlers.
+function initWebSocket() {
+  // Prevent Firefox from opening multiple connections due to reconnect attempts.
+  if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
+    return;
+  }
+  webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
+  webSocket.onmessage = handleWebSocketMessage;
+  webSocket.onclose = handleWebSocketClosed;
+  webSocket.onopen = handleWebSocketOpened;
 }
 
-/* --- Inactive tab notification system ------------------------------------ */
+// Processes incoming WebSocket messages containing post and account updates.
+function handleWebSocketMessage(event) {
+  // Detect zero-byte binary ping from server for Safari heartbeat.
+  if (event.data instanceof Blob) {
+    event.data.arrayBuffer().then((buffer) => {
+      if (buffer.byteLength === 0) {
+        lastPingTimestamp = Date.now();
+        return;
+      }
+    });
+    return;
+  }
+  try {
+    const json = JSON.parse(event.data);
+    switch (json.type) {
+      case "post":
+        console.log(`WebSocket: Received post update for ${json.key}.`);
+        updatePost(json.key, json.html);
+        break;
+      case "account":
+        switch (json.reason) {
+          case "owner":
+            console.log("WebSocket: Received update for your account.");
+            updateActiveUsername(json.username);
+            break;
+          case "admin":
+            console.log(`WebSocket: Received account update for ${json.username}.`);
+            updatePendingAccounts(json.username, json.html);
+            break;
+          default:
+            throw (`unknown account update reason: ${json.reason}`);
+        }
+        break;
+      default:
+        throw (`unknown message type: ${json.type}`);
+    }
+  } catch (err) {
+    console.error("Failed to process WebSocket message:", err);
+  }
+}
+
+// Handles WebSocket connection closure and attempts to reconnect if needed.
+function handleWebSocketClosed(event) {
+  if (!event.wasClean) {
+    if (reconnectTimeout === null) {
+      console.warn("WebSocket connection closed, attempting to reconnect...");
+      reconnectDuration = MIN_RECONNECT_DURATION;
+    } else if (reconnectDuration < MAX_RECONNECT_DURATION) {
+      reconnectDuration = Math.min(reconnectDuration * 2, MAX_RECONNECT_DURATION);
+    }
+    reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
+  }
+}
+
+// Safari fails to disconnect WebSockets upon sleep, so we need to check for pings.
+function initSafariHeartbeatCheck() {
+  if (browserIsSafari() && heartbeatInterval === null) {
+    const CHECK_HEARTBEAT_PERIOD = 2_000;
+    const PING_TIMEOUT = 5_000;
+
+    lastPingTimestamp = Date.now();
+
+    heartbeatInterval = setInterval(() => {
+      if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+        // If no ping received in PING_TIMEOUT, close and reconnect
+        if (Date.now() - lastPingTimestamp > PING_TIMEOUT) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+          console.warn("No ping received from server, closing WebSocket...");
+          webSocket.close();
+        }
+      } else {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+        console.log("WebSocket is not open, heartbeat checks stopped.");
+      }
+    }, CHECK_HEARTBEAT_PERIOD);
+  }
+}
+
+// Handles successful WebSocket connection and checks for missed posts.
+function handleWebSocketOpened(_event) {
+  clearTimeout(reconnectTimeout);
+  reconnectTimeout = null;
+  console.log("WebSocket connection established.");
+  if (firstConnection) {
+    firstConnection = false;
+  } else {
+    checkInterim();
+  }
+  initSafariHeartbeatCheck();
+}
+
+/* --- Inactive tab notifications ------------------------------------------ */
 
 let originalTitle;
 let unseenItems = 0;
+
+// Initializes the unseen items notification system and sets up the focus event listener.
+function initUnseenItems() {
+  originalTitle = document.title;
+  window.addEventListener("focus", restoreTitle);
+  document.addEventListener("visibilitychange", (event) => {
+    if (event.target.visibilityState === "visible") {
+      restoreTitle();
+    }
+  });
+}
 
 // Increments the unseen items counter in the page title if the document is not focused.
 function incrementUnseenItems() {
@@ -35,17 +163,6 @@ function incrementUnseenItems() {
 function restoreTitle() {
   unseenItems = 0;
   document.title = originalTitle;
-}
-
-// Initializes the unseen items notification system and sets up the focus event listener.
-function initUnseenItems() {
-  originalTitle = document.title;
-  window.addEventListener("focus", restoreTitle);
-  document.addEventListener("visibilitychange", (event) => {
-    if (event.target.visibilityState === "visible") {
-      restoreTitle();
-    }
-  });
 }
 
 /* --- Dynamic DOM updates ------------------------------------------------- */
@@ -154,13 +271,7 @@ function updatePendingAccounts(username, html) {
   }
 }
 
-/* --- Fetch missed posts after re-connection ------------------------------ */
-
-// Returns the key of the most recent visible approved post, or null if none exist.
-function latestPostKey() {
-  const post = document.querySelector("div.post.approved");
-  return post ? post.id.replace("post-", "") : null;
-}
+/* --- Missed posts -------------------------------------------------------- */
 
 // Fetches posts created since the most recent visible post.
 function checkInterim() {
@@ -183,144 +294,20 @@ function checkInterim() {
   });
 }
 
-/* --- WebSocket connection management ------------------------------------- */
-
-const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-const MIN_RECONNECT_DURATION = 2_000;
-const MAX_RECONNECT_DURATION = 60_000;
-let webSocket;
-let reconnectDuration;
-let reconnectTimeout = null;
-let heartbeatInterval = null;
-let lastPingTimestamp;
-let firstConnection = true;
-
-// Processes incoming WebSocket messages containing post and account updates.
-function handleWebSocketMessage(event) {
-  // Detect zero-byte binary ping from server for Safari heartbeat.
-  if (event.data instanceof Blob) {
-    event.data.arrayBuffer().then((buffer) => {
-      if (buffer.byteLength === 0) {
-        lastPingTimestamp = Date.now();
-        return;
-      }
-    });
-    return;
-  }
-  try {
-    const json = JSON.parse(event.data);
-    switch (json.type) {
-      case "post":
-        console.log(`WebSocket: Received post update for ${json.key}.`);
-        updatePost(json.key, json.html);
-        break;
-      case "account":
-        switch (json.reason) {
-          case "owner":
-            console.log("WebSocket: Received update for your account.");
-            updateActiveUsername(json.username);
-            break;
-          case "admin":
-            console.log(`WebSocket: Received account update for ${json.username}.`);
-            updatePendingAccounts(json.username, json.html);
-            break;
-          default:
-            throw (`unknown account update reason: ${json.reason}`);
-        }
-        break;
-      default:
-        throw (`unknown message type: ${json.type}`);
-    }
-  } catch (err) {
-    console.error("Failed to process WebSocket message:", err);
-  }
-}
-
-// Handles WebSocket connection closure and attempts to reconnect if needed.
-function handleWebSocketClosed(event) {
-  if (!event.wasClean) {
-    if (reconnectTimeout === null) {
-      console.warn("WebSocket connection closed, attempting to reconnect...");
-      reconnectDuration = MIN_RECONNECT_DURATION;
-    } else if (reconnectDuration < MAX_RECONNECT_DURATION) {
-      reconnectDuration = Math.min(reconnectDuration * 2, MAX_RECONNECT_DURATION);
-    }
-    reconnectTimeout = setTimeout(initWebSocket, reconnectDuration);
-  }
-}
-
-// Safari fails to disconnect WebSockets upon sleep, so we need to check for pings.
-function initSafariHeartbeatCheck() {
-  if (browserIsSafari() && heartbeatInterval === null) {
-    const CHECK_HEARTBEAT_PERIOD = 2_000;
-    const PING_TIMEOUT = 5_000;
-
-    lastPingTimestamp = Date.now();
-
-    heartbeatInterval = setInterval(() => {
-      if (webSocket && webSocket.readyState === WebSocket.OPEN) {
-        // If no ping received in PING_TIMEOUT, close and reconnect
-        if (Date.now() - lastPingTimestamp > PING_TIMEOUT) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-          console.warn("No ping received from server, closing WebSocket...");
-          webSocket.close();
-        }
-      } else {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
-        console.log("WebSocket is not open, heartbeat checks stopped.");
-      }
-    }, CHECK_HEARTBEAT_PERIOD);
-  }
-}
-
-// Handles successful WebSocket connection and checks for missed posts.
-function handleWebSocketOpened(_event) {
-  clearTimeout(reconnectTimeout);
-  reconnectTimeout = null;
-  console.log("WebSocket connection established.");
-  if (firstConnection) {
-    firstConnection = false;
-  } else {
-    checkInterim();
-  }
-  initSafariHeartbeatCheck();
-}
-
-// Establishes a WebSocket connection to the server and sets up event handlers.
-function initWebSocket() {
-  // Prevent Firefox from opening multiple connections due to reconnect attempts.
-  if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
-    return;
-  }
-  webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
-  webSocket.onmessage = handleWebSocketMessage;
-  webSocket.onclose = handleWebSocketClosed;
-  webSocket.onopen = handleWebSocketOpened;
+// Returns the key of the most recent visible approved post, or null if none exist.
+function latestPostKey() {
+  const post = document.querySelector("div.post.approved");
+  return post ? post.id.replace("post-", "") : null;
 }
 
 /* --- Dynamic form submission --------------------------------------------- */
 
-// Disables all submit buttons during form processing, tracking which were already disabled.
-function disableSubmitButtons() {
-  document.querySelectorAll("button[type=submit]").forEach((button) => {
-    if (button.disabled) {
-      button.dataset.keepDisabled = "";
-    }
-    button.disabled = true;
-  });
-}
-
-// Restores submit buttons to their previous state after form processing.
-function restoreSubmitButtons() {
-  document.querySelectorAll("button[type=submit]").forEach((button) => {
-    if (button.dataset.keepDisabled === undefined) {
-      button.disabled = false;
-    } else {
-      delete button.dataset.keepDisabled;
-    }
-  });
+// Adds fetch API handlers to all forms in a container on page load and after template updates.
+function addFetchToForms(event) {
+  const forms = event.target.querySelectorAll("form");
+  for (const form of forms) {
+    form.addEventListener("submit", handleFormSubmit);
+  }
 }
 
 // Handles form submission using fetch API, showing a loading indicator and handling the response.
@@ -382,29 +369,40 @@ function afterSuccessfulFetch(form) {
   }
 }
 
-// Adds fetch API handlers to all forms in a container on page load and after template updates.
-function addFetchToForms(event) {
-  const forms = event.target.querySelectorAll("form");
-  for (const form of forms) {
-    form.addEventListener("submit", handleFormSubmit);
-  }
+// Disables all submit buttons during form processing, tracking which were already disabled.
+function disableSubmitButtons() {
+  document.querySelectorAll("button[type=submit]").forEach((button) => {
+    if (button.disabled) {
+      button.dataset.keepDisabled = "";
+    }
+    button.disabled = true;
+  });
 }
 
-/* --- Initialization based on current page URL ---------------------------- */
+// Restores submit buttons to their previous state after form processing.
+function restoreSubmitButtons() {
+  document.querySelectorAll("button[type=submit]").forEach((button) => {
+    if (button.dataset.keepDisabled === undefined) {
+      button.disabled = false;
+    } else {
+      delete button.dataset.keepDisabled;
+    }
+  });
+}
 
-const currentPageUrl = new URL(window.location.href);
+/* --- Confirmation dialogs ------------------------------------------------- */
 
-// Add submit confirmations on every page
-document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
+// Adds confirmation handlers to forms with a data-confirm attribute.
+function addSubmitConfirmations(event) {
+  event.target.querySelectorAll("form[data-confirm]").forEach((form) => {
+    form.addEventListener("submit", confirmSubmit);
+  });
+}
 
-// Only initialize WebSocket and dynamic content features on the homepage
-if (currentPageUrl.pathname === "/") {
-  for (const fn of [
-    initDomElements,
-    initUnseenItems,
-    initWebSocket,
-    addFetchToForms
-  ]) {
-    document.addEventListener("DOMContentLoaded", fn);
+// Shows a confirmation dialog before submitting a form with a data-confirm attribute.
+function confirmSubmit(event) {
+  if (!confirm("Are you sure?")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
   }
 }
