@@ -45,6 +45,10 @@ a {
   color: var(--system);
 }
 
+p#notice {
+  color: var(--system);
+}
+
 .status {
   color: #bebebe;
   overflow-wrap: anywhere;
@@ -172,10 +176,6 @@ div.youtube-logo img {
 
 div#user a {
   text-decoration: none;
-}
-
-p#notice {
-  color: var(--system);
 }
 
 details.review form {
