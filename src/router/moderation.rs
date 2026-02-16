@@ -324,9 +324,9 @@ pub async fn list_spam_terms(
 /// Represents a spam term form.
 #[derive(Serialize, Deserialize)]
 pub struct SpamTermForm {
-    /// Session token to invalidate during logout
+    /// Session token of the user adding the spam term.
     pub session_token: Uuid,
-    /// The spam term to be added
+    /// The spam term to be added.
     pub term: String,
 }
 
