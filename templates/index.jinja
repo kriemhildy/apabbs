@@ -27,18 +27,18 @@
   <p class="system">You are banned from posting until {{ user.ban_expires_at }}.</p>
   {% endif %}
   <form action="/submit-post" method="post" enctype="multipart/form-data">
-  <fieldset{{ " disabled" if user.ban_expires_at }}>
-    {# User session token for authentication/tracking #}
-    <input type="hidden" name="session_token" value="{{ user.session_token }}">
-    <textarea name="body"></textarea>
-    <div class="row">
-      <button type="submit" id="post-button">Post</button>
-      {# File upload field for images/videos #}
-      <input type="file" name="media">
-      {# Loading indicator that shows during form submission #}
-      <div id="spinner"></div>
-    </div>
-  </fieldset>
+    <fieldset{{ " disabled" if user.ban_expires_at }}>
+      {# User session token for authentication/tracking #}
+      <input type="hidden" name="session_token" value="{{ user.session_token }}">
+      <textarea name="body"></textarea>
+      <div class="row">
+        <button type="submit" id="post-button">Post</button>
+        {# File upload field for images/videos #}
+        <input type="file" name="media">
+        {# Loading indicator that shows during form submission #}
+        <div id="spinner"></div>
+      </div>
+    </fieldset>
   </form>
   {% endif %}
   {# List of posts #}
