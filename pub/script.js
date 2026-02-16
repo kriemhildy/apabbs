@@ -18,9 +18,7 @@ function addSubmitConfirmations(event) {
   });
 }
 
-/*************************************************************************************************
- * Notification system for new items when tab is not active
- *************************************************************************************************/
+/* --- Inactive tab notification system ------------------------------------ */
 
 let originalTitle;
 let unseenItems = 0;
@@ -50,9 +48,7 @@ function initUnseenItems() {
   });
 }
 
-/*************************************************************************************************
- * Dynamic DOM updates
- *************************************************************************************************/
+/* --- Dynamic DOM updates ------------------------------------------------- */
 
 let template;
 let postsDiv;
@@ -158,9 +154,7 @@ function updatePendingAccounts(username, html) {
   }
 }
 
-/*************************************************************************************************
- * Fetch missed posts after connection
- *************************************************************************************************/
+/* --- Fetch missed posts after re-connection ------------------------------ */
 
 // Returns the key of the most recent visible approved post, or null if none exist.
 function latestPostKey() {
@@ -189,9 +183,7 @@ function checkInterim() {
   });
 }
 
-/*************************************************************************************************
- * WebSocket connection management
- *************************************************************************************************/
+/* --- WebSocket connection management ------------------------------------- */
 
 const webSocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
 const MIN_RECONNECT_DURATION = 2_000;
@@ -308,9 +300,7 @@ function initWebSocket() {
   webSocket.onopen = handleWebSocketOpened;
 }
 
-/**************************************************************************************************
- * Dynamic form submission
- *************************************************************************************************/
+/* --- Dynamic form submission --------------------------------------------- */
 
 // Disables all submit buttons during form processing, tracking which were already disabled.
 function disableSubmitButtons() {
@@ -400,9 +390,7 @@ function addFetchToForms(event) {
   }
 }
 
-/**************************************************************************************************
- * Initialization based on current page
- *************************************************************************************************/
+/* --- Initialization based on current page URL ---------------------------- */
 
 const currentPageUrl = new URL(window.location.href);
 
