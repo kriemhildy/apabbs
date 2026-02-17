@@ -7,7 +7,6 @@
 <main>
   {# Display notification messages if present #}
   {% if notice %}
-  {% set notice = notice %}
   <p id="notice">{{ notice }}</p>
   {% endif %}
   {% if user.account.role == "pending" %}
