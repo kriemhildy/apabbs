@@ -7,6 +7,8 @@
 //! concerned about what has been posted at all hours of the day. There is a time pressure on
 //! moderators to act quickly and make a judgment on something that has already been published,
 //! whereas it would be more comfortable to take their time with it.
+//!
+//! GitHub: <https://github.com/kriemhildy/apabbs>
 
 pub mod ban;
 pub mod cron;
