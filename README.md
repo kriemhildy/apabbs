@@ -21,7 +21,7 @@ Features
 - Spam prevention by auto-banning keywords.
 - Flood protection.
 - Hashes and scrubs IP data to protect user privacy.
-- Embed functionality when linked on Twitter or Discord.
+- Embed functionality when linked on X or Discord.
 - Rust memory safety prevents leaks and overflow attacks.
 - Small memory footprint.
 - Optimal CPU core usage due to asynchronous programming with Tokio.
