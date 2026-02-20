@@ -85,7 +85,7 @@ pub struct Post {
     pub thumb_height: Option<i32>,
     /// Filename of the poster image for video media
     pub video_poster: Option<String>,
-    /// Filename of compatibility video (H.264) for non-Chromium browsers
+    /// Filename of compatibility video (H.264)
     pub compat_video: Option<String>,
     /// Creation timestamp formatted according to RFC5322 for display
     #[sqlx(default)]
