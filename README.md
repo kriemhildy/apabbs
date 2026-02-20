@@ -27,7 +27,7 @@ Features
 - Optimal CPU core usage due to asynchronous programming with Tokio.
 - CSRF protection.
 - HTML, CSS, and JS are easy to read by users.
-- All code is well-commented and organized.
+- All code is commented and organized.
 - Full integration testing.
 - Full error handling including Sentry integration.
 
