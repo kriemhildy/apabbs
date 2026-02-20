@@ -28,7 +28,7 @@ Features
 - CSRF protection.
 - HTML, CSS, and JS are easy to read by users.
 - All code is commented and organized.
-- Full integration testing.
+- Thorough integration testing.
 - Full error handling including Sentry integration.
 
 Documentation
