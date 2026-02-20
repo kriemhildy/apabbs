@@ -54,3 +54,4 @@ Installation
     This server will need to enable WebSocket upgrades and X-Real-IP forwarding.
 11. Run `cargo run` to start the app server in debug mode.
 12. Access the app via `http://localhost` in a browser.
+13. Register a user and mark it as an admin in the database.
