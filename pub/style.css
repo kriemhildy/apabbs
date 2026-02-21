@@ -278,11 +278,11 @@ input[type="password"] {
 }
 
 input[type="password"] {
-  width: 31ch;
+  width: 24ch;
 }
 
 input#username {
-  width: 17ch;
+  width: 16ch;
 }
 
 textarea {
