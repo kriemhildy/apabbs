@@ -5,10 +5,10 @@
   --background: black;
   --foreground: #e3e3e3;
   --system: #9cdcda;
-  --scroll-track: #080808; /* Scrollbar track color */
-  --scroll-thumb: #ccc; /* Scrollbar thumb color */
-  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  --scroll-track: #0f0f0f;
+  --scroll-thumb: #ccc;
   background: var(--background);
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
 
 body {
@@ -347,13 +347,11 @@ div.banned {
 /* --- Scrollbar colors for Chromium browsers on non-Mac systems ----------- */
 
 ::-webkit-scrollbar {
-  width: 12px;
   background: var(--scroll-track);
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
-  border-radius: 6px;
 }
 
 ::-webkit-scrollbar-corner {
