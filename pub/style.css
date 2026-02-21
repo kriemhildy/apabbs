@@ -60,76 +60,76 @@ p#notice {
 .status {
   color: #bebebe;
   overflow-wrap: anywhere;
+}
 
-  a {
-    text-decoration: none;
-  }
+.status a {
+  text-decoration: none;
 }
 
 /* --- Main layout --------------------------------------------------------- */
 
 nav {
   float: right;
+}
 
-  a {
-    text-decoration: none;
-  }
+nav a {
+  text-decoration: none;
 }
 
 h1 {
   font-size: 1em;
+}
 
-  a {
-    text-decoration: none;
-    color: var(--foreground);
-  }
+h1 a {
+  text-decoration: none;
+  color: var(--foreground);
 }
 
 body.list {
   margin-bottom: 50px;
+}
 
-  div#posts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 32px;
-    margin: 12px 8px;
-    align-items: center;
-  }
+body.list div#posts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin: 12px 8px;
+  align-items: center;
+}
 
-  div.post {
-    flex: 250px;
-  }
+body.list div.post {
+  flex: 250px;
+}
 
-  div.media img,
-  div.media video,
-  div.youtube-thumbnail img {
-    /* Reduce brightness on list page to avoid discomfort. */
-    filter: brightness(0.87);
-    max-height: 350px;
-    border: 1px solid #313131;
-  }
+body.list div.media img,
+body.list div.media video,
+body.list div.youtube-thumbnail img {
+  /* Reduce brightness on list page to avoid discomfort. */
+  filter: brightness(0.87);
+  max-height: 350px;
+  border: 1px solid #313131;
+}
 
-  p#next-page {
-    text-align: right;
-    margin-right: 16px;
+body.list p#next-page {
+  text-align: right;
+  margin-right: 16px;
+}
 
-    a {
-      text-decoration: none;
-      color: var(--system);
-    }
-  }
+body.list p#next-page a {
+  text-decoration: none;
+  color: var(--system);
 }
 
 body.solo {
   max-width: calc(100% - 16px);
+}
 
-  div.post details.review {
-    height: 45px;
-  }
+body.solo div.post details.review {
+  height: 45px;
+}
 
-  div.youtube-thumbnail img {
-    max-height: 600px;
-  }
+body.solo div.youtube-thumbnail img {
+  max-height: 600px;
 }
 
 /* --- Post internals ------------------------------------------------------ */
@@ -205,17 +205,17 @@ fieldset {
     grid-template-columns: max-content max-content;
     column-gap: 5px;
     align-items: center;
-
-    label {
-      text-align: right;
-    }
-
-    div.checkbox-container,
-    button[type="submit"] {
-      grid-column: 2;
-      justify-self: start;
-    }
   }
+}
+
+fieldset.grid label {
+  text-align: right;
+}
+
+fieldset.grid div.checkbox-container,
+fieldset.grid button[type="submit"] {
+  grid-column: 2;
+  justify-self: start;
 }
 
 div.row {
@@ -223,10 +223,10 @@ div.row {
   display: flex;
   gap: 6px;
   align-items: center;
+}
 
-  button[type="submit"] {
-    margin: unset;
-  }
+div.row button[type="submit"] {
+  margin: unset;
 }
 
 div#spinner {
