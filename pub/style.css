@@ -107,7 +107,7 @@ body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
   filter: brightness(0.87);
   max-height: 350px;
-  border: 1px solid #313131;
+  border: 2px solid black;
 }
 
 body.list p#next-page {
