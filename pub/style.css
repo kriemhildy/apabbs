@@ -294,13 +294,6 @@ textarea {
   padding: 5px;
 }
 
-/* Firefox-specific textarea width adjustment. */
-@-moz-document url-prefix() {
-  textarea {
-    width: min(calc(100% - 14px), 600px);
-  }
-}
-
 div.checkbox-container {
   display: flex;
   align-items: center;
