@@ -301,10 +301,10 @@ textarea {
 div.checkbox-container {
   display: flex;
   align-items: center;
+}
 
-  label {
-    margin-left: 2px;
-  }
+div.checkbox-container label {
+  margin-left: 2px;
 }
 
 /* --- Post status indicators ---------------------------------------------- */
