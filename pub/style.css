@@ -96,7 +96,7 @@ body.list div#posts {
   display: flex;
   flex-wrap: wrap;
   gap: 32px;
-  margin: 12px 8px;
+  margin: 16px 8px;
   align-items: center;
 }
 
