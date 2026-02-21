@@ -105,7 +105,7 @@ body.list div.media img,
 body.list div.media video,
 body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
-  filter: brightness(0.95);
+  filter: brightness(0.90);
   max-height: 350px;
   border: 2px solid black;
 }
