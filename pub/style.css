@@ -5,6 +5,9 @@
   --background: black;
   --foreground: #e3e3e3;
   --system: #9cdcda;
+  --scroll-track: #080808; /* Scrollbar track color */
+  --scroll-thumb: #ccc; /* Scrollbar thumb color */
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
   background: var(--background);
 }
 
@@ -105,7 +108,7 @@ body.list div.media img,
 body.list div.media video,
 body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
-  filter: brightness(0.90);
+  filter: brightness(0.9);
   max-height: 350px;
   border: 2px solid black;
 }
@@ -339,4 +342,20 @@ div.rejected {
 
 div.banned {
   background: #690a0a;
+}
+
+/* --- Scrollbar colors for Chromium browsers on non-Mac systems ----------- */
+
+::-webkit-scrollbar {
+  width: 12px;
+  background: var(--scroll-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scroll-track);
 }
