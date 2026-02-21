@@ -151,11 +151,7 @@ pub async fn publish_encrypted_media(
     post: &Post,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     encryption::decrypt_media_file(post).await?;
-    match post.media_category {
-        Some(MediaCategory::Image) => images::process_image(tx, post).await?,
-        Some(MediaCategory::Video) => videos::process_video(tx, post).await?,
-        Some(MediaCategory::Audio) | Some(MediaCategory::Other) | None => (),
-    }
+    process_media(tx, post).await?;
     Ok(())
 }
 
@@ -170,13 +166,28 @@ pub async fn unpublish_media(post: &Post) -> Result<(), Box<dyn Error + Send + S
     Ok(())
 }
 
-/// Publishes an uploaded file immediately
-pub async fn publish_uploaded_file(
+/// Publishes an uploaded media file immediately
+pub async fn publish_uploaded_media(
+    tx: &mut PgConnection,
     post: &Post,
     bytes: Vec<u8>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let published_media_path = post.published_media_path();
     write_media_file(&published_media_path, bytes).await?;
+    process_media(tx, post).await?;
+    Ok(())
+}
+
+/// Process media for publication
+pub async fn process_media(
+    tx: &mut PgConnection,
+    post: &Post,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    match post.media_category {
+        Some(MediaCategory::Image) => images::process_image(tx, post).await?,
+        Some(MediaCategory::Video) => videos::process_video(tx, post).await?,
+        Some(MediaCategory::Audio) | Some(MediaCategory::Other) | None => (),
+    }
     Ok(())
 }
 

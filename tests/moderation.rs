@@ -237,19 +237,25 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await?;
-        let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if post.status != PostStatus::Processing {
+        if updated_post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            assert!(post.published_media_path().exists());
-            assert!(post.thumbnail_path().exists());
-            assert!(post.media_width.is_some());
-            assert!(post.media_height.is_some());
+            assert!(updated_post.published_media_path().exists());
+            assert!(updated_post.thumbnail_path().exists());
+            assert_eq!(updated_post.media_width, Some(299));
+            assert_eq!(updated_post.media_height, Some(168));
+            assert_eq!(
+                updated_post.thumb_filename,
+                Some(String::from("tn_image.webp"))
+            );
+            assert_eq!(updated_post.thumb_width, Some(299));
+            assert_eq!(updated_post.thumb_height, Some(168));
 
             break;
         }
@@ -330,11 +336,16 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
             assert!(!uploads_key_dir.exists());
             let published_media_path = updated_post.published_media_path();
             assert!(published_media_path.exists());
+            assert_eq!(updated_post.media_width, Some(520));
+            assert_eq!(updated_post.media_height, Some(400));
 
             // Small images shouldn't have thumbnails
             assert!(updated_post.thumb_filename.is_none());
             let thumbnail_path = media::alternate_path(&published_media_path, "tn_", ".webp");
             assert!(!thumbnail_path.exists());
+            assert_eq!(updated_post.thumb_filename, None);
+            assert_eq!(updated_post.thumb_width, None);
+            assert_eq!(updated_post.thumb_height, None);
 
             break;
         }
@@ -404,20 +415,20 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await?;
-        let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if post.status != PostStatus::Processing {
+        if updated_post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            assert!(post.published_media_path().exists());
-            assert!(post.thumb_filename.is_none());
-            assert!(post.compat_video.is_none());
-            assert!(post.media_width.is_some());
-            assert!(post.media_height.is_some());
+            assert!(updated_post.published_media_path().exists());
+            assert_eq!(updated_post.media_width, Some(480));
+            assert_eq!(updated_post.media_height, Some(270));
+            assert!(updated_post.thumb_filename.is_none());
+            assert!(updated_post.compat_video.is_none());
 
             break;
         }
@@ -487,21 +498,24 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await?;
-        let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
 
-        if post.status != PostStatus::Processing {
+        if updated_post.status != PostStatus::Processing {
             processed = true;
 
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            assert!(post.published_media_path().exists());
-            assert!(post.thumb_filename.is_none());
-            assert!(post.compat_video.is_some());
-            assert!(post.compat_video_path().exists());
-            assert!(post.media_width.is_some());
-            assert!(post.media_height.is_some());
+            assert!(updated_post.published_media_path().exists());
+            assert!(updated_post.thumb_filename.is_none());
+            assert_eq!(
+                updated_post.compat_video,
+                Some(String::from("cm_video.mp4"))
+            );
+            assert!(updated_post.compat_video_path().exists());
+            assert_eq!(updated_post.media_width, Some(480));
+            assert_eq!(updated_post.media_height, Some(270));
 
             break;
         }
@@ -570,17 +584,17 @@ async fn approve_post_with_other_media_type() -> Result<(), Box<dyn Error + Send
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await?;
-        let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
-        if post.status != PostStatus::Processing {
+        if updated_post.status != PostStatus::Processing {
             processed = true;
             // After processing completes, verify all assets were created
             let uploads_key_dir = encrypted_media_path.parent().unwrap();
             assert!(!uploads_key_dir.exists());
-            assert!(post.published_media_path().exists());
-            assert!(post.thumb_filename.is_none());
-            assert!(post.media_width.is_none());
-            assert!(post.media_height.is_none());
+            assert!(updated_post.published_media_path().exists());
+            assert!(updated_post.thumb_filename.is_none());
+            assert!(updated_post.media_width.is_none());
+            assert!(updated_post.media_height.is_none());
             break;
         }
     }
@@ -708,15 +722,15 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     for _ in 0..max_attempts {
         tokio::time::sleep(wait_time).await;
         let mut tx = state.db.begin().await?;
-        let post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
+        let updated_post = Post::select_by_key(&mut tx, &post.key).await?.unwrap();
         tx.commit().await?;
-        if post.status == PostStatus::Reported {
+        if updated_post.status == PostStatus::Reported {
             assert!(
-                !post.published_media_path().exists(),
+                !updated_post.published_media_path().exists(),
                 "Published media should be removed"
             );
             assert!(
-                post.encrypted_media_path().exists(),
+                updated_post.encrypted_media_path().exists(),
                 "Encrypted media should exist after unpublishing"
             );
             processed = true;

@@ -226,6 +226,11 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert_eq!(post.media_width, None);
+    assert_eq!(post.media_height, None);
+    assert_eq!(post.thumb_filename, None);
+    assert_eq!(post.thumb_width, None);
+    assert_eq!(post.thumb_height, None);
     assert!(post.encrypted_media_path().exists());
     assert!(!post.published_media_path().exists());
 
@@ -320,6 +325,11 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
     assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
+    assert_eq!(post.media_width, Some(299));
+    assert_eq!(post.media_height, Some(168));
+    assert_eq!(post.thumb_filename, Some(String::from("tn_image.webp")));
+    assert_eq!(post.thumb_width, Some(299));
+    assert_eq!(post.thumb_height, Some(168));
     assert!(!post.encrypted_media_path().exists());
     assert!(post.published_media_path().exists());
 

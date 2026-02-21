@@ -21,7 +21,7 @@ use crate::{
     ban::{Ban, SpamTerm},
     post::{
         PostStatus,
-        media::{encryption::encrypt_uploaded_file, publish_uploaded_file},
+        media::{encryption::encrypt_uploaded_file, publish_uploaded_media},
         submission::{PostSubmission, generate_key},
     },
 };
@@ -161,7 +161,7 @@ pub async fn submit_post(
         PostStatus::Approved => {
             // Publish media file immediately if present
             if let Some(bytes) = post_submission.media_bytes {
-                publish_uploaded_file(&post, bytes).await?;
+                publish_uploaded_media(&mut tx, &post, bytes).await?;
             }
         }
         _ => {
