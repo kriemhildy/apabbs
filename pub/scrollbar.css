@@ -2,7 +2,7 @@
    Applies themed scrollbar colors for Chromium browsers on non-Mac systems. */
 
 :root {
-  --track: #0f0f0f; /* Scrollbar track color */
+  --track: #080808; /* Scrollbar track color */
   --thumb: #ccc; /* Scrollbar thumb color */
   scrollbar-color: var(--thumb) var(--track);
 }
