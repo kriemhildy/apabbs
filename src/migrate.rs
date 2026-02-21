@@ -344,10 +344,12 @@ pub async fn add_image_dimensions(state: AppState) {
     use apabbs::post::{Post, media::images};
     let mut tx = state.db.begin().await.expect("begin");
 
-    // Get all image posts
+    // Get all image posts that are missing media dimensions
     let posts: Vec<Post> = sqlx::query_as(concat!(
         "SELECT * FROM posts WHERE media_category = 'image' ",
-        "AND status IN ('approved', 'delisted')",
+        "AND status IN ('approved', 'delisted') ",
+        "AND ((media_width IS NULL OR media_height IS NULL) ",
+        "OR (thumb_filename IS NOT NULL AND (thumb_width IS NULL OR thumb_height IS NULL)))",
     ))
     .fetch_all(&mut *tx)
     .await
