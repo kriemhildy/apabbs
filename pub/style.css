@@ -199,13 +199,13 @@ fieldset {
   margin: 0;
   min-width: 0;
   appearance: none;
+}
 
-  &.grid {
-    display: grid;
-    grid-template-columns: max-content max-content;
-    column-gap: 5px;
-    align-items: center;
-  }
+fieldset.grid {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 5px;
+  align-items: center;
 }
 
 fieldset.grid label {
