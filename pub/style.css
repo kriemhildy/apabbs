@@ -5,10 +5,8 @@
   --background: black;
   --foreground: #e3e3e3;
   --system: #9cdcda;
-  --scroll-track: #0f0f0f;
-  --scroll-thumb: #ccc;
   background: var(--background);
-  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  scrollbar-color: #ccc #0f0f0f;
 }
 
 body {
@@ -335,18 +333,4 @@ div.rejected {
 
 div.banned {
   background: #690a0a;
-}
-
-/* --- Scrollbar colors for Chromium browsers on non-Mac systems ----------- */
-
-::-webkit-scrollbar {
-  background: var(--scroll-track);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--scroll-thumb);
-}
-
-::-webkit-scrollbar-corner {
-  background: var(--scroll-track);
 }
