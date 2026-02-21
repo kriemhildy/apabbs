@@ -5,7 +5,7 @@
   --background: black;
   --foreground: #e3e3e3;
   --system: #9cdcda;
-  background: url("background.jpg") repeat;
+  background: black url("background.jpg") repeat;
 }
 
 body {
