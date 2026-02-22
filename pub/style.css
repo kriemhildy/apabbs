@@ -92,7 +92,7 @@ body.list {
 body.list div#posts {
   display: grid;
   justify-items: center;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   margin: 16px 0;
   gap: 16px;
   align-items: center;
@@ -104,7 +104,6 @@ body.list div.media video,
 body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
   filter: brightness(0.9);
-  max-height: 350px;
 }
 
 body.list p#next-page {
@@ -119,10 +118,6 @@ body.list p#next-page a {
 
 body.solo div.post details.review {
   height: 45px;
-}
-
-body.solo div.youtube-thumbnail img {
-  max-height: 600px;
 }
 
 /* --- Post internals ------------------------------------------------------ */
