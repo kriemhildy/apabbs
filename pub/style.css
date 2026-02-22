@@ -25,6 +25,7 @@ button,
   font-size: 12px;
   color: var(--foreground);
   accent-color: var(--system);
+  -webkit-text-size-adjust: none;
   text-size-adjust: none;
 }
 
