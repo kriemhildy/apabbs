@@ -94,6 +94,7 @@ body.list div#posts {
   justify-items: center;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   margin: 16px 0;
+  gap: 16px;
   align-items: center;
   contain: layout style paint; /* Isolate rendering */
 }
@@ -130,6 +131,7 @@ div.post {
   display: grid;
   gap: 8px;
   padding: 8px;
+  margin: -8px;
 }
 
 div.post-body {
