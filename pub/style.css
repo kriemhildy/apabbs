@@ -116,7 +116,7 @@ body.list div.youtube-thumbnail img {
   body.list div.media img,
   body.list div.media video,
   body.list div.youtube-thumbnail img {
-    max-height: 800px;
+    max-height: 600px;
   }
 }
 
