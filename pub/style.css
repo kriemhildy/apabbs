@@ -105,7 +105,19 @@ body.list div.media video,
 body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
   filter: brightness(0.9);
-  max-height: 320px;
+  max-height: 280px;
+}
+
+/* One-column layout has taller images and smaller gaps */
+@media (max-width: 607px) {
+  body.list div#posts {
+    grid-auto-rows: unset;
+  }
+  body.list div.media img,
+  body.list div.media video,
+  body.list div.youtube-thumbnail img {
+    max-height: 800px;
+  }
 }
 
 body.list p#next-page {
