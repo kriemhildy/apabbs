@@ -158,11 +158,6 @@ div.see-more a {
   text-decoration: none;
 }
 
-div.youtube {
-  margin: 0 auto;
-  width: fit-content;
-}
-
 div.youtube-logo img {
   height: 1.7em;
   filter: brightness(0.2) invert(1);
