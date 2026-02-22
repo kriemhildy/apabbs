@@ -11,8 +11,7 @@
 
 body {
   margin: 8px auto;
-  width: max-content;
-  max-width: calc(100% - 32px);
+  width: calc(100% - 32px);
 }
 
 body,
@@ -87,19 +86,17 @@ h1 a {
 }
 
 body.list {
-  margin-bottom: 50px;
+  margin-bottom: 20px;
 }
 
 body.list div#posts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 32px;
-  margin: 16px 8px;
+  display: grid;
+  justify-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
   align-items: center;
-}
-
-body.list div.post {
-  flex: 250px;
+  contain: layout style paint; /* Isolate rendering */
 }
 
 body.list div.media img,
@@ -108,7 +105,6 @@ body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
   filter: brightness(0.9);
   max-height: 350px;
-  border: 2px solid black;
 }
 
 body.list p#next-page {
@@ -119,10 +115,6 @@ body.list p#next-page {
 body.list p#next-page a {
   text-decoration: none;
   color: var(--system);
-}
-
-body.solo {
-  max-width: calc(100% - 16px);
 }
 
 body.solo div.post details.review {
@@ -137,10 +129,7 @@ body.solo div.youtube-thumbnail img {
 
 div.post {
   display: grid;
-  justify-content: center;
   gap: 8px;
-  margin: 0 -8px;
-  padding: 0 8px;
 }
 
 div.post-body {
@@ -149,18 +138,11 @@ div.post-body {
   max-width: 600px;
 }
 
-div.media {
-  margin: 0 auto;
-  min-width: 250px;
-  max-width: max-content;
-  text-align: center;
-}
-
 div.media img,
 div.media video,
 div.youtube-thumbnail img {
-  max-width: max(250px, calc(100% + 16px));
-  margin: 0 -8px;
+  max-width: 100%;
+  max-height: 800px;
   height: auto;
   width: auto;
 }
