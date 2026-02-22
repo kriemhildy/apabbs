@@ -93,7 +93,6 @@ body.list div#posts {
   display: grid;
   justify-items: center;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
   margin: 16px 0;
   align-items: center;
   contain: layout style paint; /* Isolate rendering */
@@ -130,6 +129,7 @@ body.solo div.youtube-thumbnail img {
 div.post {
   display: grid;
   gap: 8px;
+  padding: 8px;
 }
 
 div.post-body {
@@ -284,14 +284,6 @@ div.checkbox-container label {
 }
 
 /* --- Post status indicators ---------------------------------------------- */
-
-div.pending,
-div.delisted,
-div.reported,
-div.rejected,
-div.banned {
-  padding: 8px 0;
-}
 
 div.pending {
   background: #111;
