@@ -10,8 +10,7 @@
 }
 
 body {
-  margin: 8px auto;
-  width: calc(100% - 32px);
+  margin: 8px 16px;
 }
 
 body,
@@ -23,17 +22,10 @@ button,
   font-family: Consolas, monospace;
   font-size: 12px;
   color: var(--foreground);
+  background: var(--background);
   accent-color: var(--system);
   -webkit-text-size-adjust: none;
   text-size-adjust: none;
-}
-
-textarea,
-input,
-select,
-button,
-::file-selector-button {
-  background: var(--background);
 }
 
 ::selection {
@@ -66,7 +58,7 @@ p#notice {
   text-decoration: none;
 }
 
-/* --- Main layout --------------------------------------------------------- */
+/* --- Primary layout ------------------------------------------------------ */
 
 nav {
   float: right;
