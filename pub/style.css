@@ -93,7 +93,6 @@ body.list div#posts {
   display: grid;
   justify-items: center;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  grid-auto-rows: 1fr;
   margin: 16px 0;
   gap: 16px;
   align-items: center;
@@ -105,19 +104,7 @@ body.list div.media video,
 body.list div.youtube-thumbnail img {
   /* Reduce brightness on list page to avoid discomfort. */
   filter: brightness(0.9);
-  max-height: 280px;
-}
-
-/* One-column layout has taller images and smaller gaps */
-@media (max-width: 607px) {
-  body.list div#posts {
-    grid-auto-rows: unset;
-  }
-  body.list div.media img,
-  body.list div.media video,
-  body.list div.youtube-thumbnail img {
-    max-height: 600px;
-  }
+  max-height: 400px;
 }
 
 body.list p#next-page {
