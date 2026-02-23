@@ -251,9 +251,11 @@ input#username {
 }
 
 textarea {
-  width: min(calc(100% - 12px), 600px);
+  width: 100%;
+  max-width: 600px;
   height: 4em;
   padding: 5px;
+  box-sizing: border-box;
 }
 
 div.checkbox-container {
