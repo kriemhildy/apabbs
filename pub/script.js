@@ -332,7 +332,9 @@ function handleFormSubmit(event) {
     } else if ([400, 401, 403, 404, 500].includes(response.status)) {
       response.text().then((text) => {
         alert(text);
-        console.warn(`Form submission to ${this.action} failed with status ${response.status}: ${text}`);
+        console.warn(
+          `Form submission to ${this.action} failed with status ${response.status}: ${text}`
+        );
       });
     } else if (response.status === 413) {
       alert("File must be under 25MB");
@@ -342,7 +344,9 @@ function handleFormSubmit(event) {
       console.error("Form submission failed: server unavailable (502)");
     } else {
       alert(`Unexpected error: ${response.status} ${response.statusText}`);
-      console.error(`Unexpected error during form submission: ${response.status} ${response.statusText}`);
+      console.error(
+        `Unexpected error during form submission: ${response.status} ${response.statusText}`
+      );
     }
   }).catch((err) => {
     alert("Network error: " + err.message);
