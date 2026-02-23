@@ -48,15 +48,6 @@ p#notice {
   color: var(--system);
 }
 
-.status {
-  color: #bebebe;
-  overflow-wrap: anywhere;
-}
-
-.status a {
-  text-decoration: none;
-}
-
 /* --- Primary layout ------------------------------------------------------ */
 
 nav {
@@ -145,6 +136,15 @@ div.see-more a {
 div.youtube-logo img {
   height: 1.7em;
   filter: brightness(0.2) invert(1);
+}
+
+.status {
+  color: #bebebe;
+  overflow-wrap: anywhere;
+}
+
+.status a {
+  text-decoration: none;
 }
 
 div#user a {
