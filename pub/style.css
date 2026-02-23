@@ -96,7 +96,6 @@ body.list div#posts {
   margin: 16px 0;
   gap: 16px;
   align-items: center;
-  contain: layout style paint; /* Isolate rendering */
 }
 
 body.list div.media img,
