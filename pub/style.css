@@ -267,10 +267,7 @@ div.checkbox-container label {
 
 /* --- Post status indicators ---------------------------------------------- */
 
-div.pending {
-  background: #111;
-}
-
+div.pending,
 div.processing {
   background: #111;
 }
