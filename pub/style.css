@@ -138,12 +138,12 @@ div.youtube-logo img {
   filter: brightness(0.2) invert(1);
 }
 
-.status {
+div.status {
   color: #bebebe;
   overflow-wrap: anywhere;
 }
 
-.status a {
+div.status a {
   text-decoration: none;
 }
 
