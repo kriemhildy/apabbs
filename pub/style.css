@@ -23,7 +23,7 @@ button,
   color: var(--foreground);
   background: var(--background);
   accent-color: var(--system);
-  -webkit-text-size-adjust: none;
+  -webkit-text-size-adjust: none; /* Required by Safari on iOS */
   text-size-adjust: none;
 }
 
