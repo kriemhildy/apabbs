@@ -121,12 +121,6 @@ body.solo div.post details.review {
   height: 45px;
 }
 
-body.solo div.media img,
-body.solo div.media video,
-body.solo div.youtube-thumbnail img {
-  max-height: 1400px;
-}
-
 /* --- Post internals ------------------------------------------------------ */
 
 div.post {
