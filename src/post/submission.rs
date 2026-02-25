@@ -18,11 +18,12 @@ use uuid::Uuid;
 /// Length (in characters) of randomly generated post keys for new posts.
 pub const KEY_LENGTH: usize = 8;
 
-/// Maximum number of bytes allowed for a post intro preview (truncation limit).
-pub const MAX_INTRO_BYTES: usize = 1000;
+/// Maximum number of characters allowed for a post intro preview (truncation limit).
+/// Enable foreign languages and ASCII art.
+pub const MAX_INTRO_CHARS: usize = 1000;
 
-/// Maximum number of line breaks allowed in a post intro preview.
-pub const MAX_INTRO_BREAKS: usize = 12;
+/// Maximum number of line breaks allowed in a post intro preview. Enable ASCII art.
+pub const MAX_INTRO_BREAKS: usize = 30;
 
 /// Represents a post submission from a user.
 ///
@@ -62,7 +63,7 @@ impl PostSubmission {
             .await
             .map_err(|e| format!("convert post body to HTML: {e}"))?;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
-        let intro_limit = intro_limit(&html_body);
+        let intro_limit = intro_limit(&html_body, self.media_filename.is_some());
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, status, session_token, account_id, body, ip_hash, ",
             "media_filename, media_category, media_mime_type, youtube, intro_limit) ",
@@ -124,42 +125,57 @@ pub async fn generate_key(tx: &mut PgConnection) -> Result<String, Box<dyn Error
 }
 
 /// Determines intro limit for post preview based on HTML content, line breaks, and YouTube embeds.
-pub fn intro_limit(html: &str) -> Option<i32> {
+pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     tracing::debug!("html.len(): {}", html.len());
     if html.is_empty() {
         return None;
     }
-    // Get a slice of the maximum intro bytes limited to the last valid UTF-8 character
-    let last_valid_utf8_index = html
-        .char_indices()
-        .take_while(|&(idx, _)| idx < MAX_INTRO_BYTES)
-        .last()
-        .map_or(0, |(idx, _)| idx);
-    tracing::debug!(last_valid_utf8_index);
-    let slice = if html.len() - 1 > last_valid_utf8_index {
-        &html[..last_valid_utf8_index]
+    // Get a slice of the maximum intro UTF-8 characters converted to bytes
+    let last_char_index = html
+        .chars()
+        .take(MAX_INTRO_CHARS)
+        .map(|c| c.len_utf8())
+        .sum();
+    tracing::debug!(last_char_index);
+    let slice = if html.len() - 1 > last_char_index {
+        &html[..last_char_index]
     } else {
         html
     };
-    // Stop before a second YouTube video
+    // Determine YouTube limit based on the the second YouTube embed, or first if media is present
     let youtube_pattern =
         Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("build regex");
     let mut youtube_iter = youtube_pattern.find_iter(slice);
     let first_youtube_match = youtube_iter.next();
-    if let Some(mat) = first_youtube_match {
-        tracing::debug!("First YouTube match start: {}", mat.start());
-    } else {
-        tracing::debug!("No YouTube match found");
-    }
-    let youtube_limit = match youtube_iter.next() {
-        None => None,
+    let youtube_limit = match first_youtube_match {
+        None => {
+            tracing::debug!("No YouTube matches found");
+            None
+        }
         Some(mat) => {
-            tracing::debug!("Second YouTube match start: {}", mat.start());
-            let before_second_youtube = &slice[..mat.start()];
-            // Strip any breaks or whitespace that might be present at the end
-            let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("build regex");
-            let stripped = strip_breaks_pattern.replace(before_second_youtube, "");
-            Some(stripped.trim_end().len() as i32)
+            tracing::debug!("First YouTube match start: {}", mat.start());
+            let youtube_limit_match_start = if has_media {
+                Some(mat.start())
+            } else {
+                // If no media, check if there's a second YouTube match to determine the limit
+                match youtube_iter.next() {
+                    None => None,
+                    Some(mat) => {
+                        tracing::debug!("Second YouTube match start: {}", mat.start());
+                        Some(mat.start())
+                    }
+                }
+            };
+            match youtube_limit_match_start {
+                None => None,
+                Some(start) => {
+                    let youtube_slice = &slice[..start];
+                    // Strip any breaks or whitespace that might be present at the end
+                    let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("build regex");
+                    let stripped = strip_breaks_pattern.replace(youtube_slice, "");
+                    Some(stripped.trim_end().len() as i32)
+                }
+            }
         }
     };
     // Check for the maximum breaks
@@ -182,7 +198,7 @@ pub fn intro_limit(html: &str) -> Option<i32> {
         return min_limit;
     }
     // Do not truncate if beneath the maximum intro length
-    if html.len() <= MAX_INTRO_BYTES {
+    if html.chars().count() <= MAX_INTRO_CHARS {
         return None;
     }
     // Truncate to the last break(s) before the limit
@@ -198,7 +214,7 @@ pub fn intro_limit(html: &str) -> Option<i32> {
     if let Some(last_space) = slice.rfind(' ') {
         return Some(last_space as i32);
     }
-    // If no space found, use the last valid utf8 character index
+    // If no space found, use the last UTF-8 character index
     // Need to strip incomplete html entities
     // Check for & which is not terminated by a ;
     let incomplete_entity_pattern = Regex::new(r"&[^;]*$").expect("build regex");
@@ -209,8 +225,8 @@ pub fn intro_limit(html: &str) -> Option<i32> {
         );
         return Some(mat.start() as i32);
     }
-    // No incomplete entity, return last valid utf8 character index
-    Some(last_valid_utf8_index as i32)
+    // No incomplete entity, return last valid UTF-8 character index
+    Some(last_char_index as i32)
 }
 
 /// Represents a request to hide a post from personal view
@@ -273,15 +289,15 @@ mod tests {
 
         // Case 1: Line breaks first, then YouTube content
         let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
-        assert_eq!(super::intro_limit(&html), Some(60));
+        assert_eq!(super::intro_limit(&html, false), Some(60));
 
         // Case 2: YouTube content first, then line breaks beyond the limit
         let html = two_youtubes.to_string() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
-        assert_eq!(intro_limit(&html), Some(125));
+        assert_eq!(intro_limit(&html, false), Some(125));
 
         // Case 3: Content shorter than the limit - shouldn't truncate
         let html = str::repeat("foo ", 240);
-        assert_eq!(intro_limit(&html), None);
+        assert_eq!(intro_limit(&html, false), None);
 
         // Case 4: Content with line breaks but still under the break limit
         let html = str::repeat("foo ", 100)
@@ -289,22 +305,22 @@ mod tests {
             + &str::repeat("bar ", 100)
             + "<br>\n"
             + &str::repeat("baz ", 100);
-        assert_eq!(intro_limit(&html), Some(805));
+        assert_eq!(intro_limit(&html, false), Some(805));
 
-        // Case 5: Content exactly at the byte limit boundary
-        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
-        assert_eq!(intro_limit(&html), Some(998));
+        // Case 5: Content exactly at the character limit boundary
+        let html = str::repeat("x", MAX_INTRO_CHARS - 2) + " yy";
+        assert_eq!(intro_limit(&html, false), Some(998));
 
-        // Case 6: Content beyond the byte limit
-        let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
-        assert_eq!(intro_limit(&html), Some(999));
+        // Case 6: Content beyond the character limit
+        let html = str::repeat("x", MAX_INTRO_CHARS) + " y";
+        assert_eq!(intro_limit(&html, false), Some(999));
 
         // Case 7: HTML entity at the boundary
-        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
-        assert_eq!(intro_limit(&html), Some(998));
+        let html = str::repeat("x", MAX_INTRO_CHARS - 2) + "&quot;";
+        assert_eq!(intro_limit(&html, false), Some(998));
 
         // Case 8: Multi-byte character at the boundary
-        let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
-        assert_eq!(intro_limit(&html), Some(998));
+        let html = str::repeat("x", MAX_INTRO_CHARS - 2) + "コ";
+        assert_eq!(intro_limit(&html, false), Some(998));
     }
 }

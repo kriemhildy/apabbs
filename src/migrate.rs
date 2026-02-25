@@ -99,13 +99,14 @@ pub async fn update_intro_limit(state: AppState) {
     use apabbs::post::{Post, submission};
 
     let mut tx = state.db.begin().await.expect("begin");
-    let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE intro_limit IS NOT NULL")
+    let posts: Vec<Post> = sqlx::query_as("SELECT * FROM posts WHERE body <> ''")
         .fetch_all(&mut *tx)
         .await
-        .expect("select posts with intro_limit");
+        .expect("select posts with a text body");
 
     for post in posts {
-        let intro_limit = submission::intro_limit(&post.body);
+        tracing::info!(key = post.key, "Updating intro_limit for post");
+        let intro_limit = submission::intro_limit(&post.body, post.media_filename.is_some());
         sqlx::query("UPDATE posts SET intro_limit = $1 WHERE id = $2")
             .bind(intro_limit)
             .bind(post.id)
