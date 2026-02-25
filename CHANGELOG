@@ -1,3 +1,9 @@
+0.55.0
+
+Add rapid posting prevention.
+Add pagination on user profile pages.
+Update page title when using pagination.
+
 0.54.0
 
 Grid instead of flex layout, simplify CSS.
