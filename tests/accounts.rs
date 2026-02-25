@@ -2,8 +2,9 @@
 
 mod helpers;
 
-use crate::helpers::APPLICATION_WWW_FORM_URLENCODED;
+use crate::helpers::{APPLICATION_WWW_FORM_URLENCODED, create_test_post};
 use apabbs::{
+    post::PostStatus,
     router::{
         auth::Logout,
         helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
@@ -290,6 +291,52 @@ async fn user_profile() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Clean up
     let mut tx = state.db.begin().await?;
+    delete_test_account(&mut tx, account).await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests user profile page rendering with pagination.
+#[tokio::test]
+async fn user_profile_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+
+    // Create a test user account
+    let user = create_test_account(&mut tx, AccountRole::Restricted).await?;
+    let account = user.account.as_ref().unwrap();
+
+    // Create test posts
+    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    tx.commit().await?;
+
+    // Request the user profile page with pagination
+    let request = Request::builder()
+        .uri(format!("/user/{}/page/{}", &account.username, &post2.key))
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::empty())?;
+    let response = router.oneshot(request).await?;
+
+    // Verify response
+    assert!(response.status().is_success());
+    let body_str = response_body_str(response).await;
+    assert!(body_str.contains(&account.username));
+    assert!(body_str.contains(&post1.key));
+    assert!(body_str.contains(&post2.key));
+    assert!(!body_str.contains(&post3.key));
+
+    // Check post order
+    let post1_index = body_str.find(&post1.key).unwrap();
+    let post2_index = body_str.find(&post2.key).unwrap();
+    assert!(post2_index < post1_index);
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    post1.delete(&mut tx).await?;
+    post2.delete(&mut tx).await?;
+    post3.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
     Ok(())
