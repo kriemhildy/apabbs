@@ -5,13 +5,12 @@
 
 use super::{
     errors::ResponseError,
-    helpers::{add_notice_cookie, init_user, remove_notice_cookie},
+    helpers::{add_notice_cookie, init_post, init_user, remove_notice_cookie},
 };
-use crate::user::TimeZoneUpdate;
 use crate::{
     AppState,
     post::Post,
-    user::{Account, AccountRole, Credentials},
+    user::{Account, AccountRole, Credentials, TimeZoneUpdate},
     utils::render,
 };
 use axum::{
@@ -20,20 +19,38 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use std::collections::HashMap;
 
 // --- Profile display endpoints ----------------------------------------------
 
+// Shows public posts and account info for a given username.
 pub async fn user_profile(
     method: Method,
     State(state): State<AppState>,
     jar: CookieJar,
     headers: HeaderMap,
-    Path(username): Path<String>,
+    Path(path): Path<HashMap<String, String>>,
 ) -> Result<Response, ResponseError> {
     let mut tx = state.db.begin().await?;
 
     // Initialize user from session (may be anonymous)
     let (user, jar) = init_user(jar, &mut tx, method, &headers, None).await?;
+
+    // Extract username from path
+    let username = match path.get("username") {
+        None => {
+            return Err(ResponseError::BadRequest(
+                "Missing username in path".to_string(),
+            ));
+        }
+        Some(username) => username,
+    };
+
+    // Handle pagination parameter if present
+    let page_post = match path.get("key") {
+        Some(key) => Some(init_post(&mut tx, key, &user).await?),
+        None => None,
+    };
 
     // Find account by username (returns NotFound if user does not exist)
     let account = match Account::select_by_username(&mut tx, &username).await? {
@@ -53,7 +70,8 @@ pub async fn user_profile(
     }
 
     // Get user's public posts
-    let posts = Post::select_by_author(&mut tx, account.id).await?;
+    let page_post_id = page_post.as_ref().map(|p| p.id);
+    let posts = Post::select_by_author(&mut tx, account.id, page_post_id).await?;
 
     // Render profile page
     let html = Html(render(

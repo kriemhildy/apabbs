@@ -161,16 +161,24 @@ impl Post {
     pub async fn select_by_author(
         tx: &mut PgConnection,
         account_id: i32,
+        page_post_id: Option<i32>,
     ) -> Result<Vec<Self>, Box<dyn Error + Send + Sync>> {
-        sqlx::query_as(concat!(
-            "SELECT * FROM posts WHERE account_id = $1 ",
-            "AND status = 'approved' ORDER BY id DESC LIMIT $2",
-        ))
-        .bind(account_id)
-        .bind(crate::per_page() as i32)
-        .fetch_all(&mut *tx)
-        .await
-        .map_err(|e| format!("select posts by author: {e}").into())
+        let mut qb = QueryBuilder::new("SELECT * FROM posts WHERE account_id = ");
+        qb.push_bind(account_id);
+        qb.push(" AND status = 'approved'");
+
+        if let Some(page_id) = page_post_id {
+            qb.push(" AND id < ");
+            qb.push_bind(page_id);
+        }
+
+        qb.push(" ORDER BY id DESC LIMIT ");
+        qb.push_bind(crate::per_page() as i32);
+
+        qb.build_query_as()
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(|e| format!("select posts by author: {e}").into())
     }
 
     /// Returns true if the user is the author of this post.
