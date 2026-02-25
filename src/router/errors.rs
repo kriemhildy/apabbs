@@ -13,6 +13,7 @@ pub enum ResponseError {
     Unauthorized(String),
     Forbidden(String),
     NotFound(String),
+    TooManyRequests(String),
     InternalServerError(String),
 }
 
@@ -38,6 +39,7 @@ impl IntoResponse for ResponseError {
             ResponseError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             ResponseError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
             ResponseError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            ResponseError::TooManyRequests(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
             ResponseError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 

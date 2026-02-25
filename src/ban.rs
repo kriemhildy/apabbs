@@ -4,7 +4,7 @@
 //! and protecting the system from malicious behavior. Handles IP-based and account-based
 //! restrictions to prevent spam and flooding.
 
-use crate::utils::POSTGRES_RFC5322_DATETIME;
+use crate::{user::User, utils::POSTGRES_RFC5322_DATETIME};
 use serde::Serialize;
 use sqlx::PgConnection;
 use std::error::Error;
@@ -111,6 +111,22 @@ pub async fn scrub(tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + S
     .await
     .map(|_| ())
     .map_err(|e| format!("scrub posts: {e}").into())
+}
+
+/// Checks if a post has been created within the last five seconds.
+pub async fn rapid_posting(
+    tx: &mut PgConnection,
+    user: &User,
+) -> Result<bool, Box<dyn Error + Send + Sync>> {
+    sqlx::query_scalar(concat!(
+        "SELECT EXISTS(SELECT 1 FROM posts WHERE (session_token = $1 OR account_id = $2) ",
+        "AND created_at > now() - interval '5 seconds')"
+    ))
+    .bind(user.session_token)
+    .bind(user.account.as_ref().map(|a| a.id))
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|e| format!("check for rapid posting: {e}").into())
 }
 
 /// Represents a spam term used for filtering content.

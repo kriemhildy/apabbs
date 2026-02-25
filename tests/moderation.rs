@@ -26,7 +26,7 @@ use form_data_builder::FormData;
 use helpers::{
     APPLICATION_WWW_FORM_URLENCODED, TEST_IP, create_test_account, create_test_post,
     create_test_spam_term, delete_test_account, delete_test_ban, delete_test_spam_term, init_test,
-    response_body_str, test_user,
+    response_body_str, select_latest_post_by_session_token, test_user,
 };
 use std::error::Error;
 use tower::ServiceExt;
@@ -121,6 +121,9 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     form.write_field("session_token", &bogus_session_token.to_string())?;
     form.write_field("body", "trololol")?;
 
+    // Wait 5 seconds to avoid rapid posting detection
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
@@ -131,7 +134,7 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     let response = router.oneshot(request).await?;
 
     // Verify ban was applied
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
 
     // Verify ban state after ban
     let mut tx = state.db.begin().await?;
@@ -184,6 +187,60 @@ async fn spam_term_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clean up
     delete_test_ban(&mut tx, &user.ip_hash).await;
     delete_test_spam_term(&mut tx, "SpamCompanyName").await;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests rapidly submitting posts.
+#[tokio::test]
+async fn rapid_posting() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let user = User {
+        ip_hash: sha256::digest(apabbs::secret_key() + TEST_IP),
+        session_token: Uuid::new_v4(),
+        ..User::default()
+    };
+
+    // Create form data
+    let mut form = FormData::new(Vec::new());
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "trololol")?;
+
+    // Submit first post
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{SESSION_COOKIE}={}", user.session_token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::from(form.clone().finish()?))?;
+
+    let response = router.clone().oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    // Wait 3 seconds
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+    // Attempt to submit another post immediately
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(COOKIE, format!("{SESSION_COOKIE}={}", user.session_token))
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::from(form.finish()?))?;
+
+    let response = router.oneshot(request).await?;
+
+    // Verify second submission is rejected for being too rapid
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    let post = select_latest_post_by_session_token(&mut tx, &user.session_token)
+        .await
+        .unwrap();
+    post.delete(&mut tx).await?;
     tx.commit().await?;
     Ok(())
 }

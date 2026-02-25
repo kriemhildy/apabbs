@@ -214,6 +214,7 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify post was created with media
     let mut tx = state.db.begin().await?;
@@ -221,7 +222,6 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.body, "");
     assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));
@@ -267,6 +267,7 @@ async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> 
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify post was created with account association
     let mut tx = state.db.begin().await?;
@@ -276,7 +277,6 @@ async fn submit_post_with_account() -> Result<(), Box<dyn Error + Send + Sync>> 
     let anon_post = select_latest_post_by_session_token(&mut tx, &user.session_token).await;
 
     assert!(anon_post.is_none());
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(account_post.account_id, Some(account.id));
     assert_eq!(account_post.session_token, None);
 
@@ -313,6 +313,7 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
     let response = router.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Verify post was created with approved status
     let mut tx = state.db.begin().await?;
@@ -320,7 +321,6 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
     assert_eq!(post.status, PostStatus::Approved);
     assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));

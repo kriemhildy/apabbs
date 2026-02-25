@@ -329,7 +329,7 @@ function handleFormSubmit(event) {
     if (response.ok) {
       console.log(`Form submission to ${this.action} succeeded.`);
       afterSuccessfulFetch(this);
-    } else if ([400, 401, 403, 404, 500].includes(response.status)) {
+    } else if ([400, 401, 403, 404, 429, 500].includes(response.status)) {
       response.text().then((text) => {
         alert(text);
         console.warn(

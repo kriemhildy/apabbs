@@ -18,7 +18,7 @@ use super::{
 };
 use crate::{
     AppMessage, AppState,
-    ban::{Ban, SpamTerm},
+    ban::{Ban, SpamTerm, rapid_posting},
     post::{
         PostStatus,
         media::{encryption::encrypt_uploaded_file, publish_uploaded_media},
@@ -116,12 +116,19 @@ pub async fn submit_post(
         )));
     }
 
+    // Prevent rapid posting
+    if rapid_posting(&mut tx, &user).await? {
+        return Err(ResponseError::TooManyRequests(
+            "You are posting too quickly.".to_string(),
+        ));
+    }
+
     // Ban user if they are flooding
     if let Some(expires_at) =
         ban_if_flooding(&mut tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?
     {
         tx.commit().await?;
-        return Err(ResponseError::Forbidden(format!(
+        return Err(ResponseError::TooManyRequests(format!(
             "You have been banned for flooding until {expires_at}."
         )));
     }
