@@ -50,6 +50,7 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
             get(auth::registration_form).post(auth::create_account),
         )
         .route("/user/{username}", get(profile::user_profile))
+        .route("/user/{username}/page/{key}", get(profile::user_profile))
         .route("/settings", get(profile::settings))
         .route("/settings/logout", post(auth::logout))
         .route(

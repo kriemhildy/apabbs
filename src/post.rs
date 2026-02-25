@@ -172,8 +172,9 @@ impl Post {
             qb.push_bind(page_id);
         }
 
+        let limit = crate::per_page() + 1; // +1 to check if there's a next page
         qb.push(" ORDER BY id DESC LIMIT ");
-        qb.push_bind(crate::per_page() as i32);
+        qb.push_bind(limit as i32);
 
         qb.build_query_as()
             .fetch_all(&mut *tx)

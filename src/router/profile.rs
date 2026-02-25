@@ -71,7 +71,14 @@ pub async fn user_profile(
 
     // Get user's public posts
     let page_post_id = page_post.as_ref().map(|p| p.id);
-    let posts = Post::select_by_author(&mut tx, account.id, page_post_id).await?;
+    let mut posts = Post::select_by_author(&mut tx, account.id, page_post_id).await?;
+
+    // Check if there's a next page by seeing if we got more posts than our page size
+    let next_page_post = if posts.len() <= crate::per_page() {
+        None
+    } else {
+        posts.pop()
+    };
 
     // Render profile page
     let html = Html(render(
@@ -83,6 +90,8 @@ pub async fn user_profile(
             user,
             account,
             posts,
+            page_post,
+            next_page_post,
         ),
     )?);
 
