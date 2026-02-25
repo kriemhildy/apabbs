@@ -1,7 +1,11 @@
 {# User profile page template showing account information and posts #}
 {% extends "layout.jinja" %}
 {% block title %}
-  <title>{{ title_host }} &raquo; {{ account.username }}</title>
+{% set title = title_host + " &raquo; " + account.username %}
+{% if page_post %}
+{% set title = title + " &raquo; page \"" + page_post.key + "\"" %}
+{% endif %}
+  <title>{{ title }}</title>
 {% endblock %}
 {% block body %}
 <body class="list">
