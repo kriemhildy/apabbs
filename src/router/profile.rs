@@ -53,7 +53,7 @@ pub async fn user_profile(
     };
 
     // Find account by username (returns NotFound if user does not exist)
-    let account = match Account::select_by_username(&mut tx, &username).await? {
+    let account = match Account::select_by_username(&mut tx, username).await? {
         None => {
             return Err(ResponseError::NotFound(
                 "User account does not exist".to_string(),
