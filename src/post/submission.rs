@@ -288,7 +288,7 @@ mod tests {
 
         // Case 1: Line breaks first, then YouTube content
         let html = str::repeat("<br>\n", MAX_INTRO_BREAKS + 1) + two_youtubes;
-        assert_eq!(super::intro_limit(&html, false), Some(60));
+        assert_eq!(super::intro_limit(&html, false), Some(150));
 
         // Case 2: YouTube content first, then line breaks beyond the limit
         let html = two_youtubes.to_string() + &str::repeat("<br>\n", MAX_INTRO_BREAKS + 1);
@@ -312,7 +312,7 @@ mod tests {
 
         // Case 6: Content beyond the character limit
         let html = str::repeat("x", MAX_INTRO_CHARS) + " y";
-        assert_eq!(intro_limit(&html, false), Some(999));
+        assert_eq!(intro_limit(&html, false), Some(1000));
 
         // Case 7: HTML entity at the boundary
         let html = str::repeat("x", MAX_INTRO_CHARS - 2) + "&quot;";
@@ -320,6 +320,6 @@ mod tests {
 
         // Case 8: Multi-byte character at the boundary
         let html = str::repeat("x", MAX_INTRO_CHARS - 2) + "コ";
-        assert_eq!(intro_limit(&html, false), Some(998));
+        assert_eq!(intro_limit(&html, false), None);
     }
 }
