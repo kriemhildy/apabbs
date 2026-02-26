@@ -19,10 +19,9 @@ use uuid::Uuid;
 pub const KEY_LENGTH: usize = 8;
 
 /// Maximum number of characters allowed for a post intro preview (truncation limit).
-/// Enable foreign languages and ASCII art.
 pub const MAX_INTRO_CHARS: usize = 1000;
 
-/// Maximum number of line breaks allowed in a post intro preview. Enable ASCII art.
+/// Maximum number of line breaks allowed in a post intro preview.
 pub const MAX_INTRO_BREAKS: usize = 30;
 
 /// Represents a post submission from a user.
