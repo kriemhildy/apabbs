@@ -92,10 +92,8 @@ impl PostSubmission {
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
-            .replace("  ", " &nbsp;")
             .replace("\r\n", "\n")
-            .replace("\r", "\n")
-            .replace("\n", "<br>\n");
+            .replace("\r", "\n");
         let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("build regex");
         let anchor_tag = r#"<a href="$1" rel="noopener" target="_blank">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();

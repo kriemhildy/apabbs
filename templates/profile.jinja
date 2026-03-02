@@ -28,11 +28,9 @@
   {% endif %}
   {# Display user's posts #}
   <div id="posts">
-    {% filter indent(4, true) %}
     {% for post in posts %}
     {% include "post.jinja" %}
     {% endfor +%}
-    {% endfilter %}
   </div>
   {# Pagination control if more posts are available #}
   {% if next_page_post %}

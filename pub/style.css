@@ -110,10 +110,11 @@ div.post {
   margin: -8px;
 }
 
-div.post-body {
+pre.post-body {
   overflow-y: clip;
   overflow-wrap: anywhere;
   max-width: 600px;
+  white-space: pre-wrap;
 }
 
 div.media img,

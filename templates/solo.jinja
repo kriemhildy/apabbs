@@ -28,8 +28,6 @@
 <main>
   {# Include the post template with solo variable set #}
   {% set solo = true %}
-  {% filter indent(2) %}
   {%+ include "post.jinja" +%}
-  {% endfilter %}
 </main>
 {% endblock %}
