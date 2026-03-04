@@ -21,7 +21,7 @@ pub const UPLOADS_DIR: &str = "uploads";
 pub const MEDIA_DIR: &str = "pub/media";
 
 /// Maximum allowed width (in pixels) for generated thumbnails.
-pub const MAX_THUMB_WIDTH: i32 = 1150;
+pub const MAX_THUMB_WIDTH: i32 = 1362;
 /// Maximum allowed height (in pixels) for generated thumbnails.
 pub const MAX_THUMB_HEIGHT: i32 = 800;
 
