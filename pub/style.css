@@ -76,7 +76,7 @@ body.list div#posts {
   justify-items: center;
   grid-template-columns: repeat(auto-fit, minmax(325px, 1fr));
   margin: 16px 0;
-  gap: 16px;
+  gap: 32px;
   align-items: center;
 }
 
