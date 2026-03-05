@@ -4,19 +4,19 @@
       {# Body #}
       {###################################################################################}
       {% if post.body and post.status != "banned" %}
-<pre class="post-body">
-{# Handle YouTube embeds differently in solo view #}
-{% if solo and post.youtube %}
-{{ post.body|unlink_youtube_thumbnails }}
-{# Show full body in solo view or if no intro limit exists #}
-{% elif solo or post.intro_limit is none %}
-{{ post.body }}
-{# Otherwise truncate body to intro limit #}
-{% else %}
-{% set intro_limit = post.intro_limit %}
-{{ post.body|byte_slice(intro_limit) }}
-{% endif %}
-</pre>
+      <div class="post-body">
+        {# Handle YouTube embeds differently in solo view #}
+        {% if solo and post.youtube %}
+        <pre wrap>{{ post.body|unlink_youtube_thumbnails }}</pre>
+        {# Show full body in solo view or if no intro limit exists #}
+        {% elif solo or post.intro_limit is none %}
+        <pre wrap>{{ post.body }}</pre>
+        {# Otherwise truncate body to intro limit #}
+        {% else %}
+        {% set intro_limit = post.intro_limit %}
+        <pre wrap>{{ post.body|byte_slice(intro_limit) }}</pre>
+        {% endif %}
+      </div>
       {# Show "See more" link for truncated posts #}
       {% if not solo and post.intro_limit %}
       <div class="see-more">

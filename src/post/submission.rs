@@ -176,7 +176,7 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
         }
     };
     // Check for the maximum breaks
-    let single_break_pattern = Regex::new("<br>\n").expect("build regex");
+    let single_break_pattern = Regex::new("\n").expect("build regex");
     let break_limit = single_break_pattern
         .find_iter(slice)
         .nth(MAX_INTRO_BREAKS)
@@ -199,7 +199,7 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
         return None;
     }
     // Truncate to the last break(s) before the limit
-    let multiple_breaks_pattern = Regex::new("(?:<br>\n)+").expect("build regex");
+    let multiple_breaks_pattern = Regex::new("(?:\n)+").expect("build regex");
     if let Some(mat) = multiple_breaks_pattern.find_iter(slice).last() {
         tracing::info!(
             "Intro limit found via last break(s) at byte: {}",
