@@ -74,7 +74,7 @@ body.list {
 body.list div#posts {
   display: grid;
   justify-items: center;
-  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(325px, 1fr));
   margin: 16px 0;
   gap: 32px;
   align-items: center;
