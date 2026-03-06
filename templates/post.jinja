@@ -15,10 +15,10 @@
         {% set intro_limit = post.intro_limit %}
         <pre>{{ post.body|byte_slice(intro_limit) }}</pre>
         {% endif %}
-        {# Show "See more" link for truncated posts #}
+        {# Show "More" link for truncated posts #}
         {% if not solo and post.intro_limit %}
-        <div class="see-more">
-          <a href="/p/{{ post.key }}">[See more…]</a>
+        <div class="more">
+          <a href="/p/{{ post.key }}">[More…]</a>
         </div>
         {% endif %}
         {% endif %}
