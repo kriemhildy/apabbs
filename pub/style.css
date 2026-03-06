@@ -111,8 +111,8 @@ div.post {
   margin: -8px;
 }
 
-pre.post-body {
-  overflow-y: clip;
+div.post pre {
+  overflow: clip;
   overflow-wrap: anywhere;
   max-width: 600px;
   white-space: pre-wrap;
