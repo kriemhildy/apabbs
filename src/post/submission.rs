@@ -19,7 +19,7 @@ use uuid::Uuid;
 pub const KEY_LENGTH: usize = 8;
 
 /// Maximum number of bytes allowed for a post intro preview (truncation limit).
-pub const MAX_INTRO_BYTES: usize = 1500;
+pub const MAX_INTRO_BYTES: usize = 1300;
 
 /// Maximum number of newlines allowed in a post intro preview.
 pub const MAX_INTRO_NEWLINES: usize = 30;
@@ -314,18 +314,18 @@ mod tests {
 
         // Case 6: Content exactly at the byte limit boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
-        assert_eq!(intro_limit(&html, false), Some(1498));
+        assert_eq!(intro_limit(&html, false), Some(1298));
 
         // Case 7: Content beyond the byte limit
         let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
-        assert_eq!(intro_limit(&html, false), Some(1499));
+        assert_eq!(intro_limit(&html, false), Some(1299));
 
         // Case 8: HTML entity at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
-        assert_eq!(intro_limit(&html, false), Some(1498));
+        assert_eq!(intro_limit(&html, false), Some(1298));
 
         // Case 9: Multi-byte character at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
-        assert_eq!(intro_limit(&html, false), Some(1498));
+        assert_eq!(intro_limit(&html, false), Some(1298));
     }
 }
