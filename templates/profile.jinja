@@ -11,32 +11,32 @@
 <body class="list">
 {% endblock %}
 {% block main %}
-<main>
-  {# Display username as main heading #}
-  <h2>{{ account.username }}</h2>
-  {# Show user role (Restricted, Member, Mod, Admin) #}
-  <p>{{ account.role|capitalize }}</p>
-  {# Show account creation timestamp #}
-  <p>Created <time datetime="{{ account.created_at_html }}">{{ account.created_at_rfc5322 }}</time></p>
-  {# Show settings link if viewing own profile #}
-  {% if user.account.username == account.username %}
-  <p>You are logged in as this user. <a href="/settings">Settings</a></p>
-  {% endif %}
-  {# If viewing a paginated result set, show the page marker #}
-  {% if page_post %}
-  <p class="system">Page beginning "{{ page_post.key }}"</p>
-  {% endif %}
-  {# Display user's posts #}
-  <div id="posts">
-    {% for post in posts %}
-    {% include "post.jinja" %}
-    {% endfor +%}
-  </div>
-  {# Pagination control if more posts are available #}
-  {% if next_page_post %}
-  <footer>
-    <p id="next-page"><a href="/user/{{ account.username }}/page/{{ next_page_post.key }}" class="system">Next page</a></p>
-  </footer>
-  {% endif %}
-</main>
+  <main>
+    {# Display username as main heading #}
+    <h2>{{ account.username }}</h2>
+    {# Show user role (Restricted, Member, Mod, Admin) #}
+    <p>{{ account.role|capitalize }}</p>
+    {# Show account creation timestamp #}
+    <p>Created <time datetime="{{ account.created_at_html }}">{{ account.created_at_rfc5322 }}</time></p>
+    {# Show settings link if viewing own profile #}
+    {% if user.account.username == account.username %}
+    <p>You are logged in as this user. <a href="/settings">Settings</a></p>
+    {% endif %}
+    {# If viewing a paginated result set, show the page marker #}
+    {% if page_post %}
+    <p class="system">Page beginning "{{ page_post.key }}"</p>
+    {% endif %}
+    {# Display user's posts #}
+    <div id="posts">
+      {% for post in posts %}
+      {% include "post.jinja" %}
+      {% endfor +%}
+    </div>
+    {# Pagination control if more posts are available #}
+    {% if next_page_post %}
+    <footer>
+      <p id="next-page"><a href="/user/{{ account.username }}/page/{{ next_page_post.key }}" class="system">Next page</a></p>
+    </footer>
+    {% endif %}
+  </main>
 {% endblock %}

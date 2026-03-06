@@ -43,9 +43,7 @@
         {% set media_path = "/decrypt-media/" + post.key %}
         {% endif %}
         {% if media_path %}
-        {% filter indent(2) %}
-        {%+ include "media.jinja" +%}
-        {% endfilter %}
+        {% include "media.jinja" %}
         {% endif %}
         {% endif %}
         {###################################################################################}
@@ -100,9 +98,7 @@
           or (user.account.role == "mod" and post.status in ["pending", "delisted"])
           or ((user.account.role == "admin" or (user.account.role == "mod" and post.recent))
             and post.status == "approved" and solo) %}
-        {% filter indent(2) %}
-        {%+ include "review.jinja" +%}
-        {% endfilter %}
+        {% include "review.jinja" %}
         {% endif %}
         {###################################################################################}
         {# Hide #}

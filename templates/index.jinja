@@ -19,9 +19,7 @@
     {% if user.account and user.account.role == "admin" %}
     <ul id="pending-accounts"{{ ' class="hidden"' if not pending_accounts }}>
       {% for account in pending_accounts %}
-      {%+ filter indent(4) %}
       {% include "pending_account.jinja" %}
-      {% endfilter +%}
       {% endfor %}
     </ul>
     {% endif %}

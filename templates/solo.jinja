@@ -25,9 +25,9 @@
 <body class="solo">
 {% endblock %}
 {% block main %}
-<main>
-  {# Include the post template with solo variable set #}
-  {% set solo = true %}
-  {%+ include "post.jinja" +%}
-</main>
+  <main>
+    {# Include the post template with solo variable set #}
+    {% set solo = true %}
+    {% include "post.jinja" %}
+  </main>
 {% endblock %}
