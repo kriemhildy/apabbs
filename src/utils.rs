@@ -40,16 +40,18 @@ pub fn unlink_youtube_thumbnails(body: &str) -> String {
     use regex::Regex;
 
     let re = Regex::new(concat!(
-        r#"<a href="/p/\w{8,}"><img src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
-        r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)"></a>"#
+        r#"<a href="/p/\w{8,}">"#,
+        r#"<img class="youtube-thumbnail" src="/youtube/([\w\-]{11})/(\w{4,}).jpg" "#,
+        r#"alt="Post \w{8,}" width="(\d+)" height="(\d+)">"#,
+        r#"</a>"#,
     ))
     .expect("build regex");
 
     re.replace_all(
         body,
         concat!(
-            r#"<img src="/youtube/$1/$2.jpg" alt="YouTube thumbnail $1" "#,
-            r#"width="$3" height="$4">"#,
+            r#"<img class="youtube-thumbnail" src="/youtube/$1/$2.jpg" "#,
+            r#"alt="YouTube thumbnail $1" width="$3" height="$4">"#,
         ),
     )
     .to_string()
@@ -96,12 +98,14 @@ mod tests {
     #[test]
     fn test_unlink_youtube_thumbnails() {
         let input = concat!(
-            r#"<a href="/p/12345678"><img src="/youtube/abcdefghijk/abcd.jpg" "#,
-            r#"alt="Post 12345678" width="320" height="180"></a>"#
+            r#"<a href="/p/12345678">"#,
+            r#"<img class="youtube-thumbnail" src="/youtube/abcdefghijk/abcd.jpg" "#,
+            r#"alt="Post 12345678" width="320" height="180">"#,
+            r#"</a>"#
         );
         let expected = concat!(
-            r#"<img src="/youtube/abcdefghijk/abcd.jpg" alt="YouTube thumbnail abcdefghijk" "#,
-            r#"width="320" height="180">"#
+            r#"<img class="youtube-thumbnail" src="/youtube/abcdefghijk/abcd.jpg" "#,
+            r#"alt="YouTube thumbnail abcdefghijk" width="320" height="180">"#
         );
         let output = unlink_youtube_thumbnails(input);
         assert_eq!(output, expected);

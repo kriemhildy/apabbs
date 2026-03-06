@@ -1,3 +1,8 @@
+0.56.1
+
+Fix an issue where list page YouTube thumbnail styles were being applied to the solo page.
+Fix unlinking of YouTube thumbnails on the solo page.
+
 0.56.0
 
 Improve preformatted text support.
