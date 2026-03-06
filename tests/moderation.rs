@@ -47,7 +47,14 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let anon_user = test_user(None);
-    let post = create_test_post(&mut tx, &anon_user, Some("image.jpeg"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &anon_user,
+        None,
+        Some("image.jpeg"),
+        PostStatus::Pending,
+    )
+    .await;
     let user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = user.account.as_ref().unwrap();
     tx.commit().await?;
@@ -251,7 +258,14 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        None,
+        Some("image.jpeg"),
+        PostStatus::Pending,
+    )
+    .await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -339,7 +353,14 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("small.png"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        None,
+        Some("small.png"),
+        PostStatus::Pending,
+    )
+    .await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -429,7 +450,14 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("video.mp4"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        None,
+        Some("video.mp4"),
+        PostStatus::Pending,
+    )
+    .await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -512,7 +540,14 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("video.webm"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        None,
+        Some("video.webm"),
+        PostStatus::Pending,
+    )
+    .await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -599,7 +634,14 @@ async fn approve_post_with_other_media_type() -> Result<(), Box<dyn Error + Send
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
     let post_user = test_user(None);
-    let post = create_test_post(&mut tx, &post_user, Some("other.txt"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        None,
+        Some("other.txt"),
+        PostStatus::Pending,
+    )
+    .await;
     let encrypted_media_path = post.encrypted_media_path();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
@@ -683,7 +725,14 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let ban_expires_at = Ban::exists(&mut tx, &post_user.ip_hash, None).await?;
     assert!(ban_expires_at.is_none(), "Ban should not exist before test");
     // Create a post with status PostStatus::Pending
-    let post = create_test_post(&mut tx, &post_user, Some("image.jpeg"), PostStatus::Pending).await;
+    let post = create_test_post(
+        &mut tx,
+        &post_user,
+        None,
+        Some("image.jpeg"),
+        PostStatus::Pending,
+    )
+    .await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
     tx.commit().await?;
@@ -741,6 +790,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     let post = create_test_post(
         &mut tx,
         &post_user,
+        None,
         Some("image.jpeg"),
         PostStatus::Approved,
     )

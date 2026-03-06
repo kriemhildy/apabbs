@@ -75,7 +75,14 @@ async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create a test post
     let user = test_user(None);
     let mut tx = state.db.begin().await?;
-    let post = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post = create_test_post(
+        &mut tx,
+        &user,
+        Some("https://m.youtube.com/watch?v=jNQXAC9IVRw"),
+        None,
+        PostStatus::Approved,
+    )
+    .await;
     tx.commit().await?;
 
     // Request the post page
@@ -92,6 +99,7 @@ async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let body_str = response_body_str(response).await;
     assert!(!body_str.contains(r#"<div id="posts">"#));
     assert!(body_str.contains(r#"<div id="created-at">"#));
+    assert!(!body_str.contains(r#"<a href="/p/"#));
 
     // Clean up
     let mut tx = state.db.begin().await?;
@@ -108,9 +116,9 @@ async fn index_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create test posts
     let user = test_user(None);
     let mut tx = state.db.begin().await?;
-    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Request a specific page
@@ -349,7 +357,7 @@ async fn hide_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = test_user(None);
 
     // Create a post and admin user
-    let post = create_test_post(&mut tx, &user, None, PostStatus::Pending).await;
+    let post = create_test_post(&mut tx, &user, None, None, PostStatus::Pending).await;
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let account = admin_user.account.as_ref().unwrap();
     post.update_status(&mut tx, PostStatus::Rejected).await?;
@@ -391,9 +399,9 @@ async fn interim() -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = test_user(None);
 
     // Create approved and pending posts
-    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Request the interim page
@@ -440,7 +448,7 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
     let pending_account = pending_user.account.as_ref().unwrap();
     let admin_user = create_test_account(&mut tx, AccountRole::Admin).await?;
     let admin_account = admin_user.account.as_ref().unwrap();
-    let post = create_test_post(&mut tx, &pending_user, None, PostStatus::Approved).await;
+    let post = create_test_post(&mut tx, &pending_user, None, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Start a server for testing

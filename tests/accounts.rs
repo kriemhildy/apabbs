@@ -307,9 +307,9 @@ async fn user_profile_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
     let account = user.account.as_ref().unwrap();
 
     // Create test posts
-    let post1 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post2 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
-    let post3 = create_test_post(&mut tx, &user, None, PostStatus::Approved).await;
+    let post1 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
+    let post2 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
+    let post3 = create_test_post(&mut tx, &user, None, None, PostStatus::Approved).await;
     tx.commit().await?;
 
     // Request the user profile page with pagination

@@ -104,6 +104,7 @@ pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
 pub async fn create_test_post(
     tx: &mut PgConnection,
     user: &User,
+    body: Option<&str>,
     media_filename: Option<&str>,
     status: PostStatus,
 ) -> Post {
@@ -117,7 +118,7 @@ pub async fn create_test_post(
 
     let post_submission = PostSubmission {
         session_token: user.session_token,
-        body: String::from("<&test body"),
+        body: body.unwrap_or("<&test body>").to_string(),
         media_filename: media_filename.map(|s| s.to_string()),
         media_bytes,
     };
