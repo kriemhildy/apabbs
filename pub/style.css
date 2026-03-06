@@ -82,8 +82,7 @@ body.list div#posts {
 
 body.list div.media img,
 body.list div.media video,
-body.list div.youtube-thumbnail img,
-img.youtube-thumbnail {
+body.list img.youtube-thumbnail {
   filter: brightness(0.9); /* Reduce visual discomfort from white backgrounds */
   max-height: 400px;
 }
@@ -121,7 +120,6 @@ div.post pre {
 
 div.media img,
 div.media video,
-div.youtube-thumbnail img,
 img.youtube-thumbnail {
   max-width: 100%;
   height: auto;
@@ -137,7 +135,6 @@ div.see-more a {
   text-decoration: none;
 }
 
-div.youtube-logo img,
 img.youtube-logo {
   height: 1.7em;
   filter: brightness(0.2) invert(1);
