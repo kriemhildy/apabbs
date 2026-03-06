@@ -38,6 +38,11 @@ WHERE body LIKE '%&nbsp;%';
 UPDATE posts SET body = replace(body, E'<br>\n', E'\n')
 WHERE body LIKE E'%<br>\n%';
 
+-- Adjust intro limit constraint
+ALTER TABLE posts DROP CONSTRAINT posts_intro_limit_check;
+ALTER TABLE posts ADD CONSTRAINT posts_intro_limit_check
+    CHECK (intro_limit >= 0 AND intro_limit <= 1500);
+
 -- Reset intro limits
 DELETE FROM _rust_migrations WHERE name = 'update_intro_limit';
 
