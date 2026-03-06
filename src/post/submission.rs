@@ -140,8 +140,10 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
         html
     };
     // Determine YouTube limit based on the the second YouTube embed, or first if media is present
-    let youtube_pattern =
-        Regex::new(r#"(?s)<div class="youtube">(?:.*?</div>){3}"#).expect("build regex");
+    let youtube_pattern = Regex::new(
+        r#"(?s)<a .*?<img class="youtube-logo".*?<img class="youtube-thumbnail".*?</a>"#,
+    )
+    .expect("build regex");
     let mut youtube_iter = youtube_pattern.find_iter(slice);
     let first_youtube_match = youtube_iter.next();
     let youtube_limit = match first_youtube_match {
