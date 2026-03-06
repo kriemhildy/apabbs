@@ -112,10 +112,11 @@ div.post {
 }
 
 div.post pre {
-  overflow: clip;
+  overflow-y: clip;
   overflow-wrap: anywhere;
   max-width: 600px;
   white-space: pre-wrap;
+  margin: 0;
 }
 
 div.media img,
