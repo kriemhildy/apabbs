@@ -30,8 +30,13 @@ pub async fn process_video(
     if media_width > MAX_THUMB_WIDTH || media_height > MAX_THUMB_HEIGHT {
         let thumbnail_path = images::generate_image_thumbnail(&video_poster_path).await?;
         let (thumb_width, thumb_height) = images::image_dimensions(&thumbnail_path).await?;
-        post.update_thumbnail(tx, &thumbnail_path, thumb_width, thumb_height)
-            .await?;
+        post.update_thumbnail(
+            tx,
+            Some(&thumbnail_path),
+            Some(thumb_width),
+            Some(thumb_height),
+        )
+        .await?;
     }
     Ok(())
 }

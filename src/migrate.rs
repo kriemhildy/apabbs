@@ -313,25 +313,27 @@ pub async fn generate_image_thumbnails(state: AppState) {
             std::process::exit(1);
         }
 
-        // Skip if thumbnail is larger than original (defeats the purpose)
+        // Delete thumbnail if it's larger than the original (defeats the purpose)
         if images::thumbnail_is_larger(&thumbnail_path, &published_media_path)
             .expect("Check if thumbnail is larger")
         {
             tracing::info!("Thumbnail is larger than original, deleting");
+            post.update_thumbnail(&mut tx, None, None, None)
+                .await
+                .expect("update thumbnail info in posts");
             tokio::fs::remove_file(&thumbnail_path)
                 .await
                 .expect("Remove file");
-            continue;
+        } else {
+            // Update database with thumbnail information
+            tracing::info!("Setting thumb_filename, thumb_width, thumb_height");
+            let (width, height) = images::image_dimensions(&thumbnail_path)
+                .await
+                .expect("Determine image dimensions");
+            post.update_thumbnail(&mut tx, Some(&thumbnail_path), Some(width), Some(height))
+                .await
+                .expect("update thumbnail info in posts");
         }
-
-        // Update database with thumbnail information
-        tracing::info!("Setting thumb_filename, thumb_width, thumb_height");
-        let (width, height) = images::image_dimensions(&thumbnail_path)
-            .await
-            .expect("Determine image dimensions");
-        post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
-            .await
-            .expect("update thumbnail info in posts");
     }
 
     tx.commit().await.expect("commit");
@@ -379,7 +381,7 @@ pub async fn add_image_dimensions(state: AppState) {
                 .await
                 .expect("Determine image dimensions");
             tracing::info!("Setting thumbnail image dimensions: {width}x{height}");
-            post.update_thumbnail(&mut tx, &thumbnail_path, width, height)
+            post.update_thumbnail(&mut tx, Some(&thumbnail_path), Some(width), Some(height))
                 .await
                 .expect("update thumbnail dimensions in posts");
         }

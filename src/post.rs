@@ -239,12 +239,11 @@ impl Post {
     pub async fn update_thumbnail(
         &self,
         tx: &mut PgConnection,
-        thumbnail_path: &Path,
-        width: i32,
-        height: i32,
+        thumbnail_path: Option<&Path>,
+        width: Option<i32>,
+        height: Option<i32>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let thumbnail_filename = thumbnail_path.file_name().unwrap().to_str().unwrap();
-
+        let thumbnail_filename = thumbnail_path.map(|p| p.file_name().unwrap().to_str().unwrap());
         sqlx::query(concat!(
             "UPDATE posts SET thumb_filename = $1, thumb_width = $2, ",
             "thumb_height = $3 WHERE id = $4"

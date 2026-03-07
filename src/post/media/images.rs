@@ -60,7 +60,7 @@ pub async fn process_image(
         tokio::fs::remove_file(&thumbnail_path).await?;
     } else {
         let (width, height) = image_dimensions(&thumbnail_path).await?;
-        post.update_thumbnail(tx, &thumbnail_path, width, height)
+        post.update_thumbnail(tx, Some(&thumbnail_path), Some(width), Some(height))
             .await?;
     }
     let (width, height) = image_dimensions(&published_media_path).await?;
