@@ -1,3 +1,7 @@
+0.56.2
+
+Nullify deleted thumbnails when running thumbnail generation migration.
+
 0.56.1
 
 Fix an issue where list page YouTube thumbnail styles were being applied to the solo page.
