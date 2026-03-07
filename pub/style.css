@@ -83,7 +83,6 @@ body.list div#posts {
 body.list div.media img,
 body.list div.media video,
 body.list img.youtube-thumbnail {
-  filter: brightness(0.9); /* Reduce visual discomfort from white backgrounds */
   max-height: 500px;
 }
 
