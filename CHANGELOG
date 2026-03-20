@@ -1,3 +1,9 @@
+0.57.0
+
+Add post author information to solo page.
+Rename /user/ routes to /u/.
+Make link styling consistent.
+
 0.56.2
 
 Nullify deleted thumbnails when running thumbnail generation migration.
