@@ -31,7 +31,7 @@
     {% if user.account.role == "pending" %}
     <a href="/settings">[pending]</a>
     {% else %}
-    <a href="/user/{{ user.account.username }}">{{ user.account.username }}</a>
+    <a href="/u/{{ user.account.username }}">{{ user.account.username }}</a>
     {% endif %}
     {# Show login link for anonymous users #}
     {% else %}

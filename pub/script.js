@@ -244,7 +244,7 @@ function updateActiveUsername(username) {
   if (username === undefined) {
     navElement.innerHTML = '<a href="/login">[rejected]</a>';
   } else {
-    navElement.innerHTML = `<a href="/user/${username}">${username}</a>`;
+    navElement.innerHTML = `<a href="/u/${username}">${username}</a>`;
   }
 }
 

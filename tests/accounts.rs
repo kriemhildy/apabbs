@@ -279,7 +279,7 @@ async fn user_profile() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Request the user profile page
     let request = Request::builder()
-        .uri(format!("/user/{}", &account.username))
+        .uri(format!("/u/{}", &account.username))
         .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
@@ -314,7 +314,7 @@ async fn user_profile_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Request the user profile page with pagination
     let request = Request::builder()
-        .uri(format!("/user/{}/page/{}", &account.username, &post2.key))
+        .uri(format!("/u/{}/page/{}", &account.username, &post2.key))
         .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
