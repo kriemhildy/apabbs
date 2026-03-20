@@ -156,6 +156,10 @@ details.review form {
   display: inline;
 }
 
+div#posted-by a {
+  text-decoration: none;
+}
+
 /* --- Forms --------------------------------------------------------------- */
 
 fieldset {

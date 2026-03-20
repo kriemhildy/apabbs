@@ -101,6 +101,12 @@ pub async fn solo_post(
     // Get the requested post
     let post = init_post(&mut tx, &key, &user).await?;
 
+    let author_username = if post.account_id.is_some() {
+        Account::select_username_by_id(&mut tx, post.account_id.unwrap()).await?
+    } else {
+        None
+    };
+
     // Render the page
     let html = Html(render(
         &state,
@@ -110,6 +116,7 @@ pub async fn solo_post(
             host => crate::prod_host(),
             user,
             post,
+            author_username,
         ),
     )?);
 

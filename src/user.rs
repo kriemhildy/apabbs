@@ -165,6 +165,18 @@ impl Account {
         .map_err(|e| format!("select account by username: {e}").into())
     }
 
+    /// Retrieves a username from an account ID.
+    pub async fn select_username_by_id(
+        tx: &mut PgConnection,
+        account_id: i32,
+    ) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
+        sqlx::query_scalar("SELECT username FROM accounts WHERE id = $1")
+            .bind(account_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| format!("select username by id: {e}").into())
+    }
+
     /// Generates and assigns a new authentication token for the account.
     pub async fn reset_token(
         &self,

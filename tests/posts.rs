@@ -99,6 +99,7 @@ async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let body_str = response_body_str(response).await;
     assert!(!body_str.contains(r#"<div id="posts">"#));
     assert!(body_str.contains(r#"<div id="created-at">"#));
+    assert!(body_str.contains(r#"<div id="posted-by">"#));
     assert!(!body_str.contains(r#"<a href="/p/"#));
 
     // Clean up
