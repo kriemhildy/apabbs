@@ -33,15 +33,12 @@ button,
 }
 
 a {
+  text-decoration: none;
   color: var(--system);
 }
 
 .hidden {
   display: none;
-}
-
-.system {
-  color: var(--system);
 }
 
 /* --- Primary layout ------------------------------------------------------ */
@@ -50,21 +47,12 @@ nav {
   float: right;
 }
 
-nav a {
-  text-decoration: none;
-}
-
 h1 {
   font-size: 1em;
 }
 
 h1 a {
-  text-decoration: none;
   color: var(--foreground);
-}
-
-p#notice {
-  color: var(--system);
 }
 
 body.list {
@@ -89,11 +77,6 @@ body.list img.youtube-thumbnail {
 body.list p#next-page {
   text-align: right;
   margin-right: 16px;
-}
-
-body.list p#next-page a {
-  text-decoration: none;
-  color: var(--system);
 }
 
 body.solo div.post details.review {
@@ -126,12 +109,7 @@ img.youtube-thumbnail {
 }
 
 div.arrow a {
-  text-decoration: none;
   font-size: 1.2em;
-}
-
-div.more a {
-  text-decoration: none;
 }
 
 img.youtube-logo {
@@ -144,20 +122,8 @@ div.status {
   overflow-wrap: anywhere;
 }
 
-div.status a {
-  text-decoration: none;
-}
-
-div#user a {
-  text-decoration: none;
-}
-
 details.review form {
   display: inline;
-}
-
-div#posted-by a {
-  text-decoration: none;
 }
 
 /* --- Forms --------------------------------------------------------------- */

@@ -24,7 +24,7 @@
     {% endif %}
     {# If viewing a paginated result set, show the page marker #}
     {% if page_post %}
-    <p class="system">Page beginning "{{ page_post.key }}"</p>
+    <p>Page beginning "{{ page_post.key }}"</p>
     {% endif %}
     {# Display user's posts #}
     <div id="posts">
@@ -35,7 +35,7 @@
     {# Pagination control if more posts are available #}
     {% if next_page_post %}
     <footer>
-      <p id="next-page"><a href="/u/{{ account.username }}/page/{{ next_page_post.key }}" class="system">Next page</a></p>
+      <p id="next-page"><a href="/u/{{ account.username }}/page/{{ next_page_post.key }}">Next page</a></p>
     </footer>
     {% endif %}
   </main>
