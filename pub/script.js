@@ -52,6 +52,7 @@ function handleWebSocketMessage(event) {
         return;
       }
     });
+    console.error("Received unexpected binary message from WebSocket.");
     return;
   }
   try {
