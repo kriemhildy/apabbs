@@ -101,10 +101,9 @@ pub async fn solo_post(
     // Get the requested post
     let post = init_post(&mut tx, &key, &user).await?;
 
-    let author_username = if let Some(account_id) = post.account_id {
-        Account::select_username_by_id(&mut tx, account_id).await?
-    } else {
-        None
+    let author_username = match post.account_id {
+        Some(id) => Account::select_username_by_id(&mut tx, id).await?,
+        None => None,
     };
 
     // Render the page
