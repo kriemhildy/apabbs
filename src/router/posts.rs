@@ -102,7 +102,7 @@ pub async fn solo_post(
     let post = init_post(&mut tx, &key, &user).await?;
 
     let author_username = match post.account_id {
-        Some(id) => Account::select_username_by_id(&mut tx, id).await?,
+        Some(id) => Some(Account::select_username_by_id(&mut tx, id).await?),
         None => None,
     };
 

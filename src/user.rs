@@ -169,10 +169,10 @@ impl Account {
     pub async fn select_username_by_id(
         tx: &mut PgConnection,
         account_id: i32,
-    ) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         sqlx::query_scalar("SELECT username FROM accounts WHERE id = $1")
             .bind(account_id)
-            .fetch_optional(&mut *tx)
+            .fetch_one(&mut *tx)
             .await
             .map_err(|e| format!("select username by id: {e}").into())
     }
