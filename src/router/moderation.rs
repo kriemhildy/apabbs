@@ -311,7 +311,8 @@ pub async fn list_spam_terms(
         "spam.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::prod_host(),
+            prod_host => crate::prod_host(),
+            site_name => crate::site_name(),
             nav => false,
             user,
             spam_terms,

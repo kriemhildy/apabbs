@@ -86,7 +86,8 @@ pub async fn user_profile(
         "profile.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::prod_host(),
+            prod_host => crate::prod_host(),
+            site_name => crate::site_name(),
             user,
             account,
             posts,
@@ -129,7 +130,8 @@ pub async fn settings(
         "settings.jinja",
         minijinja::context!(
             dev => crate::dev(),
-            host => crate::prod_host(),
+            prod_host => crate::prod_host(),
+            site_name => crate::site_name(),
             user,
             time_zones,
             notice,

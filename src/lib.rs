@@ -45,6 +45,11 @@ pub fn prod_host() -> String {
     std::env::var("PROD_HOST").expect("Read PROD_HOST environment variable")
 }
 
+/// Returns the display name for the website.
+pub fn site_name() -> String {
+    std::env::var("SITE_NAME").expect("Read SITE_NAME environment variable")
+}
+
 /// Retrieves the application's secret key for secure operations.
 ///
 /// The secret key is used for encryption, cookie signing, and other security features.
