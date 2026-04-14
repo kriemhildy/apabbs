@@ -1,3 +1,9 @@
+1.1.0
+
+Add optional SITE_NAME env variable if PROD_HOST is not satisfactory.
+Improve playback compatibility with strange video or audio file formats.
+Avoid setting video poster attributes when the file has not yet been generated.
+
 1.0.0
 
 Milestone update, software is feature complete in its initial version.
