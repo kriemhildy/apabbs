@@ -2,30 +2,29 @@
         {# Set filename, dimensions and type based on whether to use thumbnail or full media #}
         {% set width = post.thumb_width if use_thumb else post.media_width %}
         {% set height = post.thumb_height if use_thumb else post.media_height %}
-        {% set dimensions = " width=\"" ~ width ~ "\" height=\"" ~ height ~ "\"" if width and height else "" %}
+        {% set dimension_attrs = " width=\"" ~ width ~ "\" height=\"" ~ height ~ "\"" if width and height else "" %}
         <div class="media">
           {# Image display handling #}
           {% if post.media_category == "image" %}
           {% set solo_path = "/p/" + post.key %}
           {% if solo %}
-          <img src="{{ media_path }}" alt="Image &quot;{{ media_filename }}&quot;"{{ dimensions }}>
+          <img src="{{ media_path }}" alt="Image &quot;{{ media_filename }}&quot;"{{ dimension_attrs }}>
           {% else %}
-          <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ post.key }}"{{ dimensions }}></a>
+          <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ post.key }}"{{ dimension_attrs }}></a>
           {% endif %}
           {# Video display handling with poster image #}
           {% elif post.media_category == "video" %}
-          {% set mime_type = "video/mp4" if post.compat_video else post.media_mime_type %}
-          {% set poster_filename = post.thumb_filename if use_thumb else post.video_poster %}
-          {% set poster_path = "/m/" + post.key + "/" + poster_filename|urlencode %}
+          {% set poster_path = "/m/" + post.key + "/" + post.video_poster|urlencode if post.video_poster %}
+          {% set poster_attr = " poster=\"" ~ poster_path ~ "\"" if poster_path else ""%}
           {% set preload = "metadata" if solo else "none" %}
-          <video controls poster="{{ poster_path }}" preload="{{ preload }}"{{ dimensions }}>
-            <source src="{{ media_path }}" type="{{ mime_type }}">
+          <video controls{{ poster_attr }} preload="{{ preload }}"{{ dimension_attrs }}>
+            <source src="{{ media_path }}">
             Video "{{ media_filename }}"
           </video>
           {# Audio file display handling #}
           {% elif post.media_category == "audio" %}
           <audio controls>
-            <source src="{{ media_path }}" type="{{ mime_type }}">
+            <source src="{{ media_path }}">
             Audio "{{ media_filename }}"
           </audio>
           {% elif post.media_category == "other" %}
