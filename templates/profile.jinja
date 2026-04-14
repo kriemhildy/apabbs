@@ -3,7 +3,7 @@
 {% block title %}
 {% set title = site_name + " &raquo; " + account.username %}
 {% if page_post %}
-{% set title = title + " &raquo; page \"" + page_post.key + "\"" %}
+{% set title = title + ' &raquo; page "' + page_post.key + '"' %}
 {% endif %}
   <title>{{ title }}</title>
 {% endblock %}

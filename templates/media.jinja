@@ -2,7 +2,7 @@
         {# Set filename, dimensions and type based on whether to use thumbnail or full media #}
         {% set width = post.thumb_width if use_thumb else post.media_width %}
         {% set height = post.thumb_height if use_thumb else post.media_height %}
-        {% set dimension_attrs = " width=\"" ~ width ~ "\" height=\"" ~ height ~ "\"" if width and height else "" %}
+        {% set dimension_attrs = ' width="' ~ width ~ '" height="' ~ height ~ '"' if width and height else "" %}
         <div class="media">
           {# Image display handling #}
           {% if post.media_category == "image" %}
@@ -15,7 +15,7 @@
           {# Video display handling with poster image #}
           {% elif post.media_category == "video" %}
           {% set poster_path = "/m/" + post.key + "/" + post.video_poster|urlencode if post.video_poster %}
-          {% set poster_attr = " poster=\"" + poster_path + "\"" if poster_path else "" %}
+          {% set poster_attr = ' poster="' + poster_path + '"' if poster_path else "" %}
           {% set preload = "metadata" if solo else "none" %}
           <video controls{{ poster_attr }} preload="{{ preload }}"{{ dimension_attrs }}>
             <source src="{{ media_path }}">
