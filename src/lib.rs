@@ -120,7 +120,7 @@ pub fn init_sender() -> Arc<Sender<AppMessage>> {
 
 /// Ensure we are in development mode before running tests.
 #[cfg(test)]
-#[ctor::ctor]
+#[ctor::ctor(unsafe)]
 fn ensure_dev() {
     if !dev() {
         eprintln!("Only run tests in development mode (DEV=1)");
