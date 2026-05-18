@@ -124,7 +124,9 @@ pub async fn create_test_post(
     };
 
     let key = submission::generate_key(tx).await.unwrap();
-    let post = post_submission.insert(tx, user, &key).await.unwrap();
+    // Bypass checksum duplicate detection in tests
+    let media_checksum = None;
+    let post = post_submission.insert(tx, user, &key, media_checksum).await.unwrap();
 
     if let Some(bytes) = post_submission.media_bytes {
         match status {

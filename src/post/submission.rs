@@ -233,12 +233,13 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
 
 /// Generate a SHA256 checksum of the media bytes and check for duplicate.
 pub async fn generate_media_checksum(
+    tx: &mut PgConnection,
     media_bytes: Vec<u8>,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
     let checksum = sha256::digest(&media_bytes);
     let exists = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)")
         .bind(&checksum)
-        .fetch_one(&mut *crate::db::get_db_pool().await?)
+        .fetch_one(&mut *tx)
         .await
         .map_err(|e| format!("check media checksum existence: {e}"))?;
     if exists {

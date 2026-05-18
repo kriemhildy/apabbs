@@ -103,7 +103,11 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     for _ in 0..9 {
         post_submission.session_token = Uuid::new_v4();
         let key = submission::generate_key(&mut tx).await?;
-        post_submission.insert(&mut tx, &user, &key).await?;
+        let media_checksum = match &post_submission.media_bytes {
+            Some(bytes) => Some(submission::generate_media_checksum(&mut tx, bytes.clone()).await?),
+            None => None,
+        };
+        post_submission.insert(&mut tx, &user, &key, media_checksum).await?;
     }
 
     // Verify state before flooding threshold is reached
@@ -114,7 +118,8 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
     let key = submission::generate_key(&mut tx).await?;
-    post_submission.insert(&mut tx, &user, &key).await?;
+    let media_checksum = None;
+    post_submission.insert(&mut tx, &user, &key, media_checksum).await?;
 
     // Verify flooding is detected but ban not yet applied
     assert_eq!(ban::new_posts_count(&mut tx, &user.ip_hash).await?, 10);

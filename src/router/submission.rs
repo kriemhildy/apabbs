@@ -159,7 +159,7 @@ pub async fn submit_post(
 
     // Generate media checksum and ensure uniqueness
     let media_checksum = match &post_submission.media_bytes {
-        Some(bytes) => Some(generate_media_checksum(bytes.clone()).await?),
+        Some(bytes) => Some(generate_media_checksum(&mut tx, bytes.clone()).await?),
         None => None,
     };
 
