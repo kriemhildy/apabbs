@@ -63,10 +63,15 @@ impl PostSubmission {
             .map_err(|e| format!("convert post body to HTML: {e}"))?;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit = intro_limit(&html_body, self.media_filename.is_some());
+        let media_checksum = match &self.media_bytes {
+            Some(bytes) => Some(generate_media_checksum(bytes.clone()).await?),
+            None => None,
+        };
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, status, session_token, account_id, body, ip_hash, ",
-            "media_filename, media_category, media_mime_type, youtube, intro_limit) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *",
+            "media_filename, media_category, media_mime_type, youtube, intro_limit, ",
+            "media_checksum) ",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *",
         ))
         .bind(key)
         .bind(user.initial_post_status())
@@ -79,6 +84,7 @@ impl PostSubmission {
         .bind(media_mime_type.as_deref())
         .bind(youtube)
         .bind(intro_limit)
+        .bind(media_checksum.as_deref())
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| format!("insert post: {e}").into())
@@ -226,6 +232,14 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     }
     // No incomplete entity, return last valid UTF-8 character index
     Some(last_char_index as i32)
+}
+
+/// Generate a SHA256 checksum of the media bytes for duplicate detection.
+pub async fn generate_media_checksum(
+    media_bytes: Vec<u8>,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let checksum = sha256::digest(&media_bytes);
+    Ok(checksum)
 }
 
 /// Represents a request to hide a post from personal view

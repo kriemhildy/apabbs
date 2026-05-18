@@ -310,21 +310,6 @@ impl Post {
             .map(|_| ())
             .map_err(|e| format!("update video poster: {e}").into())
     }
-
-    /// Updates the SHA256 checksum of the media file for duplicate detection.
-    pub async fn update_media_checksum(
-        &self,
-        tx: &mut PgConnection,
-        checksum: &str,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        sqlx::query("UPDATE posts SET media_checksum = $1 WHERE id = $2")
-            .bind(checksum)
-            .bind(self.id)
-            .execute(&mut *tx)
-            .await
-            .map(|_| ())
-            .map_err(|e| format!("update media checksum: {e}").into())
-    }
 }
 
 #[cfg(test)]

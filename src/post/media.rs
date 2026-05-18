@@ -191,15 +191,6 @@ pub async fn process_media(
     Ok(())
 }
 
-/// Generate a SHA256 checksum of the media file for duplicate detection.
-pub async fn generate_media_checksum(
-    media_path: &Path,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let media_bytes = tokio::fs::read(media_path).await?;
-    let checksum = sha256::digest(&media_bytes);
-    Ok(checksum)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
