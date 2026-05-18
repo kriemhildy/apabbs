@@ -22,7 +22,7 @@ use crate::{
     post::{
         PostStatus,
         media::{encryption::encrypt_uploaded_file, publish_uploaded_media},
-        submission::{PostSubmission, generate_key},
+        submission::{PostSubmission, generate_key, generate_media_checksum},
     },
 };
 
@@ -154,9 +154,17 @@ pub async fn submit_post(
         )));
     }
 
-    // Generate unique key and insert post
+    // Generate unique key
     let key = generate_key(&mut tx).await?;
-    let post = post_submission.insert(&mut tx, &user, &key).await?;
+
+    // Generate media checksum and ensure uniqueness
+    let media_checksum = match &post_submission.media_bytes {
+        Some(bytes) => Some(generate_media_checksum(bytes.clone()).await?),
+        None => None,
+    };
+
+    // Insert post into database
+    let post = post_submission.insert(&mut tx, &user, &key, media_checksum).await?;
 
     match post.status {
         PostStatus::Pending => {

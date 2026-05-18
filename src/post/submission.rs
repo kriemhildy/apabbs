@@ -50,6 +50,7 @@ impl PostSubmission {
         tx: &mut PgConnection,
         user: &User,
         key: &str,
+        media_checksum: Option<String>,
     ) -> Result<Post, Box<dyn Error + Send + Sync>> {
         let (media_category, media_mime_type) =
             media::determine_media_type(self.media_filename.as_deref());
@@ -63,10 +64,6 @@ impl PostSubmission {
             .map_err(|e| format!("convert post body to HTML: {e}"))?;
         let youtube = html_body.contains(r#"<a href="https://www.youtube.com"#);
         let intro_limit = intro_limit(&html_body, self.media_filename.is_some());
-        let media_checksum = match &self.media_bytes {
-            Some(bytes) => Some(generate_media_checksum(bytes.clone()).await?),
-            None => None,
-        };
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, status, session_token, account_id, body, ip_hash, ",
             "media_filename, media_category, media_mime_type, youtube, intro_limit, ",
@@ -234,11 +231,19 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     Some(last_char_index as i32)
 }
 
-/// Generate a SHA256 checksum of the media bytes for duplicate detection.
+/// Generate a SHA256 checksum of the media bytes and check for duplicate.
 pub async fn generate_media_checksum(
     media_bytes: Vec<u8>,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
     let checksum = sha256::digest(&media_bytes);
+    let exists = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)")
+        .bind(&checksum)
+        .fetch_one(&mut *crate::db::get_db_pool().await?)
+        .await
+        .map_err(|e| format!("check media checksum existence: {e}"))?;
+    if exists {
+        return Err("Duplicate media detected".into());
+    }
     Ok(checksum)
 }
 
