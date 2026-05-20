@@ -231,12 +231,12 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     Some(last_char_index as i32)
 }
 
-/// Generate a SHA256 checksum of the media bytes and check for duplicate.
+/// Generate an xxHash3-128 checksum of the media bytes and check for duplicate.
 pub async fn generate_media_checksum(
     tx: &mut PgConnection,
     media_bytes: Vec<u8>,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let checksum = sha256::digest(&media_bytes);
+    let checksum = format!("{:032x}", xxhash_rust::xxh3::xxh3_128(&media_bytes));
     let exists = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)")
         .bind(&checksum)
         .fetch_one(&mut *tx)

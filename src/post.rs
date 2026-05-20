@@ -96,7 +96,7 @@ pub struct Post {
     /// Whether this post was created within the last 2 days
     #[sqlx(default)]
     pub recent: Option<bool>,
-    /// SHA256 checksum of the media file for duplicate detection
+    /// xxHash3-128 checksum of the media file for duplicate detection
     pub media_checksum: Option<String>,
 }
 

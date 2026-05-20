@@ -38,6 +38,7 @@ uuid = { version = "*", features = [
     "serde",
 ] }
 sha256 = "*"
+xxhash-rust = { version = "*", features = ["xxh3"] }
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
 url = "*"
