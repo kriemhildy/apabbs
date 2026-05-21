@@ -236,7 +236,8 @@ pub async fn generate_media_checksum(
     tx: &mut PgConnection,
     media_bytes: Vec<u8>,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let checksum = format!("{:032x}", xxhash_rust::xxh3::xxh3_128(&media_bytes));
+    use xxhash_rust::xxh3::xxh3_128;
+    let checksum = format!("{:032x}", xxh3_128(&media_bytes));
     let exists = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)")
         .bind(&checksum)
         .fetch_one(&mut *tx)
