@@ -206,7 +206,7 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create form data with image
     let mut form = FormData::new(Vec::new());
-    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
+    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpg");
     form.write_field("session_token", &user.session_token.to_string())?;
     form.write_field("body", "")?;
     form.write_path("media", test_image_path, "image/jpeg")?;
@@ -232,7 +232,7 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
         .unwrap();
 
     assert_eq!(post.body, "");
-    assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_filename, Some(String::from("image.jpg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
     assert_eq!(post.media_width, None);
@@ -307,7 +307,7 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
 
     // Create form data
     let mut form = FormData::new(Vec::new());
-    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image.jpeg");
+    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image2.jpg");
     form.write_field("session_token", &user.session_token.to_string())?;
     form.write_field("body", "<&test body")?;
     form.write_path("media", test_image_path, "image/jpeg")?;
@@ -331,14 +331,14 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
         .unwrap();
 
     assert_eq!(post.status, PostStatus::Approved);
-    assert_eq!(post.media_filename, Some(String::from("image.jpeg")));
+    assert_eq!(post.media_filename, Some(String::from("image2.jpg")));
     assert_eq!(post.media_category, Some(MediaCategory::Image));
     assert_eq!(post.media_mime_type, Some(String::from("image/jpeg")));
-    assert_eq!(post.media_width, Some(299));
-    assert_eq!(post.media_height, Some(168));
-    assert_eq!(post.thumb_filename, Some(String::from("tn_image.webp")));
-    assert_eq!(post.thumb_width, Some(299));
-    assert_eq!(post.thumb_height, Some(168));
+    assert_eq!(post.media_width, Some(2500));
+    assert_eq!(post.media_height, Some(1667));
+    assert_eq!(post.thumb_filename, Some(String::from("tn_image2.webp")));
+    assert_eq!(post.thumb_width, Some(1422));
+    assert_eq!(post.thumb_height, Some(948));
     assert!(!post.encrypted_media_path().exists());
     assert!(post.published_media_path().exists());
 

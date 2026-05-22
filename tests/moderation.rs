@@ -51,7 +51,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
         &mut tx,
         &anon_user,
         None,
-        Some("image.jpeg"),
+        Some("image.jpg"),
         PostStatus::Pending,
     )
     .await;
@@ -73,7 +73,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let content_type = response.headers().get(CONTENT_TYPE).unwrap();
     assert_eq!(content_type, "image/jpeg");
     let content_disposition = response.headers().get(CONTENT_DISPOSITION).unwrap();
-    assert_eq!(content_disposition, r#"inline; filename="image.jpeg""#);
+    assert_eq!(content_disposition, r#"inline; filename="image.jpg""#);
 
     // Clean up
     let mut tx = state.db.begin().await?;
@@ -270,7 +270,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
         &mut tx,
         &post_user,
         None,
-        Some("image.jpeg"),
+        Some("image2.jpg"),
         PostStatus::Pending,
     )
     .await;
@@ -327,14 +327,14 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
             assert!(!uploads_key_dir.exists());
             assert!(updated_post.published_media_path().exists());
             assert!(updated_post.thumbnail_path().exists());
-            assert_eq!(updated_post.media_width, Some(299));
-            assert_eq!(updated_post.media_height, Some(168));
+            assert_eq!(updated_post.media_width, Some(2500));
+            assert_eq!(updated_post.media_height, Some(1667));
             assert_eq!(
                 updated_post.thumb_filename,
-                Some(String::from("tn_image.webp"))
+                Some(String::from("tn_image2.webp"))
             );
-            assert_eq!(updated_post.thumb_width, Some(299));
-            assert_eq!(updated_post.thumb_height, Some(168));
+            assert_eq!(updated_post.thumb_width, Some(1422));
+            assert_eq!(updated_post.thumb_height, Some(948));
 
             break;
         }
@@ -737,7 +737,7 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
         &mut tx,
         &post_user,
         None,
-        Some("image.jpeg"),
+        Some("image3.jpg"),
         PostStatus::Pending,
     )
     .await;
@@ -799,7 +799,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
         &mut tx,
         &post_user,
         None,
-        Some("image.jpeg"),
+        Some("image4.jpg"),
         PostStatus::Approved,
     )
     .await;
