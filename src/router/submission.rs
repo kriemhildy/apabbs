@@ -158,13 +158,12 @@ pub async fn submit_post(
     let key = generate_key(&mut tx).await?;
 
     // Generate media checksum and ensure uniqueness
-    let media_checksum = match &post_submission.media_bytes {
-        Some(bytes) => Some(generate_media_checksum(&mut tx, bytes.clone()).await?),
-        None => None,
-    };
+    let media_checksum = generate_media_checksum(&mut tx, &post_submission.media_bytes).await?;
 
     // Insert post into database
-    let post = post_submission.insert(&mut tx, &user, &key, media_checksum).await?;
+    let post = post_submission
+        .insert(&mut tx, &user, &key, media_checksum)
+        .await?;
 
     match post.status {
         PostStatus::Pending => {
