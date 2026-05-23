@@ -124,9 +124,10 @@ pub async fn create_test_post(
     };
 
     let key = submission::generate_key(tx).await.unwrap();
-    let media_checksum = submission::generate_media_checksum(tx, &post_submission.media_bytes)
-        .await
-        .unwrap();
+    let media_checksum = match post_submission.media_bytes {
+        Some(ref bytes) => Some(submission::generate_media_checksum(bytes)),
+        None => None,
+    };
     let post = post_submission
         .insert(tx, user, &key, media_checksum)
         .await

@@ -13,6 +13,7 @@ pub enum ResponseError {
     Unauthorized(String),
     Forbidden(String),
     NotFound(String),
+    Conflict(String),
     TooManyRequests(String),
     InternalServerError(String),
 }
@@ -39,6 +40,7 @@ impl IntoResponse for ResponseError {
             ResponseError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             ResponseError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
             ResponseError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            ResponseError::Conflict(msg) => (StatusCode::CONFLICT, msg),
             ResponseError::TooManyRequests(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
             ResponseError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
@@ -74,6 +76,7 @@ mod tests {
         let unauthorized = ResponseError::Unauthorized("unauthorized".into());
         let forbidden = ResponseError::Forbidden("forbidden".into());
         let not_found = ResponseError::NotFound("not found".into());
+        let conflict = ResponseError::Conflict("conflict".into());
         let internal = ResponseError::InternalServerError("internal error".into());
 
         let cases = vec![
@@ -81,6 +84,7 @@ mod tests {
             (unauthorized, StatusCode::UNAUTHORIZED, "unauthorized"),
             (forbidden, StatusCode::FORBIDDEN, "forbidden"),
             (not_found, StatusCode::NOT_FOUND, "not found"),
+            (conflict, StatusCode::CONFLICT, "conflict"),
             (
                 internal,
                 StatusCode::INTERNAL_SERVER_ERROR,

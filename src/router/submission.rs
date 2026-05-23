@@ -20,7 +20,7 @@ use crate::{
     AppMessage, AppState,
     ban::{Ban, SpamTerm, rapid_posting},
     post::{
-        PostStatus,
+        Post, PostStatus,
         media::{encryption::encrypt_uploaded_file, publish_uploaded_media},
         submission::{PostSubmission, generate_key, generate_media_checksum},
     },
@@ -157,8 +157,22 @@ pub async fn submit_post(
     // Generate unique key
     let key = generate_key(&mut tx).await?;
 
-    // Generate media checksum and ensure uniqueness
-    let media_checksum = generate_media_checksum(&mut tx, &post_submission.media_bytes).await?;
+    // Check for duplicate media
+    let media_checksum = match post_submission.media_bytes {
+        Some(ref bytes) => {
+            let checksum = generate_media_checksum(bytes);
+            if Post::select_checksum_exists(&mut tx, &checksum).await? {
+                return Err(ResponseError::Conflict(
+                    "A post with the same media file already exists.".to_string(),
+                ));
+            }
+            Some(checksum)
+        }
+        None => None,
+    };
+
+    // Check to see if checksum already exists and reject if so
+    // if let Some(ref checksum) = media_checksum {
 
     // Insert post into database
     let post = post_submission

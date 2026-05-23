@@ -103,8 +103,10 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     for _ in 0..9 {
         post_submission.session_token = Uuid::new_v4();
         let key = submission::generate_key(&mut tx).await?;
-        let media_checksum =
-            submission::generate_media_checksum(&mut tx, &post_submission.media_bytes).await?;
+        let media_checksum = match post_submission.media_bytes {
+            Some(ref bytes) => Some(submission::generate_media_checksum(bytes)),
+            None => None,
+        };
         post_submission
             .insert(&mut tx, &user, &key, media_checksum)
             .await?;
@@ -118,8 +120,10 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
     let key = submission::generate_key(&mut tx).await?;
-    let media_checksum =
-        submission::generate_media_checksum(&mut tx, &post_submission.media_bytes).await?;
+    let media_checksum = match post_submission.media_bytes {
+        Some(ref bytes) => Some(submission::generate_media_checksum(bytes)),
+        None => None,
+    };
     post_submission
         .insert(&mut tx, &user, &key, media_checksum)
         .await?;

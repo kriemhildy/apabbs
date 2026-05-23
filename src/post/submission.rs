@@ -231,28 +231,10 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     Some(last_char_index as i32)
 }
 
-/// Generate an xxHash3-128 checksum of the media bytes and check for duplicate.
-pub async fn generate_media_checksum(
-    tx: &mut PgConnection,
-    media_bytes: &Option<Vec<u8>>,
-) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
+/// Generate an xxHash3-128 checksum of the media bytes for duplicate detection
+pub fn generate_media_checksum(media_bytes: &Vec<u8>) -> String {
     use xxhash_rust::xxh3::xxh3_128;
-    match media_bytes {
-        Some(bytes) => {
-            let checksum = format!("{:032x}", xxh3_128(bytes));
-            let exists =
-                sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)")
-                    .bind(&checksum)
-                    .fetch_one(&mut *tx)
-                    .await
-                    .map_err(|e| format!("check media checksum existence: {e}"))?;
-            if exists {
-                return Err("Duplicate media detected".into());
-            }
-            Ok(Some(checksum))
-        }
-        None => Ok(None),
-    }
+    format!("{:032x}", xxh3_128(media_bytes))
 }
 
 /// Represents a request to hide a post from personal view

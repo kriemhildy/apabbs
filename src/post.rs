@@ -213,6 +213,21 @@ impl Post {
         .map_err(|e| format!("select post by key: {e}").into())
     }
 
+    /// Check if a post with this media checksum exists in the database.
+    pub async fn select_checksum_exists(
+        tx: &mut PgConnection,
+        media_checksum: &str,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)",
+        )
+        .bind(media_checksum)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| format!("check duplicate media: {e}"))?;
+        Ok(exists)
+    }
+
     /// Permanently deletes a post from the database.
     pub async fn delete(&self, tx: &mut PgConnection) -> Result<(), Box<dyn Error + Send + Sync>> {
         sqlx::query("DELETE FROM posts WHERE id = $1")
