@@ -99,6 +99,17 @@ pub async fn delete_test_account(tx: &mut PgConnection, account: &Account) {
         .expect("delete account");
 }
 
+/// Reduce a post's created_at timestamp by the given interval.
+#[allow(dead_code)]
+pub async fn reduce_post_created_at(tx: &mut PgConnection, post: &Post, interval: &str) {
+    sqlx::query("UPDATE posts SET created_at = now() - $1::interval WHERE id = $2")
+        .bind(interval)
+        .bind(post.id)
+        .execute(tx)
+        .await
+        .expect("update post created_at");
+}
+
 /// Create a test post in the database for a user, with optional media and status.
 #[allow(dead_code)]
 pub async fn create_test_post(

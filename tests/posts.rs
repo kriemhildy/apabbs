@@ -24,7 +24,8 @@ use axum::{
 use form_data_builder::FormData;
 use helpers::{
     APPLICATION_WWW_FORM_URLENCODED, TEST_IP, create_test_account, create_test_post,
-    delete_test_account, init_test, response_adds_cookie, response_body_str, test_user,
+    delete_test_account, init_test, reduce_post_created_at, response_adds_cookie,
+    response_body_str, test_user,
 };
 use http_body_util::BodyExt;
 use std::{error::Error, path::Path};
@@ -346,6 +347,58 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
     post.delete(&mut tx).await?;
     delete_test_account(&mut tx, account).await;
     media::delete_media_key_dir(&post.key).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Tests duplicate detection when media has already been uploaded by another post.
+#[tokio::test]
+async fn submit_post_with_duplicate_media() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let user = test_user(None);
+    let mut tx = state.db.begin().await?;
+    let existing_post = create_test_post(
+        &mut tx,
+        &user,
+        None,
+        Some("image3.jpg"),
+        PostStatus::Approved,
+    )
+    .await;
+    // Reduce created_at to avoid rapid posting prevention
+    reduce_post_created_at(&mut tx, &existing_post, "1 minute").await;
+    tx.commit().await?;
+
+    // Create form data with image
+    let mut form = FormData::new(Vec::new());
+    let test_image_path = Path::new(TEST_MEDIA_DIR).join("image3.jpg");
+    form.write_field("session_token", &user.session_token.to_string())?;
+    form.write_field("body", "")?;
+    form.write_path("media", test_image_path, "image/jpeg")?;
+
+    // Submit the post
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/submit-post")
+        .header(
+            COOKIE,
+            format!("{}={}", SESSION_COOKIE, &user.session_token),
+        )
+        .header(CONTENT_TYPE, form.content_type_header())
+        .header(X_REAL_IP, TEST_IP)
+        .body(Body::from(form.finish()?))?;
+    let response = router.oneshot(request).await?;
+
+    // Verify duplicate detection response
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        response_body_str(response).await,
+        "A post with the same media file already exists."
+    );
+
+    // Clean up
+    let mut tx = state.db.begin().await?;
+    existing_post.delete(&mut tx).await?;
     tx.commit().await?;
     Ok(())
 }
