@@ -507,7 +507,7 @@ pub async fn retry_failed_tasks(state: AppState) {
 
 /// Backfill media checksums. If a post has media that is the duplicate of a prior post, reject it.
 pub async fn backfill_media_checksums(state: AppState) {
-    use apabbs::post::{Post, PostStatus, submission, review};
+    use apabbs::post::{Post, PostStatus, review, submission};
 
     let mut tx = state.db.begin().await.expect("begin");
 

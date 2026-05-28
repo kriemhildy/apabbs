@@ -218,13 +218,12 @@ impl Post {
         tx: &mut PgConnection,
         media_checksum: &str,
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
-        let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)",
-        )
-        .bind(media_checksum)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| format!("check duplicate media: {e}"))?;
+        let exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE media_checksum = $1)")
+                .bind(media_checksum)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|e| format!("check duplicate media: {e}"))?;
         Ok(exists)
     }
 
