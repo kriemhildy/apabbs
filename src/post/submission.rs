@@ -232,7 +232,7 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
 }
 
 /// Generate an xxHash3-128 checksum of the media bytes for duplicate detection
-pub fn generate_media_checksum(media_bytes: &Vec<u8>) -> String {
+pub fn generate_media_checksum(media_bytes: &[u8]) -> String {
     use xxhash_rust::xxh3::xxh3_128;
     format!("{:032x}", xxh3_128(media_bytes))
 }
