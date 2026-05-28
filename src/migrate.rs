@@ -39,6 +39,7 @@ pub async fn main() {
         add_image_dimensions,
         process_videos,
         retry_failed_tasks,
+        backfill_media_checksums,
     ];
 
     // Load environment variables from .env file
@@ -502,4 +503,76 @@ pub async fn retry_failed_tasks(state: AppState) {
 
         tracing::info!(post_id = post.id, "Task retry attempt completed");
     }
+}
+
+/// Backfill media checksums. If a post has media that is the duplicate of a prior post, reject it.
+pub async fn backfill_media_checksums(state: AppState) {
+    use apabbs::post::{Post, PostStatus, submission, review};
+
+    let mut tx = state.db.begin().await.expect("begin");
+
+    // Get all posts with media that are missing checksums
+    let posts: Vec<Post> = sqlx::query_as(concat!(
+        "SELECT * FROM posts WHERE media_category IS NOT NULL ",
+        "AND media_checksum IS NULL AND status NOT IN ('rejected', 'banned') ORDER BY id"
+    ))
+    .fetch_all(&mut *tx)
+    .await
+    .expect("select posts with media and missing checksums");
+
+    for post in posts {
+        tracing::info!(post_key = post.key, "Backfilling media checksum for post");
+
+        let published_media_path = post.published_media_path();
+        if !published_media_path.exists() {
+            tracing::error!(
+                "Published media file does not exist for post {}, skipping",
+                post.key
+            );
+            continue;
+        }
+
+        let bytes = tokio::fs::read(&published_media_path)
+            .await
+            .expect("read published media file");
+        let checksum = submission::generate_media_checksum(&bytes);
+        tracing::info!(checksum, "Generated media checksum for post");
+
+        // Check for duplicate media
+        if Post::select_checksum_exists(&mut tx, &checksum)
+            .await
+            .expect("check checksum")
+        {
+            tracing::info!(
+                "A post with the same media file already exists for post {}, rejecting",
+                post.key
+            );
+            // Determine the action to take based on the prior post status and next status
+            let action = review::determine_action(&post, PostStatus::Rejected, AccountRole::Admin)
+                .expect("determine review action");
+            tracing::info!(post_id = post.id, "Determined action: {:?}", action);
+
+            // Process the action
+            if let Some(task) = review::process_action(&state, &post, PostStatus::Rejected, action)
+                .await
+                .expect("process review action")
+            {
+                // This is normally a background task, but here we run it in the foreground
+                task.await;
+            }
+
+            // Don't update the checksum for rejected posts because of the uniqueness constraint
+            continue;
+        }
+
+        // Update the post with the new checksum
+        sqlx::query("UPDATE posts SET media_checksum = $1 WHERE id = $2")
+            .bind(checksum)
+            .bind(post.id)
+            .execute(&mut *tx)
+            .await
+            .expect("update post with media checksum");
+    }
+
+    tx.commit().await.expect("commit");
 }
