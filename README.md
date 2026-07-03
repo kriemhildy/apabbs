@@ -39,7 +39,7 @@ Installation
    `apt install postgresql pkg-config rsync gnupg libvips-tools ffmpeg direnv`
 3. Create a `gpg.key` file with a random string value: `gpg --gen-random 2 32 | base64 > gpg.key`
 4. Install Cargo packages: `cargo install sqlx-cli cargo-sweep cargo-update`
-5. Install the latest Node and npm via your preferred means (such as nvm).
+5. Install Node npm via your preferred means (such as APT or nvm).
 6. Install Chrome for Testing: `npm run chrome:install`
 7. Create a Postgres role with CREATEDB and LOGIN privileges:
    `CREATE ROLE apabbs WITH CREATEDB LOGIN PASSWORD 'your_password';`
