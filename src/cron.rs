@@ -82,71 +82,31 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
         } else {
             format!("https://{}", crate::prod_host())
         };
-        let screenshot_path = std::path::Path::new(screenshot_path_str);
-        let extension = screenshot_path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .ok_or("determine screenshot file extension")?;
 
         tracing::info!(
             url,
             screenshot_path_str,
-            "Taking screenshot with Chromium..."
+            "Taking screenshot with Chrome..."
         );
 
-        let raw_path_str = screenshot_path
-            .with_extension(format!("raw.{extension}"))
-            .to_string_lossy()
-            .to_string();
-
-        let chromium_status = tokio::process::Command::new("chromium")
+        let chrome_status = tokio::process::Command::new("npm")
             .args([
+                "run",
+                "chrome",
+                "--",
                 "--headless",
-                "--hide-scrollbars",
-                "--window-size=1920,1180",
-                &format!("--screenshot={raw_path_str}"),
+                "--window-size=1400,800",
+                &format!("--screenshot={screenshot_path_str}"),
                 &url,
             ])
             .stderr(std::process::Stdio::null())
             .status()
             .await
-            .map_err(|e| format!("execute chromium: {e}"))?;
+            .map_err(|e| format!("execute Chrome: {e}"))?;
 
-        if !chromium_status.success() {
-            return Err(format!("Chromium exited with code: {:?}", chromium_status.code()).into());
+        if !chrome_status.success() {
+            return Err(format!("Chrome exited with code: {:?}", chrome_status.code()).into());
         }
-
-        // Crop the bottom 100 pixels to compensate for Chromium bug
-        let cropped_path_str = screenshot_path
-            .with_extension(format!("cropped.{extension}"))
-            .to_string_lossy()
-            .to_string();
-
-        let vips_status = tokio::process::Command::new("vips")
-            .args([
-                "crop",
-                &raw_path_str,
-                &cropped_path_str,
-                "0",
-                "0",
-                "1920",
-                "1080",
-            ])
-            .status()
-            .await
-            .map_err(|e| format!("execute vips crop: {e}"))?;
-
-        tokio::fs::remove_file(&raw_path_str)
-            .await
-            .map_err(|e| format!("remove raw screenshot file: {e}"))?;
-
-        if !vips_status.success() {
-            return Err(format!("vips crop exited with code: {:?}", vips_status.code()).into());
-        }
-
-        tokio::fs::rename(&cropped_path_str, screenshot_path_str)
-            .await
-            .map_err(|e| format!("rename cropped file: {e}"))?;
 
         Ok(())
     }
@@ -166,7 +126,7 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
                 },
             );
         }
-        Ok(_) => tracing::info!(screenshot_path_str, "Chromium screenshot saved"),
+        Ok(_) => tracing::info!(screenshot_path_str, "Chrome screenshot saved"),
     }
 }
 

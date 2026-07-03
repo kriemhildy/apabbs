@@ -1,0 +1,8 @@
+{
+  "name": "apabbs",
+  "private": true,
+  "scripts": {
+    "chrome:install": "npm exec -- @puppeteer/browsers install chrome@stable",
+    "chrome": "npm exec -- @puppeteer/browsers launch chrome@stable --dumpio --"
+  }
+}
