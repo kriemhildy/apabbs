@@ -50,9 +50,7 @@ sentry = { version = "*", features = [
 sentry-tracing = { version = "*", optional = true }
 bytes = "*"
 tower = { version = "*", optional = true }
-# Version 0.3.52 of time causes an error in the cookie crate.
-# When this issue is resolved, an explicit reference to time here can be removed.
-time = { version = "=0.3.51", features = ["formatting"] }
+time = { version = "*", features = ["formatting"] }
 
 [dev-dependencies]
 tower = { version = "*", features = ["util"] }
