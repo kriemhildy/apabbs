@@ -42,6 +42,7 @@ xxhash-rust = { version = "*", features = ["xxh3"] }
 tokio-cron-scheduler = "*"
 tokio-util = { version = "*", features = ["io"] }
 url = "*"
+# This is locked because we have at times found it using pre-0.10 versions
 rand = ">=0.10.0"
 ctor = "*"
 sentry = { version = "*", features = [
