@@ -40,6 +40,7 @@ pub async fn main() {
         process_videos,
         retry_failed_tasks,
         backfill_media_checksums,
+        reject_posts_with_missing_media,
     ];
 
     // Load environment variables from .env file
@@ -552,6 +553,11 @@ pub async fn backfill_media_checksums(state: AppState) {
                 .expect("determine review action");
             tracing::info!(post_id = post.id, "Determined action: {:?}", action);
 
+            // Update the post status to Rejected
+            post.update_status(&mut tx, PostStatus::Rejected)
+                .await
+                .expect("update post status to rejected");
+
             // Process the action
             if let Some(task) = review::process_action(&state, &post, PostStatus::Rejected, action)
                 .await
@@ -572,6 +578,39 @@ pub async fn backfill_media_checksums(state: AppState) {
             .execute(&mut *tx)
             .await
             .expect("update post with media checksum");
+    }
+
+    tx.commit().await.expect("commit");
+}
+
+// Identify posts with media that are missing the media file and reject them
+pub async fn reject_posts_with_missing_media(state: AppState) {
+    use apabbs::post::{Post, PostStatus};
+
+    let mut tx = state.db.begin().await.expect("begin");
+
+    // Get all posts with media that are missing the media file
+    let posts: Vec<Post> = sqlx::query_as(concat!(
+        "SELECT * FROM posts WHERE media_category IS NOT NULL ",
+        "AND status NOT IN ('rejected', 'banned', 'pending') ORDER BY id"
+    ))
+    .fetch_all(&mut *tx)
+    .await
+    .expect("select posts with media");
+
+    for post in posts {
+        let published_media_path = post.published_media_path();
+        if !published_media_path.exists() {
+            tracing::info!(
+                post_key = post.key,
+                "Published media file does not exist for post, rejecting"
+            );
+
+            // Update the post status to Rejected
+            post.update_status(&mut tx, PostStatus::Rejected)
+                .await
+                .expect("update post status to rejected");
+        }
     }
 
     tx.commit().await.expect("commit");
