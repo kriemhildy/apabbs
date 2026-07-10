@@ -83,11 +83,7 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
             format!("https://{}", crate::prod_host())
         };
 
-        tracing::info!(
-            url,
-            screenshot_path_str,
-            "Taking screenshot with Chrome..."
-        );
+        tracing::info!(url, screenshot_path_str, "Taking screenshot with Chrome...");
 
         let chrome_status = tokio::process::Command::new("npm")
             .args([
