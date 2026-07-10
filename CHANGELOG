@@ -1,3 +1,7 @@
+1.3.1
+
+Fix a bug where duplicate posts had their media deleted but were not rejected.
+
 1.3.0
 
 Replace Chromium with Chrome for Testing. Use Node and npm to facilitate this.
