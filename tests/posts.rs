@@ -399,6 +399,7 @@ async fn submit_post_with_duplicate_media() -> Result<(), Box<dyn Error + Send +
     // Clean up
     let mut tx = state.db.begin().await?;
     existing_post.delete(&mut tx).await?;
+    media::delete_media_key_dir(&existing_post.key).await?;
     tx.commit().await?;
     Ok(())
 }
