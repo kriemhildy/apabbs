@@ -5,7 +5,7 @@
     "chrome_version": "stable"
   },
   "scripts": {
-    "chrome:install": "npm exec -- @puppeteer/browsers install chrome@$npm_package_config_chrome_version",
+    "chrome:install": "npm exec -- @puppeteer/browsers install chrome@$npm_package_config_chrome_version && script/chrome-cleanup.sh",
     "chrome": "npm exec -- @puppeteer/browsers launch chrome@$npm_package_config_chrome_version --dumpio --"
   }
 }
