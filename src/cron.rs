@@ -92,7 +92,7 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
                 "--",
                 "--headless",
                 "--window-size=1400,800",
-                // Prevents issues with Chrome filling up /tmp and killing the process
+                // Prevents issue with Chrome 151 filling up /tmp and killing the process
                 "--disk-cache-dir=/dev/null",
                 &format!("--screenshot={screenshot_path_str}"),
                 &url,
