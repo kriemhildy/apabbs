@@ -1,3 +1,7 @@
+1.2.1
+
+Fix a bug where duplicate posts had their media deleted but were not rejected.
+
 1.2.0
 
 Add duplicate media detection. Reject all prior duplicates.
