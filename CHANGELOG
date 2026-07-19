@@ -1,3 +1,10 @@
+1.3.2
+
+Fix a critical bug where the latest version of Chrome was filling up /tmp and crashing the process.
+Enable pinning a specific version of Chrome if desired.
+Automatically uninstall old versions of Chrome.
+Add a timeout to Chrome execution to prevent it from hanging the process.
+
 1.3.1
 
 Fix a bug where duplicate posts had their media deleted but were not rejected.
