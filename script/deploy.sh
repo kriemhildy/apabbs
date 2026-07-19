@@ -18,6 +18,9 @@ if ! [ "$DEV" == 1 ]; then
     # Update Rust to the latest version
     nice rustup update
 
+    # Update Chrome to the latest version
+    nice npm run chrome:install
+
     # Update Cargo executables
     nice cargo install-update -a
 
@@ -50,6 +53,9 @@ else
 
     # Update Rust to the latest version
     nice rustup update
+
+    # Update Chrome to the latest version
+    nice npm run chrome:install
 
     # Update Cargo executables
     nice cargo install-update -a

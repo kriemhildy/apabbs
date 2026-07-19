@@ -1,8 +1,11 @@
 {
   "name": "apabbs",
   "private": true,
+  "config": {
+    "chrome_version": "stable"
+  },
   "scripts": {
-    "chrome:install": "npm exec -- @puppeteer/browsers install chrome@stable",
-    "chrome": "npm exec -- @puppeteer/browsers launch chrome@stable --dumpio --"
+    "chrome:install": "npm exec -- @puppeteer/browsers install chrome@$npm_package_config_chrome_version",
+    "chrome": "npm exec -- @puppeteer/browsers launch chrome@$npm_package_config_chrome_version --dumpio --"
   }
 }
