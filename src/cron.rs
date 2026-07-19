@@ -85,8 +85,11 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
 
         tracing::info!(url, screenshot_path_str, "Taking screenshot with Chrome...");
 
-        let chrome_status = tokio::process::Command::new("npm")
+        let chrome_status = tokio::process::Command::new("timeout")
             .args([
+                "-k 10s",
+                "30s",
+                "npm",
                 "run",
                 "chrome",
                 "--",
