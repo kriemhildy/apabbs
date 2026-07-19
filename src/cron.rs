@@ -21,13 +21,10 @@
 
 use crate::ban;
 use std::error::Error;
-use std::time::Duration;
 use tokio_cron_scheduler::Job;
 
 /// The path where screenshots will be saved
 pub const SCREENSHOT_PATH: &str = "pub/screenshot.webp";
-/// Maximum amount of time allowed for the screenshot subprocess before it is aborted.
-const SCREENSHOT_TIMEOUT_SECS: u64 = 30;
 
 /// Initializes and starts the scheduled job system in the background for the app's lifetime.
 pub async fn init() {
@@ -88,29 +85,20 @@ pub async fn screenshot_task(screenshot_path_str: &str) {
 
         tracing::info!(url, screenshot_path_str, "Taking screenshot with Chrome...");
 
-        let chrome_status = tokio::time::timeout(
-            Duration::from_secs(SCREENSHOT_TIMEOUT_SECS),
-            tokio::process::Command::new("npm")
-                .args([
-                    "run",
-                    "chrome",
-                    "--",
-                    "--headless",
-                    "--window-size=1400,800",
-                    &format!("--screenshot={screenshot_path_str}"),
-                    &url,
-                ])
-                .stderr(std::process::Stdio::null())
-                .status(),
-        )
-        .await
-        .map_err(|_| {
-            format!(
-                "Chrome screenshot command timed out after {} seconds",
-                SCREENSHOT_TIMEOUT_SECS
-            )
-        })?
-        .map_err(|e| format!("execute Chrome: {e}"))?;
+        let chrome_status = tokio::process::Command::new("npm")
+            .args([
+                "run",
+                "chrome",
+                "--",
+                "--headless",
+                "--window-size=1400,800",
+                &format!("--screenshot={screenshot_path_str}"),
+                &url,
+            ])
+            .stderr(std::process::Stdio::null())
+            .status()
+            .await
+            .map_err(|e| format!("execute Chrome: {e}"))?;
 
         if !chrome_status.success() {
             return Err(format!("Chrome exited with code: {:?}", chrome_status.code()).into());
