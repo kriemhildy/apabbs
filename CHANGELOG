@@ -1,3 +1,7 @@
+1.2.2
+
+Fix test cleanup on duplicate media test.
+
 1.2.1
 
 Fix a bug where duplicate posts had their media deleted but were not rejected.
