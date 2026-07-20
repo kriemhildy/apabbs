@@ -31,7 +31,7 @@ pub fn per_page() -> usize {
         Ok(per_page) => per_page
             .parse()
             .expect("Parse PER_PAGE environment variable as integer"),
-        Err(_) => 840, // Evenly divisible by 1-8
+        Err(_) => 420, // Evenly divisible by 1-7
     }
 }
 
