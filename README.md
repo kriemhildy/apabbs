@@ -35,8 +35,8 @@ Installation
 ------------
 
 1. Install Rust using `rustup`.
-2. Install PostgreSQL, pkg-config, rsync, GnuPG, VIPS, FFmpeg and direnv. On Debian:
-   `apt install postgresql pkg-config rsync gnupg libvips-tools ffmpeg direnv`
+2. Install PostgreSQL, pkg-config, rsync, GnuPG, VIPS, FFmpeg, direnv and coreutils. On Debian:
+   `apt install postgresql pkg-config rsync gnupg libvips-tools ffmpeg direnv coreutils`
 3. Create a `gpg.key` file with a random string value: `gpg --gen-random 2 32 | base64 > gpg.key`
 4. Install Cargo packages: `cargo install sqlx-cli cargo-sweep cargo-update`
 5. Install Node npm via your preferred means (such as APT or nvm).
