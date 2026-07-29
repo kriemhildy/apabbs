@@ -32,9 +32,6 @@ fn main() {
             } else {
                 "production".into()
             });
-            // Capture user IPs and sensitive headers for HTTP server integrations
-            // See: https://docs.sentry.io/platforms/rust/data-management/data-collected
-            sentry_options.send_default_pii = true;
 
             let guard = sentry::init((
                 sentry_dsn,
