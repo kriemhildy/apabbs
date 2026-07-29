@@ -25,20 +25,20 @@ fn main() {
     #[cfg(feature = "sentry")]
     let _sentry_guard = {
         if let Ok(sentry_dsn) = std::env::var("SENTRY_DSN") {
+            let mut sentry_options = sentry::ClientOptions::default();
+            sentry_options.release = sentry::release_name!();
+            sentry_options.environment = Some(if apabbs::dev() {
+                "development".into()
+            } else {
+                "production".into()
+            });
+            // Capture user IPs and sensitive headers for HTTP server integrations
+            // See: https://docs.sentry.io/platforms/rust/data-management/data-collected
+            sentry_options.send_default_pii = true;
+
             let guard = sentry::init((
                 sentry_dsn,
-                sentry::ClientOptions {
-                    release: sentry::release_name!(),
-                    environment: Some(if apabbs::dev() {
-                        "development".into()
-                    } else {
-                        "production".into()
-                    }),
-                    // Capture user IPs and sensitive headers for HTTP server integrations
-                    // See: https://docs.sentry.io/platforms/rust/data-management/data-collected
-                    send_default_pii: true,
-                    ..Default::default()
-                },
+                sentry_options,
             ));
             tracing::info!("Sentry error tracking initialized");
             Some(guard)
