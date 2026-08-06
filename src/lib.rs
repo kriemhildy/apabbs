@@ -23,6 +23,12 @@ use sqlx::PgPool;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
+/// The default number of items to show per page in the application.
+pub const DEFAULT_PER_PAGE: usize = 420; // Evenly divisible by 1-7
+
+/// The default time zone for the application.
+pub const DEFAULT_TIME_ZONE: &str = "America/Los_Angeles";
+
 // --- Environment variables  -------------------------------------------------
 
 /// Returns the number of items to show per page.
@@ -31,7 +37,7 @@ pub fn per_page() -> usize {
         Ok(per_page) => per_page
             .parse()
             .expect("Parse PER_PAGE environment variable as integer"),
-        Err(_) => 420, // Evenly divisible by 1-7
+        Err(_) => DEFAULT_PER_PAGE,
     }
 }
 
@@ -59,7 +65,7 @@ pub fn secret_key() -> String {
 
 /// Retrieves the default time zone.
 pub fn time_zone() -> String {
-    std::env::var("TIME_ZONE").unwrap_or_else(|_| "America/Los_Angeles".to_string())
+    std::env::var("TIME_ZONE").unwrap_or_else(|_| DEFAULT_TIME_ZONE.to_string())
 }
 
 // --- Application state ------------------------------------------------------
