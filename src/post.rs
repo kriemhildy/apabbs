@@ -309,7 +309,7 @@ impl Post {
     }
 
     /// Updates the poster filename for video posts.
-    pub async fn update_poster(
+    pub async fn update_video_poster(
         &self,
         tx: &mut PgConnection,
         video_poster_path: &Path,

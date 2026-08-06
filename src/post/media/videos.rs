@@ -21,7 +21,7 @@ pub async fn process_video(
     }
 
     let video_poster_path = generate_video_poster(&published_media_path).await?;
-    post.update_poster(tx, &video_poster_path).await?;
+    post.update_video_poster(tx, &video_poster_path).await?;
 
     let (media_width, media_height) = images::image_dimensions(&video_poster_path).await?;
     post.update_media_dimensions(tx, media_width, media_height)
