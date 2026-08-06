@@ -1,3 +1,11 @@
+1.4.0
+
+Remove the display of author information on posts.
+Make thumbnails smaller.
+Add borders to all media.
+Allow changing the default time zone and make the new default America/Los_Angeles.
+Auto-detect user time zone via JavaScript.
+
 1.3.3
 
 Fix Chrome version cleanup script to work on macOS.
