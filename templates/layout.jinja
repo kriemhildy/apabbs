@@ -33,6 +33,9 @@
     {% else %}
     <a href="/u/{{ user.account.username }}">{{ user.account.username }}</a>
     {% endif %}
+    {# Show login link for anonymous users #}
+    {% else %}
+    <a href="/login">log in</a>
     {% endif %}
   </nav>
   {% endif %}
