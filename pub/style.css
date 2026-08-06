@@ -69,7 +69,6 @@ body.list div.media video,
 body.list img.youtube-thumbnail {
   max-height: 280px;
   max-width: 280px;
-  border: 1px solid #222;
 }
 
 body.list p#next-page {
@@ -104,6 +103,7 @@ img.youtube-thumbnail {
   max-width: 100%;
   height: auto;
   width: auto;
+  border: 1px solid #333;
 }
 
 div.arrow a {
