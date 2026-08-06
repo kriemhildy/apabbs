@@ -193,7 +193,7 @@ pub async fn init_user(
         ..User::default()
     };
     // Set the session's time zone preference
-    set_session_time_zone(tx, user.time_zone()).await?;
+    set_session_time_zone(tx, &user.time_zone()).await?;
     // Check for any active bans on the user
     user.ban_expires_at =
         Ban::exists(tx, &user.ip_hash, user.account.as_ref().map(|a| a.id)).await?;

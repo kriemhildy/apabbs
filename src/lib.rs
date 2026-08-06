@@ -57,6 +57,11 @@ pub fn secret_key() -> String {
     std::env::var("SECRET_KEY").expect("Read SECRET_KEY environment variable")
 }
 
+/// Retrieves the default time zone.
+pub fn time_zone() -> String {
+    std::env::var("TIME_ZONE").unwrap_or_else(|_| "America/Los_Angeles".to_string())
+}
+
 // --- Application state ------------------------------------------------------
 
 /// Represents a message in the application, which can be either a post or an account message.

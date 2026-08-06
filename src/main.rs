@@ -33,10 +33,7 @@ fn main() {
                 "production".into()
             });
 
-            let guard = sentry::init((
-                sentry_dsn,
-                sentry_options,
-            ));
+            let guard = sentry::init((sentry_dsn, sentry_options));
             tracing::info!("Sentry error tracking initialized");
             Some(guard)
         } else {

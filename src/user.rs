@@ -88,11 +88,11 @@ impl User {
             .is_some_and(|a| a.role == AccountRole::Admin)
     }
 
-    /// Gets the user's preferred time zone, or "UTC" for anonymous users.
-    pub fn time_zone(&self) -> &str {
+    /// Gets the user's preferred time zone, or the default for anonymous users.
+    pub fn time_zone(&self) -> String {
         match self.account {
-            Some(ref account) => &account.time_zone,
-            None => "UTC",
+            Some(ref account) => account.time_zone.clone(),
+            None => crate::time_zone(),
         }
     }
 
@@ -506,7 +506,7 @@ mod tests {
 
         assert!(!anon_user.mod_or_admin());
         assert!(!anon_user.admin());
-        assert_eq!(anon_user.time_zone(), "UTC");
+        assert_eq!(anon_user.time_zone(), crate::time_zone());
 
         // Test restricted user
         let restricted_user = User {
