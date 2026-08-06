@@ -15,9 +15,6 @@ use uuid::Uuid;
 /// The number of iterations used for Blowfish password hashing.
 pub const BLOWFISH_ITERATIONS: i32 = 10;
 
-/// The select option for auto-detecting the user's time zone via JavaScript.
-pub const AUTO_DETECT_TIME_ZONE: &str = "Auto-Detect via JavaScript";
-
 /// Role-based access control for user accounts.
 ///
 /// Defines the access level and permissions of a user within the system.
@@ -96,7 +93,7 @@ impl User {
     /// Gets the user's preferred time zone, or the default for anonymous users.
     pub fn time_zone(&self) -> String {
         let account_time_zone = self.account.as_ref().and_then(|a| a.time_zone.as_deref());
-        if account_time_zone.is_none() || account_time_zone == Some(AUTO_DETECT_TIME_ZONE) {
+        if account_time_zone.is_none() {
             if let Some(time_zone_cookie) = &self.time_zone_cookie {
                 return time_zone_cookie.clone();
             }
@@ -257,10 +254,6 @@ impl TimeZoneUpdate {
         .fetch_all(&mut *tx)
         .await
         .map_err(|e| format!("select time zones: {e}").into())
-        .map(|mut time_zones: Vec<String>| {
-            time_zones.insert(0, AUTO_DETECT_TIME_ZONE.to_string());
-            time_zones
-        })
     }
 
     /// Updates the time zone setting for a user account.
@@ -269,7 +262,7 @@ impl TimeZoneUpdate {
         tx: &mut PgConnection,
         account_id: i32,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let time_zone_value = if self.time_zone == AUTO_DETECT_TIME_ZONE {
+        let time_zone_value = if self.time_zone == "auto" {
             None
         } else {
             Some(self.time_zone.clone())

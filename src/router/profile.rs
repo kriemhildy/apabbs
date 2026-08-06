@@ -173,7 +173,7 @@ pub async fn update_time_zone(
 
     // Validate time zone
     let time_zones = TimeZoneUpdate::select_time_zones(&mut tx).await?;
-    if !time_zones.contains(&time_zone_update.time_zone) {
+    if !time_zones.contains(&time_zone_update.time_zone) && time_zone_update.time_zone != "auto" {
         return Err(ResponseError::BadRequest(
             "Invalid time zone selection".to_string(),
         ));
