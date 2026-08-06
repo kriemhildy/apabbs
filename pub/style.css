@@ -80,11 +80,6 @@ body.solo div.post details.review {
   height: 45px;
 }
 
-body.solo div.media img,
-body.solo div.media video {
-  max-height: 800px;
-}
-
 /* --- Post internals ------------------------------------------------------ */
 
 div.post {
