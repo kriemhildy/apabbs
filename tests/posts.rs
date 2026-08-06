@@ -337,8 +337,8 @@ async fn submit_post_trusted_user() -> Result<(), Box<dyn Error + Send + Sync>> 
     assert_eq!(post.media_width, Some(2500));
     assert_eq!(post.media_height, Some(1667));
     assert_eq!(post.thumb_filename, Some(String::from("tn_image2.webp")));
-    assert_eq!(post.thumb_width, Some(1422));
-    assert_eq!(post.thumb_height, Some(948));
+    assert_eq!(post.thumb_width, Some(560));
+    assert_eq!(post.thumb_height, Some(373));
     assert!(!post.encrypted_media_path().exists());
     assert!(post.published_media_path().exists());
 

@@ -58,7 +58,7 @@ h1 a {
 body.list div#posts {
   display: grid;
   justify-items: center;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   margin: 16px 0;
   gap: 32px;
   align-items: center;
@@ -67,7 +67,8 @@ body.list div#posts {
 body.list div.media img,
 body.list div.media video,
 body.list img.youtube-thumbnail {
-  max-height: 500px;
+  max-height: 280px;
+  max-width: 280px;
 }
 
 body.list p#next-page {

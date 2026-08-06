@@ -337,8 +337,8 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
                 updated_post.thumb_filename,
                 Some(String::from("tn_image2.webp"))
             );
-            assert_eq!(updated_post.thumb_width, Some(1422));
-            assert_eq!(updated_post.thumb_height, Some(948));
+            assert_eq!(updated_post.thumb_width, Some(560));
+            assert_eq!(updated_post.thumb_height, Some(373));
 
             break;
         }
