@@ -184,12 +184,14 @@ pub async fn init_user(
     // Compute IP hash and analyze user agent for the session
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);
+    let time_zone_cookie = jar.get("time_zone").map(|c| c.value().to_string());
     // Construct the User struct with gathered information
     let mut user = User {
         account,
         session_token,
         ip_hash,
         agent,
+        time_zone_cookie,
         ..User::default()
     };
     // Set the session's time zone preference

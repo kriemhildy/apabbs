@@ -410,7 +410,7 @@ async fn update_time_zone() -> Result<(), Box<dyn Error + Send + Sync>> {
     let updated_account = Account::select_by_username(&mut tx, &account.username)
         .await?
         .unwrap();
-    assert_eq!(updated_account.time_zone, time_zone_update.time_zone);
+    assert_eq!(updated_account.time_zone, Some(time_zone_update.time_zone));
 
     // Clean up
     delete_test_account(&mut tx, account).await;

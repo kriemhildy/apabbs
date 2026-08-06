@@ -6,13 +6,16 @@ const currentPageUrl = new URL(window.location.href);
 // Add submit confirmations on every page
 document.addEventListener("DOMContentLoaded", addSubmitConfirmations);
 
+// Set time zone cookie on every page load
+document.addEventListener("DOMContentLoaded", setTimeZoneCookie);
+
 // Only initialize WebSocket and dynamic content features on the homepage
 if (currentPageUrl.pathname === "/") {
   for (const fn of [
     initDomElements,
     initUnseenItems,
     initWebSocket,
-    addFetchToForms
+    addFetchToForms,
   ]) {
     document.addEventListener("DOMContentLoaded", fn);
   }
@@ -413,4 +416,28 @@ function confirmSubmit(event) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }
+}
+
+/* --- Time zone cookie ---------------------------------------------------- */
+
+// Stores browser time zone in a cookie for server-side use.
+function setTimeZoneCookie() {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!timezone) {
+    return;
+  }
+
+  const cookieName = "time_zone";
+  const encodedTimezone = encodeURIComponent(timezone);
+  const currentCookie = document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${cookieName}=`));
+
+  if (currentCookie === `${cookieName}=${encodedTimezone}`) {
+    return;
+  }
+
+  const secureFlag = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${cookieName}=${encodedTimezone}; Path=/; Max-Age=31536000; SameSite=Lax${secureFlag}`;
 }

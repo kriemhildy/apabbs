@@ -15,6 +15,9 @@ use uuid::Uuid;
 /// The number of iterations used for Blowfish password hashing.
 pub const BLOWFISH_ITERATIONS: i32 = 10;
 
+/// The select option for auto-detecting the user's time zone via JavaScript.
+pub const AUTO_DETECT_TIME_ZONE: &str = "Auto-Detect via JavaScript";
+
 /// Role-based access control for user accounts.
 ///
 /// Defines the access level and permissions of a user within the system.
@@ -71,6 +74,8 @@ pub struct User {
     pub agent: Option<UserAgent>,
     /// Expiration time of the user's ban, if applicable
     pub ban_expires_at: Option<String>,
+    /// Time zone cookie value for the user, if set
+    pub time_zone_cookie: Option<String>,
 }
 
 impl User {
@@ -90,10 +95,14 @@ impl User {
 
     /// Gets the user's preferred time zone, or the default for anonymous users.
     pub fn time_zone(&self) -> String {
-        match self.account {
-            Some(ref account) => account.time_zone.clone(),
-            None => crate::time_zone(),
+        let account_time_zone = self.account.as_ref().and_then(|a| a.time_zone.as_deref());
+        if account_time_zone.is_none() || account_time_zone == Some(AUTO_DETECT_TIME_ZONE) {
+            if let Some(time_zone_cookie) = &self.time_zone_cookie {
+                return time_zone_cookie.clone();
+            }
+            return crate::time_zone();
         }
+        account_time_zone.unwrap().to_string()
     }
 
     /// Determines the initial post status based on the user's account role.
@@ -125,7 +134,7 @@ pub struct Account {
     /// The privilege level of the account.
     pub role: AccountRole,
     /// The time zone preference of the account.
-    pub time_zone: String,
+    pub time_zone: Option<String>,
     /// The account creation timestamp in RFC 5322 format.
     #[sqlx(default)]
     pub created_at_rfc5322: Option<String>,
@@ -248,6 +257,10 @@ impl TimeZoneUpdate {
         .fetch_all(&mut *tx)
         .await
         .map_err(|e| format!("select time zones: {e}").into())
+        .map(|mut time_zones: Vec<String>| {
+            time_zones.insert(0, AUTO_DETECT_TIME_ZONE.to_string());
+            time_zones
+        })
     }
 
     /// Updates the time zone setting for a user account.
@@ -256,8 +269,13 @@ impl TimeZoneUpdate {
         tx: &mut PgConnection,
         account_id: i32,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let time_zone_value = if self.time_zone == AUTO_DETECT_TIME_ZONE {
+            None
+        } else {
+            Some(self.time_zone.clone())
+        };
         sqlx::query("UPDATE accounts SET time_zone = $1 WHERE id = $2")
-            .bind(&self.time_zone)
+            .bind(&time_zone_value)
             .bind(account_id)
             .execute(&mut *tx)
             .await
@@ -512,7 +530,7 @@ mod tests {
         let restricted_user = User {
             account: Some(Account {
                 role: AccountRole::Restricted,
-                time_zone: NEW_YORK.to_string(),
+                time_zone: Some(NEW_YORK.to_string()),
                 ..Account::default()
             }),
             ..User::default()
