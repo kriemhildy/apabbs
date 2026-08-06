@@ -33,6 +33,7 @@
     <form action="/settings/update-time-zone" method="post">
       <input type="hidden" name="session_token" value="{{ user.session_token }}">
       <select name="time_zone">
+        <option value="auto">Auto-Detect via JavaScript</option>
         {% for tz in time_zones %}
         <option value="{{ tz }}"{{ " selected" if tz == user.account.time_zone }}>{{ tz }}</option>
         {% endfor %}
