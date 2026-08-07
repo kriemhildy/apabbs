@@ -63,12 +63,6 @@
         {###################################################################################}
         {# Show creation timestamp in solo view #}
         {% if solo %}
-        {% if post.media_category == "video" and post.compat_video %}
-        <div id="original-video">
-          {% set original_path = "/m/" + post.key + "/" + post.media_filename|urlencode %}
-          Original: <a href="{{ original_path }}">{{ post.media_filename }}</a>
-        </div>
-        {% endif %}
         <div id="created-at">
           <time datetime="{{ post.created_at_html }}">{{ post.created_at_rfc5322 }}</time>
         </div>
