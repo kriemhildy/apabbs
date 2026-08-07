@@ -178,6 +178,11 @@ pub async fn submit_post(
         }
     }
 
+    // Refresh post from database after processing
+    let post = Post::select_by_key(&mut tx, &post.key).await?.ok_or_else(|| {
+        ResponseError::InternalServerError("Post disappeared before websocket send".to_string())
+    })?;
+
     tx.commit().await?;
 
     // Notify clients of new post
