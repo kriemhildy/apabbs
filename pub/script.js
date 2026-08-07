@@ -201,7 +201,6 @@ function updatePost(key, html) {
     postsDiv.prepend(template.content);
     incrementUnseenItems();
   }
-  fixChromiumVideoPosters(key);
   fixSafariVideoLoading(key);
 }
 
@@ -214,15 +213,6 @@ function browserIsChromium() {
 function browserIsSafari() {
   const ua = navigator.userAgent;
   return ua.includes("Safari") && !ua.includes("Chrome");
-}
-
-// Fixes a Chromium bug with dynamically added video poster attributes.
-function fixChromiumVideoPosters(key) {
-  if (browserIsChromium()) {
-    document.querySelectorAll(`#post-${key} video[poster]`).forEach((video) => {
-      video.poster = video.poster;
-    });
-  }
 }
 
 // Fixes a Safari bug with dynamically added video loading.
