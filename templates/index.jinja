@@ -29,7 +29,7 @@
     {% if user.ban_expires_at %}
     <p>You are banned from posting until {{ user.ban_expires_at }}.</p>
     {% endif %}
-    <form action="/submit-post" method="post" enctype="multipart/form-data">
+    <form id="submit-post" action="/submit-post" method="post" enctype="multipart/form-data">
       <fieldset{{ " disabled" if user.ban_expires_at }}>
         {# User session token for authentication/tracking #}
         <input type="hidden" name="session_token" value="{{ user.session_token }}">
