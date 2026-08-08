@@ -1,3 +1,11 @@
+1.2.3
+
+Actually update CHANGELOG and use a valid version number.
+
+1.2.2.1
+
+Actually update crate version number.
+
 1.2.2
 
 Fix test cleanup on duplicate media test.
