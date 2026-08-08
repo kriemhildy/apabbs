@@ -1,3 +1,7 @@
+1.2.4
+
+Fix a bug with loading video posters over WebSocket.
+
 1.2.3
 
 Actually update CHANGELOG and use a valid version number.
