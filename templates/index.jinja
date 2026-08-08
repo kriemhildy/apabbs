@@ -24,11 +24,8 @@
       {% endfor %}
     </ul>
     {% endif %}
-    {# If viewing a paginated result set, show the page marker #}
-    {% if page_post %}
-    <p>Page beginning "{{ page_post.key }}"</p>
-    {# Otherwise show the post submission form for new content #}
-    {% else %}
+    {% if not page_post %}
+    {# Show the post submission form for new content #}
     {% if user.ban_expires_at %}
     <p>You are banned from posting until {{ user.ban_expires_at }}.</p>
     {% endif %}

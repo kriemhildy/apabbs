@@ -22,10 +22,6 @@
     {% if user.account.username == account.username %}
     <p>You are logged in as this user. <a href="/settings">Settings</a></p>
     {% endif %}
-    {# If viewing a paginated result set, show the page marker #}
-    {% if page_post %}
-    <p>Page beginning "{{ page_post.key }}"</p>
-    {% endif %}
     {# Display user's posts #}
     <div id="posts">
       {% for post in posts %}
