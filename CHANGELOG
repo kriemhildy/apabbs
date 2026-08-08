@@ -1,3 +1,11 @@
+1.4.3
+
+Actually update CHANGELOG.
+
+1.4.2
+
+Fix a bug with loading video posters over WebSocket.
+
 1.4.1
 
 Fix an SQL injection vulnerability caused by the time zone cookie.
