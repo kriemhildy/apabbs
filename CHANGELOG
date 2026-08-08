@@ -1,3 +1,7 @@
+1.0.2
+
+Fix a bug with loading video posters over WebSocket.
+
 1.0.1
 
 Actually update Cargo.lock.
