@@ -96,7 +96,7 @@ div.post {
 div.post pre {
   overflow-y: clip;
   overflow-wrap: anywhere;
-  max-width: 600px;
+  max-width: 500px;
   white-space: pre-wrap;
   margin: 0;
 }
@@ -224,7 +224,7 @@ input#username {
 
 textarea {
   width: 100%;
-  max-width: 600px;
+  max-width: 500px;
   height: 4em;
   padding: 5px;
   box-sizing: border-box;
