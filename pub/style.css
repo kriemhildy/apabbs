@@ -64,11 +64,14 @@ body.list div#posts {
   align-items: center;
 }
 
+body.list div.post {
+  max-width: 280px;
+}
+
 body.list div.media img,
 body.list div.media video,
 body.list img.youtube-thumbnail {
   max-height: 280px;
-  max-width: 280px;
 }
 
 body.list p#next-page {
