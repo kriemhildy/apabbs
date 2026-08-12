@@ -1,3 +1,7 @@
+1.3.5
+
+Fix bug where Chrome for Testing was not functioning properly.
+
 1.3.4
 
 Fix a bug with loading video posters over WebSocket.
