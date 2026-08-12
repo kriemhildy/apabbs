@@ -1,3 +1,8 @@
+1.5.1
+
+Fix bug where Chrome for Testing was not functioning properly.
+Prevent text from extending the width of list items.
+
 1.5.0
 
 Reduce default per page to 60.
