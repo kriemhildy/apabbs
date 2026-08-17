@@ -8,7 +8,7 @@
           {% if post.media_category == "image" %}
           {% set solo_path = "/p/" + post.key %}
           {% if solo %}
-          <img src="{{ media_path }}" alt="Image &quot;{{ media_filename }}&quot;"{{ dimension_attrs }}>
+          <img src="{{ media_path }}" alt="Image &quot;{{ media_filename|escape }}&quot;"{{ dimension_attrs }}>
           {% else %}
           <a href="{{ solo_path }}"><img src="{{ media_path }}" alt="Post {{ post.key }}"{{ dimension_attrs }}></a>
           {% endif %}
@@ -19,16 +19,16 @@
           {% set preload = "metadata" if solo else "none" %}
           <video controls{{ poster_attr }} preload="{{ preload }}"{{ dimension_attrs }}>
             <source src="{{ media_path }}">
-            Video "{{ media_filename }}"
+            Video "{{ media_filename|escape }}"
           </video>
           {# Audio file display handling #}
           {% elif post.media_category == "audio" %}
           <audio controls>
             <source src="{{ media_path }}">
-            Audio "{{ media_filename }}"
+            Audio "{{ media_filename|escape }}"
           </audio>
           {% elif post.media_category == "other" %}
           {# Generic media handling for 'other' category #}
-          <a href="{{ media_path }}">{{ media_filename }}</a>
+          <a href="{{ media_path }}">{{ media_filename|escape }}</a>
           {% endif %}
         </div>
