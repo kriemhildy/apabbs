@@ -1,3 +1,7 @@
+1.1.2
+
+HTML-escape media filenames when displayed.
+
 1.1.1
 
 Fix a bug with loading video posters over WebSocket.
