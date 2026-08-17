@@ -111,6 +111,7 @@ img.youtube-thumbnail {
   height: auto;
   width: auto;
   border: 1px solid #333;
+  box-sizing: border-box;
 }
 
 div.arrow a {
