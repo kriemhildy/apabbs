@@ -26,7 +26,7 @@ dotenv = "*"
 tower-http = { version = "*", features = ["trace"] }
 tracing = "*"
 tracing-subscriber = "*"
-minijinja = { version = "*", features = ["loader", "urlencode"] }
+minijinja = { version = "*", features = ["urlencode", "speedups"] }
 futures = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
