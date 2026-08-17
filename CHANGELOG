@@ -1,3 +1,7 @@
+1.3.6
+
+HTML-escape media filenames when displayed.
+
 1.3.5
 
 Fix bug where Chrome for Testing was not functioning properly.
