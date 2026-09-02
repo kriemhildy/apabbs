@@ -32,6 +32,8 @@ pub const ACCOUNT_COOKIE: &str = "account";
 pub const SESSION_COOKIE: &str = "session";
 /// Cookie name for flash notice messages, used to display one-time notifications to the user.
 pub const NOTICE_COOKIE: &str = "notice";
+/// Cookie name for time zone preference
+pub const TIME_ZONE_COOKIE: &str = "time_zone";
 
 // --- Security utilities -----------------------------------------------------
 
@@ -184,7 +186,7 @@ pub async fn init_user(
     // Compute IP hash and analyze user agent for the session
     let ip_hash = ip_hash(headers)?;
     let agent = analyze_user_agent(headers);
-    let time_zone_cookie = jar.get("time_zone").map(|c| c.value().to_string());
+    let time_zone_cookie = jar.get(TIME_ZONE_COOKIE).map(|c| c.value().to_string());
     // Construct the User struct with gathered information
     let mut user = User {
         account,
