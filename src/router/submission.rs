@@ -171,9 +171,6 @@ pub async fn submit_post(
         None => None,
     };
 
-    // Check to see if checksum already exists and reject if so
-    // if let Some(ref checksum) = media_checksum {
-
     // Insert post into database
     let post = post_submission
         .insert(&mut tx, &user, &key, media_checksum)
