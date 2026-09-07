@@ -18,6 +18,8 @@ use crate::AppState;
 
 /// Root path for the application.
 pub const ROOT: &str = "/";
+/// The maximum allowed size for request bodies, in bytes.
+pub const DEFAULT_BODY_LIMIT: usize = 26_214_400; // 25 MIB
 
 /// Configures the application router with routes and middleware.
 pub fn init_router(state: AppState, trace: bool) -> axum::Router {
@@ -72,7 +74,7 @@ pub fn init_router(state: AppState, trace: bool) -> axum::Router {
         .route("/spam", get(moderation::list_spam_terms))
         .route("/spam/add-term", post(moderation::add_spam_term))
         // File size limit for uploads
-        .layer(DefaultBodyLimit::max(26_214_400)); // 25 MiB
+        .layer(DefaultBodyLimit::max(DEFAULT_BODY_LIMIT));
 
     let router = if trace {
         use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
