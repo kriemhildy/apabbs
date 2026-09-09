@@ -19,10 +19,10 @@ use uuid::Uuid;
 pub const KEY_LENGTH: usize = 8;
 
 /// Maximum number of bytes allowed for a post intro preview (truncation limit).
-pub const MAX_INTRO_BYTES: usize = 1300;
+pub const MAX_INTRO_BYTES: usize = 800;
 
 /// Maximum number of newlines allowed in a post intro preview.
-pub const MAX_INTRO_NEWLINES: usize = 30;
+pub const MAX_INTRO_NEWLINES: usize = 8;
 
 /// Represents a post submission from a user.
 ///
@@ -299,7 +299,7 @@ mod tests {
 
         // Case 1: Newlines first, then YouTube content
         let html = str::repeat("\n", MAX_INTRO_NEWLINES + 1) + two_youtubes;
-        assert_eq!(super::intro_limit(&html, false), Some(30));
+        assert_eq!(super::intro_limit(&html, false), Some(8));
 
         // Case 2: YouTube content first, then newlines beyond the limit
         let html = two_youtubes.to_string() + &str::repeat("\n", MAX_INTRO_NEWLINES + 1);
@@ -310,31 +310,31 @@ mod tests {
         assert_eq!(intro_limit(&html, true), Some(4));
 
         // Case 4: Content shorter than the limit - shouldn't truncate
-        let html = str::repeat("foo ", 240);
+        let html = str::repeat("foo ", 199);
         assert_eq!(intro_limit(&html, false), None);
 
         // Case 5: Content with newlines but still under the newline limit
-        let html = str::repeat("foo ", 200)
+        let html = str::repeat("foo ", 100)
             + "\n"
-            + &str::repeat("bar ", 100)
+            + &str::repeat("bar ", 50)
             + "\n"
-            + &str::repeat("baz ", 200);
-        assert_eq!(intro_limit(&html, false), Some(1201));
+            + &str::repeat("baz ", 100);
+        assert_eq!(intro_limit(&html, false), Some(601));
 
         // Case 6: Content exactly at the byte limit boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + " yy";
-        assert_eq!(intro_limit(&html, false), Some(1298));
+        assert_eq!(intro_limit(&html, false), Some(798));
 
         // Case 7: Content beyond the byte limit
         let html = str::repeat("x", MAX_INTRO_BYTES) + " y";
-        assert_eq!(intro_limit(&html, false), Some(1299));
+        assert_eq!(intro_limit(&html, false), Some(799));
 
         // Case 8: HTML entity at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "&quot;";
-        assert_eq!(intro_limit(&html, false), Some(1298));
+        assert_eq!(intro_limit(&html, false), Some(798));
 
         // Case 9: Multi-byte character at the boundary
         let html = str::repeat("x", MAX_INTRO_BYTES - 2) + "コ";
-        assert_eq!(intro_limit(&html, false), Some(1298));
+        assert_eq!(intro_limit(&html, false), Some(798));
     }
 }
