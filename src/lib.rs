@@ -24,7 +24,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast::Sender;
 
 /// The default number of items to show per page in the application.
-pub const DEFAULT_PER_PAGE: usize = 120; // Evenly divisible by 1-6
+pub const DEFAULT_PER_PAGE: usize = 240; // Evenly divisible by 1-6
 
 /// The default time zone for the application.
 pub const DEFAULT_TIME_ZONE: &str = "America/Los_Angeles";
