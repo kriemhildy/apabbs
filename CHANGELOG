@@ -1,3 +1,13 @@
+1.6.0
+
+Change default posts per page to 240.
+Only keep one version of Chrome for Testing.
+Tweak CSS layout slightly.
+Reduce text intro limit size.
+Remove quotation marks from page titles.
+Remove "Page beginning" text from index pages.
+Change "Next page" to simply "Next".
+
 1.5.3
 
 HTML-escape media filenames when displayed.
