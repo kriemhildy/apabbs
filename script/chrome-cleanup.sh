@@ -2,7 +2,7 @@
 # This script cleans up old versions of Chrome installed by Puppeteer
 
 CHROME_DIR="chrome"            # default puppeteer chrome directory
-KEEP=3                         # keep the 3 newest versions
+KEEP=1                         # only keep the newest version
 
 cd "$CHROME_DIR" || exit 1
 
