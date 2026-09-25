@@ -583,7 +583,7 @@ pub async fn backfill_media_checksums(state: AppState) {
     tx.commit().await.expect("commit");
 }
 
-// Identify posts with media that are missing the media file and reject them
+/// Identify posts with media that are missing the media file and reject them.
 pub async fn reject_posts_with_missing_media(state: AppState) {
     use apabbs::post::{Post, PostStatus};
 
