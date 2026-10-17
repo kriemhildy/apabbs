@@ -22,6 +22,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use minijinja::{context, value::Serde};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -309,13 +310,13 @@ pub async fn list_spam_terms(
     let html = Html(render(
         &state,
         "spam.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
             nav => false,
-            user,
-            spam_terms,
+            user => Serde(&user),
+            spam_terms => Serde(&spam_terms),
         ),
     )?);
 

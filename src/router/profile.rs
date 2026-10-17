@@ -19,6 +19,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use minijinja::{context, value::Serde};
 use std::collections::HashMap;
 
 // --- Profile display endpoints ----------------------------------------------
@@ -84,15 +85,15 @@ pub async fn user_profile(
     let html = Html(render(
         &state,
         "profile.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
-            user,
-            account,
-            posts,
-            page_post,
-            next_page_post,
+            user => Serde(&user),
+            account => Serde(&account),
+            posts => Serde(&posts),
+            page_post => Serde(&page_post),
+            next_page_post => Serde(&next_page_post),
         ),
     )?);
 
@@ -128,13 +129,13 @@ pub async fn settings(
     let html = Html(render(
         &state,
         "settings.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
-            user,
-            time_zones,
-            notice,
+            user => Serde(&user),
+            time_zones => Serde(&time_zones),
+            notice => Serde(&notice),
         ),
     )?);
 

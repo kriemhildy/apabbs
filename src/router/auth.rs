@@ -16,6 +16,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use minijinja::{context, value::Serde};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -37,11 +38,11 @@ pub async fn login_form(
     let html = Html(render(
         &state,
         "login.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
-            user,
+            user => Serde(&user),
         ),
     )?);
 
@@ -64,11 +65,11 @@ pub async fn registration_form(
     let html = Html(render(
         &state,
         "register.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
-            user,
+            user => Serde(&user),
         ),
     )?);
 

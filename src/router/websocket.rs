@@ -20,6 +20,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use bytes::Bytes;
+use minijinja::{context, value::Serde};
 use serde_json::json;
 use tokio::{
     sync::broadcast::Receiver,
@@ -44,7 +45,11 @@ fn post_message_json(state: &AppState, post: &Post, user: &User) -> Option<serde
         return None; // Skip sending this post
     }
     // Render post HTML and send as JSON
-    let html = match render(state, "post.jinja", minijinja::context!(post, user)) {
+    let html = match render(
+        state,
+        "post.jinja",
+        context!(post => Serde(&post), user => Serde(&user)),
+    ) {
         Ok(html) => html,
         Err(e) => {
             tracing::error!("Failed to render post for websocket: {:?}", e);
@@ -75,7 +80,7 @@ fn account_message_json(
         let html = match render(
             state,
             "pending_account.jinja",
-            minijinja::context!(account => msg_account, user),
+            context!(account => Serde(&msg_account), user => Serde(&user)),
         ) {
             Ok(html) => html,
             Err(e) => {

@@ -20,7 +20,7 @@ pub mod utils;
 use crate::{post::Post, user::Account};
 use minijinja::Environment;
 use sqlx::PgPool;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 
 /// The default number of items to show per page in the application.
@@ -85,7 +85,7 @@ pub struct AppState {
     /// Database connection pool
     pub db: PgPool,
     /// Template rendering environment with filters and loaders
-    pub jinja: Arc<RwLock<Environment<'static>>>,
+    pub jinja: Arc<Environment<'static>>,
     /// Broadcast channel for real-time updates
     pub sender: Arc<Sender<AppMessage>>,
 }
@@ -106,20 +106,26 @@ pub async fn init_db() -> PgPool {
 }
 
 /// Initializes the template rendering environment with filters and loaders.
-pub fn init_jinja() -> Arc<RwLock<Environment<'static>>> {
+pub fn init_jinja() -> Arc<Environment<'static>> {
     use utils::{byte_slice, unlink_youtube_thumbnails};
 
     let mut env = Environment::new();
 
     // Configure template loading and rendering options
     env.set_loader(minijinja::path_loader("templates"));
-    env.set_keep_trailing_newline(true);
-    env.set_lstrip_blocks(true);
-    env.set_trim_blocks(true);
+    env.set_auto_reload(dev());
+    env.set_syntax(
+        minijinja::syntax::SyntaxConfig::builder()
+            .keep_trailing_newline(true)
+            .lstrip_blocks(true)
+            .trim_blocks(true)
+            .build()
+            .expect("build syntax config"),
+    );
     env.add_filter("unlink_youtube_thumbnails", unlink_youtube_thumbnails);
     env.add_filter("byte_slice", byte_slice);
 
-    Arc::new(RwLock::new(env))
+    Arc::new(env)
 }
 
 /// Initializes the broadcast channel for real-time updates.

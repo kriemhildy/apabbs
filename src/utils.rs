@@ -26,12 +26,7 @@ pub fn render(
     name: &str,
     ctx: minijinja::value::Value,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
-    if crate::dev() {
-        let mut env = state.jinja.write().expect("write lock");
-        env.clear_templates();
-    }
-    let env = state.jinja.read().expect("read lock");
-    let tmpl = env.get_template(name)?;
+    let tmpl = state.jinja.get_template(name)?;
     Ok(tmpl.render(ctx)?)
 }
 

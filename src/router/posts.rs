@@ -21,6 +21,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::CookieJar;
+use minijinja::{context, value::Serde};
 use std::collections::HashMap;
 
 // --- Post display endpoints -------------------------------------------------
@@ -69,17 +70,17 @@ pub async fn index(
     let html = Html(render(
         &state,
         "index.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
             nav => true,
-            user,
-            posts,
-            page_post,
-            next_page_post,
+            user => Serde(&user),
+            posts => Serde(&posts),
+            page_post => Serde(&page_post),
+            next_page_post => Serde(&next_page_post),
             utc_hour_timestamp,
-            pending_accounts,
+            pending_accounts => Serde(&pending_accounts),
         ),
     )?);
 
@@ -111,12 +112,12 @@ pub async fn solo_post(
     let html = Html(render(
         &state,
         "solo.jinja",
-        minijinja::context!(
+        context!(
             dev => crate::dev(),
             prod_host => crate::prod_host(),
             site_name => crate::site_name(),
-            user,
-            post,
+            user => Serde(&user),
+            post => Serde(&post),
             author_username,
         ),
     )?);
@@ -206,7 +207,11 @@ pub async fn interim(
     // Build JSON response with rendered HTML for each post
     let mut json_posts: Vec<serde_json::Value> = Vec::new();
     for post in new_posts {
-        let html = render(&state, "post.jinja", minijinja::context!(post, user))?;
+        let html = render(
+            &state,
+            "post.jinja",
+            context!(post => Serde(&post), user => Serde(&user)),
+        )?;
         json_posts.push(serde_json::json!({
             "key": post.key,
             "html": html
