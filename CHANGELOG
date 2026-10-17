@@ -1,3 +1,7 @@
+1.7.0
+
+Migrate to MiniJinja 3.
+
 1.6.0
 
 Change default posts per page to 240.
