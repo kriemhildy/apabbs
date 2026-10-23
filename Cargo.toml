@@ -1,6 +1,6 @@
 [package]
 name = "apabbs"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2024"
 default-run = "apabbs"
 
@@ -26,7 +26,7 @@ dotenv = "*"
 tower-http = { version = "*", features = ["trace"] }
 tracing = "*"
 tracing-subscriber = "*"
-minijinja = { version = "*", features = ["urlencode", "speedups"] }
+minijinja = { version = "<3", features = ["urlencode", "speedups"] }
 futures = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"

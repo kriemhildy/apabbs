@@ -1,3 +1,7 @@
+1.6.1
+
+Lock Minijinja to before v3.
+
 1.6.0
 
 Change default posts per page to 240.
