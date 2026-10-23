@@ -1,3 +1,7 @@
+1.7.1
+
+Update crate version number correctly.
+
 1.7.0
 
 Migrate to MiniJinja 3.
