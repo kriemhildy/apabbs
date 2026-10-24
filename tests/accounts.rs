@@ -63,10 +63,7 @@ async fn authenticate() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/login")
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(creds_str))?;
@@ -115,10 +112,7 @@ async fn create_account() -> Result<(), Box<dyn Error + Send + Sync>> {
         .method(Method::POST)
         .uri("/register")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(X_REAL_IP, REGISTER_IP)
         .body(Body::from(creds_str))?;
 
@@ -161,10 +155,7 @@ async fn register_when_account_is_already_pending() -> Result<(), Box<dyn Error 
         .method(Method::POST)
         .uri("/register")
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(X_REAL_IP, PENDING_ACCOUNT_IP)
         .body(Body::from(creds_str))?;
 
@@ -279,7 +270,7 @@ async fn user_profile() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Request the user profile page
     let request = Request::builder()
-        .uri(format!("/u/{}", &account.username))
+        .uri(format!("/u/{}", account.username))
         .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
@@ -314,7 +305,7 @@ async fn user_profile_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Request the user profile page with pagination
     let request = Request::builder()
-        .uri(format!("/u/{}/page/{}", &account.username, &post2.key))
+        .uri(format!("/u/{}/page/{}", account.username, post2.key))
         .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;

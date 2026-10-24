@@ -60,7 +60,7 @@ async fn decrypt_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     tx.commit().await?;
 
     // Request the encrypted media
-    let key = format!("/decrypt-media/{}", &post.key);
+    let key = format!("/decrypt-media/{}", post.key);
     let request = Request::builder()
         .uri(&key)
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, account.token))
@@ -103,10 +103,10 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     for _ in 0..9 {
         post_submission.session_token = Uuid::new_v4();
         let key = submission::generate_key(&mut tx).await?;
-        let media_checksum = match post_submission.media_bytes {
-            Some(ref bytes) => Some(submission::generate_media_checksum(bytes)),
-            None => None,
-        };
+        let media_checksum = post_submission
+            .media_bytes
+            .as_ref()
+            .map(|bytes| submission::generate_media_checksum(bytes));
         post_submission
             .insert(&mut tx, &user, &key, media_checksum)
             .await?;
@@ -120,10 +120,10 @@ async fn flood_ban() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create one more post to trigger flooding detection
     post_submission.session_token = Uuid::new_v4();
     let key = submission::generate_key(&mut tx).await?;
-    let media_checksum = match post_submission.media_bytes {
-        Some(ref bytes) => Some(submission::generate_media_checksum(bytes)),
-        None => None,
-    };
+    let media_checksum = post_submission
+        .media_bytes
+        .as_ref()
+        .map(|bytes| submission::generate_media_checksum(bytes));
     post_submission
         .insert(&mut tx, &user, &key, media_checksum)
         .await?;
@@ -290,7 +290,7 @@ async fn approve_post_with_normal_image() -> Result<(), Box<dyn Error + Send + S
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
@@ -385,7 +385,7 @@ async fn approve_post_with_small_image() -> Result<(), Box<dyn Error + Send + Sy
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
@@ -482,7 +482,7 @@ async fn approve_post_with_compatible_video() -> Result<(), Box<dyn Error + Send
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
@@ -572,7 +572,7 @@ async fn approve_post_with_incompatible_video() -> Result<(), Box<dyn Error + Se
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
@@ -666,7 +666,7 @@ async fn approve_post_with_other_media_type() -> Result<(), Box<dyn Error + Send
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
@@ -756,7 +756,7 @@ async fn admin_bans_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(
             COOKIE,
             format!("{}={}", ACCOUNT_COOKIE, admin_account.token),
@@ -821,7 +821,7 @@ async fn mod_reports_approved_post() -> Result<(), Box<dyn Error + Send + Sync>>
     let post_review_str = serde_urlencoded::to_string(&post_review)?;
     let request = Request::builder()
         .method(Method::POST)
-        .uri(format!("/review-post/{}", &post.key))
+        .uri(format!("/review-post/{}", post.key))
         .header(COOKIE, format!("{}={}", ACCOUNT_COOKIE, mod_account.token))
         .header(
             COOKIE,

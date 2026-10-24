@@ -87,7 +87,7 @@ async fn solo_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     tx.commit().await?;
 
     // Request the post page
-    let uri = format!("/p/{}", &post.key);
+    let uri = format!("/p/{}", post.key);
     let request = Request::builder()
         .uri(&uri)
         .header(X_REAL_IP, TEST_IP)
@@ -123,7 +123,7 @@ async fn index_with_page() -> Result<(), Box<dyn Error + Send + Sync>> {
     tx.commit().await?;
 
     // Request a specific page
-    let uri = format!("/page/{}", &post2.key);
+    let uri = format!("/page/{}", post2.key);
     let request = Request::builder()
         .uri(&uri)
         .header(X_REAL_IP, TEST_IP)
@@ -168,10 +168,7 @@ async fn submit_post_without_media() -> Result<(), Box<dyn Error + Send + Sync>>
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
@@ -215,10 +212,7 @@ async fn submit_post_with_media() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
@@ -379,10 +373,7 @@ async fn submit_post_with_duplicate_media() -> Result<(), Box<dyn Error + Send +
     let request = Request::builder()
         .method(Method::POST)
         .uri("/submit-post")
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, form.content_type_header())
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(form.finish()?))?;
@@ -426,10 +417,7 @@ async fn hide_post() -> Result<(), Box<dyn Error + Send + Sync>> {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/hide-post")
-        .header(
-            COOKIE,
-            format!("{}={}", SESSION_COOKIE, &user.session_token),
-        )
+        .header(COOKIE, format!("{}={}", SESSION_COOKIE, user.session_token))
         .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED)
         .header(X_REAL_IP, TEST_IP)
         .body(Body::from(post_hiding_str))?;
@@ -460,7 +448,7 @@ async fn interim() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Request the interim page
     let request = Request::builder()
-        .uri(format!("/interim/{}", &post1.key))
+        .uri(format!("/interim/{}", post1.key))
         .header(X_REAL_IP, TEST_IP)
         .body(Body::empty())?;
     let response = router.oneshot(request).await?;
@@ -591,8 +579,8 @@ async fn websocket_connection() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let mut tx = state.db.begin().await?;
     post.delete(&mut tx).await?;
-    delete_test_account(&mut tx, &pending_account).await;
-    delete_test_account(&mut tx, &admin_account).await;
+    delete_test_account(&mut tx, pending_account).await;
+    delete_test_account(&mut tx, admin_account).await;
     tx.commit().await?;
     Ok(())
 }

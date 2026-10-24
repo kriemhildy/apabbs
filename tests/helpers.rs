@@ -11,7 +11,6 @@ use apabbs::{
 };
 use axum::{Router, body::Body, http::Response};
 use http_body_util::BodyExt;
-use sha256;
 use sqlx::PgConnection;
 use std::{error::Error, path::Path};
 use uuid::Uuid;
@@ -135,10 +134,10 @@ pub async fn create_test_post(
     };
 
     let key = submission::generate_key(tx).await.unwrap();
-    let media_checksum = match post_submission.media_bytes {
-        Some(ref bytes) => Some(submission::generate_media_checksum(bytes)),
-        None => None,
-    };
+    let media_checksum = post_submission
+        .media_bytes
+        .as_ref()
+        .map(|bytes| submission::generate_media_checksum(bytes));
     let post = post_submission
         .insert(tx, user, &key, media_checksum)
         .await
