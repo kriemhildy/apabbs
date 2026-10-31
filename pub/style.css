@@ -74,7 +74,9 @@ body.list div.post {
 
 body.list div.media img,
 body.list div.media video,
-body.list img.youtube-thumbnail {
+body.list img.youtube-thumbnail,
+body.list img.x-media,
+body.list video.x-media {
   max-height: 280px;
 }
 
@@ -118,8 +120,23 @@ div.arrow a {
   font-size: 1.2em;
 }
 
+img.x-media,
+video.x-media {
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  border: 1px solid #333;
+  box-sizing: border-box;
+}
+
 img.youtube-logo {
   height: 1.7em;
+  filter: brightness(0.2) invert(1);
+}
+
+img.x-logo {
+  height: 1.2em;
+  width: 1.2em;
   filter: brightness(0.2) invert(1);
 }
 

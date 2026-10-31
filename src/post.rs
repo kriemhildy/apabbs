@@ -73,6 +73,8 @@ pub struct Post {
     pub key: String,
     /// Whether this post contains YouTube embeds
     pub youtube: bool,
+    /// Whether this post contains X post media embeds
+    pub x: bool,
     /// Character offset where the post should be truncated in previews
     pub intro_limit: Option<i32>,
     /// Width of the original media in pixels

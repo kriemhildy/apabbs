@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE posts ADD COLUMN x boolean NOT NULL DEFAULT false;
+
+COMMIT;
