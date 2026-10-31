@@ -5,7 +5,7 @@
         {###################################################################################}
         {% if post.body and post.status != "banned" %}
         {# Handle YouTube embeds differently in solo view #}
-        {% if solo and (post.youtube or post.x) %}
+        {% if solo and post.youtube %}
         <pre>{{ post.body|unlink_youtube_thumbnails }}</pre>
         {# Show full body in solo view or if no intro limit exists #}
         {% elif solo or post.intro_limit is none %}
@@ -79,7 +79,6 @@
               and user.account and user.account.role not in ["admin", "mod"])
             or post.status == "processing")
           and not post.youtube
-          and not post.x
           and post.intro_limit is none %}
         <div class="arrow">
           <a href="/p/{{ post.key }}">&rarr;</a>

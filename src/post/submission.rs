@@ -3,7 +3,6 @@
 //! This module provides the `PostSubmission` struct and related logic for handling new post
 //! creation, media uploads, YouTube embed processing, and intro preview truncation.
 
-pub mod x;
 pub mod youtube;
 
 use crate::{
@@ -67,9 +66,9 @@ impl PostSubmission {
         let intro_limit = intro_limit(&html_body, self.media_filename.is_some());
         sqlx::query_as(concat!(
             "INSERT INTO posts (key, status, session_token, account_id, body, ip_hash, ",
-            "media_filename, media_category, media_mime_type, youtube, x, intro_limit, ",
+            "media_filename, media_category, media_mime_type, youtube, intro_limit, ",
             "media_checksum) ",
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *",
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *",
         ))
         .bind(key)
         .bind(user.initial_post_status())
@@ -81,7 +80,6 @@ impl PostSubmission {
         .bind(media_category)
         .bind(media_mime_type.as_deref())
         .bind(youtube)
-        .bind(html_body.contains(r#"class="x-link""#))
         .bind(intro_limit)
         .bind(media_checksum.as_deref())
         .fetch_one(&mut *tx)
@@ -89,7 +87,7 @@ impl PostSubmission {
         .map_err(|e| format!("insert post: {e}").into())
     }
 
-    /// Converts post body to HTML, escapes and links URLs, and embeds supported media.
+    /// Converts post body to HTML, escapes and links URLs, embeds YouTube thumbnails.
     pub async fn body_to_html(&self, key: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         let mut html = self
             .body
@@ -102,8 +100,7 @@ impl PostSubmission {
         let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("build regex");
         let anchor_tag = r#"<a href="$1" rel="noopener" target="_blank">$1</a>"#;
         html = url_pattern.replace_all(&html, anchor_tag).to_string();
-        let html = youtube::embed_youtube(html, key).await?;
-        x::embed_x(html).await
+        youtube::embed_youtube(html, key).await
     }
 }
 
@@ -127,7 +124,7 @@ pub async fn generate_key(tx: &mut PgConnection) -> Result<String, Box<dyn Error
     }
 }
 
-/// Determines intro limit for post preview based on HTML content, line breaks, and embeds.
+/// Determines intro limit for post preview based on HTML content, line breaks, and YouTube embeds.
 pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     tracing::debug!("html.len(): {}", html.len());
     if html.is_empty() {
@@ -145,33 +142,44 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     } else {
         html
     };
-    // Keep the first embed in previews unless the post already has attached media.
+    // Determine YouTube limit based on the the second YouTube embed, or first if media is present
     let youtube_pattern = Regex::new(
-        r#"(?s)<a href="https://www\.youtube\.com/.*?<img class="youtube-logo".*?<img class="youtube-thumbnail".*?</a>"#,
+        r#"(?s)<a .*?<img class="youtube-logo".*?<img class="youtube-thumbnail".*?</a>"#,
     )
-    .expect("build YouTube embed regex");
-    let x_pattern = Regex::new(
-        r#"(?s)<a class="x-link".*?</a>\n(?:<img class="x-media".*?>|<video class="x-media".*?</video>)"#,
-    )
-    .expect("build X embed regex");
-    let mut embed_starts: Vec<_> = youtube_pattern
-        .find_iter(slice)
-        .chain(x_pattern.find_iter(slice))
-        .map(|mat| mat.start())
-        .collect();
-    embed_starts.sort_unstable();
-    let embed_start = if has_media {
-        embed_starts.first()
-    } else {
-        embed_starts.get(1)
+    .expect("build regex");
+    let mut youtube_iter = youtube_pattern.find_iter(slice);
+    let first_youtube_match = youtube_iter.next();
+    let youtube_limit = match first_youtube_match {
+        None => {
+            tracing::debug!("No YouTube matches found");
+            None
+        }
+        Some(mat) => {
+            tracing::debug!("First YouTube match start: {}", mat.start());
+            let youtube_limit_match_start = if has_media {
+                Some(mat.start())
+            } else {
+                // If no media, check if there's a second YouTube match to determine the limit
+                match youtube_iter.next() {
+                    None => None,
+                    Some(mat) => {
+                        tracing::debug!("Second YouTube match start: {}", mat.start());
+                        Some(mat.start())
+                    }
+                }
+            };
+            match youtube_limit_match_start {
+                None => None,
+                Some(start) => {
+                    let youtube_slice = &slice[..start];
+                    // Strip any breaks or whitespace that might be present at the end
+                    let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("build regex");
+                    let stripped = strip_breaks_pattern.replace(youtube_slice, "");
+                    Some(stripped.trim_end().len() as i32)
+                }
+            }
+        }
     };
-    let embed_limit = embed_start.map(|start| {
-        let strip_breaks_pattern = Regex::new("(?:<br>\n)+$").expect("build regex");
-        strip_breaks_pattern
-            .replace(&slice[..*start], "")
-            .trim_end()
-            .len() as i32
-    });
     // Check for the maximum newlines
     let single_newline_pattern = Regex::new("\n").expect("build regex");
     let newline_limit = single_newline_pattern
@@ -179,8 +187,8 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
         .nth(MAX_INTRO_NEWLINES)
         .map(|mat| mat.start() as i32);
     // Take the smallest of YouTube and newline limits
-    tracing::debug!(embed_limit = ?embed_limit, newline_limit = ?newline_limit);
-    let min_limit = match (embed_limit, newline_limit) {
+    tracing::debug!(youtube_limit = ?youtube_limit, newline_limit = ?newline_limit);
+    let min_limit = match (youtube_limit, newline_limit) {
         (None, None) => None,
         (Some(y), None) => Some(y),
         (None, Some(b)) => Some(b),
@@ -188,7 +196,7 @@ pub fn intro_limit(html: &str, has_media: bool) -> Option<i32> {
     };
     tracing::debug!(min_limit = ?min_limit);
     if min_limit.is_some() {
-        tracing::info!(min_limit, "Intro limit found via newlines or embeds");
+        tracing::info!(min_limit, "Intro limit found via newlines or YouTubes");
         return min_limit;
     }
     // Do not truncate if within the maximum intro length
@@ -300,32 +308,6 @@ mod tests {
         // Case 3: YouTube content when there is media, should truncate at the first YouTube embed
         let html = "asdf\n".to_string() + two_youtubes;
         assert_eq!(intro_limit(&html, true), Some(4));
-
-        let two_x_posts = concat!(
-            "<a class=\"x-link\" href=\"https://x.com/user/status/1\">",
-            "<img class=\"x-logo\" src=\"/x.svg\" alt=\"X post\"></a>\n",
-            "<img class=\"x-media\" src=\"/x/1/media.jpg\" alt=\"X post media\">\n",
-            "<a class=\"x-link\" href=\"https://x.com/user/status/2\">",
-            "<img class=\"x-logo\" src=\"/x.svg\" alt=\"X post\"></a>\n",
-            "<img class=\"x-media\" src=\"/x/2/media.jpg\" alt=\"X post media\">"
-        );
-        let html = "before\n".to_string() + two_x_posts;
-        assert_eq!(intro_limit(&html, true), Some("before".len() as i32));
-        let second_x_post = html
-            .find("<a class=\"x-link\" href=\"https://x.com/user/status/2\"")
-            .unwrap();
-        assert_eq!(intro_limit(&html, false), Some((second_x_post - 1) as i32));
-
-        let first_x_end = two_x_posts.find("\n<a class=\"x-link\"").unwrap();
-        let mixed_embeds =
-            "before\n".to_string() + &two_x_posts[..first_x_end] + "\n" + two_youtubes;
-        let first_youtube = mixed_embeds
-            .find("<a href=\"https://www.youtube.com/watch?v=video1\"")
-            .unwrap();
-        assert_eq!(
-            intro_limit(&mixed_embeds, false),
-            Some((first_youtube - 1) as i32)
-        );
 
         // Case 4: Content shorter than the limit - shouldn't truncate
         let html = str::repeat("foo ", 199);

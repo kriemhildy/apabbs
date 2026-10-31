@@ -11,7 +11,7 @@ it would be more comfortable to take their time with it.
 Features
 --------
 
-- Supports images, video, text, YouTube links, and X post media.
+- Supports images, video, text and YouTube links.
 - Adds new posts to the homepage via WebSocket.
 - Displays well at various browser sizes including mobile.
 - Tuned for Chrome, Firefox and Safari.

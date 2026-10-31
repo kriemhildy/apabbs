@@ -43,9 +43,8 @@ rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/uploads .
 rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/pub/media pub
 # Transfer YouTube thumbnail cache
 rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/pub/youtube pub
-rsync -av --del $SSH_APP_USER:$SSH_APP_PATH/pub/x pub
 
 # At this point, the local development environment has a complete copy of:
 # - The production database structure and content
 # - All uploaded and published media files
-# - YouTube thumbnails and X post media cache
+# - YouTube thumbnails and cached content

@@ -5,8 +5,6 @@ target
 uploads/*
 pub/media/*
 pub/youtube/*
-pub/x/*
-!pub/x/.keep
 pub/favicon.ico
 pub/screenshot.webp
 pub/doc
