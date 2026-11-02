@@ -19,7 +19,7 @@ use crate::AppState;
 /// Root path for the application.
 pub const ROOT: &str = "/";
 /// The maximum allowed size for request bodies, in bytes.
-pub const DEFAULT_BODY_LIMIT: usize = 26_214_400; // 25 MIB
+pub const DEFAULT_BODY_LIMIT: usize = 52_428_800 ; // 50 MIB
 
 /// Configures the application router with routes and middleware.
 pub fn init_router(state: AppState, trace: bool) -> axum::Router {
