@@ -334,7 +334,7 @@ function handleFormSubmit(event) {
       alert("This media file has already been posted.");
       console.warn("Form submission failed: media file already exists (409)");
     } else if (response.status === 413) {
-      alert("File must be under 25MB");
+      alert("File must be under 50MB");
       console.warn("Form submission failed: file too large (413)");
     } else if (response.status === 502) {
       alert("Server is currently unavailable. Please try again later.");
