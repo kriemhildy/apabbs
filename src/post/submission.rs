@@ -98,8 +98,13 @@ impl PostSubmission {
             .replace("\r\n", "\n")
             .replace("\r", "\n");
         let url_pattern = Regex::new(r#"\b(https?://[^\s<]{4,256})\b"#).expect("build regex");
-        let anchor_tag = r#"<a href="$1" rel="noopener" target="_blank">$1</a>"#;
-        html = url_pattern.replace_all(&html, anchor_tag).to_string();
+        html = url_pattern
+            .replace_all(&html, |captures: &regex::Captures<'_>| {
+                let url = &captures[1];
+                let escaped_url = url.replace('"', "&quot;");
+                format!(r#"<a href="{escaped_url}" rel="noopener" target="_blank">{url}</a>"#)
+            })
+            .to_string();
         youtube::embed_youtube(html, key).await
     }
 }
@@ -269,6 +274,24 @@ impl PostHiding {
 mod tests {
     use super::*;
     use crate::init_tracing_for_test;
+
+    #[tokio::test]
+    async fn test_body_to_html_escapes_quotes_in_url_attributes() {
+        init_tracing_for_test();
+        let submission = PostSubmission {
+            body: "https://example.com/\"onmouseover=\"alert(1)".to_string(),
+            ..PostSubmission::default()
+        };
+
+        assert_eq!(
+            submission.body_to_html("testkey").await.unwrap(),
+            concat!(
+                "<a href=\"https://example.com/&quot;onmouseover=&quot;alert(1\" ",
+                "rel=\"noopener\" target=\"_blank\">",
+                "https://example.com/\"onmouseover=\"alert(1</a>)",
+            )
+        );
+    }
 
     // Tests the intro_limit functionality for post previews.
     #[tokio::test]
