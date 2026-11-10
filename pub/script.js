@@ -31,6 +31,7 @@ let reconnectDuration;
 let reconnectTimeout = null;
 let heartbeatInterval = null;
 let lastPingTimestamp;
+let reconnectAfterClose = false;
 let firstConnection = true;
 
 // Establishes a WebSocket connection to the server and sets up event handlers.
@@ -89,7 +90,8 @@ function handleWebSocketMessage(event) {
 
 // Handles WebSocket connection closure and attempts to reconnect if needed.
 function handleWebSocketClosed(event) {
-  if (!event.wasClean) {
+  if (!event.wasClean || reconnectAfterClose) {
+    reconnectAfterClose = false;
     if (reconnectTimeout === null) {
       console.warn("WebSocket connection closed, attempting to reconnect...");
       reconnectDuration = MIN_RECONNECT_DURATION;
@@ -115,6 +117,7 @@ function initSafariHeartbeatCheck() {
           clearInterval(heartbeatInterval);
           heartbeatInterval = null;
           console.warn("No ping received from server, closing WebSocket...");
+          reconnectAfterClose = true;
           webSocket.close();
         }
       } else {
