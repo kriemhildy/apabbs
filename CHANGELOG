@@ -1,3 +1,8 @@
+1.7.3
+
+Lock dependencies to current minor versions.
+Update SQLx to 0.9 and refactor dynamic queries.
+
 1.7.2
 
 Fix possible XSS vulnerability when auto-linking URLs.
