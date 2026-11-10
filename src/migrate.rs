@@ -166,16 +166,14 @@ pub async fn download_youtube_thumbnails(state: AppState) {
             let watch_url = format!("https://www.youtube.com/watch?v={video_id}");
             let shorts_url = format!("https://www.youtube.com/shorts/{video_id}");
             let like_pattern = format!("%https://www.youtube.com/watch?v={video_id}%");
-            
-            sqlx::query(
-                "UPDATE posts SET body = replace(body, $1, $2) WHERE body LIKE $3"
-            )
-            .bind(&watch_url)
-            .bind(&shorts_url)
-            .bind(&like_pattern)
-            .execute(&mut *tx)
-            .await
-            .expect("update YouTube links");
+
+            sqlx::query("UPDATE posts SET body = replace(body, $1, $2) WHERE body LIKE $3")
+                .bind(&watch_url)
+                .bind(&shorts_url)
+                .bind(&like_pattern)
+                .execute(&mut *tx)
+                .await
+                .expect("update YouTube links");
         }
 
         // Download thumbnail and get dimensions
@@ -194,15 +192,18 @@ pub async fn download_youtube_thumbnails(state: AppState) {
             tracing::info!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
 
             // Update post content with new thumbnail URL and dimensions
-            let pattern = format!(r#"<a href="/p/(\w+)"><img src="/youtube/{}/\w+\.jpg"[^>]*></a>"#, video_id);
+            let pattern = format!(
+                r#"<a href="/p/(\w+)"><img src="/youtube/{}/\w+\.jpg"[^>]*></a>"#,
+                video_id
+            );
             let replacement = format!(
                 r#"<a href="/p/\1"><img src="{}" alt="Post \1" width="{}" height="{}"></a>"#,
                 thumbnail_url, width, height
             );
             let like_pattern = format!("%<img src=\"/youtube/{video_id}/%");
-            
+
             sqlx::query(
-                "UPDATE posts SET body = regexp_replace(body, $1, $2, 'g') WHERE body LIKE $3"
+                "UPDATE posts SET body = regexp_replace(body, $1, $2, 'g') WHERE body LIKE $3",
             )
             .bind(&pattern)
             .bind(&replacement)
