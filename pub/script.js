@@ -40,7 +40,7 @@ function initWebSocket() {
   if (webSocket && webSocket.readyState !== WebSocket.CLOSED) {
     return;
   }
-  webSocket = new WebSocket(`${webSocketProtocol}//${location.hostname}/web-socket`);
+  webSocket = new WebSocket(`${webSocketProtocol}//${location.host}/web-socket`);
   webSocket.onmessage = handleWebSocketMessage;
   webSocket.onclose = handleWebSocketClosed;
   webSocket.onopen = handleWebSocketOpened;
