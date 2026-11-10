@@ -163,15 +163,16 @@ pub async fn download_youtube_thumbnails(state: AppState) {
         if short {
             tracing::info!("Video is a YouTube Short");
             // Update link URLs to use shorts format if needed
-            sqlx::query(&format!(
-                concat!(
-                    r#"UPDATE posts SET body = replace(body, "#,
-                    r#"'https://www.youtube.com/watch?v={video_id}', "#,
-                    r#"'https://www.youtube.com/shorts/{video_id}') WHERE body LIKE "#,
-                    r#"'%https://www.youtube.com/watch?v={video_id}%'"#
-                ),
-                video_id = video_id
-            ))
+            let watch_url = format!("https://www.youtube.com/watch?v={video_id}");
+            let shorts_url = format!("https://www.youtube.com/shorts/{video_id}");
+            let like_pattern = format!("%https://www.youtube.com/watch?v={video_id}%");
+            
+            sqlx::query(
+                "UPDATE posts SET body = replace(body, $1, $2) WHERE body LIKE $3"
+            )
+            .bind(&watch_url)
+            .bind(&shorts_url)
+            .bind(&like_pattern)
             .execute(&mut *tx)
             .await
             .expect("update YouTube links");
@@ -193,22 +194,19 @@ pub async fn download_youtube_thumbnails(state: AppState) {
             tracing::info!("Saved thumbnail to {thumbnail_url} ({width}x{height})");
 
             // Update post content with new thumbnail URL and dimensions
-            sqlx::query(&format!(
-                concat!(
-                    r#"UPDATE posts SET body = regexp_replace(body, "#,
-                    r#"'<a href="/p/(\w+)">"#,
-                    r#"<img src="/youtube/{video_id}/\w+\.jpg"[^>]*></a>', "#,
-                    r#"'<a href="/p/\1">"#,
-                    r#"<img src="{thumbnail_url}" alt="Post \1" "#,
-                    r#"width="{width}" height="{height}"></a>', 'g')"#,
-                    r#"WHERE body LIKE "#,
-                    r#"'%<img src="/youtube/{video_id}/%'"#
-                ),
-                video_id = video_id,
-                thumbnail_url = thumbnail_url,
-                width = width,
-                height = height
-            ))
+            let pattern = format!(r#"<a href="/p/(\w+)"><img src="/youtube/{}/\w+\.jpg"[^>]*></a>"#, video_id);
+            let replacement = format!(
+                r#"<a href="/p/\1"><img src="{}" alt="Post \1" width="{}" height="{}"></a>"#,
+                thumbnail_url, width, height
+            );
+            let like_pattern = format!("%<img src=\"/youtube/{video_id}/%");
+            
+            sqlx::query(
+                "UPDATE posts SET body = regexp_replace(body, $1, $2, 'g') WHERE body LIKE $3"
+            )
+            .bind(&pattern)
+            .bind(&replacement)
+            .bind(&like_pattern)
             .execute(&mut *tx)
             .await
             .expect("update post body with thumbnail");

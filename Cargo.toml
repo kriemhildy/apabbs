@@ -14,9 +14,10 @@ path = "src/migrate.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sqlx = { version = "^0.8", features = [
+sqlx = { version = "^0.9", features = [
     "postgres",
-    "runtime-tokio-rustls",
+    "runtime-tokio",
+    "tls-rustls",
     "uuid",
 ] }
 tokio = { version = "^1.54", features = ["full"] }
