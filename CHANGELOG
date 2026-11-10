@@ -1,3 +1,7 @@
+1.7.2
+
+Fix possible XSS vulnerability when auto-linking URLs.
+
 1.7.1
 
 Update crate version number correctly.
