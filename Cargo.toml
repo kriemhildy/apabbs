@@ -14,52 +14,52 @@ path = "src/migrate.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sqlx = { version = "*", features = [
+sqlx = { version = "^0.8", features = [
     "postgres",
     "runtime-tokio-rustls",
     "uuid",
 ] }
-tokio = { version = "*", features = ["full"] }
-axum = { version = "*", features = ["form", "ws", "macros", "multipart"] }
-axum-extra = { version = "*", features = ["cookie"] }
-dotenv = "*"
-tower-http = { version = "*", features = ["trace"] }
-tracing = "*"
-tracing-subscriber = "*"
-minijinja = { version = "*", features = ["urlencode", "speedups", "serde"] }
-futures = "*"
-serde = { version = "*", features = ["derive"] }
-serde_json = "*"
-regex = "*"
-uuid = { version = "*", features = [
+tokio = { version = "^1.54", features = ["full"] }
+axum = { version = "^0.8", features = ["form", "ws", "macros", "multipart"] }
+axum-extra = { version = "^0.12", features = ["cookie"] }
+dotenv = "^0.15"
+tower-http = { version = "^0.6", features = ["trace"] }
+tracing = "^0.1"
+tracing-subscriber = "^0.3"
+minijinja = { version = "^3.1", features = ["urlencode", "speedups", "serde"] }
+futures = "^0.3"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "^1.0"
+regex = "^1.13"
+uuid = { version = "^1.29", features = [
     "v4",
     "fast-rng",
     "macro-diagnostics",
     "serde",
 ] }
-sha256 = "*"
-xxhash-rust = { version = "*", features = ["xxh3"] }
-tokio-cron-scheduler = "*"
-tokio-util = { version = "*", features = ["io"] }
-url = "*"
-# This is locked because we have at times found it using pre-0.10 versions
-rand = ">=0.10.0"
-ctor = "*"
-sentry = { version = "*", features = [
+sha256 = "^1.6"
+xxhash-rust = { version = "^0.8", features = ["xxh3"] }
+tokio-cron-scheduler = "^0.15"
+tokio-util = { version = "^0.7", features = ["io"] }
+url = "^2.5"
+# This is locked to 0.10+ stable
+rand = "^0.10"
+ctor = "^1.0"
+sentry = { version = "^0.49", features = [
     "tower-axum-matched-path",
 ], optional = true }
-sentry-tracing = { version = "*", optional = true }
-bytes = "*"
-tower = { version = "*", optional = true }
-time = { version = "*", features = ["formatting"] }
+sentry-tracing = { version = "^0.49", optional = true }
+bytes = "^1.12"
+tower = { version = "^0.5", optional = true }
+time = { version = "^0.3", features = ["formatting"] }
 
 [dev-dependencies]
-tower = { version = "*", features = ["util"] }
-http-body-util = "*"
-serde_urlencoded = "*"
-form-data-builder = "*"
-tokio-tungstenite = { version = "*", features = ["rustls-tls-webpki-roots"] }
-futures-util = "*"
+tower = { version = "^0.5", features = ["util"] }
+http-body-util = "^0.1"
+serde_urlencoded = "^0.7"
+form-data-builder = "^1.0"
+tokio-tungstenite = { version = "^0.29", features = ["rustls-tls-webpki-roots"] }
+futures-util = "^0.3"
 
 [features]
 default = ["sentry"]
