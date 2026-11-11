@@ -1,3 +1,8 @@
+1.7.4
+
+Reconnect after Safari heartbeat timeouts.
+Preserve ports in WebSocket connections.
+
 1.7.3
 
 Lock dependencies to current minor versions.
