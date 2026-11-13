@@ -33,6 +33,12 @@ if ! [ "$DEV" == 1 ]; then
     # Generate documentation without dependencies
     nice cargo doc --no-deps --release
 else
+    # Update Rust to the latest version
+    nice rustup update
+
+    # Run cargo fmt to format the code
+    nice cargo fmt
+
     # Local development deployment steps
     # ----------------------------------
 
@@ -51,9 +57,6 @@ else
         exit 1
     fi
 
-    # Update Rust to the latest version
-    nice rustup update
-
     # Update Chrome to the latest version
     nice npm run chrome:install
 
@@ -62,6 +65,9 @@ else
 
     # Sweep old build artifacts to free up disk space
     nice cargo sweep --installed
+
+    # Lint the code and halt execution if any problems are found
+    nice cargo clippy --all-targets -- -D warnings
 
     # Run all tests to verify the code works correctly
     nice cargo test
