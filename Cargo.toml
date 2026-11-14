@@ -4,9 +4,6 @@ version = "1.7.4"
 edition = "2024"
 default-run = "apabbs"
 
-[profile.release]
-opt-level = "z" # Optimize for size
-
 [[bin]]
 name = "migrate"        # Migration binary
 path = "src/migrate.rs"
