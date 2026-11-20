@@ -1,3 +1,10 @@
+1.7.5
+
+Normalize Europe/Kiev to Europe/Kyiv for PostgreSQL.
+Fall back to the default time zone for unsupported values and report a Sentry warning.
+Remove optimizing for size in compilation.
+Add cargo fmt and clippy to the deploy script.
+
 1.7.4
 
 Reconnect after Safari heartbeat timeouts.
