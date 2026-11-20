@@ -7,7 +7,7 @@ use apabbs::{
     post::PostStatus,
     router::{
         auth::Logout,
-        helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, X_REAL_IP},
+        helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, TIME_ZONE_COOKIE, X_REAL_IP},
     },
     user::{Account, AccountRole, Credentials, User},
 };
@@ -406,6 +406,33 @@ async fn update_time_zone() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Clean up
     delete_test_account(&mut tx, account).await;
     tx.commit().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn session_time_zone_uses_kyiv_for_kiev() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+
+    apabbs::utils::set_session_time_zone(&mut tx, "UTC").await?;
+    let current: String = sqlx::query_scalar("SHOW TimeZone")
+        .fetch_one(&mut *tx)
+        .await?;
+    assert_eq!(current, "UTC");
+
+    apabbs::utils::set_session_time_zone(&mut tx, "Europe/Kiev").await?;
+    let current: String = sqlx::query_scalar("SHOW TimeZone")
+        .fetch_one(&mut *tx)
+        .await?;
+    assert_eq!(current, "Europe/Kyiv");
+    tx.rollback().await?;
+
+    let request = Request::builder()
+        .uri("/login")
+        .header(X_REAL_IP, TEST_IP)
+        .header(COOKIE, format!("{TIME_ZONE_COOKIE}=Europe%2FKiev"))
+        .body(Body::empty())?;
+    assert_eq!(router.oneshot(request).await?.status(), StatusCode::OK);
     Ok(())
 }
 

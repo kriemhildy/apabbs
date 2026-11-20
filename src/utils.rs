@@ -66,6 +66,10 @@ pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let time_zone = match time_zone {
+        "Europe/Kiev" => "Europe/Kyiv",
+        _ => time_zone,
+    };
     sqlx::query("SELECT set_config('TimeZone', $1, false)")
         .bind(time_zone)
         .execute(&mut *tx)
