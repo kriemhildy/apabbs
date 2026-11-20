@@ -4,7 +4,7 @@
 //! template rendering, and time/date formatting used throughout the application.
 
 use crate::AppState;
-use sqlx::PgConnection;
+use sqlx::{Connection, PgConnection};
 use std::error::Error;
 
 // --- Constants --------------------------------------------------------------
@@ -61,21 +61,51 @@ pub fn byte_slice(body: &str, end: usize) -> String {
 
 // --- Time and date utilities ------------------------------------------------
 
-/// Set the PostgreSQL session time zone for the current connection.
+/// Set the PostgreSQL session time zone, falling back to the configured default if unsupported.
 pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let time_zone = match time_zone {
+    let mut savepoint = tx.begin().await?;
+    let result = sqlx::query("SELECT set_config('TimeZone', $1, false)")
+        .bind(normalize_time_zone(time_zone))
+        .execute(&mut *savepoint)
+        .await;
+
+    match result {
+        Ok(_) => {
+            savepoint.commit().await?;
+            Ok(())
+        }
+        Err(error) => {
+            // PostgreSQL aborts a transaction after an invalid setting.
+            savepoint.rollback().await?;
+            if error.as_database_error().and_then(|e| e.code()).as_deref() != Some("22023") {
+                return Err(format!("set session time zone: {error}").into());
+            }
+
+            let default = crate::time_zone();
+            let message =
+                format!("Unsupported session time zone {time_zone:?}; falling back to {default:?}");
+            tracing::warn!("{message}");
+            #[cfg(feature = "sentry")]
+            sentry::capture_message(&message, sentry::Level::Warning);
+
+            sqlx::query("SELECT set_config('TimeZone', $1, false)")
+                .bind(normalize_time_zone(&default))
+                .execute(&mut *tx)
+                .await
+                .map(|_| ())
+                .map_err(|e| format!("set default session time zone {default:?}: {e}").into())
+        }
+    }
+}
+
+fn normalize_time_zone(time_zone: &str) -> &str {
+    match time_zone {
         "Europe/Kiev" => "Europe/Kyiv",
         _ => time_zone,
-    };
-    sqlx::query("SELECT set_config('TimeZone', $1, false)")
-        .bind(time_zone)
-        .execute(&mut *tx)
-        .await
-        .map(|_| ())
-        .map_err(|e| format!("set session time zone: {e}").into())
+    }
 }
 
 /// Generate a UTC timestamp string for the current hour.

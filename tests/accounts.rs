@@ -436,6 +436,96 @@ async fn session_time_zone_uses_kyiv_for_kiev() -> Result<(), Box<dyn Error + Se
     Ok(())
 }
 
+#[tokio::test]
+async fn session_time_zone_falls_back_when_unsupported() -> Result<(), Box<dyn Error + Send + Sync>>
+{
+    let (router, state) = init_test().await;
+    let mut tx = state.db.begin().await?;
+    apabbs::utils::set_session_time_zone(&mut tx, "Not/A_Time_Zone").await?;
+    let current: String = sqlx::query_scalar("SHOW TimeZone")
+        .fetch_one(&mut *tx)
+        .await?;
+    let default = apabbs::time_zone();
+    assert_eq!(
+        current,
+        if default == "Europe/Kiev" {
+            "Europe/Kyiv"
+        } else {
+            &default
+        }
+    );
+    tx.rollback().await?;
+
+    let mut tx = state.db.begin().await?;
+    assert!(sqlx::query("SELECT 1 / 0").execute(&mut *tx).await.is_err());
+    assert!(
+        apabbs::utils::set_session_time_zone(&mut tx, "UTC")
+            .await
+            .is_err()
+    );
+    tx.rollback().await?;
+
+    let request = Request::builder()
+        .uri("/login")
+        .header(X_REAL_IP, TEST_IP)
+        .header(COOKIE, format!("{TIME_ZONE_COOKIE}=Not%2FA_Time_Zone"))
+        .body(Body::empty())?;
+    assert_eq!(router.oneshot(request).await?.status(), StatusCode::OK);
+    Ok(())
+}
+
+#[cfg(feature = "sentry")]
+#[test]
+fn unsupported_time_zone_is_reported_to_sentry() -> Result<(), Box<dyn Error + Send + Sync>> {
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Default)]
+    struct TestTransport(Mutex<Vec<sentry::Envelope>>);
+
+    impl sentry::Transport for TestTransport {
+        fn send_envelope(&self, envelope: sentry::Envelope) {
+            self.0.lock().unwrap().push(envelope);
+        }
+    }
+
+    let transport = Arc::new(TestTransport::default());
+    let options = sentry::ClientOptions::new()
+        .dsn("https://public@sentry.invalid/1")
+        .transport(transport.clone());
+    let hub = Arc::new(sentry::Hub::new(
+        Some(Arc::new(options.into())),
+        Arc::new(Default::default()),
+    ));
+    sentry::Hub::run(hub, || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?
+            .block_on(async {
+                let (_router, state) = init_test().await;
+                let mut tx = state.db.begin().await?;
+                apabbs::utils::set_session_time_zone(&mut tx, "Europe/Kiev").await?;
+                apabbs::utils::set_session_time_zone(&mut tx, "Not/A_Time_Zone").await?;
+                tx.rollback().await?;
+                Ok::<_, Box<dyn Error + Send + Sync>>(())
+            })
+    })?;
+    let envelopes = transport.0.lock().unwrap();
+    assert_eq!(envelopes.len(), 1);
+    let event = envelopes
+        .iter()
+        .find_map(|envelope| envelope.event())
+        .unwrap();
+    assert_eq!(event.level, sentry::Level::Warning);
+    assert!(
+        event
+            .message
+            .as_deref()
+            .unwrap()
+            .contains("Not/A_Time_Zone")
+    );
+    Ok(())
+}
+
 /// Tests updating the user's password.
 #[tokio::test]
 async fn update_password() -> Result<(), Box<dyn Error + Send + Sync>> {
