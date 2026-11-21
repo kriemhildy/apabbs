@@ -1,3 +1,7 @@
+1.7.6
+
+Simplified ensuring that cookie-based time zones are valid.
+
 1.7.5
 
 Normalize Europe/Kiev to Europe/Kyiv for PostgreSQL.
