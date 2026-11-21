@@ -10,6 +10,7 @@ use apabbs::{
         helpers::{ACCOUNT_COOKIE, SESSION_COOKIE, TIME_ZONE_COOKIE, X_REAL_IP},
     },
     user::{Account, AccountRole, Credentials, User},
+    utils::set_session_time_zone,
 };
 use axum::{
     body::Body,
@@ -414,13 +415,13 @@ async fn session_time_zone_uses_kyiv_for_kiev() -> Result<(), Box<dyn Error + Se
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
 
-    apabbs::utils::set_session_time_zone(&mut tx, "UTC").await?;
+    set_session_time_zone(&mut tx, "UTC").await?;
     let current: String = sqlx::query_scalar("SHOW TimeZone")
         .fetch_one(&mut *tx)
         .await?;
     assert_eq!(current, "UTC");
 
-    apabbs::utils::set_session_time_zone(&mut tx, "Europe/Kiev").await?;
+    set_session_time_zone(&mut tx, "Europe/Kiev").await?;
     let current: String = sqlx::query_scalar("SHOW TimeZone")
         .fetch_one(&mut *tx)
         .await?;
@@ -441,7 +442,7 @@ async fn session_time_zone_falls_back_when_unsupported() -> Result<(), Box<dyn E
 {
     let (router, state) = init_test().await;
     let mut tx = state.db.begin().await?;
-    apabbs::utils::set_session_time_zone(&mut tx, "Not/A_Time_Zone").await?;
+    set_session_time_zone(&mut tx, "Not/A_Time_Zone").await?;
     let current: String = sqlx::query_scalar("SHOW TimeZone")
         .fetch_one(&mut *tx)
         .await?;
@@ -458,11 +459,7 @@ async fn session_time_zone_falls_back_when_unsupported() -> Result<(), Box<dyn E
 
     let mut tx = state.db.begin().await?;
     assert!(sqlx::query("SELECT 1 / 0").execute(&mut *tx).await.is_err());
-    assert!(
-        apabbs::utils::set_session_time_zone(&mut tx, "UTC")
-            .await
-            .is_err()
-    );
+    assert!(set_session_time_zone(&mut tx, "UTC").await.is_err());
     tx.rollback().await?;
 
     let request = Request::builder()
@@ -503,8 +500,8 @@ fn unsupported_time_zone_is_reported_to_sentry() -> Result<(), Box<dyn Error + S
             .block_on(async {
                 let (_router, state) = init_test().await;
                 let mut tx = state.db.begin().await?;
-                apabbs::utils::set_session_time_zone(&mut tx, "Europe/Kiev").await?;
-                apabbs::utils::set_session_time_zone(&mut tx, "Not/A_Time_Zone").await?;
+                set_session_time_zone(&mut tx, "Europe/Kiev").await?;
+                set_session_time_zone(&mut tx, "Not/A_Time_Zone").await?;
                 tx.rollback().await?;
                 Ok::<_, Box<dyn Error + Send + Sync>>(())
             })
