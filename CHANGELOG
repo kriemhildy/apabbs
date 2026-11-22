@@ -1,3 +1,7 @@
+1.7.7
+
+Restore prior time zone validation system for performance.
+
 1.7.6
 
 Simplified ensuring that cookie-based time zones are valid.
