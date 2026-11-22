@@ -4,7 +4,7 @@
 //! template rendering, and time/date formatting used throughout the application.
 
 use crate::AppState;
-use sqlx::PgConnection;
+use sqlx::{Connection, PgConnection};
 use std::error::Error;
 
 // --- Constants --------------------------------------------------------------
@@ -66,31 +66,39 @@ pub async fn set_session_time_zone(
     tx: &mut PgConnection,
     time_zone: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let normalized = normalize_time_zone(time_zone).to_string();
-    let default = crate::time_zone();
+    let mut savepoint = tx.begin().await?;
+    let result = sqlx::query("SELECT set_config('TimeZone', $1, false)")
+        .bind(normalize_time_zone(time_zone))
+        .execute(&mut *savepoint)
+        .await;
 
-    let selected: String = sqlx::query_scalar(concat!(
-        "SELECT set_config(",
-        "'TimeZone', ",
-        "CASE WHEN EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = $1) ",
-        "THEN $1 ELSE $2 END, ",
-        "false)",
-    ))
-    .bind(&normalized)
-    .bind(&default)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|e| format!("set session time zone: {e}"))?;
+    match result {
+        Ok(_) => {
+            savepoint.commit().await?;
+            Ok(())
+        }
+        Err(error) => {
+            // PostgreSQL aborts a transaction after an invalid setting.
+            savepoint.rollback().await?;
+            if error.as_database_error().and_then(|e| e.code()).as_deref() != Some("22023") {
+                return Err(format!("set session time zone: {error}").into());
+            }
 
-    if selected != normalized {
-        let message =
-            format!("Unsupported session time zone {time_zone:?}; falling back to {default:?}");
-        tracing::warn!("{message}");
-        #[cfg(feature = "sentry")]
-        sentry::capture_message(&message, sentry::Level::Warning);
+            let default = crate::time_zone();
+            let message =
+                format!("Unsupported session time zone {time_zone:?}; falling back to {default:?}");
+            tracing::warn!("{message}");
+            #[cfg(feature = "sentry")]
+            sentry::capture_message(&message, sentry::Level::Warning);
+
+            sqlx::query("SELECT set_config('TimeZone', $1, false)")
+                .bind(normalize_time_zone(&default))
+                .execute(&mut *tx)
+                .await
+                .map(|_| ())
+                .map_err(|e| format!("set default session time zone {default:?}: {e}").into())
+        }
     }
-
-    Ok(())
 }
 
 fn normalize_time_zone(time_zone: &str) -> &str {
