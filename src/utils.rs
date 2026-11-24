@@ -72,33 +72,32 @@ pub async fn set_session_time_zone(
         .execute(&mut *savepoint)
         .await;
 
-    match result {
-        Ok(_) => {
-            savepoint.commit().await?;
-            Ok(())
-        }
-        Err(error) => {
-            // PostgreSQL aborts a transaction after an invalid setting.
-            savepoint.rollback().await?;
-            if error.as_database_error().and_then(|e| e.code()).as_deref() != Some("22023") {
-                return Err(format!("set session time zone: {error}").into());
-            }
-
-            let default = crate::time_zone();
-            let message =
-                format!("Unsupported session time zone {time_zone:?}; falling back to {default:?}");
-            tracing::warn!("{message}");
-            #[cfg(feature = "sentry")]
-            sentry::capture_message(&message, sentry::Level::Warning);
-
-            sqlx::query("SELECT set_config('TimeZone', $1, false)")
-                .bind(normalize_time_zone(&default))
-                .execute(&mut *tx)
-                .await
-                .map(|_| ())
-                .map_err(|e| format!("set default session time zone {default:?}: {e}").into())
-        }
+    if result.is_ok() {
+        savepoint.commit().await?;
+        return Ok(());
     }
+
+    let error = result.err().unwrap();
+
+    // PostgreSQL aborts a transaction after an invalid setting.
+    savepoint.rollback().await?;
+    if error.as_database_error().and_then(|e| e.code()).as_deref() != Some("22023") {
+        return Err(format!("set session time zone: {error}").into());
+    }
+
+    let default = crate::time_zone();
+    let message =
+        format!("Unsupported session time zone {time_zone:?}; falling back to {default:?}");
+    tracing::warn!("{message}");
+    #[cfg(feature = "sentry")]
+    sentry::capture_message(&message, sentry::Level::Warning);
+
+    sqlx::query("SELECT set_config('TimeZone', $1, false)")
+        .bind(normalize_time_zone(&default))
+        .execute(&mut *tx)
+        .await
+        .map(|_| ())
+        .map_err(|e| format!("set default session time zone {default:?}: {e}").into())
 }
 
 fn normalize_time_zone(time_zone: &str) -> &str {
